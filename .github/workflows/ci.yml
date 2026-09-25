@@ -1,0 +1,31 @@
+name: AegisOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate AegisOS
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout AegisOS
+        uses: actions/checkout@v4
+
+      - name: System information
+        run: |
+          uname -a
+          lscpu
+          free -h
+          df -h
+
+      - name: Validate repository
+        run: |
+          test -d packages/aegis
+          test -d security
+          test -d docs/architecture
+          echo "AegisOS repository structure OK"

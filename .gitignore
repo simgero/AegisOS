@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Local build output
+out/
+build/
+*.img
+*.iso
+*.qcow2
+
+# IDE
+.idea/
+.vscode/
+
+# Secrets
+.env
+*.key
+*.pem
