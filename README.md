@@ -8,31 +8,27 @@ Build und ein erfolgreicher Boot werden getrennt nachgewiesen.
 
 `build.sh` startet einen vollständigen Quellcode-Build auf einem dedizierten,
 frischen **Ubuntu-24.04-x86-64-Server mit systemd**, mindestens **64 GB RAM**
-und **500 GiB freiem Speicher unter `/srv/aegis`**. 800 GB Disk-Kapazität gibt
-mehr Reserve. ARM64-Docker auf dem Mac ist kein unterstützter AOSP-Buildhost.
+und **450 GiB freiem Speicher unter `/srv/aegis`**. Ein formatiertes 500-GiB-Volume mit etwa 471 GiB verfügbarem Platz genügt
+für diese Vorprüfung. Größere Volumes geben mehr Reserve. ARM64-Docker auf dem Mac ist kein unterstützter AOSP-Buildhost.
 
 Auf dem Server als `root` in Bash ausführen. Ein kurzlebiger GitHub Fine-grained
 Token benötigt Zugriff auf **simgero/AegisOS** mit **Contents: Read and write**.
-Das Repository bleibt privat. Den Token nicht in URLs oder das Repository schreiben.
+Das Repository ist öffentlich. Der Token wird für Release-Uploads benötigt.
+Den Token nicht in URLs oder das Repository schreiben.
 
 ```bash
 read -rsp 'GitHub-Token: ' GH_TOKEN; echo
 export GH_TOKEN
-export AEGIS_REF=main
+export AEGIS_REF=codex/aosp-cloud-builder
 set -o pipefail
-curl --fail --silent --show-error --location --config - \
-  "https://api.github.com/repos/simgero/AegisOS/contents/build.sh?ref=$AEGIS_REF" <<EOF_AUTH | sh
-header = "Authorization: Bearer $GH_TOKEN"
-header = "Accept: application/vnd.github.raw+json"
-EOF_AUTH
+curl -fsSL "https://raw.githubusercontent.com/simgero/AegisOS/$AEGIS_REF/build.sh" | sh
 unset GH_TOKEN
 ```
 
 `AEGIS_REF` kann auch ein Git-Commit oder ein Branch sein. Für wiederholbare
 Ausführungen denselben vollständigen Commit verwenden. Der Einstieg lädt seine
-weiteren Dateien von einem einmal aufgelösten Commit. Ein öffentlicher, anonymer
-`curl https://raw.githubusercontent.com/… | sh` funktioniert für dieses private
-Repository nicht.
+weiteren Dateien von einem einmal aufgelösten Commit. Der Download des Startscripts ist öffentlich und benötigt keinen Token.
+Schreibzugriff für den späteren Upload bleibt erforderlich.
 
 Nach der anfänglichen Paketinstallation und dem Start des Dienstes kann die
 SSH-Verbindung geschlossen werden. Davor muss sie bestehen bleiben. Der
@@ -52,13 +48,13 @@ cat /srv/aegis/runs/*/status     # Dauerhafter Status pro Durchlauf
 ## Ablauf und Ergebnisse
 
 1. Host, RAM, freien Speicher und Dateisystem prüfen; doppelte Starts sperren.
-2. Privaten GitHub-Release-Entwurf erstellen, bevor der große Download beginnt.
+2. GitHub-Release-Entwurf erstellen, bevor der große Download beginnt.
 3. AOSP und das `repo`-Werkzeug mit den Pins aus `scripts/aosp/config.sh` laden.
 4. `sdk_phone64_arm64-bp2a-userdebug` bauen (Android Emulator, kein beliebiges QEMU-Board).
 5. Laufzeitdateien aus dem Produktverzeichnis archivieren, in Teile unter 2 GiB
    aufteilen und mit Manifest, Skripten, Paketversionen und Buildlog hochladen.
 6. Alle Assets erneut herunterladen und byteweise mit dem Original vergleichen.
-7. Erst danach den Release im privaten Repository veröffentlichen und lokal
+7. Erst danach den Release im öffentlichen Repository veröffentlichen und lokal
    **`SAFE_TO_DELETE`** setzen.
 
 Das erste Baseline-Tag ist `android-16.0.0_r1`. Es ist bewusst festgelegt, aber
@@ -108,3 +104,14 @@ Quellen: [AOSP-Anforderungen](https://source.android.com/docs/setup/start/requir
 [ARM64-Emulatorprodukte](https://android.googlesource.com/device/generic/goldfish/+/refs/tags/android-16.0.0_r1/AndroidProducts.mk),
 [Release-Konfiguration](https://android.googlesource.com/platform/build/release/+/refs/tags/android-16.0.0_r1/release_configs/bp2a.textproto),
 [GitHub-Release-Grenzen](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases).
+
+Die Speicherprüfung lässt sich ohne Token, Paketinstallation oder Build ausführen:
+
+```bash
+sh build.sh --check-storage
+```
+
+Ein zusätzliches Volume muss vor dem Start unter `/srv/aegis` eingebunden sein.
+Für einen dauerhaften Mount dessen UUID in `/etc/fstab` verwenden. Der Builddienst
+fordert den Mount über systemd an. Die Grenze von 450 GiB ist eine Planungsreserve,
+keine Zusicherung des tatsächlichen Platzverbrauchs jedes AOSP-Builds.

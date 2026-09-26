@@ -106,6 +106,18 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn('GH_TOKEN', result.stdout)
 
+    def test_storage_threshold(self):
+        with tempfile.TemporaryDirectory() as folder:
+            df = Path(folder)/'df'
+            df.write_text('#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted on\\n/dev/test 600000000 0 %s 0%% /srv/aegis\\n" "$TEST_FREE_KIB"\n')
+            df.chmod(0o755)
+            for available, expected in [(471*1048576, 0), (450*1048576, 0), (450*1048576-1, 1), (191*1048576, 1)]:
+                with self.subTest(available=available):
+                    env = dict(os.environ, PATH=folder+':'+os.environ['PATH'], TEST_FREE_KIB=str(available))
+                    result = subprocess.run(['sh', str(REPO/'build.sh'), '--check-storage'], env=env,
+                                            capture_output=True, text=True)
+                    self.assertEqual(result.returncode, expected, result.stdout+result.stderr)
+
     def test_unknown_argument(self):
         result = subprocess.run(['sh', str(REPO/'build.sh'), '--invalid'], capture_output=True)
         self.assertEqual(result.returncode, 2)

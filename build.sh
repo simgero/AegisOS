@@ -1,9 +1,19 @@
 #!/bin/sh
 # POSIX entry point: curl .../build.sh | sh
 set -eu
+check_storage() {
+    # 450 GiB leaves reserve above AOSP's 400 GB guidance while admitting a
+    # formatted 500 GiB volume (about 471 GiB available with ext4 defaults).
+    available_kib=$(df -Pk /srv/aegis | awk 'END {print $4}')
+    [ "$available_kib" -ge 471859200 ] || {
+        echo 'Need at least 450 GiB free at /srv/aegis.' >&2; return 1;
+    }
+    echo "Storage OK: $((available_kib / 1048576)) GiB free at /srv/aegis."
+}
 main() {
     case ${1:-} in
-        --help) printf '%s\n' 'AegisOS disposable AOSP builder (Ubuntu 24.04 x86-64, root).' 'Required: GH_TOKEN (Contents: read/write for simgero/AegisOS).' 'Optional: AEGIS_REF (Git commit, tag or branch; default main).' 'Starts a systemd service; does not delete or shut down the server.'; return ;;
+        --help) printf '%s\n' 'AegisOS disposable AOSP builder (Ubuntu 24.04 x86-64, root).' 'Required: GH_TOKEN (Contents: read/write for simgero/AegisOS).' 'Optional: AEGIS_REF (Git commit, tag or branch; default main).' 'Use --check-storage to check disk space without starting a build.' 'Starts a systemd service; does not delete or shut down the server.'; return ;;
+        --check-storage) check_storage; return ;;
         '') ;;
         *) echo 'Unknown argument; use --help.' >&2; return 2 ;;
     esac
@@ -15,7 +25,7 @@ main() {
     [ -n "${GH_TOKEN:-}" ] || { echo 'Export GH_TOKEN first; never paste it into the URL.' >&2; return 1; }
     [ "$(awk '/MemTotal/ {print int($2/1024/1024)}' /proc/meminfo)" -ge 60 ] || { echo 'Provision at least 64 GB RAM.' >&2; return 1; }
     mkdir -p /srv/aegis
-    [ "$(df -Pk /srv/aegis | awk 'END {print $4}')" -ge 524288000 ] || { echo 'Need at least 500 GiB free at /srv/aegis.' >&2; return 1; }
+    check_storage
     # Lock before any installation/download to prevent concurrent invocations.
     exec 9>/run/aegis-bootstrap.lock
     flock -n 9 || { echo 'Another bootstrap is running.' >&2; return 1; }
@@ -50,6 +60,7 @@ main() {
     systemctl reset-failed aegis-build.service 2>/dev/null || true
     systemd-run --unit=aegis-build --collect \
         --property=User=aegis-build --property=Group=aegis-build \
+        --property=RequiresMountsFor=/srv/aegis \
         --property=LoadCredential=github-token:/run/aegis-bootstrap/github-token \
         --property=RuntimeMaxSec=24h --property=TimeoutStopSec=120 \
         --property=KillMode=control-group --property=UMask=0077 \
