@@ -19,6 +19,12 @@ if name == 'git':
 elif name == 'python3':
     if 'init' in args and '--repo-url=https://android.googlesource.com/tools/repo' not in args:
         sys.exit('repo launcher must use the explicit upstream URL')
+    if 'sync' in args:
+        required = {'-j1', '--jobs-network=1', '--jobs-checkout=1', '--retry-fetches=0', '--fail-fast'}
+        if not required.issubset(args): sys.exit('unsafe sync concurrency/retries')
+        if mode == 'rate_limit':
+            print('error: RPC failed; HTTP 429 curl 22 The requested URL returned error: 429')
+            sys.exit(1)
     if 'manifest' in args:
         pathlib.Path(args[args.index('-o')+1]).write_text('<manifest/>')
 elif name == 'env':
@@ -84,7 +90,10 @@ class WorkerTests(unittest.TestCase):
             self.assertNotIn('test-only-token', result.stdout+result.stderr)
             if mode:
                 self.assertNotEqual(result.returncode, 0, result.stdout+result.stderr)
-                self.assertEqual(status, 'FAILED')
+                self.assertEqual(status, 'RATE_LIMITED' if mode == 'rate_limit' else 'FAILED')
+                if mode == 'rate_limit':
+                    self.assertTrue((root/'server/work/google-retry-after').exists())
+                    self.assertFalse((root/'product').exists())
                 self.assertFalse((root/'remote/published').exists())
                 self.assertNotIn('SAFE_TO_DELETE:', result.stdout)
             else:
@@ -95,6 +104,7 @@ class WorkerTests(unittest.TestCase):
                 self.assertTrue(list((root/'remote').glob('images.tar.xz.part-*')))
 
     def test_verified_success(self): self.exercise()
+    def test_rate_limit_stops_before_build(self): self.exercise('rate_limit')
     def test_failed_build(self): self.exercise('build')
     def test_failed_upload(self): self.exercise('upload')
     def test_corrupt_remote_asset(self): self.exercise('corrupt')

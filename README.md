@@ -115,3 +115,15 @@ Ein zusätzliches Volume muss vor dem Start unter `/srv/aegis` eingebunden sein.
 Für einen dauerhaften Mount dessen UUID in `/etc/fstab` verwenden. Der Builddienst
 fordert den Mount über systemd an. Die Grenze von 450 GiB ist eine Planungsreserve,
 keine Zusicherung des tatsächlichen Platzverbrauchs jedes AOSP-Builds.
+
+## Google-Downloadlimits
+
+Der Quellcode wird mit nur einem Netzwerkjob heruntergeladen (`-j1`), interne
+Fetch-Wiederholungen sind abgeschaltet. Beim ersten Fehler stoppt der Sync.
+Erkennt das Script HTTP 429, endet der Lauf mit `RATE_LIMITED`; es startet
+keinen automatischen Wiederholungsversuch. Ein erneuter manueller Start wartet
+vor Google-Zugriffen mindestens bis 30 Minuten nach dem letzten 429
+(`RATE_LIMIT_WAIT`). Diese Frist bleibt im Arbeitsverzeichnis erhalten.
+Die 30 Minuten sind unsere vorsichtige Mindestpause, keine von Google garantierte
+Resetzeit. Git/repo liefert hier keinen zuverlässig auswertbaren Retry-After-Header.
+Es werden keine IPs, Konten oder Hosts gewechselt, um Limits zu umgehen.

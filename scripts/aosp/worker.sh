@@ -13,10 +13,40 @@ exec > >(tee -a "$run/build.log") 2>&1
 state() { printf '%s\n' "$1" > "$run/status.tmp"; mv "$run/status.tmp" "$run/status"; }
 gh_call() { GH_TOKEN=$(cat "${CREDENTIALS_DIRECTORY:?}/github-token") gh "$@"; }
 release_created=false
+failure_state=FAILED
+# Shared with later manual restarts; a retry must not immediately repeat a 429.
+cooldown=/srv/aegis/work/google-retry-after
+google_step() {
+    local code remaining until
+    if [[ -f "$cooldown" ]]; then
+        until=$(cat "$cooldown")
+        [[ "$until" =~ ^[0-9]+$ ]] || { echo 'Invalid Google cooldown file.'; return 1; }
+        remaining=$((until - $(date +%s)))
+        if (( remaining > 0 )); then
+            state RATE_LIMIT_WAIT
+            echo "Google cooldown: waiting $remaining seconds before any new Google request."
+            sleep "$remaining"
+        fi
+    fi
+    state SYNCING
+    if "$@" 2>&1 | tee "$run/google-step.log"; then
+        return 0
+    else
+        code=$?
+    fi
+    if grep -Eiq 'HTTP[^[:alnum:]]*429|returned error: 429|Too Many Requests' "$run/google-step.log"; then
+        failure_state=RATE_LIMITED
+        until=$(($(date +%s) + 1800))
+        printf '%s\n' "$until" > "$cooldown.tmp"
+        mv "$cooldown.tmp" "$cooldown"
+        echo 'Google returned HTTP 429. Stopping; no automatic retry. A manual restart waits at least 30 minutes.'
+    fi
+    return "$code"
+}
 failed() {
     code=$?
     trap - EXIT TERM INT
-    state FAILED
+    state "$failure_state"
     echo "Build/upload failed (exit $code). No deletion clearance. Logs: $run"
     cp "$run/build.log" "$run/failure.log" || true
     if $release_created; then
@@ -58,18 +88,19 @@ state SYNCING
 # Fetch the repo launcher from an immutable commit, rather than an unversioned script.
 mkdir -p /srv/aegis/work/repo-tool
 if [[ ! -d /srv/aegis/work/repo-tool/.git ]]; then git -C /srv/aegis/work/repo-tool init; fi
-git -C /srv/aegis/work/repo-tool fetch --depth=1 https://android.googlesource.com/tools/repo "$REPO_COMMIT"
+google_step git -C /srv/aegis/work/repo-tool fetch --depth=1 https://android.googlesource.com/tools/repo "$REPO_COMMIT"
 git -C /srv/aegis/work/repo-tool checkout --detach "$REPO_COMMIT"
 repo_tool=/srv/aegis/work/repo-tool/repo
 cd /srv/aegis/work/aosp
 export GIT_TERMINAL_PROMPT=0
 export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=user.name GIT_CONFIG_VALUE_0=AegisOS \
     GIT_CONFIG_KEY_1=user.email GIT_CONFIG_VALUE_1=build@aegisos.invalid
-python3 "$repo_tool" init -u https://android.googlesource.com/platform/manifest \
+google_step python3 "$repo_tool" init -u https://android.googlesource.com/platform/manifest \
     -b "$AOSP_MANIFEST_COMMIT" --depth=1 \
     --repo-url=https://android.googlesource.com/tools/repo \
     --repo-rev="$REPO_COMMIT" --no-clone-bundle
-python3 "$repo_tool" sync -c -j8 --no-clone-bundle --fail-fast
+google_step python3 "$repo_tool" sync -c -j1 --jobs-network=1 --jobs-checkout=1 \
+    --retry-fetches=0 --no-clone-bundle --fail-fast
 python3 "$repo_tool" manifest -r -o "$run/artifacts/manifest.xml"
 state BUILDING
 # Keep the credential directory and token out of the compiler's environment.
