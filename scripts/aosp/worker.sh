@@ -66,7 +66,9 @@ export GIT_TERMINAL_PROMPT=0
 export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=user.name GIT_CONFIG_VALUE_0=AegisOS \
     GIT_CONFIG_KEY_1=user.email GIT_CONFIG_VALUE_1=build@aegisos.invalid
 python3 "$repo_tool" init -u https://android.googlesource.com/platform/manifest \
-    -b "$AOSP_MANIFEST_COMMIT" --depth=1 --repo-rev="$REPO_COMMIT" --no-clone-bundle
+    -b "$AOSP_MANIFEST_COMMIT" --depth=1 \
+    --repo-url=https://android.googlesource.com/tools/repo \
+    --repo-rev="$REPO_COMMIT" --no-clone-bundle
 python3 "$repo_tool" sync -c -j8 --no-clone-bundle --fail-fast
 python3 "$repo_tool" manifest -r -o "$run/artifacts/manifest.xml"
 state BUILDING

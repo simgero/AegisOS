@@ -17,6 +17,8 @@ if name == 'git':
     if 'init' in args:
         (pathlib.Path(args[args.index('-C')+1])/'.git').mkdir(exist_ok=True)
 elif name == 'python3':
+    if 'init' in args and '--repo-url=https://android.googlesource.com/tools/repo' not in args:
+        sys.exit('repo launcher must use the explicit upstream URL')
     if 'manifest' in args:
         pathlib.Path(args[args.index('-o')+1]).write_text('<manifest/>')
 elif name == 'env':
