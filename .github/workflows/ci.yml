@@ -29,3 +29,13 @@ jobs:
           test -d security
           test -d docs/architecture
           echo "AegisOS repository structure OK"
+
+      - name: Validate build scripts
+        run: |
+          sh -n build.sh
+          bash -n scripts/aosp/worker.sh
+          bash -n scripts/aosp/compile.sh
+          bash -n scripts/aosp/config.sh
+
+      - name: Test build and upload state machine
+        run: python3 -B -m unittest discover -s tests -v

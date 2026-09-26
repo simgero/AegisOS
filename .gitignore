@@ -16,3 +16,7 @@ build/
 .env
 *.key
 *.pem
+
+# Python test cache
+__pycache__/
+*.pyc
