@@ -118,7 +118,11 @@ env -u CREDENTIALS_DIRECTORY -u GH_TOKEN bash "$script_dir/compile.sh" "$run"
 state PACKAGING
 product=$(cat "$run/product-out.txt")
 [[ -d "$product" ]] || { echo 'Missing product output.'; exit 1; }
-[[ -f "$product/system.img" && -f "$product/kernel-ranchu" ]] || { echo 'Missing emulator system image/kernel.'; exit 1; }
+[[ $(cat "$run/product-target.txt") == "$AOSP_LUNCH" ]] || { echo 'Unexpected compiled product.'; exit 1; }
+for required in kernel boot.img init_boot.img vendor_boot.img super.img userdata.img vbmeta.img; do
+    [[ -s "$product/$required" ]] || { echo "Missing QEMU bring-up artifact: $required"; exit 1; }
+done
+cp "$run/product-target.txt" "$run/artifacts/product-target.txt"
 # Only deliver top-level runtime files, not large obj/ intermediates or unpacked trees.
 (cd "$product"; find -L . -maxdepth 1 -type f -print0 | sort -z | tar -h --null -T - -cf -) \
     | xz -T2 -1 | split -b 1900M -d -a 4 - "$run/artifacts/images.tar.xz.part-"

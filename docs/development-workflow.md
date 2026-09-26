@@ -93,12 +93,73 @@ Manifest. Es bestätigt keinen Build und keinen Boot. Daten bleiben auf dem
 dauerhaften Server erhalten. Der bisherige `build.sh`-Vollbuild bleibt bis zur
 Anpassung von Host und QEMU-Ziel ungeeignet für den vereinbarten Ablauf.
 
-## QEMU-Buildziel: noch offen
+## Verbindliches QEMU-Buildziel
 
-Das bisherige Produkt `sdk_phone64_arm64-bp2a-userdebug` ist für Androids
-Ranchu-Emulator konfiguriert. Die lokale QEMU-Maschinenliste enthält `virt`, aber
-kein `ranchu`. Das Produkt unverändert als QEMU-kompatibel zu markieren wäre
-deshalb kein belastbarer Nachweis.
+Am 27. September 2026 bestätigt: **`aegis_qemu_arm64-userdebug`**.
+Die Entscheidung ist verbindlich. Eine erste Produktdefinition unter
+`device/aegis/qemu_arm64` erbt die ARM64-only-Cuttlefish-Basis des festgelegten
+AOSP-Tags. Ein erfolgreicher vollständiger Build oder Android-Boot ist noch
+nicht nachgewiesen.
+
+| Eigenschaft | Festlegung |
+| --- | --- |
+| AOSP-Produkt | `aegis_qemu_arm64` |
+| Buildvariante | `userdebug` |
+| Architektur | ARM64 |
+| Virtuelle Maschine | QEMU `virt` auf dem Apple-Silicon-Mac |
+| Beschleunigung | HVF als Ziel; mit Kernel und Startkonfiguration zu verifizieren |
+| Ausgangsbasis | `android-16.0.0_r1`, bestehender Manifest-Pin aus `scripts/aosp/config.sh` |
+| Bedienung im ersten Meilenstein | ADB und Entwicklungs-Shell; keine eigene Oberfläche |
+| Build und Transport | `aegis-build`; Quellcode und Artefakte über GitHub |
+
+Die konkrete Lunch-Konfiguration lautet `aegis_qemu_arm64-bp2a-userdebug`.
+`bp2a` übernimmt den bisherigen Release-Konfigurationsstand. Die Auswertung
+durch das vollständige AOSP-Buildsystem steht noch aus. Der Compiler registriert
+die zum Projekt-Commit gehörende Produktdefinition als verwalteten Symlink im
+AOSP-Baum und prüft vor dem Build den tatsächlich ausgewählten Produktnamen.
+Unbekannte bestehende Gerätedateien werden nicht überschrieben.
+
+Der Vollbuild-Bootstrap lädt neben den Skripten auch die Produktdefinition vom
+gleichen GitHub-Commit. Die Paketierung verlangt Kernel, boot, init_boot,
+vendor_boot, super, userdata und vbmeta; fehlende Dateien verhindern einen
+erfolgreichen Upload. Diese Dateien sind noch keine fertige QEMU-Startdisk.
+
+### Lokaler Hardware- und Kerneltest
+
+```sh
+python3 scripts/qemu-kernel.py --probe
+python3 scripts/qemu-kernel.py --kernel /absoluter/pfad/zum/kernel --dry-run
+python3 scripts/qemu-kernel.py --kernel /absoluter/pfad/zum/kernel
+```
+
+`--probe` wurde auf dem Mac mit QEMU 11.1.1 erfolgreich ausgeführt: eine pausierte
+ARM64-VM mit `virt-11.1`, GICv3 und HVF wurde erstellt und geschlossen. Das ist
+kein Kernel- oder Android-Boot. Der Kernelmodus akzeptiert ein unkomprimiertes
+ARM64-Linux-Image und startet ohne Netzwerk und ohne Disk. Ohne Root-Dateisystem
+ist ein Mountfehler zu erwarten; dieser Modus dient nur der Kernel-Diagnose.
+Er deaktiviert keine SELinux- oder Verschlüsselungsregeln des Android-Produkts.
+
+Erste Abnahmekriterien:
+
+1. Das eigene Produkt lässt sich auf `aegis-build` vollständig bauen; Projekt-
+   und Quellstände sowie Build-Protokoll sind dokumentiert.
+2. Die erforderlichen Images, Kernel und Startinformationen werden mit
+   Prüfsummen über GitHub auf den Mac übertragen.
+3. Android startet lokal in QEMU vollständig (`sys.boot_completed=1`);
+   ADB-Verbindung und eine bedienbare Entwicklungs-Shell sind nachgewiesen.
+4. Ein erneuter Start mit derselben dokumentierten Konfiguration gelingt.
+
+Benutzerverwaltung, FBE und Runtime-Isolation erhalten anschließend eigene
+Abnahmetests. Ein erfolgreicher Boot belegt diese Sicherheitsfunktionen nicht.
+
+### Noch zu implementierende Geräteanpassung
+
+Das bisherige Ranchu-Produkt wurde durch die eigene Produktregistrierung ersetzt.
+Die Vererbung von Cuttlefish ist ein Ausgangspunkt, keine fertige Portierung:
+Bootconfig, passende Ramdisk und GPT-/AVB-Partitionslayout sowie die
+Gegenstellen für bisherige Hostdienste müssen noch integriert und getestet werden.
+Insbesondere KeyMint/Gatekeeper dürfen nicht stillschweigend durch schwächere
+Implementierungen ersetzt werden, um einen erfolgreichen Boot vorzutäuschen.
 
 Für ein ARM64-`virt`-Ziel müssen Kernel und Module, Partitionen und fstab,
 Ramdisk/Bootconfig sowie die benötigten Android-Hardwaredienste zusammenpassen.

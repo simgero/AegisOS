@@ -20,10 +20,14 @@ auf dem Mac herunterladen, prüfen und in QEMU testen. SSH dient zur Steuerung
 und Diagnose des Builders; Projektänderungen und Build-Artefakte werden über
 GitHub übertragen.
 
-Das vorhandene Buildskript zielt noch auf `sdk_phone64_arm64-bp2a-userdebug`
-für den Android Emulator. Seine Eignung für den vorgesehenen QEMU-Aufbau ist
-noch nicht nachgewiesen; Buildziel und Startkonfiguration müssen dafür
-abgestimmt werden. Die folgenden Angaben dokumentieren den bisherigen
+Verbindliches Ziel ist **`aegis_qemu_arm64-userdebug`** für QEMU `virt` auf dem
+Mac, zunächst mit ADB und Entwicklungs-Shell. Eine erste Produktdefinition und
+Build-Anbindung sind vorhanden; der vollständige Build und Android-Boot sind
+noch nicht validiert. Der lokale QEMU/HVF-Maschinentest ist erfolgreich.
+
+Die Build-Konfiguration verwendet jetzt `aegis_qemu_arm64-bp2a-userdebug`.
+Die Android-Startdisk und die Anpassung der von Cuttlefish übernommenen
+Hostdienst-Abhängigkeiten sind noch offen. Die folgenden Angaben dokumentieren den bisherigen
 Cloud-Builder und sind noch keine fertige Anleitung für `aegis-build` und QEMU.
 
 ## Bisheriger temporärer Buildserver
@@ -72,7 +76,7 @@ cat /srv/aegis/runs/*/status     # Dauerhafter Status pro Durchlauf
 1. Host, RAM, freien Speicher und Dateisystem prüfen; doppelte Starts sperren.
 2. GitHub-Release-Entwurf erstellen, bevor der große Download beginnt.
 3. AOSP und das `repo`-Werkzeug mit den Pins aus `scripts/aosp/config.sh` laden.
-4. `sdk_phone64_arm64-bp2a-userdebug` bauen (Android Emulator, kein beliebiges QEMU-Board).
+4. `aegis_qemu_arm64-bp2a-userdebug` bauen (experimentelle Geräteintegration).
 5. Laufzeitdateien aus dem Produktverzeichnis archivieren, in Teile unter 2 GiB
    aufteilen und mit Manifest, Skripten, Paketversionen und Buildlog hochladen.
 6. Alle Assets erneut herunterladen und byteweise mit dem Original vergleichen.

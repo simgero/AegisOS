@@ -33,9 +33,11 @@ elif name == 'env':
     if mode == 'build': sys.exit(7)
     product = root/'product'
     product.mkdir()
-    (product/'system.img').write_bytes(b'system image')
-    (product/'kernel-ranchu').write_bytes(b'kernel')
+    for name in ('kernel', 'boot.img', 'init_boot.img', 'vendor_boot.img', 'super.img', 'userdata.img', 'vbmeta.img'):
+        if mode != 'missing_image' or name != 'vendor_boot.img':
+            (product/name).write_bytes(b'fixture image')
     pathlib.Path(args[-1], 'product-out.txt').write_text(str(product))
+    pathlib.Path(args[-1], 'product-target.txt').write_text('aegis_qemu_arm64-bp2a-userdebug\n')
 elif name == 'gh':
     if os.environ.get('AEGIS_SYNC_ONLY') == '1': sys.exit('sync-only must not call GitHub API')
     store = root/'remote'
@@ -121,6 +123,7 @@ class WorkerTests(unittest.TestCase):
     def test_sources_only_rate_limit(self): self.exercise('rate_limit', sync_only=True)
     def test_rate_limit_stops_before_build(self): self.exercise('rate_limit')
     def test_failed_build(self): self.exercise('build')
+    def test_missing_image(self): self.exercise('missing_image')
     def test_failed_upload(self): self.exercise('upload')
     def test_corrupt_remote_asset(self): self.exercise('corrupt')
     def test_failed_publication(self): self.exercise('publish')

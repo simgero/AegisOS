@@ -55,6 +55,15 @@ main() {
         chmod 644 "$root/$file.tmp"
         mv "$root/$file.tmp" "$root/$file"
     done
+    gh_call api -H 'Accept: application/vnd.github.raw+json' \
+        "repos/simgero/AegisOS/contents/scripts/aosp/link-product.py?ref=$commit" > "$root/link-product.py"
+    chmod 644 "$root/link-product.py"
+    install -d -m 755 "$root/device"
+    for file in AndroidProducts.mk aegis_qemu_arm64.mk BoardConfig.mk; do
+        gh_call api -H 'Accept: application/vnd.github.raw+json' \
+            "repos/simgero/AegisOS/contents/device/aegis/qemu_arm64/$file?ref=$commit" > "$root/device/$file"
+        chmod 644 "$root/device/$file"
+    done
     id aegis-build >/dev/null 2>&1 || useradd --system --create-home --home-dir /srv/aegis/home --shell /bin/bash aegis-build
     install -d -o aegis-build -g aegis-build -m 755 /srv/aegis/work /srv/aegis/runs
     systemctl reset-failed aegis-build.service 2>/dev/null || true
