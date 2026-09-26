@@ -3,6 +3,8 @@ set -Eeuo pipefail
 source "$(dirname "$0")/config.sh"
 script_dir=$(cd "$(dirname "$0")" && pwd)
 commit=${AEGIS_SCRIPT_COMMIT:?Missing script commit}
+sync_only=${AEGIS_SYNC_ONLY:-0}
+[[ "$sync_only" == 0 || "$sync_only" == 1 ]] || { echo 'Invalid AEGIS_SYNC_ONLY.'; exit 2; }
 repo=simgero/AegisOS
 run_id="aosp-$(date -u +%Y%m%dT%H%M%SZ)-${commit:0:8}-$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 run=/srv/aegis/runs/$run_id
@@ -78,9 +80,11 @@ Download all images.tar.xz.part-* files and SHA256SUMS, then run:
 
 Source pins are recorded in manifest.xml; package versions in packages.txt.
 NOTES
-gh_call release create "$run_id" --repo "$repo" --target "$commit" --draft \
-    --title "$run_id" --notes-file "$run/notes.md"
-release_created=true
+if [[ "$sync_only" == 0 ]]; then
+    gh_call release create "$run_id" --repo "$repo" --target "$commit" --draft \
+        --title "$run_id" --notes-file "$run/notes.md"
+    release_created=true
+fi
 cp "$script_dir/"*.sh "$run/artifacts/"
 printf '%s\n' "$commit" > "$run/artifacts/builder-commit.txt"
 dpkg-query -W > "$run/artifacts/packages.txt"
@@ -102,6 +106,12 @@ google_step python3 "$repo_tool" init -u https://android.googlesource.com/platfo
 google_step python3 "$repo_tool" sync -c -j1 --jobs-network=1 --jobs-checkout=1 \
     --retry-fetches=0 --no-clone-bundle --fail-fast
 python3 "$repo_tool" manifest -r -o "$run/artifacts/manifest.xml"
+if [[ "$sync_only" == 1 ]]; then
+    state SOURCES_READY
+    trap - EXIT TERM INT
+    echo "SOURCES_READY: $run (no compilation or release upload performed)"
+    exit 0
+fi
 state BUILDING
 # Keep the credential directory and token out of the compiler's environment.
 env -u CREDENTIALS_DIRECTORY -u GH_TOKEN bash "$script_dir/compile.sh" "$run"

@@ -36,6 +36,8 @@ jobs:
           bash -n scripts/aosp/worker.sh
           bash -n scripts/aosp/compile.sh
           bash -n scripts/aosp/config.sh
+          bash -n scripts/check-environment.sh
+          bash -n scripts/prepare-builder.sh
 
       - name: Test build and upload state machine
         run: python3 -B -m unittest discover -s tests -v

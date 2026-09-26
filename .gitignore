@@ -4,6 +4,7 @@
 # Local build output
 out/
 build/
+downloads/
 *.img
 *.iso
 *.qcow2

@@ -28,6 +28,7 @@ elif name == 'python3':
     if 'manifest' in args:
         pathlib.Path(args[args.index('-o')+1]).write_text('<manifest/>')
 elif name == 'env':
+    if os.environ.get('AEGIS_SYNC_ONLY') == '1': sys.exit('sync-only must not compile')
     # Intercept only the real compilation boundary, leaving the state machine intact.
     if mode == 'build': sys.exit(7)
     product = root/'product'
@@ -36,6 +37,7 @@ elif name == 'env':
     (product/'kernel-ranchu').write_bytes(b'kernel')
     pathlib.Path(args[-1], 'product-out.txt').write_text(str(product))
 elif name == 'gh':
+    if os.environ.get('AEGIS_SYNC_ONLY') == '1': sys.exit('sync-only must not call GitHub API')
     store = root/'remote'
     store.mkdir(exist_ok=True)
     action = args[1]
@@ -60,8 +62,10 @@ elif name == 'timeout':
 '''
 
 
+@unittest.skipUnless(sys.platform.startswith('linux'),
+                     'Worker needs Linux tools and a case-sensitive filesystem; covered by Linux CI')
 class WorkerTests(unittest.TestCase):
-    def exercise(self, mode=''):
+    def exercise(self, mode='', sync_only=False):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             scripts = root/'scripts'
@@ -81,6 +85,9 @@ class WorkerTests(unittest.TestCase):
             env = dict(os.environ, PATH=str(binaries)+':'+os.environ['PATH'],
                        FIXTURE_ROOT=str(root), FAIL_MODE=mode,
                        CREDENTIALS_DIRECTORY=str(credentials), AEGIS_SCRIPT_COMMIT='a'*40)
+            if sync_only:
+                env['AEGIS_SYNC_ONLY'] = '1'
+                env.pop('CREDENTIALS_DIRECTORY')
             result = subprocess.run(['bash', str(scripts/'worker.sh')], env=env,
                                     capture_output=True, text=True, timeout=30)
             runs = list((root/'server/runs').iterdir())
@@ -96,6 +103,12 @@ class WorkerTests(unittest.TestCase):
                     self.assertFalse((root/'product').exists())
                 self.assertFalse((root/'remote/published').exists())
                 self.assertNotIn('SAFE_TO_DELETE:', result.stdout)
+            elif sync_only:
+                self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
+                self.assertEqual(status, 'SOURCES_READY')
+                self.assertTrue((runs[0]/'artifacts/manifest.xml').exists())
+                self.assertFalse((root/'product').exists())
+                self.assertFalse((root/'remote').exists())
             else:
                 self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
                 self.assertEqual(status, 'SAFE_TO_DELETE')
@@ -104,6 +117,8 @@ class WorkerTests(unittest.TestCase):
                 self.assertTrue(list((root/'remote').glob('images.tar.xz.part-*')))
 
     def test_verified_success(self): self.exercise()
+    def test_sources_only_without_credentials(self): self.exercise(sync_only=True)
+    def test_sources_only_rate_limit(self): self.exercise('rate_limit', sync_only=True)
     def test_rate_limit_stops_before_build(self): self.exercise('rate_limit')
     def test_failed_build(self): self.exercise('build')
     def test_failed_upload(self): self.exercise('upload')

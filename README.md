@@ -1,10 +1,32 @@
 # AegisOS
 
 Security-/Privacy-first Betriebssystem auf AOSP-Basis. Der erste Meilenstein ist
-ein unveränderter ARM64-AOSP-Build für den Android Emulator. Ein erfolgreicher
+ein ARM64-AOSP-Build mit nachgewiesenem Start in QEMU auf dem Mac. Ein erfolgreicher
 Build und ein erfolgreicher Boot werden getrennt nachgewiesen.
 
-## Temporärer Buildserver
+## Verbindlicher Arbeitsablauf
+
+Aktueller Einrichtungsstand und Befehle: [Entwicklungsablauf](docs/development-workflow.md).
+
+1. Entwicklung lokal in diesem Projekt auf dem Mac.
+2. Boot- und Systemtests lokal in QEMU auf dem Mac.
+3. AOSP-Builds auf dem per SSH-Alias `aegis-build` erreichbaren Server.
+4. Synchronisation und Transport über GitHub: Quellcode über Git, Build-Artefakte
+   und zugehörige Prüfsummen über GitHub Releases.
+
+Der Ablauf ist: lokal entwickeln → auf GitHub pushen → auf `aegis-build` den
+festgelegten Commit beziehen und bauen → Ergebnisse auf GitHub bereitstellen →
+auf dem Mac herunterladen, prüfen und in QEMU testen. SSH dient zur Steuerung
+und Diagnose des Builders; Projektänderungen und Build-Artefakte werden über
+GitHub übertragen.
+
+Das vorhandene Buildskript zielt noch auf `sdk_phone64_arm64-bp2a-userdebug`
+für den Android Emulator. Seine Eignung für den vorgesehenen QEMU-Aufbau ist
+noch nicht nachgewiesen; Buildziel und Startkonfiguration müssen dafür
+abgestimmt werden. Die folgenden Angaben dokumentieren den bisherigen
+Cloud-Builder und sind noch keine fertige Anleitung für `aegis-build` und QEMU.
+
+## Bisheriger temporärer Buildserver
 
 `build.sh` startet einen vollständigen Quellcode-Build auf einem dedizierten,
 frischen **Ubuntu-24.04-x86-64-Server mit systemd**, mindestens **64 GB RAM**
