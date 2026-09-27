@@ -27,6 +27,8 @@ done
 tag=secure-env-$(date -u +%Y%m%dT%H%M%SZ)-${commit:0:8}
 out=/srv/aegis/runs/$tag
 install -d -o aegis-build -g aegis-build -m 755 "$out"
+# Do not inherit the invoking user's private home as the builder's cwd.
+cd "$out"
 # No token is exported to the compiler or packager.
 runuser -u aegis-build -- env -u GH_TOKEN -u GITHUB_TOKEN \
     python3 "$root/package.py" "$out"

@@ -44,6 +44,7 @@ def main():
     args = p.parse_args()
     aosp = Path('/srv/aegis/work/aosp')
     host = aosp/'out/host/linux_musl-arm64'
+    args.output = args.output.resolve()
     root = args.output/'root'
     root.mkdir(parents=True, exist_ok=False)
     for folder in ['host/bin','host/lib64','lib','state/logs','state/internal','tmp','proc','sys','dev']:
@@ -79,7 +80,7 @@ def main():
     subprocess.run([str(clang),'--target=aarch64-linux-gnu','-fuse-ld=lld','-nostdlib',
                     '-static','-ffreestanding','-fno-builtin','-fno-stack-protector',
                     '-O2','-Wl,-e,_start',str(Path(__file__).with_name('init.c')),
-                    '-o',str(root/'init')],check=True)
+                    '-o',str(root/'init')],check=True,cwd=aosp)
     (root/'state/cuttlefish_config.json').write_text(
         '{"root_dir":"/state","instances":{"1":{"instance_dir":"/state",'
         '"instance_uds_dir":"/state","run_as_daemon":false}}}\n')
