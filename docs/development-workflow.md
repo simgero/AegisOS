@@ -40,6 +40,20 @@ die heruntergeladenen Dateien zur Diagnose erhalten und gelten als ungeprüft.
 
 ## Administrative Einrichtung
 
+Der Vollbuild vom 27. September brach nach 6:45 Stunden bei Trustys `nsjail`
+ab: AppArmor verweigerte den privaten Mount-Namespace (`mount ... MS_PRIVATE:
+Permission denied`). `build.sh` lädt deshalb vor dem Start über
+`scripts/aosp/setup-sandbox.sh` ein persistentes Profil für genau
+`/srv/aegis/work/aosp/prebuilts/build-tools/linux-x86/bin/nsjail`.
+Es erlaubt diesem Programm User-Namespaces; die globale Ubuntu-Einschränkung
+bleibt aktiv. Der Build-Benutzer kontrolliert diesen Pfad und muss daher als
+vertrauenswürdig behandelt werden. Ein abweichendes vorhandenes Profil wird
+nicht überschrieben. Die Kompilierung prüft den tatsächlichen Sandbox-Start
+als Build-Benutzer vorab. Die Wirksamkeit muss beim nächsten Serverlauf bestätigt
+werden; vorhandene Build-Ausgaben werden wiederverwendet.
+
+Hintergrund: [Ubuntu AppArmor User-Namespaces](https://documentation.ubuntu.com/security/security-features/privilege-restriction/apparmor/).
+
 Die Speicherbereitstellung ist abgeschlossen und per SSH verifiziert. Den
 Formatierungsblock nicht erneut ausführen. Auch Build-Pakete und separater
 Build-Benutzer sind eingerichtet. Der folgende Block dokumentiert die bereits

@@ -56,7 +56,7 @@ main() {
     [ ${#commit} -eq 40 ] || return 1
     root=/opt/aegis-builder/$commit
     install -d -m 755 "$root"
-    for file in worker.sh config.sh compile.sh; do
+    for file in worker.sh config.sh compile.sh setup-sandbox.sh; do
         gh_call api -H 'Accept: application/vnd.github.raw+json' \
             "repos/simgero/AegisOS/contents/scripts/aosp/$file?ref=$commit" > "$root/$file.tmp"
         bash -n "$root/$file.tmp"
@@ -74,6 +74,7 @@ main() {
     done
     id aegis-build >/dev/null 2>&1 || useradd --system --create-home --home-dir /srv/aegis/home --shell /bin/bash aegis-build
     install -d -o aegis-build -g aegis-build -m 755 /srv/aegis/work /srv/aegis/runs
+    bash "$root/setup-sandbox.sh"
     systemctl reset-failed aegis-build.service 2>/dev/null || true
     systemd-run --unit=aegis-build --collect \
         --property=User=aegis-build --property=Group=aegis-build \
