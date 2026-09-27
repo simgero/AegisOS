@@ -66,3 +66,18 @@ anschließend vollständiger Android-Boot und QEMU-Grafik.
 
 Referenz: [AOSP secure_env](https://android.googlesource.com/device/google/cuttlefish/+/android-16.0.0_r1/host/commands/secure_env/README.md)
 und [Rust-KeyMint-Start](https://android.googlesource.com/device/google/cuttlefish/+/android-16.0.0_r1/host/commands/secure_env/secure_env_not_windows_main.cpp).
+
+### AOSP-musl-Export ohne `PT_INTERP`
+
+Der erste Export wurde vor dem Kompilieren des Hilfs-Init durch eine falsche
+Formatannahme abgebrochen. AOSP `android-16.0.0_r1` erzeugt dynamische
+musl-Hostprogramme absichtlich ohne `PT_INTERP`. Der eingebundene
+`android/relinterp.c`-Starter lädt `libc_musl.so` über `LD_LIBRARY_PATH` oder
+`RUNPATH`. Der direkte Aufruf von `secure_env` bleibt deshalb erhalten;
+`/host/lib64` enthält die rekursiv ermittelten Bibliotheken.
+Der Packager akzeptiert nun diesen Aufbau sowie den üblichen musl-Interpreter,
+weist andere Interpreter und beschädigte ELF-Header aber weiterhin zurück.
+
+Quellen: [AOSP-Linkerflags](https://android.googlesource.com/platform/build/soong/+/android-16.0.0_r1/cc/binary.go),
+[AOSP-musl-Startcode](https://android.googlesource.com/platform/external/musl/+/android-16.0.0_r1/android/relinterp.c).
+Die Formatprüfung ersetzt keinen erfolgreichen Lauf des Hilfssystems in QEMU.
