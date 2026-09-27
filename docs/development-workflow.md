@@ -6,6 +6,11 @@ QEMU auf dem Mac. SSH ist Steuerungs- und Diagnosekanal, kein Dateitransport.
 
 ## Verifizierter Stand vom 27. September 2026
 
+Update 28. September: Vollbuild und `UPLOAD_VERIFIED` sind erfolgreich.
+Der [lokale QEMU-Bootversuch](qemu-first-boot.md) erreicht Androids zweite
+init-Phase mit dm-verity, bleibt jedoch an der fehlenden KeyMint-Hostanbindung
+stehen. Ein vollständiger Android-Boot ist noch nicht nachgewiesen.
+
 - Mac: ARM64; QEMU 11.1.1 und GitHub CLI vorhanden; GitHub-Anmeldung funktioniert.
 - Builder: x86-64, Ubuntu 26.04.1, 93 GiB RAM, 12 CPU-Threads.
 - Platte: 1 TiB; 100 GiB Root-LV und separates 800-GiB-LV `ubuntu-vg/aegis-build`.
