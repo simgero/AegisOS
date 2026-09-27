@@ -39,6 +39,10 @@ jobs:
           bash -n scripts/aosp/config.sh
           bash -n scripts/check-environment.sh
           bash -n scripts/prepare-builder.sh
+          bash -n scripts/export-secure-env.sh
+
+      - name: Validate helper init source
+        run: clang -target aarch64-linux-gnu -ffreestanding -fno-builtin -fsyntax-only -Wall -Wextra -Werror tools/secure-env/init.c
 
       - name: Test build and upload state machine
         run: python3 -B -m unittest discover -s tests -v

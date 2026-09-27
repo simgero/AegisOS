@@ -52,6 +52,7 @@ def main():
     p.add_argument("--seconds", type=int, default=45)
     p.add_argument("--disk", type=Path, help="Optional GPT test disk; used in snapshot mode")
     p.add_argument("--bootconfig", type=Path, help="Additional bootloader parameters computed from the images")
+    p.add_argument("--prepare-only", action="store_true", help="Write ramdisk and command without starting QEMU")
     args = p.parse_args()
     if platform.system() != "Darwin" or platform.machine() != "arm64":
         p.error("Run on the Apple Silicon Mac")
@@ -80,6 +81,8 @@ def main():
         command += ["-snapshot", "-drive", f"file={args.disk.resolve()},format=raw,if=none,id=android",
                     "-device", "virtio-blk-pci,drive=android"]
     (output / "command.txt").write_text(shlex.join(command) + "\n")
+    if args.prepare_only:
+        return
     with (output / "serial.log").open("w") as log:
         try:
             result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT,
