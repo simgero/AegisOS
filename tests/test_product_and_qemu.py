@@ -1,4 +1,6 @@
 import importlib.util
+import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -38,8 +40,32 @@ class ProductTests(unittest.TestCase):
         for name in product.FILES:
             (second / name).write_text("new fixture")
         product.register(second, self.aosp)
-        self.assertEqual((self.aosp / "device/aegis/qemu_arm64").resolve(), second.resolve())
+        self.assertFalse((self.aosp / "device/aegis/qemu_arm64").is_symlink())
+        self.assertEqual((self.aosp / "device/aegis/qemu_arm64/AndroidProducts.mk").read_text(), "new fixture")
         self.assertEqual((self.source / product.FILES[0]).read_text(), "fixture")
+
+    def test_product_visible_without_following_directory_symlinks(self):
+        product.register(self.source, self.aosp)
+        discovered = [Path(root) / name for root, _, files in os.walk(self.aosp / "device")
+                      for name in files if name == "AndroidProducts.mk"]
+        self.assertIn(self.aosp / "device/aegis/qemu_arm64/AndroidProducts.mk", discovered)
+
+    def test_legacy_managed_link_migrates(self):
+        parent = self.aosp / "device/aegis"
+        parent.mkdir(parents=True)
+        (parent / "qemu_arm64").symlink_to(self.source)
+        (parent / ".aegis-product-link.json").write_text(json.dumps({"source": str(self.source)}))
+        product.register(self.source, self.aosp)
+        self.assertFalse((parent / "qemu_arm64").is_symlink())
+        self.assertTrue((self.source / "BoardConfig.mk").exists())
+
+    def test_modified_managed_file_preserved(self):
+        product.register(self.source, self.aosp)
+        path = self.aosp / "device/aegis/qemu_arm64/BoardConfig.mk"
+        path.write_text("user edit")
+        with self.assertRaises(ValueError):
+            product.register(self.source, self.aosp)
+        self.assertEqual(path.read_text(), "user edit")
 
     def test_existing_directory_preserved(self):
         target = self.aosp / "device/aegis/qemu_arm64"
