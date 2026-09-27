@@ -1,5 +1,5 @@
 #!/bin/sh
-# POSIX entry point: curl .../build.sh | sh
+# POSIX entry point. --token-stdin requires a saved script, not curl | sh.
 set -eu
 check_storage() {
     # 450 GiB leaves reserve above AOSP's 400 GB guidance while admitting a
@@ -12,19 +12,27 @@ check_storage() {
 }
 main() {
     case ${1:-} in
-        --help) printf '%s\n' 'AegisOS disposable AOSP builder (Ubuntu 24.04 x86-64, root).' 'Required: GH_TOKEN (Contents: read/write for simgero/AegisOS).' 'Optional: AEGIS_REF (Git commit, tag or branch; default main).' 'Use --check-storage to check disk space without starting a build.' 'Starts a systemd service; does not delete or shut down the server.'; return ;;
+        --help) printf '%s\n' 'AegisOS AOSP builder (Ubuntu 24.04/26.04 x86-64, root).' 'Required: GH_TOKEN (Contents: read/write for simgero/AegisOS), or --token-stdin.' 'Optional: AEGIS_REF (Git commit, tag or branch; default main).' 'Use --token-stdin COMMIT to read a token from a pipe, never command arguments.' 'Use --check-storage to check disk space without starting a build.' 'Starts a systemd service; preserves the server and source checkout.'; return ;;
         --check-storage) check_storage; return ;;
+        --token-stdin)
+            [ "$#" -eq 2 ] || { echo 'Usage: build.sh --token-stdin FULL_COMMIT' >&2; return 2; }
+            case "$2" in *[!0-9a-f]*|'') echo 'Invalid commit.' >&2; return 2;; esac
+            [ ${#2} -eq 40 ] || { echo 'A full commit is required.' >&2; return 2; }
+            AEGIS_REF=$2
+            IFS= read -r GH_TOKEN || { echo 'Could not read token from stdin.' >&2; return 1; }
+            ;;
         '') ;;
         *) echo 'Unknown argument; use --help.' >&2; return 2 ;;
     esac
     [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = x86_64 ] || { echo 'Requires Linux x86-64.' >&2; return 1; }
-    [ "$(id -u)" = 0 ] || { echo 'Run as root on the disposable build server.' >&2; return 1; }
+    [ "$(id -u)" = 0 ] || { echo 'Run as root on the build server.' >&2; return 1; }
     . /etc/os-release
-    [ "$ID" = ubuntu ] && [ "$VERSION_ID" = 24.04 ] || { echo 'Requires Ubuntu 24.04.' >&2; return 1; }
+    [ "$ID" = ubuntu ] || { echo 'Requires Ubuntu.' >&2; return 1; }
+    case "$VERSION_ID" in 24.04|26.04) ;; *) echo 'Requires Ubuntu 24.04 or 26.04.' >&2; return 1;; esac
     [ -d /run/systemd/system ] || { echo 'Requires systemd.' >&2; return 1; }
     [ -n "${GH_TOKEN:-}" ] || { echo 'Export GH_TOKEN first; never paste it into the URL.' >&2; return 1; }
     [ "$(awk '/MemTotal/ {print int($2/1024/1024)}' /proc/meminfo)" -ge 60 ] || { echo 'Provision at least 64 GB RAM.' >&2; return 1; }
-    mkdir -p /srv/aegis
+    mountpoint -q /srv/aegis || { echo 'Mount the dedicated build volume at /srv/aegis first.' >&2; return 1; }
     check_storage
     # Lock before any installation/download to prevent concurrent invocations.
     exec 9>/run/aegis-bootstrap.lock
@@ -77,7 +85,7 @@ main() {
         /bin/bash "$root/worker.sh"
     echo 'Build started. Follow: journalctl -fu aegis-build'
     echo 'Status and logs: /srv/aegis/runs/'
-    echo '24-hour runtime limit stops the job, NOT DigitalOcean billing. Delete the server yourself.'
+    echo '24-hour runtime limit stops the job. Server, sources and outputs are preserved.'
 }
 # Execute only after the complete function has arrived through the pipe.
 main "$@"

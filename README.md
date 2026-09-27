@@ -27,34 +27,32 @@ noch nicht validiert. Der lokale QEMU/HVF-Maschinentest ist erfolgreich.
 
 Die Build-Konfiguration verwendet jetzt `aegis_qemu_arm64-bp2a-userdebug`.
 Die Android-Startdisk und die Anpassung der von Cuttlefish übernommenen
-Hostdienst-Abhängigkeiten sind noch offen. Die folgenden Angaben dokumentieren den bisherigen
-Cloud-Builder und sind noch keine fertige Anleitung für `aegis-build` und QEMU.
+Hostdienst-Abhängigkeiten sind noch offen. Der erste Vollbuild liefert die
+Artefakte für diese weitere Integration; ein erfolgreicher Build ist kein Bootnachweis.
 
-## Bisheriger temporärer Buildserver
+## Dauerhafter Buildserver
 
-`build.sh` startet einen vollständigen Quellcode-Build auf einem dedizierten,
-frischen **Ubuntu-24.04-x86-64-Server mit systemd**, mindestens **64 GB RAM**
-und **450 GiB freiem Speicher unter `/srv/aegis`**. Ein formatiertes 500-GiB-Volume mit etwa 471 GiB verfügbarem Platz genügt
-für diese Vorprüfung. Größere Volumes geben mehr Reserve. ARM64-Docker auf dem Mac ist kein unterstützter AOSP-Buildhost.
+`build.sh` startet einen vollständigen Quellcode-Build auf einem
+**Ubuntu-24.04- oder Ubuntu-26.04-x86-64-Server mit systemd**, mindestens
+**64 GB RAM** und **450 GiB freiem Speicher unter `/srv/aegis`**.
+Das separate Build-Volume muss bereits eingebunden sein. Ubuntu 26.04 ist für
+unseren ersten Build zugelassen, aber noch nicht durch einen Vollbuild validiert.
 
-Auf dem Server als `root` in Bash ausführen. Ein kurzlebiger GitHub Fine-grained
-Token benötigt Zugriff auf **simgero/AegisOS** mit **Contents: Read and write**.
-Das Repository ist öffentlich. Der Token wird für Release-Uploads benötigt.
-Den Token nicht in URLs oder das Repository schreiben.
+Auf dem Server mit dem bereits angemeldeten GitHub-Benutzer ausführen. `COMMIT`
+steht für den vollständigen geprüften GitHub-Commit. `build.sh` muss aus genau
+diesem Commit stammen. Der Token geht über eine Pipe und erscheint weder in
+Befehlsargumenten noch in der Terminalausgabe:
 
 ```bash
-read -rsp 'GitHub-Token: ' GH_TOKEN; echo
-export GH_TOKEN
-export AEGIS_REF=codex/aosp-cloud-builder
 set -o pipefail
-curl -fsSL "https://raw.githubusercontent.com/simgero/AegisOS/$AEGIS_REF/build.sh" | sh
-unset GH_TOKEN
+sudo -v
+gh auth token --hostname github.com | sudo -n sh build.sh --token-stdin COMMIT
 ```
 
-`AEGIS_REF` kann auch ein Git-Commit oder ein Branch sein. Für wiederholbare
-Ausführungen denselben vollständigen Commit verwenden. Der Einstieg lädt seine
-weiteren Dateien von einem einmal aufgelösten Commit. Der Download des Startscripts ist öffentlich und benötigt keinen Token.
-Schreibzugriff für den späteren Upload bleibt erforderlich.
+Der Token benötigt Schreibzugriff auf Releases von `simgero/AegisOS`.
+Bei Fine-grained-Tokens entspricht dies **Contents: Read and write**.
+Die Unterdateien des Builders und die Gerätekonfiguration werden über GitHub
+vom festgelegten Commit geladen. Der vorhandene AOSP-Checkout wird weiterverwendet.
 
 Nach der anfänglichen Paketinstallation und dem Start des Dienstes kann die
 SSH-Verbindung geschlossen werden. Davor muss sie bestehen bleiben. Der
@@ -68,7 +66,7 @@ nicht automatisch neu gestartet.
 ```bash
 journalctl -fu aegis-build       # Fortschritt
 systemctl status aegis-build    # Laufender Dienst
-cat /srv/aegis/runs/*/status     # Dauerhafter Status pro Durchlauf
+sudo sh -c 'cat /srv/aegis/runs/*/status'     # Dauerhafter Status pro Durchlauf
 ```
 
 ## Ablauf und Ergebnisse
@@ -81,12 +79,12 @@ cat /srv/aegis/runs/*/status     # Dauerhafter Status pro Durchlauf
    aufteilen und mit Manifest, Skripten, Paketversionen und Buildlog hochladen.
 6. Alle Assets erneut herunterladen und byteweise mit dem Original vergleichen.
 7. Erst danach den Release im öffentlichen Repository veröffentlichen und lokal
-   **`SAFE_TO_DELETE`** setzen.
+   **`UPLOAD_VERIFIED`** setzen.
 
 Das erste Baseline-Tag ist `android-16.0.0_r1`. Es ist bewusst festgelegt, aber
 **kein aktueller Security-Release**. Diese userdebug-Images verwenden AOSP-Testkeys;
 sie sind Entwicklungsartefakte. Ein Boot auf Apple Silicon und die genaue
-Emulator-Einbindung sind noch zu testen. Kernel und weitere AOSP-Prebuilts bleiben
+QEMU-Einbindung sind noch zu testen. Kernel und weitere AOSP-Prebuilts bleiben
 Teil des unveränderten Upstream-Builds.
 
 `manifest.xml` enthält die aufgelösten Quell-Commits. Die Paketliste dokumentiert
@@ -94,21 +92,18 @@ die installierte Umgebung. Ubuntu-Pakete kommen aus den jeweils aktuellen
 Paketquellen: Der Ablauf ist automatisiert, **bitidentische Reproduzierbarkeit
 wird noch nicht zugesichert**.
 
-## Kosten, Fehler und Löschen
+## Laufzeit und Fehler
 
-Der Dienst stoppt nach maximal 24 Stunden. **Das löscht den Server nicht und
-beendet dessen Abrechnung nicht.** Es gibt keine automatische Serverlöschung.
-Bei einem Fehler bleibt der Release ein Entwurf; das Script versucht, das
-Fehlerlog zusätzlich hochzuladen. Bei Netzwerkausfall oder hartem Abbruch kann
-nur die lokale Diagnose vorliegen. Ein abrupt gestoppter Lauf kann auch im
-letzten aktiven Status stehen bleiben. Nur `SAFE_TO_DELETE` bestätigt den Upload.
+Der Dienst stoppt nach maximal 24 Stunden. Server, Quellen und Ergebnisse bleiben
+für weitere Builds erhalten. Bei einem Fehler bleibt der Release ein Entwurf;
+das Skript versucht, das Fehlerlog zusätzlich hochzuladen. Bei Netzwerkausfall
+oder hartem Abbruch kann nur die lokale Diagnose vorliegen. Ein abrupt gestoppter
+Lauf kann im letzten aktiven Status stehen bleiben. Nur `UPLOAD_VERIFIED`
+bestätigt den vollständigen, durch Rückdownload geprüften Upload.
 
-Nach dieser Meldung kannst du den Server löschen. Separat angelegte Volumes,
-Snapshots und Backups müssen bei Bedarf ebenfalls entfernt werden. Bei jedem
-frischen Server fallen Download und Vollbuild erneut an. Wiederholtes Starten
-auf demselben Server verwendet den Arbeitsordner erneut, beginnt aber einen
-neuen Release-Lauf; es ist kein reiner Upload-Resume. Versionswechsel auf einem
-frischen Server durchführen.
+Ein erneuter Start verwendet den Arbeitsordner weiter und beginnt einen neuen
+Release-Lauf; er ist kein reiner Upload-Resume. Die AOSP-Baseline nicht ohne
+separate Migrationsplanung wechseln.
 
 Archive lokal in ein eigenes Verzeichnis herunterladen und prüfen:
 
@@ -127,7 +122,7 @@ Diese Tests starten keinen AOSP-Build, erstellen keinen Cloudserver und laden
 nichts auf GitHub hoch. Der vollständige Build ist erst auf dem Server zu validieren.
 
 Quellen: [AOSP-Anforderungen](https://source.android.com/docs/setup/start/requirements),
-[ARM64-Emulatorprodukte](https://android.googlesource.com/device/generic/goldfish/+/refs/tags/android-16.0.0_r1/AndroidProducts.mk),
+[ARM64-Gerätebasis](https://android.googlesource.com/device/google/cuttlefish/+/refs/tags/android-16.0.0_r1/vsoc_arm64_only/phone/aosp_cf.mk),
 [Release-Konfiguration](https://android.googlesource.com/platform/build/release/+/refs/tags/android-16.0.0_r1/release_configs/bp2a.textproto),
 [GitHub-Release-Grenzen](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases).
 

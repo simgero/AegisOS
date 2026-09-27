@@ -104,7 +104,7 @@ class WorkerTests(unittest.TestCase):
                     self.assertTrue((root/'server/work/google-retry-after').exists())
                     self.assertFalse((root/'product').exists())
                 self.assertFalse((root/'remote/published').exists())
-                self.assertNotIn('SAFE_TO_DELETE:', result.stdout)
+                self.assertNotIn('UPLOAD_VERIFIED:', result.stdout)
             elif sync_only:
                 self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
                 self.assertEqual(status, 'SOURCES_READY')
@@ -113,7 +113,7 @@ class WorkerTests(unittest.TestCase):
                 self.assertFalse((root/'remote').exists())
             else:
                 self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
-                self.assertEqual(status, 'SAFE_TO_DELETE')
+                self.assertEqual(status, 'UPLOAD_VERIFIED')
                 self.assertTrue((root/'remote/published').exists())
                 self.assertTrue((root/'remote/manifest.xml').exists())
                 self.assertTrue(list((root/'remote').glob('images.tar.xz.part-*')))
@@ -151,6 +151,18 @@ class BootstrapTests(unittest.TestCase):
     def test_unknown_argument(self):
         result = subprocess.run(['sh', str(REPO/'build.sh'), '--invalid'], capture_output=True)
         self.assertEqual(result.returncode, 2)
+
+    def test_token_stdin_rejects_invalid_commit_without_disclosing_token(self):
+        result = subprocess.run(['sh', str(REPO/'build.sh'), '--token-stdin', 'main'],
+                                input='secret-fixture-token\n', text=True, capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertNotIn('secret-fixture-token', result.stdout + result.stderr)
+
+    def test_token_stdin_requires_input(self):
+        result = subprocess.run(['sh', str(REPO/'build.sh'), '--token-stdin', 'a'*40],
+                                input='', text=True, capture_output=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('Could not read token', result.stderr)
 
 
 if __name__ == '__main__':

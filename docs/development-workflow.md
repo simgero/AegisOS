@@ -16,9 +16,11 @@ QEMU auf dem Mac. SSH ist Steuerungs- und Diagnosekanal, kein Dateitransport.
   `/srv/aegis/runs`. Ein vollständiger AOSP-Build auf Ubuntu 26.04 bleibt ungeprüft.
 - `sudo -n` verlangt weiterhin interaktive Authentifizierung. GitHub CLI ist auf
   dem Server installiert; die Anmeldung als `simgero` wurde vom Benutzer bestätigt.
-- GitHub enthält vier ältere Release-Entwürfe, keinen veröffentlichten Build.
-- Das vorhandene Bootstrap-Skript verlangt Ubuntu 24.04. Es ist noch nicht für
-  den dauerhaften Ubuntu-26.04-Builder angepasst oder dort validiert.
+- Quellcode-Sync ist mit `SOURCES_READY` abgeschlossen (52 Minuten Laufzeit).
+  Etwa 120 GiB belegt, 660 GiB frei. Noch kein veröffentlichter Vollbuild.
+- Der Bootstrap akzeptiert Ubuntu 24.04 und 26.04 und verwendet für den
+  dauerhaften Server `UPLOAD_VERIFIED` als Erfolgsstatus. Ein echter Vollbuild
+  auf Ubuntu 26.04 steht noch aus.
 
 ## Prüfung und Transport
 
@@ -90,8 +92,9 @@ sudo sh -c 'cat /srv/aegis/runs/*/status'
 
 `SOURCES_READY` bestätigt nur den vollständigen Quellcode-Sync und das aufgelöste
 Manifest. Es bestätigt keinen Build und keinen Boot. Daten bleiben auf dem
-dauerhaften Server erhalten. Der bisherige `build.sh`-Vollbuild bleibt bis zur
-Anpassung von Host und QEMU-Ziel ungeeignet für den vereinbarten Ablauf.
+dauerhaften Server erhalten. Der angepasste `build.sh`-Vollbuild erstellt nun das experimentelle Produkt
+`aegis_qemu_arm64-bp2a-userdebug`. Start siehe README; ein QEMU-Bootnachweis folgt
+erst nach dem Build und der noch offenen Startdisk-/Hostdienst-Integration.
 
 ## Verbindliches QEMU-Buildziel
 

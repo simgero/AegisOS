@@ -49,7 +49,7 @@ failed() {
     code=$?
     trap - EXIT TERM INT
     state "$failure_state"
-    echo "Build/upload failed (exit $code). No deletion clearance. Logs: $run"
+    echo "Build/upload failed (exit $code). Outputs are not verified. Logs: $run"
     cp "$run/build.log" "$run/failure.log" || true
     if $release_created; then
         GH_TOKEN=$(cat "$CREDENTIALS_DIRECTORY/github-token") timeout 90 gh release upload "$run_id" \
@@ -149,7 +149,7 @@ for asset in "$run/artifacts/"*; do
 done
 printf '\nAll assets were downloaded again and compared byte for byte. Upload verified.\n' >> "$run/notes.md"
 gh_call release edit "$run_id" --repo "$repo" --draft=false --latest=false --notes-file "$run/notes.md"
-state SAFE_TO_DELETE
+state UPLOAD_VERIFIED
 trap - EXIT TERM INT
-echo "SAFE_TO_DELETE: https://github.com/$repo/releases/tag/$run_id"
-echo 'Delete the DigitalOcean server and any unwanted separate volumes yourself.'
+echo "UPLOAD_VERIFIED: https://github.com/$repo/releases/tag/$run_id"
+echo 'Persistent builder: retain sources and outputs for subsequent builds. Boot is not yet verified.'
