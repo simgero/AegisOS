@@ -18,6 +18,13 @@ Auch sie ist unkompiliert und nicht aktiviert. Bestätigtes Prozessende ersetzt
 weder Ressourcenabbau noch AOSP-Speichersperrung; die konkrete Runtime-Anbindung
 fehlt weiterhin.
 
+`libaegis-runtime-namespace` ergänzt den
+[zweistufigen Start persönlicher Namespaces](../../../runtime/namespace-launch.md):
+zunächst pausiertes Kind mit Pidfd, danach geprüfte UID/GID-Maps und Freigabe
+eines vertrauenswürdigen Setup-Helfers. Neun weitere Gerätetests sind vorbereitet.
+Bibliothek und Probe-Helfer sind unkompiliert und nicht im Produkt aktiviert;
+der echte Mount-Helfer, Broker und dessen AOSP-Autorisierung fehlen weiterhin.
+
 `AospIdentityBackend` ist für den späteren AEGIS-Systemdienst vorgesehen.
 Der Konstruktor verlangt den Android-Systemprozess-UID. Die Klasse besitzt
 keinen Binder-Endpunkt und keine eigene Benutzer-, Passwort- oder Schlüsseldatenbank.

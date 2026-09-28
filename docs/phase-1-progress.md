@@ -40,6 +40,15 @@ Code ist unkompiliert und nicht im Gast geprüft.** Der Abgleich mit AOSP zeigt,
 dass `onUserStopping` allein keine bestätigte Barriere für den Runtime-Abbau
 bietet; die vollständige Stopp-/CE-Koordination bleibt zu implementieren.
 
+Der [Namespace-Start](../runtime/namespace-launch.md) ist jetzt ebenfalls im
+Quelltext vorbereitet: gemeinsam erzeugte Namespaces/Pidfd, begrenztes Warten
+auf beide geprüften UID/GID-Maps, keine geerbten Zusatzgruppen, feste Umgebung
+und FD-Übergabe sowie beobachtbares Prozessende auch nach Startfehlern. Neun
+zusätzliche native Gerätetests sind vorbereitet; damit sind es insgesamt
+31 native Tests. **Noch nicht kompiliert, aktiviert oder in QEMU ausgeführt.**
+Der neue Code ersetzt weder den fehlenden Broker noch den Mount-Helfer,
+SELinux-Integration, AOSP-Sitzungsprüfung oder den Zwei-Benutzer-Nachweis.
+
 Auch die [gemeinsame Softwaregeneration](../runtime/generations.md) besitzt nun
 ein Buildrezept: technischer NSS-Benutzer, explizite Datei-Eigentümer, Entfernen
 der Set-ID-Bits, wiederholte ext4-Erzeugung und Lesen des tatsächlichen

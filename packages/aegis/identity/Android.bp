@@ -69,13 +69,31 @@ cc_library_static {
     stl: "none",
 }
 
+cc_library_static {
+    name: "libaegis-runtime-namespace",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/namespace.c"],
+    static_libs: ["libaegis-runtime-child"],
+    export_include_dirs: ["runtime"],
+    stl: "none",
+}
+
+// Inert trusted probe for device tests; never a production setup helper.
+cc_binary {
+    name: "aegis-runtime-namespace-probe",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/namespace_probe.c"],
+    static_executable: true,
+    stl: "none",
+}
+
 // Compile on aegis-build; execute ONLY in the local Android QEMU guest.
 cc_test {
     name: "AegisRuntimeNativeTests",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/control.c", "runtime/sandbox.c"],
-    static_libs: ["libaegis-runtime-child"],
+    srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/control.c", "runtime/sandbox.c"],
+    static_libs: ["libaegis-runtime-child", "libaegis-runtime-namespace"],
     static_executable: true,
-    data_bins: ["aegis-runtime-init"],
+    data_bins: ["aegis-runtime-init", "aegis-runtime-namespace-probe"],
     test_suites: ["device-tests"],
 }

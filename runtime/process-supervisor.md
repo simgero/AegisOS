@@ -18,10 +18,12 @@ Protokoll sind technische Zuordnungen und erteilen keine Berechtigung.
 
 Der Broker muss vorher insbesondere:
 
+0. seine zusätzlichen Gruppen während der Initialisierung entfernen, bevor
+   ein User-Namespace erzeugt wird;
 1. separate User-, Mount-, PID-, IPC- und Netzwerk-Namespaces einrichten; der
    User-Namespace liegt unmittelbar unter dem Android-Host-Namespace;
-2. die [festgelegten UID/GID-Maps](uid-mapping.md) schreiben, ergänzende Gruppen
-   entfernen und `setgroups` dauerhaft verweigern;
+2. `setgroups` dauerhaft verweigern und danach die
+   [festgelegten UID/GID-Maps](uid-mapping.md) schreiben und zurücklesen;
 3. die gemeinsame Softwaregeneration schreibgeschützt mit `nosuid,nodev`
    einbinden, die alte Host-Wurzel vollständig entfernen und persönliche
    persistente Mounts dem aktuellen CE-Eigentümer zuordnen;
@@ -117,8 +119,10 @@ Ein Kind darf seinen geerbten Beobachter nicht zum Signalisieren eines anderen
 Kontextes verwenden. Diese Prüfung ersetzt keine AOSP-Autorisierung.
 
 Die Bibliothek ist **noch nicht kompiliert oder im Gast ausgeführt** und
-aktiviert keinen Dienst. Launcher, Namespaces, Mounts, PTY-Verwaltung, Broker
-und AOSP-Koordination fehlen weiterhin. Ein beliebiges beendetes Kind beweist
+aktiviert keinen Dienst. Ein [zweistufiger Namespace-Start](namespace-launch.md)
+ist inzwischen als interne Bibliothek mit neun weiteren Gerätetests vorbereitet,
+aber ebenfalls unkompiliert. Mounts, PTY-Verwaltung, Broker und AOSP-Koordination
+fehlen weiterhin. Ein beliebiges beendetes Kind beweist
 keine Namespace-Bereinigung. Auch beim echten Runtime-PID-1 bleiben offene
 Verwaltungsreferenzen, Paketoperationen und tatsächliche CE-Sperrung gesondert
 zu behandeln. Die Kernel-Semantik wurde anhand von

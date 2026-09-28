@@ -1,7 +1,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include "child.h"
+#include "child_private.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -13,14 +13,6 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-
-struct aegis_child {
-    int pidfd;
-    pid_t owner;
-    int observed;
-    int observation_error;
-    struct aegis_child_exit result;
-};
 
 static int owned(struct aegis_child *child) {
     if (!child) { errno = EINVAL; return -1; }

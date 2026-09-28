@@ -1,0 +1,280 @@
+// Compile on aegis-build; execute only in local Android QEMU with the new
+// namespace-capable kernel and applicable SELinux policy. Never skip missing
+// prerequisites into a passing isolation result. No AOSP users are created.
+#include "namespace.h"
+#include "namespace_probe.h"
+
+#include <gtest/gtest.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <grp.h>
+#include <limits.h>
+#include <poll.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+namespace {
+
+int descriptors() {
+    DIR* directory = opendir("/proc/self/fd");
+    if (!directory) return -1;
+    int count = 0;
+    while (dirent* entry = readdir(directory)) if (entry->d_name[0] != '.') count++;
+    closedir(directory);
+    return count;
+}
+
+class RuntimeNamespace : public ::testing::Test {
+ protected:
+    int setup = -1, peers[2] = {-1, -1};
+    aegis_namespace* contexts[2] = {nullptr, nullptr};
+
+    void SetUp() override {
+        ASSERT_EQ(0u, getuid()) << "Requires the dedicated root device-test process";
+        ASSERT_EQ(0u, getgid());
+        // Affects only this disposable test process, not Android users/groups.
+        ASSERT_EQ(0, setgroups(0, nullptr));
+        struct sigaction action = {};
+        action.sa_handler = SIG_DFL;
+        sigemptyset(&action.sa_mask);
+        ASSERT_EQ(0, sigaction(SIGCHLD, &action, nullptr));
+        char path[PATH_MAX];
+        ssize_t n = readlink("/proc/self/exe", path, sizeof(path) - 1);
+        ASSERT_GT(n, 0);
+        ASSERT_LT(n, static_cast<ssize_t>(sizeof(path) - 1));
+        path[n] = '\0';
+        std::string binary(path);
+        binary.resize(binary.find_last_of('/') + 1);
+        binary += "aegis-runtime-namespace-probe";
+        setup = open(binary.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+        ASSERT_GE(setup, 0);
+        struct stat st;
+        ASSERT_EQ(0, fstat(setup, &st));
+        ASSERT_EQ(0u, st.st_uid) << "Install trusted test artifacts as root:root, mode 0755";
+    }
+
+    void TearDown() override {
+        for (unsigned i = 0; i < 2; i++) {
+            if (contexts[i]) {
+                EXPECT_EQ(0, aegis_namespace_stop(contexts[i]));
+                aegis_child_exit result = {};
+                EXPECT_EQ(0, aegis_namespace_wait(contexts[i], 5000, &result));
+                aegis_namespace_release(contexts[i]);
+            }
+            if (peers[i] >= 0) close(peers[i]);
+        }
+        if (setup >= 0) close(setup);
+        unsetenv("AEGIS_NAMESPACE_TEST_ONLY");
+    }
+
+    int create(unsigned slot, uint32_t user) {
+        int pair[2];
+        if (socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, pair) < 0) return -1;
+        int result = aegis_namespace_create(user, setup, pair[1], &contexts[slot]);
+        int saved = errno;
+        close(pair[1]);
+        if (result < 0) close(pair[0]);
+        else peers[slot] = pair[0];
+        errno = saved;
+        return result;
+    }
+
+    ssize_t report(unsigned slot, aegis_namespace_probe* output) {
+        pollfd ready = {peers[slot], POLLIN, 0};
+        if (poll(&ready, 1, 5000) != 1) return -1;
+        return recv(peers[slot], output, sizeof(*output), MSG_DONTWAIT | MSG_TRUNC);
+    }
+
+    void check(const aegis_namespace_probe& result, uint32_t user) {
+        EXPECT_EQ(0x41454e53u, result.magic);
+        EXPECT_EQ(user, result.user_id);
+        EXPECT_EQ(1u, result.pid); EXPECT_EQ(0u, result.ppid);
+        EXPECT_EQ(0u, result.uid); EXPECT_EQ(0u, result.gid);
+        EXPECT_EQ(0u, result.groups); EXPECT_EQ(static_cast<uint32_t>(SIGKILL), result.death_signal);
+        EXPECT_EQ(0u, result.extra_fds); EXPECT_EQ(1u, result.fixed_environment);
+        EXPECT_EQ(1u, result.private_mounts); EXPECT_EQ(1u, result.setgroups_denied);
+        const uint32_t expected[3][3] = {
+            {0, user * 100000 + 5000, 1000}, {1000, user * 100000 + 7500, 1},
+            {65534, user * 100000 + 7501, 1},
+        };
+        for (unsigned row = 0; row < 3; row++) for (unsigned col = 0; col < 3; col++) {
+            EXPECT_EQ(expected[row][col], result.uid_rows[row][col]);
+            EXPECT_EQ(expected[row][col], result.gid_rows[row][col]);
+        }
+        const char* names[] = {"user", "pid", "mnt", "ipc", "uts", "net"};
+        for (unsigned i = 0; i < 6; i++) {
+            std::string path = std::string("/proc/self/ns/") + names[i];
+            struct stat st;
+            ASSERT_EQ(0, stat(path.c_str(), &st));
+            EXPECT_NE(static_cast<uint64_t>(st.st_ino), result.namespace_inodes[i]) << names[i];
+        }
+    }
+
+    void finish(unsigned slot) {
+        ASSERT_EQ(1, send(peers[slot], "Q", 1, MSG_NOSIGNAL));
+        aegis_child_exit result = {};
+        ASSERT_EQ(0, aegis_namespace_wait(contexts[slot], 5000, &result));
+        EXPECT_EQ(CLD_EXITED, result.code); EXPECT_EQ(0, result.status);
+    }
+};
+
+TEST_F(RuntimeNamespace, GatePrecedesExecAndKernelMapsMatchTheSelectedUser) {
+    ASSERT_EQ(0, setenv("AEGIS_NAMESPACE_TEST_ONLY", "must-not-reach-helper", 1));
+    ASSERT_EQ(0, create(0, 10)) << strerror(errno);
+    aegis_namespace* original = contexts[0];
+    EXPECT_EQ(-1, aegis_namespace_create(10, setup, peers[0], &contexts[0]));
+    EXPECT_EQ(EINVAL, errno); EXPECT_EQ(original, contexts[0]);
+    pollfd ready = {peers[0], POLLIN, 0};
+    EXPECT_EQ(0, poll(&ready, 1, 20));
+    aegis_child_exit untouched = {123, 456};
+    EXPECT_EQ(-1, aegis_namespace_wait(contexts[0], 20, &untouched));
+    EXPECT_EQ(ETIMEDOUT, errno); EXPECT_EQ(123, untouched.code); EXPECT_EQ(456, untouched.status);
+    ASSERT_EQ(0, aegis_namespace_resume(contexts[0])) << strerror(errno);
+    aegis_namespace_probe actual = {};
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(actual)), report(0, &actual));
+    check(actual, 10);
+    EXPECT_EQ(-1, aegis_namespace_resume(contexts[0])); EXPECT_EQ(EALREADY, errno);
+    finish(0);
+}
+
+TEST_F(RuntimeNamespace, ConcurrentUsersHaveDistinctKernelNamespacesAndHostIds) {
+    ASSERT_EQ(0, create(0, 10)) << strerror(errno);
+    ASSERT_EQ(0, create(1, 11)) << strerror(errno);
+    ASSERT_EQ(0, aegis_namespace_resume(contexts[0]));
+    ASSERT_EQ(0, aegis_namespace_resume(contexts[1]));
+    aegis_namespace_probe first = {}, second = {};
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(first)), report(0, &first));
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(second)), report(1, &second));
+    check(first, 10); check(second, 11);
+    for (unsigned i = 0; i < 6; i++) EXPECT_NE(first.namespace_inodes[i], second.namespace_inodes[i]);
+    for (unsigned i = 0; i < 3; i++) EXPECT_NE(first.uid_rows[i][1], second.uid_rows[i][1]);
+    finish(0); finish(1);
+}
+
+TEST_F(RuntimeNamespace, CancellationBeforeMappingNeverExecutesTheProbe) {
+    ASSERT_EQ(0, create(0, 10));
+    ASSERT_EQ(0, aegis_namespace_stop(contexts[0]));
+    aegis_child_exit result = {};
+    ASSERT_EQ(0, aegis_namespace_wait(contexts[0], 5000, &result));
+    EXPECT_TRUE((result.code == CLD_KILLED && result.status == SIGKILL)
+                || (result.code == CLD_EXITED && result.status == 125));
+    aegis_namespace_probe unused = {};
+    EXPECT_EQ(0, report(0, &unused));
+    EXPECT_EQ(-1, aegis_namespace_resume(contexts[0])); EXPECT_EQ(EALREADY, errno);
+}
+
+TEST_F(RuntimeNamespace, AlreadyReapedGateTimeoutCannotResume) {
+    ASSERT_EQ(0, create(0, 10));
+    aegis_child_exit result = {};
+    ASSERT_EQ(0, aegis_namespace_wait(contexts[0], 15000, &result));
+    EXPECT_EQ(CLD_EXITED, result.code); EXPECT_EQ(125, result.status);
+    EXPECT_EQ(-1, aegis_namespace_resume(contexts[0])); EXPECT_EQ(ECHILD, errno);
+    aegis_namespace_probe unused = {};
+    EXPECT_EQ(0, report(0, &unused));
+}
+
+TEST_F(RuntimeNamespace, InvalidInputsLeaveNoChildOrLeakedDescriptors) {
+    int seq[2], stream[2];
+    ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, seq));
+    ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, stream));
+    int file = open("/dev/null", O_RDONLY | O_CLOEXEC);
+    ASSERT_GE(file, 0);
+    int before = descriptors();
+    ASSERT_GT(before, 0);
+    for (int i = 0; i < 16; i++) {
+        aegis_namespace* bad = nullptr;
+        for (uint32_t user : {0u, 9u, 21473u, UINT32_MAX}) {
+            EXPECT_EQ(-1, aegis_namespace_create(user, setup, seq[1], &bad));
+            EXPECT_EQ(EINVAL, errno); EXPECT_EQ(nullptr, bad);
+        }
+        EXPECT_EQ(-1, aegis_namespace_create(10, file, seq[1], &bad)); EXPECT_EQ(nullptr, bad);
+        EXPECT_EQ(-1, aegis_namespace_create(10, setup, stream[1], &bad));
+        EXPECT_EQ(EPROTOTYPE, errno); EXPECT_EQ(nullptr, bad);
+        EXPECT_EQ(-1, aegis_namespace_create(10, -1, seq[1], &bad)); EXPECT_EQ(nullptr, bad);
+    }
+    EXPECT_EQ(before, descriptors());
+    close(file); close(seq[0]); close(seq[1]); close(stream[0]); close(stream[1]);
+}
+
+TEST_F(RuntimeNamespace, InheritedObserverCannotReleaseOrSignalAnotherContext) {
+    ASSERT_EQ(0, create(0, 10));
+    pid_t observer = fork();
+    ASSERT_GE(observer, 0);
+    if (observer == 0) {
+        bool ok = aegis_namespace_resume(contexts[0]) == -1 && errno == EPERM;
+        ok &= aegis_namespace_stop(contexts[0]) == -1 && errno == EPERM;
+        aegis_child_exit result = {};
+        ok &= aegis_namespace_wait(contexts[0], 0, &result) == -1 && errno == EPERM;
+        _exit(ok ? 0 : 1);
+    }
+    int status;
+    ASSERT_EQ(observer, waitpid(observer, &status, 0));
+    ASSERT_TRUE(WIFEXITED(status)); EXPECT_EQ(0, WEXITSTATUS(status));
+    ASSERT_EQ(0, aegis_namespace_resume(contexts[0]));
+    aegis_namespace_probe actual = {};
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(actual)), report(0, &actual));
+    finish(0);
+}
+
+TEST_F(RuntimeNamespace, SupplementaryGroupsAreRejectedWithoutChangingTheCaller) {
+    pid_t observer = fork();
+    ASSERT_GE(observer, 0);
+    if (observer == 0) {
+        gid_t group = 0;
+        if (setgroups(1, &group) < 0) _exit(2);
+        aegis_namespace* bad = nullptr;
+        bool ok = aegis_namespace_create(10, setup, -1, &bad) == -1 && errno == EPERM;
+        ok &= bad == nullptr && getgroups(0, nullptr) == 1;
+        _exit(ok ? 0 : 1);
+    }
+    int status;
+    ASSERT_EQ(observer, waitpid(observer, &status, 0));
+    ASSERT_TRUE(WIFEXITED(status)); EXPECT_EQ(0, WEXITSTATUS(status));
+    EXPECT_EQ(0, getgroups(0, nullptr));
+}
+
+TEST_F(RuntimeNamespace, AutoReapingIsRejectedBeforeAnyChildIsCreated) {
+    for (int option = 0; option < 2; option++) {
+        pid_t observer = fork();
+        ASSERT_GE(observer, 0);
+        if (observer == 0) {
+            struct sigaction action = {};
+            action.sa_handler = option ? SIG_DFL : SIG_IGN;
+            action.sa_flags = option ? SA_NOCLDWAIT : 0;
+            if (sigaction(SIGCHLD, &action, nullptr) < 0) _exit(2);
+            aegis_namespace* bad = nullptr;
+            bool ok = aegis_namespace_create(10, setup, -1, &bad) == -1 && errno == EPERM;
+            _exit(ok && !bad ? 0 : 1);
+        }
+        int status;
+        ASSERT_EQ(observer, waitpid(observer, &status, 0));
+        ASSERT_TRUE(WIFEXITED(status)); EXPECT_EQ(0, WEXITSTATUS(status));
+    }
+}
+
+TEST_F(RuntimeNamespace, MultithreadedCallersAreRejectedBeforeCloning) {
+    int pipe_fds[2];
+    ASSERT_EQ(0, pipe2(pipe_fds, O_CLOEXEC));
+    pthread_t thread;
+    auto wait_for_end = [](void* fd) -> void* {
+        char value;
+        while (read(*static_cast<int*>(fd), &value, 1) < 0 && errno == EINTR) {}
+        return nullptr;
+    };
+    ASSERT_EQ(0, pthread_create(&thread, nullptr, wait_for_end, &pipe_fds[0]));
+    aegis_namespace* bad = nullptr;
+    EXPECT_EQ(-1, aegis_namespace_create(10, setup, -1, &bad));
+    EXPECT_EQ(EPERM, errno); EXPECT_EQ(nullptr, bad);
+    EXPECT_EQ(1, write(pipe_fds[1], "Q", 1));
+    EXPECT_EQ(0, pthread_join(thread, nullptr));
+    close(pipe_fds[0]); close(pipe_fds[1]);
+}
+
+}  // namespace
