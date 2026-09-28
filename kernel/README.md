@@ -1,7 +1,22 @@
 # Kernel für die gemeinsame GNU/Linux-Runtime
 
-Stand 28. September 2026: **Erster Kernel- und Treiber-Build erfolgreich beendet.**
-Kein neuer Kernel ist in die Android-Images integriert oder in QEMU abgenommen.
+Stand 28. September 2026: **Erster Kernel- und Treiber-Build beendet, anschließend
+von Androids Kompatibilitätsprüfung abgewiesen.** Kein neuer Kernel ist in QEMU
+abgenommen. Der Android-Lauf `aosp-20260928T155300Z-96f9ed6b-c975dba9`
+brach um 16:57 UTC bei `check_vintf_all` ab: FCM 202504 verlangt ausdrücklich
+`CONFIG_SYSVIPC=n`; der erste Kernel enthielt `y`.
+
+Das korrigierte Fragment lässt System-V-IPC aus und behält `POSIX_MQUEUE=y`
+sowie `IPC_NS=y`. Im gepinnten `common/init/Kconfig` lautet die Abhängigkeit
+`SYSVIPC || POSIX_MQUEUE`; persönliche IPC-Namespaces bleiben also erforderlich.
+Kernelübernahme und lokale Releaseprüfung weisen aktiviertes oder unbekanntes
+SYSVIPC jetzt schon vor einem Image-Build beziehungsweise Boot ab.
+VINTF-, SELinux- und Bootprüfungen werden nicht abgeschaltet oder abgeschwächt.
+Programme, die zwingend System-V-IPC benötigen, gehören damit nicht zum
+unterstützten Runtime-Umfang; eine Emulation ist nicht implementiert.
+Kernel und passende Treiber müssen mit diesem Fragment erneut gebaut werden.
+
+Die folgenden Angaben betreffen den ersten, inzwischen abgewiesenen Kernel:
 
 Start 14:54:46 UTC aus GitHub-Commit
 `87ab3f54e52a3e312500011ab9f65278ac72ac0d`, Dienst `aegis-kernel.service`,
@@ -57,7 +72,7 @@ Entwicklungsbasis, kein aktueller Sicherheitsstand.
 
 ## Konfiguration und Build
 
-`aegis_runtime_defconfig` ergänzt User-/PID-/IPC-Namespaces, System-V-IPC und
+`aegis_runtime_defconfig` ergänzt User-/PID-/IPC-Namespaces, POSIX-Nachrichtenqueues und
 Tmpfs-Dateiattribute. Der erste native QEMU-Testlauf bestätigte beim alten
 Kernel `CONFIG_TMPFS_XATTR=n`; drei CE-Negativtests konnten dadurch ihre
 Seriennummern-Fixtures nicht anlegen. Diese Tests bleiben bis zur Wiederholung

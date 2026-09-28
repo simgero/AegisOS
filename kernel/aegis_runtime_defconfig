@@ -5,7 +5,9 @@ CONFIG_USER_NS=y
 CONFIG_PID_NS=y
 CONFIG_UTS_NS=y
 CONFIG_NET_NS=y
-CONFIG_SYSVIPC=y
+# Android 16 FCM 202504 requires SYSVIPC=n. POSIX_MQUEUE supplies the
+# alternative IPC_NS dependency; namespace isolation remains required.
+# CONFIG_SYSVIPC is not set
 CONFIG_IPC_NS=y
 CONFIG_POSIX_MQUEUE=y
 # Private tmpfs fixtures/views need xattrs; the original GKI disabled them.

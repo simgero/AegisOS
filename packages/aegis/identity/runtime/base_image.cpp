@@ -215,7 +215,7 @@ int aegis_base_open(void) {
     // This target deliberately supports only the product's readonly EROFS
     // system_ext. Root/SELinux policy and verified system images are the trust
     // boundary; a self-consistent digest in a writable manifest is not enough.
-    if (st.st_uid || st.st_gid || (st.st_mode & 0022) || fs.f_type != EROFS_SUPER_MAGIC
+    if (st.st_uid || st.st_gid || (st.st_mode & 0022) || fs.f_type != EROFS_SUPER_MAGIC_V1
             || !(flags.f_flag & ST_RDONLY)) return fail(EPERM);
     unique_fd receipt(system_file(anchor.get(), "etc/aegis/runtime/generation.json", st));
     unique_fd image(system_file(anchor.get(), "etc/aegis/runtime/base.ext4", st));

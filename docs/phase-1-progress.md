@@ -25,8 +25,12 @@ Status: `CHECKED_INPUTS_NOT_BOOTED`; siehe [Kernel-Nachweis](../kernel/README.md
 Der vollständige Android-Build
 `aosp-20260928T155300Z-96f9ed6b-c975dba9` ist mit Commit
 `96f9ed6b895eaa386c1da77d97c02c5c7a2bc18f` gestartet. Er wählt genau diesen
-Kernel und diese Debian-Basis. Paketierung, Prüfung der tatsächlich ausgelieferten
-Partitionen, GitHub-Upload und Boot im lokalen QEMU stehen noch aus.
+Kernel und diese Debian-Basis, ist aber um 16:57 UTC bei `check_vintf_all`
+fehlgeschlagen: Androids FCM 202504 verlangt `CONFIG_SYSVIPC=n`.
+Das korrigierte Fragment behält IPC-Namespaces über POSIX-Nachrichtenqueues;
+ein erneuter Kernel-/Treiberbau ist erforderlich. Die Kompatibilitätsprüfung
+bleibt aktiv. Paketierung, Prüfung der tatsächlich ausgelieferten Partitionen,
+GitHub-Upload und Boot im lokalen QEMU stehen noch aus.
 
 Die F2FS-Korrektur für das tatsächliche Android-CE-Dateisystem ist kompiliert.
 Der [Kontextbesitzer](../runtime/context-owner.md) verbindet Speichergruppe,
@@ -43,8 +47,10 @@ begrenzte Kontextzahl und erhaltener Besitz nach Start-/Abbaufehlern. Der neue
 Quellstand umfasst 52 Java- und 74 native Tests. Drei betroffene native Dateien
 sind separat als ARM64-Objekte, drei Java-Quellen gegen die tatsächlichen
 AOSP-Systemmodule erfolgreich kompiliert. **Vollständiger Komponentenbau,
-Linken/DEX, Ausführung und Produktaktivierung stehen weiterhin aus.** Der laufende
-Build wird dafür nicht abgebrochen oder während seiner Ausführung verändert.
+Linken/DEX, Ausführung und Produktaktivierung stehen weiterhin aus.** Der
+inzwischen gescheiterte Image-Build wurde währenddessen nicht verändert.
+Zusätzlich liegt die [readonly-Basisvorbereitung](../runtime/base-bootstrap.md)
+mit fünf neuen nativen Tests vor; damit sind insgesamt 79 native Tests vorbereitet.
 
 | Anforderung | Nachweis / verbleibende Arbeit |
 | --- | --- |

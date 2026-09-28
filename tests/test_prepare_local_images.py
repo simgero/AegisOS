@@ -177,6 +177,9 @@ class PreparationTests(unittest.TestCase):
         files, _ = install(fixture.config_bytes().replace(b"CONFIG_USER_NS=y", b"CONFIG_USER_NS=n"))
         with self.assertRaisesRegex(ValueError, "configuration"):
             prepare.check_receipts(self.download, images, files)
+        files, _ = install(fixture.config_bytes().replace(b"# CONFIG_SYSVIPC is not set", b"CONFIG_SYSVIPC=y"))
+        with self.assertRaisesRegex(ValueError, "configuration"):
+            prepare.check_receipts(self.download, images, files)
 
 
 if __name__ == "__main__":

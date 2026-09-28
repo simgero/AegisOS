@@ -21,6 +21,7 @@ VERMAGIC = RELEASE + " SMP preempt mod_unload modversions aarch64"
 
 def config_bytes():
     return ("\n".join(f"{key}=y" for key in sorted(kernel.REQUIRED_CONFIG)) +
+            "\n" + "\n".join(f"# {key} is not set" for key in sorted(kernel.DISABLED_CONFIG)) +
             "\n# CONFIG_PUBLIC_FIXTURE is not set\n").encode()
 
 
@@ -132,6 +133,15 @@ class KernelIntegrationTests(unittest.TestCase):
             with self.subTest(version=version), self.assertRaises(ValueError):
                 self.prepare()
             self.assertFalse((self.aosp / "device").exists())
+
+    def test_android_incompatible_ipc_cannot_be_selected(self):
+        for replacement in (b"CONFIG_SYSVIPC=y", b"CONFIG_SYSVIPC=m", b"# absent"):
+            config = config_bytes().replace(b"# CONFIG_SYSVIPC is not set", replacement)
+            for directory in (self.gki, self.vendor):
+                (directory / "Image").write_bytes(image(config))
+            (self.gki / "kernel_aarch64_dot_config").write_bytes(config)
+            with self.subTest(value=replacement), self.assertRaisesRegex(ValueError, "compatibility"):
+                self.inspect()
 
     def test_conflicting_duplicate_or_missing_early_boot_module_is_rejected(self):
         name = sorted(kernel.BOOT_GKI)[0]

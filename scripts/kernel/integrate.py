@@ -20,12 +20,15 @@ RECORD = ".aegis-kernel-inputs.json"
 REQUIRED_CONFIG = {
     "CONFIG_ARM64", "CONFIG_ARM64_4K_PAGES", "CONFIG_IKCONFIG", "CONFIG_IKCONFIG_PROC",
     "CONFIG_NAMESPACES", "CONFIG_USER_NS", "CONFIG_PID_NS", "CONFIG_UTS_NS", "CONFIG_NET_NS",
-    "CONFIG_SYSVIPC", "CONFIG_IPC_NS", "CONFIG_POSIX_MQUEUE", "CONFIG_TMPFS_XATTR", "CONFIG_SECURITY",
+    "CONFIG_IPC_NS", "CONFIG_POSIX_MQUEUE", "CONFIG_TMPFS_XATTR", "CONFIG_SECURITY",
     "CONFIG_SECURITY_SELINUX", "CONFIG_SECCOMP", "CONFIG_SECCOMP_FILTER", "CONFIG_MODULES",
     "CONFIG_MODULE_SIG", "CONFIG_MODVERSIONS", "CONFIG_FS_ENCRYPTION", "CONFIG_DM_VERITY",
     "CONFIG_CGROUPS", "CONFIG_MEMCG", "CONFIG_F2FS_FS", "CONFIG_F2FS_FS_XATTR",
     "CONFIG_F2FS_FS_SECURITY",
 }
+# Android 16's FCM 202504 explicitly requires System V IPC to be disabled.
+# IPC_NS remains available through POSIX_MQUEUE; never bypass checkvintf.
+DISABLED_CONFIG = {"CONFIG_SYSVIPC"}
 BOOT_GKI = {"virtio_blk.ko", "virtio_console.ko", "virtio_pci.ko",
             "vmw_vsock_virtio_transport.ko"}
 BOOT_VENDOR = {"failover.ko", "nd_virtio.ko", "net_failover.ko", "virtio_dma_buf.ko",
@@ -190,6 +193,8 @@ def inspect(run, project):
         raise ValueError("Sidecar configuration does not match the executable kernel")
     if any(embedded.get(key) != "y" for key in REQUIRED_CONFIG):
         raise ValueError("Kernel lacks required namespace or Android security configuration")
+    if any(embedded.get(key) != "n" for key in DISABLED_CONFIG):
+        raise ValueError("Kernel configuration conflicts with Android compatibility requirements")
     include("provenance/Module.symvers", gki / "kernel_aarch64_Module.symvers", MAX_TEXT)
     module_names = set()
     gki_names = set()

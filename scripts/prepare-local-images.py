@@ -132,7 +132,8 @@ def check_receipts(download, images, files):
             raise ValueError("Boot image contains a different kernel")
         release, config = inspector.image_metadata(inspector.read(images / "kernel", inspector.MAX_IMAGE))
         if (release != inputs["kernel_release"]
-                or any(config.get(key) != "y" for key in inspector.REQUIRED_CONFIG)):
+                or any(config.get(key) != "y" for key in inspector.REQUIRED_CONFIG)
+                or any(config.get(key) != "n" for key in inspector.DISABLED_CONFIG)):
             raise ValueError("Delivered kernel lacks required configuration")
         checked["kernel_bundle"] = record["bundle_id"]
     base = download / "runtime-base-inputs.json"
