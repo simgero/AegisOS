@@ -6,6 +6,12 @@ BOARD_HAVE_BLUETOOTH := false
 # Keep upstream partitions and security policy while adapting virtual hardware.
 $(call inherit-product, device/google/cuttlefish/vsoc_arm64_only/phone/aosp_cf.mk)
 
+# These Cuttlefish radios have no peer in the standalone QEMU launcher. AOSP
+# applies unavailable-feature declarations after reading all partitions/APEXes.
+# In particular nfc.any gates both the persistent NFC app and NfcService startup.
+PRODUCT_COPY_FILES += \
+    device/aegis/qemu_arm64/permissions/unavailable-radios.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/aegis-unavailable-radios.xml
+
 PRODUCT_NAME := aegis_qemu_arm64
 # Must match the leaf directory used by AOSP's BoardConfig discovery.
 PRODUCT_DEVICE := qemu_arm64

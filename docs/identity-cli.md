@@ -14,7 +14,8 @@ kompiliert und nicht im Gast installiert.** Die bestehenden Android-Dialogtests 
 - `aegis`: Terminalprogramm mit verdeckter Passworteingabe und interaktiver Sitzung.
 - `AegisIdentityTests`: Android-Tests für die Eigentümerschaft von
   Credential-Kopien bei lokalen Binder-Aufrufen sowie die tatsächlich wirksame
-  Framework-Dienstliste und Mehrbenutzervorgaben. Noch nicht kompiliert oder ausgeführt.
+  Framework-Dienstliste, Mehrbenutzervorgaben und die fehlenden QEMU-Funkgeräte.
+  Noch nicht kompiliert oder ausgeführt.
 
 Die erste CLI unterstützt im Quelltext `setup`, `user list`, `user add`,
 `user remove`, `login`, `switch`, `passwd`, `status` und den bestätigten

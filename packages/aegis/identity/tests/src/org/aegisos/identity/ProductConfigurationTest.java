@@ -5,6 +5,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
+import android.content.pm.FeatureInfo;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.UserManager;
 
@@ -36,5 +38,25 @@ public final class ProductConfigurationTest {
         // The initial logout coordinator hands foreground control back to full system user 0.
         assertFalse("This product's logout handover requires a full system user",
                 UserManager.isHeadlessSystemUserMode());
+    }
+
+    @Test public void unsupportedRadiosAreNotAdvertised() {
+        PackageManager pm = InstrumentationRegistry.getInstrumentation()
+                .getTargetContext().getPackageManager();
+        // Inspect the installed system after all inherited/APEX permissions have
+        // been merged, including any new subfeatures introduced by an update.
+        for (FeatureInfo feature : pm.getSystemAvailableFeatures()) {
+            String name = feature.name;
+            if (name == null) continue; // The OpenGL ES version entry has no name.
+            boolean unsupported = name.equals("android.hardware.nfc")
+                    || name.startsWith("android.hardware.nfc.")
+                    || name.equals("android.software.nfc.beam")
+                    || name.equals("android.hardware.bluetooth")
+                    || name.startsWith("android.hardware.bluetooth.")
+                    || name.equals("android.hardware.bluetooth_le")
+                    || name.equals("android.hardware.uwb")
+                    || name.equals("android.hardware.thread_network");
+            assertFalse("Standalone QEMU has no controller for " + name, unsupported);
+        }
     }
 }

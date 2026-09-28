@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<permissions>
+    <!-- No NFC controller, UWB controller or Thread radio is connected by our
+         standalone QEMU launcher. Override inherited Cuttlefish/APEX features.
+         NFC card-emulation features also require the absent NFC controller;
+         these entries do not disable KeyMint, Gatekeeper or Secure Element HALs. -->
+    <unavailable-feature name="android.hardware.nfc" />
+    <unavailable-feature name="android.hardware.nfc.any" />
+    <unavailable-feature name="android.hardware.nfc.hce" />
+    <unavailable-feature name="android.hardware.nfc.hcef" />
+    <unavailable-feature name="android.hardware.nfc.uicc" />
+    <unavailable-feature name="android.hardware.nfc.ese" />
+    <unavailable-feature name="android.hardware.nfc.charging" />
+    <unavailable-feature name="android.software.nfc.beam" />
+    <unavailable-feature name="android.hardware.uwb" />
+    <unavailable-feature name="android.hardware.thread_network" />
+</permissions>
