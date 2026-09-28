@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/magic.h>
+#include <linux/mount.h>
 #include <linux/nsfs.h>
 #include <linux/sched.h>
 #include <poll.h>
@@ -41,10 +42,18 @@
 
 struct aegis_namespace {
     struct aegis_child *child;
-    int proc_root, gate, attempted, mapped, userns;
+    int proc_root, gate, attempted, mapped, userns, counted;
     pid_t pid; /* Used once for proc anchoring; NEVER for kill/wait/reopening. */
     uint32_t user_id, serial;
 };
+
+/* One trusted, process-owned mount namespace, established while still in
+ * Android init's namespaces. Keep its nsfs fd for this broker's lifetime;
+ * an inherited fd in a fork is NOT authority to become another broker.
+ * -2 seals a partially failed initialization: callers must terminate. */
+static int broker_mounts = -1;
+static pid_t broker_mounts_owner;
+static unsigned live_contexts;
 
 static int denied(void) { errno = EPERM; return -1; }
 static int owner(struct aegis_namespace *context) {
@@ -102,8 +111,18 @@ static int check_broker(int proc, pid_t pid) {
     if (init < 0) goto done;
     if (same_namespace(self, init, "ns/user") < 0
             || same_namespace(self, init, "ns/pid") < 0
-            || same_namespace(self, init, "ns/mnt") < 0
             || initial_map(self, "uid_map") < 0 || initial_map(self, "gid_map") < 0) goto done;
+    if (broker_mounts == -1) {
+        if (same_namespace(self, init, "ns/mnt") < 0) goto done;
+    } else {
+        struct stat expected, current;
+        if (broker_mounts < 0 || broker_mounts_owner != pid) { denied(); goto done; }
+        if (fstat(broker_mounts, &expected) < 0 || fstatat(self, "ns/mnt", &current, 0) < 0)
+            goto done;
+        if (expected.st_dev != current.st_dev || expected.st_ino != current.st_ino) {
+            denied(); goto done;
+        }
+    }
     int task = openat(self, "task", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (task < 0) goto done;
     DIR *threads = fdopendir(task);
@@ -130,6 +149,45 @@ int aegis_namespace_check_broker(void) {
     if (proc < 0) return -1;
     int result = check_broker(proc, (pid_t)syscall(SYS_getpid)), saved = errno;
     close(proc); errno = saved;
+    return result;
+}
+
+int aegis_namespace_private_mounts(void) {
+    if (aegis_namespace_check_broker() < 0) return -1;
+    if (broker_mounts >= 0) return 0;
+    if (live_contexts) { errno = EBUSY; return -1; }
+    /* No client paths/fds and no namespace received over IPC. Establish the
+     * private copy ourselves, before cloning any personal context. */
+    broker_mounts = -2;
+    if (syscall(SYS_unshare, CLONE_NEWNS) < 0
+            || mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL) < 0) return -1;
+    int fd = open("/proc/self/ns/mnt", O_RDONLY | O_CLOEXEC);
+    if (fd < 0) return -1;
+    if (ioctl(fd, NS_GET_NSTYPE) != CLONE_NEWNS) {
+        close(fd); return denied();
+    }
+    broker_mounts_owner = (pid_t)syscall(SYS_getpid);
+    broker_mounts = fd;
+    return aegis_namespace_check_broker();
+}
+
+int aegis_namespace_attach_base(int source) {
+    if (aegis_namespace_check_broker() < 0) return -1;
+    if (broker_mounts < 0) return denied();
+    struct stat st;
+    struct statvfs flags;
+    if (fstat(source, &st) < 0 || fstatvfs(source, &flags) < 0) return -1;
+    if (st.st_mode != (S_IFDIR | 0755) || st.st_uid || st.st_gid
+            || !(flags.f_flag & ST_RDONLY)) return denied();
+    /* /mnt is only a broker-private anchor. No directory is created on any
+     * shared Android filesystem. The setup child overlays /mnt with its own
+     * staging tmpfs, then pivots away from this inherited Android tree. */
+    int target = open("/mnt", O_PATH | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (target < 0) return -1;
+    int result = (int)syscall(SYS_move_mount, source, "", target, "",
+                             MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH);
+    int saved = errno;
+    close(target); errno = saved;
     return result;
 }
 
@@ -287,6 +345,8 @@ static int create(uint32_t user_id, uint32_t serial, int setup_fd, int control_f
     close(setup); close(control); close(parent); close(child_gate);
     if (restored < 0) { context->attempted = 1; close_gate(context); }
     *output = context;
+    context->counted = 1;
+    live_contexts++;
     return 0;
 fail:;
     int error = errno;
@@ -415,8 +475,9 @@ int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_sou
 int aegis_namespace_home_mount(struct aegis_namespace *context, int create) {
     if (still_waiting(context) < 0) return -1;
     if (context->mapped != 1 || context->userns < 0) { errno = EAGAIN; return -1; }
-    /* check_broker includes Android init's actual mount namespace. This path
-     * and the identity are NOT chosen by the client or setup helper. */
+    /* check_broker accepts only init's mount namespace or the exact private
+     * copy established by this process. /data is never replaced by our base
+     * anchor at /mnt. Neither path nor identity is chosen by a client. */
     int data = open("/data", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (data < 0) return -1;
     int home = aegis_ce_open_home(data, context->user_id, context->serial, create);
@@ -486,6 +547,8 @@ int aegis_namespace_wait(struct aegis_namespace *context, int timeout_ms,
 
 void aegis_namespace_release(struct aegis_namespace *context) {
     if (!context) return;
+    if (context->counted && context->child->owner == (pid_t)syscall(SYS_getpid))
+        live_contexts--;
     close_gate(context);
     if (context->proc_root >= 0) close(context->proc_root);
     if (context->userns >= 0) close(context->userns);

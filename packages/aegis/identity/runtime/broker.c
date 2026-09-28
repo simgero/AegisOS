@@ -240,7 +240,11 @@ int main(int argc, char **argv) {
     root = open("/sys/fs/cgroup", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (root < 0) goto done;
     parent = aegis_broker_cgroup_prepare(root, 10000); if (parent < 0) goto done;
+    phase = "private mount namespace";
+    if (aegis_namespace_private_mounts() < 0) goto done;
     phase = "immutable base"; base = aegis_base_open(); if (base < 0) goto done;
+    phase = "private base anchor";
+    if (aegis_namespace_attach_base(base) < 0) goto done;
     phase = "setup helper";
     setup = helper("/system/bin/aegis-runtime-setup", "u:object_r:aegis_runtime_setup_exec:s0");
     if (setup < 0) goto done;

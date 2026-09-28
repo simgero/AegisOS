@@ -14,11 +14,13 @@
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
+#include <sched.h>
 #include <set>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
 #include <sys/socket.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/sysmacros.h>
@@ -40,6 +42,7 @@ int descriptors() {
 class RuntimeNamespace : public ::testing::Test {
  protected:
     int setup = -1, peers[2] = {-1, -1}, source = -1, mounts[2] = {-1, -1};
+    bool source_attached = false;
     aegis_namespace* contexts[2] = {nullptr, nullptr};
 
     void SetUp() override {
@@ -51,6 +54,7 @@ class RuntimeNamespace : public ::testing::Test {
         action.sa_handler = SIG_DFL;
         sigemptyset(&action.sa_mask);
         ASSERT_EQ(0, sigaction(SIGCHLD, &action, nullptr));
+        ASSERT_EQ(0, aegis_namespace_private_mounts()) << strerror(errno);
         char path[PATH_MAX];
         ssize_t n = readlink("/proc/self/exe", path, sizeof(path) - 1);
         ASSERT_GT(n, 0);
@@ -76,6 +80,14 @@ class RuntimeNamespace : public ::testing::Test {
             }
             if (peers[i] >= 0) close(peers[i]);
             if (mounts[i] >= 0) close(mounts[i]);
+        }
+        if (source_attached) {
+            struct stat ours, named;
+            if (aegis_namespace_check_broker() == 0
+                    && fstat(source, &ours) == 0 && stat("/mnt", &named) == 0
+                    && ours.st_dev == named.st_dev && ours.st_ino == named.st_ino) {
+                EXPECT_EQ(0, umount2("/mnt", MNT_DETACH));
+            } else ADD_FAILURE() << "Refuse to unmount a replaced fixture anchor";
         }
         if (source >= 0) close(source);
         if (setup >= 0) close(setup);
@@ -137,8 +149,9 @@ class RuntimeNamespace : public ::testing::Test {
 
     int fixture(bool readonly) {
         // Real kernel filesystem operations, ONLY in the local Android guest.
-        // The inert fixture is detached throughout: no host path is mounted,
-        // no loop device or AOSP user/CE directory is created or changed.
+        // Attach only in the checked private broker namespace, just as the
+        // production base must be attached before the kernel can clone it.
+        // No loop device, Android mount or AOSP user/CE directory is changed.
         int fs = static_cast<int>(syscall(SYS_fsopen, "tmpfs", FSOPEN_CLOEXEC));
         if (fs < 0) return -1;
         if (syscall(SYS_fsconfig, fs, FSCONFIG_SET_STRING, "mode", "0755", 0) < 0
@@ -165,11 +178,24 @@ class RuntimeNamespace : public ::testing::Test {
         return 0;
     }
 
-    int freeze_source() {
+    int freeze_source(bool anchor = true) {
         mount_attr attributes = {};
         attributes.attr_set = MOUNT_ATTR_RDONLY | MOUNT_ATTR_NOEXEC;
-        return static_cast<int>(syscall(SYS_mount_setattr, source, "", AT_EMPTY_PATH,
-                                        &attributes, sizeof(attributes)));
+        int result = static_cast<int>(syscall(SYS_mount_setattr, source, "", AT_EMPTY_PATH,
+                                              &attributes, sizeof(attributes)));
+        if (result < 0) return -1;
+        return anchor ? anchor_source() : 0;
+    }
+
+    int anchor_source() {
+        struct stat android_before, android_after;
+        if (stat("/proc/1/root/mnt", &android_before) < 0) return -1;
+        if (aegis_namespace_attach_base(source) < 0) return -1;
+        source_attached = true;
+        if (stat("/proc/1/root/mnt", &android_after) < 0) return -1;
+        if (android_before.st_dev != android_after.st_dev
+                || android_before.st_ino != android_after.st_ino) { errno = EXDEV; return -1; }
+        return 0;
     }
 
     void mapped_files(int tree, uint32_t user) {
@@ -207,6 +233,25 @@ class RuntimeNamespace : public ::testing::Test {
         }
     }
 };
+
+TEST_F(RuntimeNamespace, BrokerOwnsAPrivateMountNamespaceAndRefusesOtherNamespaces) {
+    struct stat self, init;
+    ASSERT_EQ(0, stat("/proc/self/ns/mnt", &self));
+    ASSERT_EQ(0, stat("/proc/1/ns/mnt", &init));
+    EXPECT_NE(self.st_ino, init.st_ino);
+    ASSERT_EQ(0, aegis_namespace_check_broker());
+    int own = open("/proc/self/ns/mnt", O_RDONLY | O_CLOEXEC);
+    ASSERT_GE(own, 0);
+    // Only this disposable test process moves. The production API never takes
+    // a namespace fd from a caller. Save/restore the pinned view even on error.
+    ASSERT_EQ(0, unshare(CLONE_NEWNS));
+    EXPECT_EQ(-1, aegis_namespace_check_broker()); EXPECT_EQ(EPERM, errno);
+    EXPECT_EQ(-1, aegis_namespace_private_mounts()); EXPECT_EQ(EPERM, errno);
+    int restored = setns(own, CLONE_NEWNS);
+    close(own);
+    ASSERT_EQ(0, restored);
+    EXPECT_EQ(0, aegis_namespace_check_broker());
+}
 
 TEST_F(RuntimeNamespace, GatePrecedesExecAndKernelMapsMatchTheSelectedUser) {
     ASSERT_EQ(0, setenv("AEGIS_NAMESPACE_TEST_ONLY", "must-not-reach-helper", 1));
@@ -293,7 +338,8 @@ TEST_F(RuntimeNamespace, InheritedObserverCannotReleaseOrSignalAnotherContext) {
     pid_t observer = fork();
     ASSERT_GE(observer, 0);
     if (observer == 0) {
-        bool ok = aegis_namespace_resume(contexts[0]) == -1 && errno == EPERM;
+        bool ok = aegis_namespace_private_mounts() == -1 && errno == EPERM;
+        ok &= aegis_namespace_resume(contexts[0]) == -1 && errno == EPERM;
         ok &= aegis_namespace_prepare(contexts[0]) == -1 && errno == EPERM;
         ok &= aegis_namespace_base_mount(contexts[0], -1) == -1 && errno == EPERM;
         ok &= aegis_namespace_home_mount(contexts[0], 0) == -1 && errno == EPERM;
@@ -389,6 +435,21 @@ TEST_F(RuntimeNamespace, PreparedMappingsKeepExecBlockedWhileBaseMountIsBuilt) {
     finish(0);
 }
 
+TEST_F(RuntimeNamespace, DetachedBaseRequiresThePrivateAnchorBeforeItCanBeCloned) {
+    ASSERT_EQ(0, fixture(false));
+    ASSERT_EQ(0, freeze_source(false));
+    ASSERT_EQ(0, create(0, 10));
+    ASSERT_EQ(0, aegis_namespace_prepare(contexts[0]));
+    EXPECT_EQ(-1, aegis_namespace_base_mount(contexts[0], source));
+    EXPECT_EQ(EINVAL, errno);
+    ASSERT_EQ(0, anchor_source()) << strerror(errno);
+    mounts[0] = aegis_namespace_base_mount(contexts[0], source);
+    ASSERT_GE(mounts[0], 0) << strerror(errno);
+    mapped_files(mounts[0], 10);
+    pollfd ready = {peers[0], POLLIN, 0};
+    EXPECT_EQ(0, poll(&ready, 1, 20));
+}
+
 TEST_F(RuntimeNamespace, TwoViewsKeepSharedInodesWithSeparateUserOwnership) {
     ASSERT_EQ(0, fixture(true));
     ASSERT_EQ(0, create(0, 10)); ASSERT_EQ(0, create(1, 11));
@@ -417,6 +478,7 @@ TEST_F(RuntimeNamespace, TwoViewsKeepSharedInodesWithSeparateUserOwnership) {
 
 TEST_F(RuntimeNamespace, WritableOrNonDirectorySourcesAreRefusedWithoutMutationOrLeaks) {
     ASSERT_EQ(0, fixture(false));
+    EXPECT_EQ(-1, aegis_namespace_attach_base(source)); EXPECT_EQ(EPERM, errno);
     ASSERT_EQ(0, create(0, 10)); ASSERT_EQ(0, aegis_namespace_prepare(contexts[0]));
     int before = descriptors();
     ASSERT_GT(before, 0);

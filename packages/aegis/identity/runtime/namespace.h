@@ -11,9 +11,26 @@ extern "C" {
 /* Fixed host-process prerequisites shared with the daemon's startup guard. */
 int aegis_namespace_check_broker(void);
 
+/* Startup-only: verify the initial host namespaces and other broker guards,
+ * then create our own private mount namespace. Must precede personal contexts.
+ * Idempotent only in this process and that exact namespace. Initialization
+ * failure is terminal; no retry/fallback after partially changing namespaces.
+ * Holds one CLOEXEC namespace fd for the broker's lifetime. */
+int aegis_namespace_private_mounts(void);
+
+/* In the above private namespace only: attach the broker-verified readonly
+ * base root at /mnt, without modifying Android's mount namespace or creating
+ * filesystem entries. Source fd remains owned and valid. Kernel open_tree
+ * cloning requires this attachment; a detached fsmount is not a clone source.
+ * Source provenance/hash/immutable backing remain the broker's obligation.
+ * Mount lifetime is this namespace's lifetime (and any clone/fd references).
+ * Production attaches once; tests detach their own inert fixture on cleanup. */
+int aegis_namespace_attach_base(int verified_source_fd);
+
 /* INTERNAL trusted launcher primitive, not an AOSP authorization endpoint.
  * Caller: dedicated SINGLE-THREADED Android host-root broker, initial user/PID
- * and mount namespaces, no supplementary groups, exclusive child reaper, no SIGCHLD
+ * namespaces and either the initial mount namespace or its own explicitly
+ * established private copy, no supplementary groups, exclusive child reaper, no SIGCHLD
  * auto-reaping. Drop groups during broker initialization, NOT after NEWUSER.
  * The broker must bind every handle to a fresh authorized AOSP id+serial and
  * CE state; user_id alone grants no authority and must not come from a client.
@@ -74,6 +91,7 @@ int aegis_namespace_prepare(struct aegis_namespace *context);
  * executable even if the source is noexec. On failure context
  * remains paused: abort it or correct preparation within the same deadline.
  *
+ * The source must already be attached in this broker's mount namespace.
  * Source provenance, generation hash, absence of private data, and backing
  * filesystem immutability are BROKER obligations. Root ownership/read-only
  * flags alone cannot authenticate a base. Not for CE directories: their host

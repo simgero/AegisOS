@@ -16,7 +16,8 @@ int aegis_base_parse_receipt(const char *json, size_t length, struct aegis_base_
 
 /* Fixed system_ext inputs only: no CLI paths, arbitrary manifests or images.
  * Returns an owned, detached, readonly/nosuid/nodev/noexec ext4 mount fd.
- * Source stays unmodified; no mount is attached to Android's mount namespace.
+ * Source stays unmodified; no mount is attached by this function. The broker
+ * attaches it in its own checked private namespace before cloning user views.
  * Requires the dedicated image/base SELinux types and production policy.
  * Caller must still establish trusted boot, daemon ownership, AOSP admission,
  * lifecycle recovery and helpers. Success alone does not start a runtime.

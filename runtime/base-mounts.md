@@ -1,8 +1,31 @@
 # Persönliche Sicht auf die gemeinsame Basis
 
-Stand: **Quelltext und vier zusätzliche Gerätetests vorbereitet, noch nicht
-kompiliert oder ausgeführt.** Die echte Debian-ext4-Basis ist weiterhin weder
-gebaut noch im Gast gemountet. Es gibt keinen aktivierten Runtime-Modus.
+Stand 28. September 2026: Die Komponenten sind kompiliert; im lokalen Gast
+bestehen 83 von 86 nativen Tests. Drei Basis-Mount-Tests scheitern, weil
+`open_tree(OPEN_TREE_CLONE)` eine im aktuellen Namespace eingehängte Quelle
+verlangt. Die echte Debian-ext4-Basis ist gebaut und im Image enthalten,
+aber noch nicht als produktive Runtime im Gast eingebunden.
+
+Die neue Korrektur schafft vor dem ersten persönlichen Kontext einen eigenen
+privaten Mount-Namensraum des Brokers. Dessen tatsächlich geöffnetes nsfs-FD
+und Prozess-ID bleiben gebunden; fremde/geerbte oder nachträglich gewechselte
+Namespaces werden abgewiesen. Ein fehlgeschlagener Initialisierungsschritt
+versiegelt den Zustand, statt einen schwächeren Start zu erlauben. User-/PID-
+Namespace, Root-Kennungen, Einzelthread und Reaper-Bedingungen bleiben geprüft.
+
+Nur dort hängt der Broker seine zuvor verifizierte schreibgeschützte Basis an
+`/mnt` ein. Androids Mount-Baum und Dateien werden nicht verändert. Der
+Setup-Helfer überdeckt diesen Pfad in seinem eigenen Namespace und entfernt
+später die geerbte Android-Wurzel wie bisher. Die Basisreferenz lebt bis zum
+Ende des privaten Namespace und aller Mount-/FD-Referenzen. Der noch nicht
+aktivierte Broker erhält diesen Schritt ausdrücklich vor seiner Kontextanlage.
+
+Die bestehenden vier Mounttests verwenden nun dieselbe private Einhängung.
+Zwei zusätzliche Tests prüfen die verweigerte Namespace-Übernahme sowie
+denselben detached Mount vor/nach Einhängung. Fixtures prüfen zusätzlich
+Androids unveränderten `/mnt`-Inode und entfernen nur ihre eigene private
+Einhängung. Die neue Korrektur benötigt noch Server-Kompilierung und Gasttests;
+sie ist kein bereits bestandener Lauf oder fertiger Linux-Start.
 
 `aegis_namespace_prepare` kann die UID/GID-Maps jetzt getrennt einrichten und
 den Exec-Kanal geschlossen halten. Dabei speichert die Bibliothek den wirklichen
@@ -50,12 +73,13 @@ für dessen Attribute. Es gibt keinen Fallback auf `chown`, fehlende
 User-Namespaces oder bloßes `chroot`.
 
 Vier zusätzliche Tests verwenden echte Kernelaufrufe mit einem kleinen,
-vollständig detached Tmpfs und drei Textdateien. Sie prüfen die geschlossene
+zunächst detached Tmpfs und drei Textdateien. Sie prüfen die geschlossene
 Startfreigabe, Schreibschutz, ausführbare Sicht bei unverändertem `noexec`-
 Quell-Mount, identische Inodes mit unterschiedlichen Kennungen für zwei Kontexte
 sowie Abweisung unpassender Quellen und beendeter Kinder. Die Fixtures nutzen
 [fsopen/fsmount](https://man7.org/linux/man-pages/man2/fsopen.2.html), werden an
-keinen Gastpfad angehängt und erzeugen keine AOSP-Benutzer oder CE-Verzeichnisse.
+keinen Android-Mount-Baum angehängt, sondern nur in die private Broker-Sicht;
+sie erzeugen keine AOSP-Benutzer oder CE-Verzeichnisse.
 
 Mit CE-, [Gerätevorbereitung](private-devices.md) und
 [Startprotokoll](namespace-setup.md) sind inzwischen **50 native Gerätetests**
