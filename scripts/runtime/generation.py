@@ -319,7 +319,13 @@ def build(plan, imported, aosp, output):
             if path.is_symlink() or not path.is_file() or path.stat().st_size != plan["image_bytes"]:
                 raise ValueError("Filesystem tool did not produce the requested regular raw image")
         if sha_file(image) != sha_file(staged / "repeat.ext4"):
-            raise ValueError("Repeated filesystem construction produced different bytes")
+            # Preserve the rejected pair for byte/inode diagnostics. Neither
+            # a generation receipt nor the approved output directory is created.
+            (staged / "plan.json").write_bytes(encoded(plan))
+            failed = staged.with_name(staged.name.replace(".runtime-image-", "failed-runtime-image-", 1))
+            staged.rename(failed)
+            raise ValueError("Repeated filesystem construction produced different bytes; "
+                             f"rejected inputs/images preserved at {failed}")
         subprocess.run([str(tool_dir / "e2fsck"), "-f", "-n", str(image)],
                        env=env, check=True, timeout=180)
         verify_superblock(image, plan["image_bytes"], image_uuid)

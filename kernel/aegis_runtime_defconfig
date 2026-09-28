@@ -8,3 +8,5 @@ CONFIG_NET_NS=y
 CONFIG_SYSVIPC=y
 CONFIG_IPC_NS=y
 CONFIG_POSIX_MQUEUE=y
+# Private tmpfs fixtures/views need xattrs; the original GKI disabled them.
+CONFIG_TMPFS_XATTR=y

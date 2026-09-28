@@ -26,7 +26,11 @@ Entwicklungsbasis, kein aktueller Sicherheitsstand.
 
 ## Konfiguration und Build
 
-`aegis_runtime_defconfig` ergänzt User-/PID-/IPC-Namespaces und System-V-IPC.
+`aegis_runtime_defconfig` ergänzt User-/PID-/IPC-Namespaces, System-V-IPC und
+Tmpfs-Dateiattribute. Der erste native QEMU-Testlauf bestätigte beim alten
+Kernel `CONFIG_TMPFS_XATTR=n`; drei CE-Negativtests konnten dadurch ihre
+Seriennummern-Fixtures nicht anlegen. Diese Tests bleiben bis zur Wiederholung
+mit dem neuen Kernel fehlgeschlagen.
 Die Optionen für SELinux, Signaturen und andere Android-Sicherheitsmechanismen
 werden nicht abgeschaltet. `CONFIG_VIRTIO_NET` wird nicht erzwungen: Der
 Virtual-Device-Build erzeugt bereits das im bisherigen Gast geladene Modul.
