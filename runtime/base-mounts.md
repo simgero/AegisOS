@@ -1,9 +1,10 @@
 # Persönliche Sicht auf die gemeinsame Basis
 
-Stand 28. September 2026: Die Komponenten sind kompiliert; im lokalen Gast
-bestehen 83 von 86 nativen Tests. Drei Basis-Mount-Tests scheitern, weil
-`open_tree(OPEN_TREE_CLONE)` eine im aktuellen Namespace eingehängte Quelle
-verlangt. Die echte Debian-ext4-Basis ist gebaut und im Image enthalten,
+Stand 28. September 2026: Die korrigierten Komponenten `bfe90925` sind auf
+`aegis-build` kompiliert; im lokalen Android-QEMU bestehen **88 von 88 nativen
+Tests**, einschließlich aller zuvor fehlgeschlagenen Basis-Mount-Prüfungen.
+`open_tree(OPEN_TREE_CLONE)` verlangt eine im aktuellen Namespace eingehängte
+Quelle. Die echte Debian-ext4-Basis ist gebaut und im Image enthalten,
 aber noch nicht als produktive Runtime im Gast eingebunden.
 
 Die neue Korrektur schafft vor dem ersten persönlichen Kontext einen eigenen
@@ -24,8 +25,9 @@ Die bestehenden vier Mounttests verwenden nun dieselbe private Einhängung.
 Zwei zusätzliche Tests prüfen die verweigerte Namespace-Übernahme sowie
 denselben detached Mount vor/nach Einhängung. Fixtures prüfen zusätzlich
 Androids unveränderten `/mnt`-Inode und entfernen nur ihre eigene private
-Einhängung. Die neue Korrektur benötigt noch Server-Kompilierung und Gasttests;
-sie ist kein bereits bestandener Lauf oder fertiger Linux-Start.
+Einhängung. Der vollständige native Gastlauf bestätigt diese Korrektur;
+Nachweise und Grenzen stehen im [Komponentenbericht](../docs/component-tests.md).
+Das ist weiterhin kein fertiger Linux-Start.
 
 `aegis_namespace_prepare` kann die UID/GID-Maps jetzt getrennt einrichten und
 den Exec-Kanal geschlossen halten. Dabei speichert die Bibliothek den wirklichen

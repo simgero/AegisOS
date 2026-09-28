@@ -1,7 +1,32 @@
 # Komponentenläufe in lokalem QEMU
 
-Stand: 28. September 2026. Einzelne Module geprüft, noch keine Abnahme der
-installierten AEGIS-Dienste oder einer GNU/Linux-Sitzung.
+Stand: 28. September 2026. Einzelne Module und der separate CLI-Ablauf sind
+geprüft; eine persönliche GNU/Linux-Sitzung ist noch nicht integriert.
+
+## Korrigierter nativer Lauf `bfe90925`
+
+Alle **88 nativen Tests bestehen**, ohne Abwahl, im lokalen Mac-QEMU-Lauf
+`out/components-7c09d1f/boot-1` auf dem vollständigen Image `25fde995`.
+Die geprüften ARM64-Module stammen aus Commit
+`bfe90925aa1873761f091a74a70e2ee1cf7b8bf9`, Builderlauf
+`identity-20260928T205138Z-bfe90925-XDN6PJ`, InvocationID
+`ab79d182a8684ad4bd5797097c4d4174`. Der
+[Komponenten-Release](https://github.com/simgero/AegisOS/releases/tag/components-20260928T205942Z-bfe90925-bfe90925-LhHoqY)
+wurde über GitHub transportiert und auf dem Mac geprüft.
+
+Die drei zuvor fehlgeschlagenen Mounttests bestehen nach der privaten
+Broker-Einhängung. Zwei zusätzliche Tests bestätigen die Namespace-Bindung
+und den zunächst abgewiesenen detached Mount, der erst nach der kontrollierten
+Einhängung geklont werden kann. Androids eigener Mount-Baum bleibt unverändert.
+Bootabschluss, authentifiziertes ADB, Kernel und SELinux Enforcing wurden vorab
+geprüft. Nachweise: `out/components-7c09d1f/native-tests/` mit Gastzustand,
+vollständigem Rohlog und SHA-256-Ergebnisdatei.
+
+Dies sind Entwicklungs-root-Tests mit einer kleinen Tmpfs-Basis. Sie beweisen
+weder die produktiven SELinux-Domänen noch einen tatsächlichen Debian-Start,
+persönliche Linux-Isolation oder Paketinstallation. Die neue Telefonie-
+Produktprüfung ist in diesen Komponenten enthalten, verlangt aber das neue
+vollständige Image; Java wurde deshalb hier nicht erneut ausgeführt.
 
 ## Vollständiger Komponentenlauf im gebooteten Image `25fde995`
 
@@ -21,7 +46,7 @@ keine interaktive Passwortprüfung. Der spätere, separate
 [CLI-Gasttest](identity-cli-qemu-test.md) bestätigt inzwischen zwei persönliche
 Benutzer samt Passwortwechsel, Abmeldung und geordnetem Neustart.
 
-## Aktueller vollständiger nativer Lauf mit dem neuen Kernel
+## Früherer vollständiger nativer Lauf mit dem neuen Kernel
 
 Im Image `be1ad9ad` wurden alle **86 nativen Tests des Komponentencommits
 `336e9275`** ausgeführt: **83 bestanden, drei fehlgeschlagen, keiner abgewählt**.

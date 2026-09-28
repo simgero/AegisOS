@@ -7,8 +7,9 @@ Enforcing, authentifiziertes ADB und AEGIS-Binder-Dienst sind bestätigt.
 Die drei Audio-Module `default`, `r_submix` und `bluetooth` sind registriert.
 Alle 52 Java-Tests einschließlich der vier Produktkonfigurationstests bestehen.
 Der Crash-Puffer war bei der anschließenden Kontrolle leer; dies ist eine
-Momentaufnahme, kein Langzeitnachweis. Von 86 nativen Tests bestehen 83;
-drei Basis-Mount-Tests bleiben offen (siehe Komponentenbericht).
+Momentaufnahme, kein Langzeitnachweis. Der spätere Komponentenstand `bfe90925`
+besteht auf diesem Image in einem separaten Gast **88 von 88 native Tests**,
+einschließlich der korrigierten Basis-Mount-Tests (siehe Komponentenbericht).
 
 Der längere [Zwei-Benutzer-CLI-Test](identity-cli-qemu-test.md) zeigt inzwischen
 eine weitere offene Störung: `com.android.phone` wartet wiederholt auf den
