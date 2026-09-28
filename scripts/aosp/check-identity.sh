@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run ONLY on aegis-build, from a clean project commit already fetched via GitHub.
 # Compiles identity modules, not a bootable image; never uploads or starts a VM.
-set -Eeuo pipefail
+set -euo pipefail
 [[ $(uname -s) == Linux && $(uname -m) == x86_64 ]] || {
     echo 'Identity modules must be compiled on the Linux x86-64 builder.' >&2; exit 1;
 }
@@ -29,9 +29,22 @@ flock -n 9 || { echo 'Another build holds the AOSP workspace lock.' >&2; exit 1;
 run=$(mktemp -d "/srv/aegis/runs/identity-$(date -u +%Y%m%dT%H%M%SZ)-${commit:0:8}-XXXXXX")
 exec > >(tee -a "$run/build.log") 2>&1
 state() { printf '%s\n' "$1" > "$run/status.tmp"; mv "$run/status.tmp" "$run/status"; }
-trap 'state FAILED; echo "Identity check failed; see $run/build.log"' ERR
+failed() {
+    local result=$?
+    trap - EXIT
+    if (( result != 0 )); then
+        state FAILED || echo 'Could not persist failed component status.' >&2
+        echo "Identity check failed; see $run/build.log" >&2
+    fi
+    return "$result"
+}
+# An inherited ERR trap polluted envsetup command substitutions with its own
+# status text (for example optional vendor/product find failures). Only a
+# terminal script exit records failure; diagnostics never enter captured stdout.
+trap failed EXIT
 state PREPARING
 printf '%s\n' "$commit" > "$run/project-commit.txt"
+python3 "$script_dir/check-memory.py"
 python3 "$script_dir/link-product.py" "$project/device/aegis/qemu_arm64" "$aosp"
 python3 "$script_dir/register-identity.py" "$project/packages/aegis/identity" "$aosp"
 python3 "$script_dir/register-runtime-storage.py" --project "$project" --aosp "$aosp" \
@@ -93,5 +106,6 @@ chmod 755 "$run/modules/system/bin/aegis-runtime-init" \
     "$run/modules/data/nativetest64/AegisRuntimeNativeTests/aegis-runtime-setup"
 (cd "$run/modules" && sha256sum "${artifacts[@]}") > "$run/SHA256SUMS"
 state IDENTITY_COMPILED_NOT_INSTALLED
+trap - EXIT
 echo "Identity modules compiled: $run"
 echo 'Not installed, not uploaded, and not a guest or security test.'

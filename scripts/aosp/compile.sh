@@ -6,6 +6,7 @@ script_dir=$(cd "$(dirname "$0")" && pwd)
 source "$script_dir/config.sh"
 # Both the GitHub snapshot and a project checkout preserve the repository layout.
 project=$(cd "$script_dir/../.." && pwd)
+python3 "$script_dir/check-memory.py"
 if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
     python3 "$project/scripts/kernel/integrate.py" prepare --run "$AEGIS_KERNEL_RUN" \
         --project "$project" --aosp /srv/aegis/work/aosp --receipt "$1/kernel-inputs.json"

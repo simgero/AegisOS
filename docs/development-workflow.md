@@ -34,6 +34,34 @@ Die folgende Bestandsaufnahme dokumentiert die frühere Servereinrichtung:
 
 ## Prüfung und Transport
 
+### RAM vor dem Build
+
+Komponentencheck und Vollbuild prüfen unmittelbar vor der AOSP-Vorbereitung
+`MemTotal` und `MemAvailable` aus dem Linux-Gast. Erforderlich sind mindestens
+60 GiB vom Kernel gemeldeter RAM und 48 GiB verfügbarer RAM; Swap zählt nicht.
+Die Gesamtgrenze entspricht der bestehenden Projektvorgabe einer VM mit
+mindestens 64 GB zugewiesenem RAM und berücksichtigt reservierten Speicher.
+Die verfügbare Menge ist eine zusätzliche Projektreserve, keine Garantie
+gegen spätere Lastspitzen. Auch die [AOSP-Anforderungen](https://source.android.com/docs/setup/start/requirements)
+nennen mindestens 64 GB RAM.
+
+Am 28. September wurde ein Komponentenlauf bereits beim Erzeugen des
+Soong-Buildplans wegen Speichermangels beendet: Die VM sah nur 14,7 GiB RAM,
+und `soong_build` erreichte etwa 14,2 GiB residenten Speicher bei nahezu
+ausgeschöpften 8 GiB Swap. Kein systemd-Speicherlimit war gesetzt. Nach
+Anpassung in Hyper-V meldete Ubuntu rund 65 GiB RAM und 62 GiB verfügbar;
+ein neuer Lauf startete mit derselben Quellrevision `5447a96`.
+
+Der neue Guard beendet künftige Starts bei unzureichendem RAM vor Änderungen
+an den AOSP-Quellen. Er verändert weder Hyper-V noch Swap oder Serverlimits.
+Die Komponenten-Fehlerbehandlung nutzt jetzt außerdem einen EXIT-Handler:
+optionale AOSP-Verzeichnissuchen dürfen keine Fehlermeldung in ihren eigenen
+Dateilisten erhalten. Ein endgültiger Skriptfehler schreibt `FAILED` und
+Diagnostik auf stderr. Ein vom OOM-Killer beendeter Prozess kann seinen Status
+nicht zuverlässig aktualisieren; deshalb bleiben Dienst und Journal maßgeblich.
+
+### Artefakte beziehen
+
 Auf dem Mac, im Projekt:
 
 ```sh

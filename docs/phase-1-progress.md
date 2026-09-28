@@ -169,12 +169,18 @@ neuen Kernel auf dem Builder ausgeführt; tatsächliche Images und Gasttests feh
 5. Alle Anmelde-, Daten-, Prozess- und Logout-Anforderungen mit zwei Benutzern
    einschließlich Fehlerfällen prüfen.
 
-Nach dem Hinweis des Nutzers war eine SSH-Abfrage wieder erfolgreich: Dienst
-`aegis-build` inaktiv, rund 536 GiB frei. Sudo verlangt interaktive Anmeldung.
-Nach vorübergehenden SSH-Timeouts war die erneute Abfrage wieder erfolgreich:
-beide Build-Dienste inaktiv, weiterhin rund 536 GiB frei. Sudo verlangt weiterhin
-interaktive Anmeldung. Kein neuer Build wurde gestartet.
-`scripts/start-components.sh` bereitet einen gezielten, per systemd beobachtbaren
-Komponenten-Check aus einem unveränderlichen GitHub-Commit vor. Er benötigt die
-vorhandene Einrichtung und interaktive sudo-Freigabe; keine Serverkonfiguration
-wurde geändert und kein Ersatzbuild auf dem Mac gestartet.
+Der Komponentencheck für `5447a968d00f63aa7cb700d868508c437d89980c` wurde am
+28. September auf `aegis-build` gestartet. Der erste Lauf endete um 12:41 UTC
+durch OOM beim Soong-Buildplan: nur 14,7 GiB Gast-RAM statt der ursprünglichen
+rund 94 GiB, 8 GiB Swap nahezu ausgeschöpft. AOSPs Parser akzeptierte zuvor
+die 1.002 vorbereiteten Runtime-Kennungen; das belegt keine laufenden UID-Maps.
+
+Nach der vom Nutzer vorgenommenen Hyper-V-Anpassung meldet Ubuntu rund 65 GiB
+RAM und 62 GiB verfügbar. Der Ersatzlauf startet um 12:48 UTC mit derselben
+Revision und InvocationID `5b747d59dd5947a4b8b0ca30ddf703c3`. Er wurde aktiv
+beobachtet; **noch kein bestätigter Komponentenabschluss**. Er enthält die
+32 Java-Tests dieser Revision und die 50 nativen Tests; die später vorbereitete
+Zugangsserialisierung ist darin noch nicht enthalten. Kein Gasttest läuft auf
+dem Server. Die neue RAM-Vorprüfung und bereinigte Skript-Fehlerbehandlung sind
+für einen folgenden Quellstand vorbereitet; der laufende Checkout wird nicht
+verändert. Sudo verlangt weiterhin interaktive Anmeldung.
