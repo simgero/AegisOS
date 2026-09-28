@@ -41,9 +41,11 @@ def validate_program(data, dependencies):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('output', type=Path)
+    p.add_argument('--host-tree', type=Path, help='Previously exported host/bin and host/lib64 tree')
+    p.add_argument('--clang', type=Path, help='Explicit compiler on the Linux build server')
     args = p.parse_args()
     aosp = Path('/srv/aegis/work/aosp')
-    host = aosp/'out/host/linux_musl-arm64'
+    host = args.host_tree.resolve() if args.host_tree else aosp/'out/host/linux_musl-arm64'
     args.output = args.output.resolve()
     root = args.output/'root'
     root.mkdir(parents=True, exist_ok=False)
@@ -76,11 +78,11 @@ def main():
     shutil.copyfile(host/'lib64/libc_musl.so',root/'lib/ld-musl-aarch64.so.1')
     (root/'lib/ld-musl-aarch64.so.1').chmod(0o755)
 
-    clang = sorted((aosp/'prebuilts/clang/host/linux-x86').glob('clang-r*/bin/clang'))[-1]
+    clang = args.clang.resolve() if args.clang else sorted((aosp/'prebuilts/clang/host/linux-x86').glob('clang-r*/bin/clang'))[-1]
     subprocess.run([str(clang),'--target=aarch64-linux-gnu','-fuse-ld=lld','-nostdlib',
                     '-static','-ffreestanding','-fno-builtin','-fno-stack-protector',
                     '-O2','-Wl,-e,_start',str(Path(__file__).with_name('init.c')),
-                    '-o',str(root/'init')],check=True,cwd=aosp)
+                    '-o',str(root/'init')],check=True,cwd=host)
     (root/'state/cuttlefish_config.json').write_text(
         '{"root_dir":"/state","instances":{"1":{"instance_dir":"/state",'
         '"instance_uds_dir":"/state","run_as_daemon":false}}}\n')

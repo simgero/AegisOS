@@ -19,6 +19,27 @@ static void mountfs(const char *type,const char *where) {
     check(call(40,(long)type,(long)where,(long)type,0,0,0),"helper: mount failed\n");
 }
 static long openfile(const char *s,long flags) { return call(56,-100,(long)s,flags,0600,0,0); }
+static void node(const char *path,unsigned major,unsigned minor) {
+    unsigned dev=(major<<8)|(minor&255)|((minor&~255)<<12);
+    check(call(33,-100,(long)path,0020600,dev,0,0),"helper: mknod failed\n");
+}
+static void ttynode(const char *sysfile,const char *path) {
+    long fd=-1;
+    for(int i=0;i<50 && fd<0;i++) {
+        fd=openfile(sysfile,0);
+        if(fd<0){long t[2]={0,100000000};call(101,(long)t,0,0,0,0,0);}
+    }
+    check(fd,"helper: missing tty sysfs entry\n");
+    char buf[32];long n=call(63,fd,(long)buf,31,0,0,0);
+    call(57,fd,0,0,0,0,0);check(n,"helper: tty sysfs read failed\n");
+    unsigned major=0,minor=0;long i=0;
+    while(i<n && buf[i]>='0' && buf[i]<='9')major=major*10+buf[i++]-'0';
+    if(i==0 || i>=n || buf[i++]!=':')die("helper: invalid tty device\n");
+    long start=i;
+    while(i<n && buf[i]>='0' && buf[i]<='9')minor=minor*10+buf[i++]-'0';
+    if(i==start)die("helper: invalid tty minor\n");
+    node(path,major,minor);
+}
 static void dupfd(long from,int to) { if(from!=to)check(call(24,from,to,0,0,0,0),"helper: dup failed\n"); }
 static void module(const char *path) {
     long fd=openfile(path,0);check(fd,"helper: missing kernel module\n");
@@ -41,7 +62,10 @@ static void channel(const char *path,int in,int out) {
     dupfd(fd,in);dupfd(fd,out);call(57,fd,0,0,0,0,0);
 }
 __attribute__((noreturn)) void _start(void) {
-    mountfs("devtmpfs","/dev");mountfs("proc","/proc");mountfs("sysfs","/sys");
+    /* Android GKI omits devtmpfs; populate this helper's private /dev. */
+    mountfs("tmpfs","/dev");mountfs("proc","/proc");mountfs("sysfs","/sys");
+    node("/dev/console",5,1);node("/dev/null",1,3);node("/dev/zero",1,5);
+    node("/dev/random",1,8);node("/dev/urandom",1,9);
     long console=openfile("/dev/console",2);check(console,"helper: no console\n");
     dupfd(console,0);dupfd(console,1);dupfd(console,2);
     if(console>2)call(57,console,0,0,0,0,0);
@@ -50,6 +74,10 @@ __attribute__((noreturn)) void _start(void) {
     module("/lib/modules/virtio_pci_legacy_dev.ko");
     module("/lib/modules/virtio_pci.ko");
     module("/lib/modules/virtio_console.ko");
+    ttynode("/sys/class/tty/hvc0/dev","/dev/hvc0");
+    ttynode("/sys/class/tty/hvc1/dev","/dev/hvc1");
+    ttynode("/sys/class/tty/hvc2/dev","/dev/hvc2");
+    ttynode("/sys/class/tty/hvc3/dev","/dev/hvc3");
     channel("/dev/hvc0",10,11);channel("/dev/hvc1",12,13);
     channel("/dev/hvc2",14,15);channel("/dev/hvc3",16,17);
     int pair[2];check(call(199,1,1,0,(long)pair,0,0),"helper: socketpair failed\n");

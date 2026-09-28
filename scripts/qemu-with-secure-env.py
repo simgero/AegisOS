@@ -38,6 +38,11 @@ def helper_initrd(assets, images):
     module = importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     # The original vendor ramdisk provides modules matching this exact kernel.
     base = module.vendor_ramdisk(images/'vendor_boot.img')
+    # Legacy LZ4 has no end marker. Raw cpio appended to that stream is parsed
+    # as another compressed block and rejected by the kernel decompressor.
+    if base[:4] in (b'\x02\x21\x4c\x18', b'\x04\x22\x4d\x18'):
+        base = subprocess.run(['lz4','-d','-c'],input=base,
+                              capture_output=True,check=True).stdout
     extra = bytearray()
     seen = set()
     total = 0
