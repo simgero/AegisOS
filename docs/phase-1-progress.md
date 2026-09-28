@@ -9,9 +9,12 @@ an fehlenden Tmpfs-Dateiattributen im bisherigen Kernel. Vier Java- und
 16 native Tests benötigen das neue integrierte Image. Einzelheiten und
 Abgrenzung: [Komponententests](component-tests.md).
 
-Der erste echte Debian-Dateisystembau ist noch **nicht freigegeben**:
-Die zwei Erzeugungen liefern unterschiedliche Bytes. Die Wiederholungsprüfung
-weist sie zurück; die Ursache wird anhand erhaltener Diagnoseimages untersucht.
+Die echte Debian-Basis ist inzwischen **gebaut und inhaltlich geprüft**:
+Lauf `runtime-base-20260928T145204Z-87ab3f54-WclcLl` meldet
+`BUILT_VERIFIED_NOT_MOUNTED`. Das korrigierte Rezept erzeugt zwei bytegleiche
+Images und liest alle Dateien/Eigentümer zurück. Noch keine Gast-Einbindung.
+Der erforderliche Kernel-Lauf `kernel-20260928T145446Z-87ab3f54-wgP3Hz`
+wurde gestartet und beschafft zunächst die 40 festgelegten Quellprojekte.
 
 | Anforderung | Nachweis / verbleibende Arbeit |
 | --- | --- |
@@ -22,7 +25,7 @@ weist sie zurück; die Ursache wird anhand erhaltener Diagnoseimages untersucht.
 | Gerätedienste | Bluetooth-Abstürze und NFC-Controller-Timeouts im bisherigen Image dokumentiert; zuletzt keine laufende Absturzschleife aller HALs belegt. Bluetooth-Schalter sowie fehlende NFC-/UWB-/Thread-Funktionen im nächsten Produktstand konfiguriert. Noch ungebaut; Framework-Start, verbliebene native HALs und weitere geerbte Geräte im neuen Gast prüfen. Siehe `qemu-hardware.md`. |
 | AEGIS-Identität/CLI | AOSP-Adapter, Binder-Dienst, CLI, Ressourcen/Policy, Kennungsregister, betroffene Framework-Dienste und 44 Android-Tests erfolgreich kompiliert. 40 isolierte Java-Gerätetests bestehen; Produktintegration und reale Anmeldung über AEGIS im neuen Image stehen aus. Runtime-Koordination fehlt. Siehe `component-tests.md` und `identity-cli.md`. |
 | AOSP-Passwortgrundlage | Ein persönlicher Testbenutzer: falsches Passwort abgewiesen, CE-Sperre nach Benutzerstopp bestätigt, richtiges Passwort stellt Dateizugriff wieder her. Nach Passwortwechsel wird das alte Passwort abgewiesen; das neue erhält dieselben Daten. Anschließend Plattformlöschung und Abwesenheit von acht Schlüssel-/Datenpfaden bestätigt. Tests über AOSP-Dialoge und Plattformbefehle, noch nicht über AEGIS; siehe `identity-platform-test.md`. |
-| GNU/Linux-Runtime | Gepinnte Debian-13.7-ARM64-Basis mit 78 Paketen importiert und auf dem Builder als inerte Dateien zu ext4 verarbeitet. Wiederholungsprüfung des Images fehlgeschlagen; keine Freigabe oder Ausführung. Native Module einschließlich 51 Tests kompiliert; 32 Tests bestehen im bisherigen Gast. Laufende Maps, Laufzeitverwaltung, AOSP-Autorisierung, Mounts und SELinux-Integration fehlen. Neuer Kernel erforderlich. Siehe `component-tests.md`, `../runtime/generations.md` und `../runtime/uid-mapping.md`. |
+| GNU/Linux-Runtime | Gepinnte Debian-13.7-ARM64-Basis mit 78 Paketen zu einem 256-MiB-ext4-Image gebaut; Bytegleichheit zweier Builds und sämtliche Inhalte/Eigentümer geprüft. Noch keine Gast-Einbindung oder Ausführung. Native Module einschließlich 51 Tests kompiliert; 32 Tests bestehen im bisherigen Gast. Laufende Maps, Laufzeitverwaltung, AOSP-Autorisierung, Mounts und SELinux-Integration fehlen. Neuer Kernel-Build gestartet. Siehe `component-tests.md`, `../runtime/generations.md` und `../runtime/uid-mapping.md`. |
 | Pakete und Isolation | Noch zu implementieren und mit zwei AOSP-Benutzern praktisch zu prüfen. |
 | Vollständiger Ablauf | Noch kein Nachweis für Login, Wechsel, Logout mit CE-Sperrung und Neustart mit zwei passwortgeschützten Benutzern. |
 

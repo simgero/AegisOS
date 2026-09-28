@@ -1,14 +1,22 @@
 # Gemeinsame Softwaregeneration
 
-Stand: 28. September 2026. **Erste echte Images erzeugt, Wiederholungsprüfung
-noch fehlgeschlagen.** Der Builder hat die AOSP-Dateisystemwerkzeuge kompiliert
-und den geprüften Debian-Import zweimal zu ext4 verarbeitet. Drei unterschiedliche
-Bytes betrafen ausschließlich den Zugriffszeitstempel von `lost+found`; dessen
-Eigentümer entsprach zudem dem Buildkonto. Das korrigierte Rezept überlässt
-dieses Verzeichnis vollständig `mke2fs`, weil das gepinnte `e2fsdroid` es von
-seiner nachträglichen Metadatenkorrektur ausnimmt. Erneuter Build und volle
-Inhaltsprüfung stehen aus. Kein freigegebenes oder in QEMU eingebundenes
-Runtime-Dateisystem; `ro.aegis.runtime.mode=absent` bleibt unverändert.
+Stand: 28. September 2026. **Echtes Basis-Image auf `aegis-build` erfolgreich
+erzeugt und geprüft, noch nicht installiert oder in QEMU eingebunden.**
+`ro.aegis.runtime.mode=absent` bleibt unverändert.
+
+Lauf `runtime-base-20260928T145204Z-87ab3f54-WclcLl`, Commit
+`87ab3f54e52a3e312500011ab9f65278ac72ac0d`, Abschluss 14:53:38 UTC:
+`BUILT_VERIFIED_NOT_MOUNTED`. Die zwei 256-MiB-Images sind bytegleich;
+`e2fsck` sowie die vollständige Prüfung von Inhalt, Eigentümern, Modi,
+Verzeichnisinventaren und Links bestanden. SHA-256 des Basis-Images:
+`1332b0fbd28b2bdea0f5b59b7dc09b4ea825727100fdbc57f0edd9660928d7fa`.
+
+Die vorigen Versuche wurden korrekt zurückgewiesen: Drei unterschiedliche
+Bytes betrafen den Zugriffszeitstempel von `lost+found`; dessen Eigentümer
+entsprach zudem dem Buildkonto. Das korrigierte Rezept überlässt dieses
+Verzeichnis vollständig `mke2fs`, weil das gepinnte `e2fsdroid` es von seiner
+nachträglichen Metadatenkorrektur ausnimmt. Die verworfenen Diagnoseimages
+bleiben getrennt vom erfolgreichen Lauf erhalten.
 
 ## Inhalt und Kennungen
 

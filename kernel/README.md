@@ -1,7 +1,23 @@
 # Kernel für die gemeinsame GNU/Linux-Runtime
 
-Stand 28. September 2026: **Buildrezept und AOSP-Übernahme vorbereitet, noch nicht ausgeführt.**
+Stand 28. September 2026: **Erster Buildlauf gestartet, zunächst Quellbeschaffung.**
 Kein neuer Kernel ist in die Android-Images integriert oder in QEMU abgenommen.
+
+Start 14:54:46 UTC aus GitHub-Commit
+`87ab3f54e52a3e312500011ab9f65278ac72ac0d`, Dienst `aegis-kernel.service`,
+InvocationID `330aeafe17884e91ad9d7ea87ebe5af3`, Lauf
+`kernel-20260928T145446Z-87ab3f54-wgP3Hz`.
+Der Dienst hat eine Laufzeitgrenze von zwölf Stunden; Quellen und Ergebnisse
+bleiben erhalten. Ein verschwundener Dienst allein bestätigt keinen Erfolg.
+
+Vom Mac live mitlesen:
+
+```sh
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes aegis-build \
+  'journalctl -f -u aegis-kernel.service -n 30'
+```
+
+`Ctrl+C` beendet nur die Anzeige. Der Serverlauf bleibt davon unabhängig.
 
 ## Festgelegte Grundlage
 
