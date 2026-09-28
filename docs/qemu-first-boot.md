@@ -95,8 +95,11 @@ Grafik läuft über Guest-SwiftShader/ANGLE und virtio-gpu.
 bash scripts/run-local-qemu.sh
 ```
 
-Dieser Start lässt das QEMU-Fenster geöffnet. Schließen beendet auch den
-Helper. Android-Diskänderungen und TPM-Schlüssel sind flüchtig. Der gemessene
+Der aktuelle Wrapper öffnet das bestehende persistente Profil
+`foundation-bfe90925`; Android-Disk und TPM-Zustand bleiben gemeinsam erhalten.
+Das unterscheidet sich von den frühen flüchtigen Läufen dieses Berichts.
+Android geordnet herunterfahren; der Launcher beendet danach den Helper.
+Der gemessene
 Bootabschluss ist noch kein Test aller virtuellen Hardwaredienste, von ADB,
 Netzwerk oder einer produktionsgeeigneten Vertrauenskette. Die programmatische
 Eingabe über `input keyevent` lieferte im Diagnoseversuch einen Binder-Fehler;

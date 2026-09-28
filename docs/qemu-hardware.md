@@ -1,5 +1,37 @@
 # Hardware des lokalen QEMU-Produkts
 
+## Neuer Gast `bfe90925`, 29. September 2026
+
+Der vollständige Release
+`aosp-20260928T210223Z-bfe90925-32d1cb4b` wurde auf dem Mac von GitHub bezogen,
+entpackt und mit AVB-Entwicklungsschlüsseln geprüft. Das neue Profil
+`out/qemu-profiles/foundation-bfe90925`, UUID
+`7422823d-8df5-42af-8cc6-36e6c68f8b05`, bootet vollständig; ADB authentifiziert
+denselben Mac, SELinux ist Enforcing und die AEGIS-CLI antwortet. Tatsächliche
+`system-verity`- und `system_ext-verity`-Tabellen enthalten weiterhin
+`restart_on_corruption`. Kernel und Basis sind unverändert gepinnt.
+
+In der ersten Beobachtung vom Start um 22:09 bis 22:13:42 UTC war kein
+Telefonie-ANR, kein Warten auf `IRadioModem/slot1` und keine Java-FATAL-EXCEPTION
+im vollständigen Log. `com.android.phone` behielt PID 2780. Das ist ein
+begrenztes Intervall, kein Langzeitnachweis. **88/88 native und 52/53 Java-Tests
+bestehen.** Der verbliebene Produktfehler ist `config_sms_capable=true`,
+nachweislich aus der Vendor-RRO `android.cuttlefish.phone.overlay`.
+Der normale Framework-Overlay allein überschreibt diese spätere RRO nicht.
+`AegisQemuHardwareOverlay` setzt die drei Telefonie-Booleans zusätzlich in
+einer Product-RRO; deren Build und neuer Gastnachweis stehen aus.
+
+Der erste Gast wurde mit Android `Power down` und sauberem Helper-Abschluss
+beendet. Ein sichtbarer Neustart desselben Profils wird unter
+`out/full-build-bfe90925/visible-1` geführt und bootet ebenfalls vollständig.
+Authentifiziertes ADB liegt dort auf Port 15755. Der tatsächliche
+QEMU-Framebuffer zeigt den vollständigen Homescreen in **720 × 1280 bei 320 dpi**,
+ohne Größen- oder Dichteüberschreibung. Die direkte physische Mac-Eingabe
+wurde damit noch nicht gesondert geprüft. Die früheren Profile bleiben
+erhalten; es wurde keine Benutzerdatenmigration durchgeführt.
+
+## Früherer Gast `25fde995`
+
 Stand 28. September 2026: Vollbuild `25fde995`, Lauf
 `aosp-20260928T193617Z-25fde995-aecfe99a`, ist über GitHub verifiziert und
 im lokalen Mac-QEMU vollständig gebootet. `sys.boot_completed=1`, SELinux

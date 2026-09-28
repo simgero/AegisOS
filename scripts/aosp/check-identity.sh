@@ -65,7 +65,7 @@ python3 "$project/scripts/runtime/uid_layout.py" check --aosp "$aosp" \
 jobs=$(nproc)
 (( jobs <= 12 )) || jobs=12
 state COMPILING
-m -j"$jobs" aegis aegis-identity-service AegisIdentityTests services framework-res selinux_policy \
+m -j"$jobs" aegis aegis-identity-service AegisIdentityTests AegisQemuHardwareOverlay services framework-res selinux_policy \
     passwd_vendor group_vendor passwd_system_ext group_system_ext \
     aegis-runtime-init aegis-runtime-setup aegis-runtime-broker AegisRuntimeNativeTests
 # The broker is compiled/linked here but remains absent from product startup

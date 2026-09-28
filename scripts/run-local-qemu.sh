@@ -1,13 +1,18 @@
 #!/bin/bash
-# Start the verified local images with the matching development TPM helper.
+# Reopen the paired persistent profile of the locally booted development image.
+# No automatic profile creation or migration; both Android and TPM state remain.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-base=out/qemu-first-boot
-helper=downloads/secure-env-1a9e6e3f6087d572ed5d025d78f3b34d8a90c4f2
-disk=out/qemu-frp/android.raw
-for file in "$base/images/kernel" "$disk" "$base/runtime.bootconfig" "$helper/SHA256SUMS"; do
+base=out/full-build-bfe90925
+prepared=$base/prepared
+helper=downloads/secure-env-20260928T134804Z-024354c1
+disk=$prepared/android.raw
+profile=out/qemu-profiles/foundation-bfe90925
+for file in "$prepared/images/kernel" "$disk" "$prepared/runtime.bootconfig" \
+    "$prepared/avb-checked.json" "$profile/profile.json" "$helper/SHA256SUMS"; do
     [[ -f $file ]] || { echo "Missing local test artifact: $file" >&2; exit 1; }
 done
-exec python3 scripts/qemu-with-secure-env.py "$base/images" "$helper" \
-    "$disk" "$base/runtime.bootconfig" \
-    "$base/interactive-$(date +%Y%m%dT%H%M%S)-$$" --seconds 0 --display cocoa --adb-port 15555
+exec python3 scripts/qemu-with-secure-env.py "$prepared/images" "$helper" \
+    "$disk" "$prepared/runtime.bootconfig" \
+    "$base/interactive-$(date +%Y%m%dT%H%M%S)-$$" \
+    --profile "$profile" --seconds 0 --display cocoa --adb-port 15755

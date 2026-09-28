@@ -5,6 +5,18 @@ geprüft; eine persönliche GNU/Linux-Sitzung ist noch nicht integriert.
 
 ## Korrigierter nativer Lauf `bfe90925`
 
+Im späteren vollständigen Image desselben Commits, Lauf
+`out/full-build-bfe90925/boot-1`, bestehen erneut **88 von 88 native Tests**.
+Von **53 Java-Tests bestehen 52**. Die zusätzliche Prüfung
+`productDoesNotForceCellularInitializationWithoutAModem` findet
+`config_sms_capable=true`: Die aktivierte Vendor-RRO
+`android.cuttlefish.phone.overlay` überschreibt den bereits auf false gesetzten
+Framework-Wert. Die beiden anderen Telefonie-Booleans sind false und sämtliche
+Telefonie-Features fehlen wie vorgesehen. Es wurde kein Test abgeschwächt.
+Eine gezielte Product-RRO ist vorbereitet, noch nicht im Image gebaut oder
+im Gast geprüft. Nachweise: `out/full-build-bfe90925/component-tests/` und
+`out/full-build-bfe90925/boot-1/sms-overlay.txt`.
+
 Alle **88 nativen Tests bestehen**, ohne Abwahl, im lokalen Mac-QEMU-Lauf
 `out/components-7c09d1f/boot-1` auf dem vollständigen Image `25fde995`.
 Die geprüften ARM64-Module stammen aus Commit

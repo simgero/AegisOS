@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.aegisos.qemu.hardware.overlay">
+    <application android:hasCode="false" />
+    <!-- Product overlays are applied after the inherited vendor phone overlay.
+         Keep its unrelated navigation/multi-user resources; override only the
+         cellular capabilities that standalone QEMU cannot provide. -->
+    <overlay android:targetPackage="android"
+        android:isStatic="true" android:priority="10" />
+</manifest>

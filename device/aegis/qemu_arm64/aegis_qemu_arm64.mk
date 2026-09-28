@@ -43,7 +43,8 @@ PRODUCT_SYSTEM_PROPERTIES += ro.aegis.runtime.mode=absent
 
 PRODUCT_PACKAGES += \
     aegis \
-    aegis-identity-service
+    aegis-identity-service \
+    AegisQemuHardwareOverlay
 # Install AOSP's generated numeric-account registries for the reserved runtime IDs.
 # These are platform resource names, not personal accounts or authentication data.
 PRODUCT_PACKAGES += passwd_vendor group_vendor passwd_system_ext group_system_ext
@@ -53,6 +54,8 @@ PRODUCT_SYSTEM_SERVER_JARS_EXTRA += system_ext:aegis-identity-service
 
 # Keep this private boot-time service list in framework-res itself. Inherited Cuttlefish
 # RROs remain enabled; the pinned core/phone overlays do not replace this resource.
+# Cellular booleans also need AegisQemuHardwareOverlay: the inherited vendor
+# phone RRO overrides config_sms_capable after framework-res has been built.
 DEVICE_PACKAGE_OVERLAYS += device/aegis/qemu_arm64/overlay
 PRODUCT_ENFORCE_RRO_EXCLUDED_OVERLAYS += device/aegis/qemu_arm64/overlay
 

@@ -37,9 +37,14 @@ Vollbuild `aosp-20260928T210223Z-bfe90925-32d1cb4b` ist kompiliert, paketiert
 und mit `UPLOAD_VERIFIED` über
 [GitHub veröffentlicht](https://github.com/simgero/AegisOS/releases/tag/aosp-20260928T210223Z-bfe90925-32d1cb4b).
 Er enthält die Korrektur geerbter Telefoniefunktionen und den bis dahin
-committeten AEGIS-Auftritt. Die lokale Imagevorbereitung läuft; Boot und Ende
-der zuvor beobachteten Telefonie-ANR-Schleife sind noch nicht bestätigt.
-Bisherige Android-/KeyMint-Profilpaare bleiben erhalten.
+committeten AEGIS-Auftritt. Das neue lokale Profil bootet vollständig, mit
+authentifiziertem ADB, SELinux Enforcing, dm-verity und antwortender AEGIS-CLI.
+**88/88 native und 52/53 Java-Tests bestehen.** Die geerbte Vendor-RRO
+überschreibt `config_sms_capable` weiterhin auf true. Eine gezielte Product-RRO
+ist vorbereitet; der Test bleibt unverändert. Im ersten Beobachtungsintervall
+trat kein Telefonie-ANR mehr auf. Nach geordnetem Android-/Helper-Stopp wurde
+dasselbe Profil sichtbar neu gestartet. Die bisherigen Profilpaare bleiben
+erhalten; keine Image-Migration. Siehe [QEMU-Hardware](qemu-hardware.md).
 
 Commit `ac87df1fc333893d08db0ceb9c67b13c59eed758` erweitert den internen
 Brokerkanal um begrenzte Linux-Befehle, persönliche PTY-Übergabe und getrennte
@@ -56,7 +61,7 @@ Details: [Terminalübergabe](../runtime/terminal-handoff.md).
 
 | Ziel | Tatsächlicher Stand und fehlender Nachweis |
 | --- | --- |
-| Stabiles, dauerhaftes QEMU | Gepaarte Android-/KeyMint-Persistenz und geordnete Neustarts nachgewiesen. Lesbares Bild und QMP-Mausklick bestätigt; physische Mac-Eingabe, Stromausfall und Image-Migration offen. Telefonie-ANR muss im neuen Image geprüft werden. |
+| Stabiles, dauerhaftes QEMU | Gepaarte Android-/KeyMint-Persistenz und geordnete Neustarts nachgewiesen. Neuer Gast ohne Telefonie-ANR im ersten Beobachtungsintervall; SMS-Konfiguration noch fehlerhaft. Lesbares Bild und QMP-Mausklick bestätigt; physische Mac-Eingabe, längere Stabilität, Stromausfall und Image-Migration offen. |
 | AEGIS-Benutzer und Anmeldung | Zwei-Benutzer-CLI-Test mit AOSP-Passwörtern, Wechsel, Passwortwechsel und Logout bestanden. Unterbrochene Ersteinrichtung, vollständige Admin-Negativtests, CLI-Löschung und ID-Wiederverwendung offen. Die bisherige Nachbereinigung nach Freigabe einer gelöschten AOSP-ID muss vor Löschungsfreigabe in den reservierten Plattform-Lebenszyklus verlegt werden. |
 | Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft; 88 native Bausteintests bestanden. Neue Terminalübergabe syntaxgeprüft. Produktive SELinux-/Init-Anbindung, AOSP-Speicherkoordination, CLI-Sitzungsbindung und wirkliche Linux-Ausführung fehlen; Modus bleibt ausdrücklich `absent`. |
 | Pakete und Isolation | Pakettransaktionen und konsistente Aktivierung fehlen. Sowohl gemeinsame als auch private Pakete erfordern frische AOSP-Adminautorisierung. Persönliche Linux-Datei-/Prozessisolation muss mit zwei angemeldeten Benutzern geprüft werden. |

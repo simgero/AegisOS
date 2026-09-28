@@ -103,13 +103,16 @@ und die lokale Diagnosekonsole. Der Android-Gast erhält vier virtuelle CPUs
 und 4 GiB RAM, der Helper zwei CPUs und 1 GiB RAM. Die Konsole ist nur über
 einen Unix-Socket im privaten temporären Launcher-Verzeichnis erreichbar.
 
-Nach dem einmaligen Download und Erstellen der lokalen Testdisk:
+Nach Download, Imageprüfung und ausdrücklicher Anlage des persistenten Profils:
 
 ```sh
 bash scripts/run-local-qemu.sh
 ```
 
-Das Fenster bleibt offen, bis QEMU geschlossen wird. Dann beendet der Launcher
-auch den Helper. **Dieser Entwicklungsstart ist weiterhin flüchtig:** Änderungen
-an der Android-Testdisk und die TPM-Schlüssel werden gemeinsam verworfen.
-Er ist kein produktionsgeeigneter persistenter oder hardwaregesicherter Start.
+Der aktuelle Wrapper öffnet das bereits geprüfte Profil `foundation-bfe90925`.
+Android-Änderungen und TPM-Zustand bleiben als zusammengehöriges Paar erhalten;
+es wird weder automatisch ein Profil erzeugt noch auf ein anderes Basisimage
+migriert. Ein bereits aktives Profil wird zurückgewiesen. Zum geordneten Ende
+Android herunterfahren; der Launcher beendet anschließend auch den Helper.
+Siehe [Persistenz und Grenzen](persistent-qemu.md). Ein hardwaregesicherter
+Produktionsstart ist damit weiterhin nicht nachgewiesen.

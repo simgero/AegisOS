@@ -5,11 +5,14 @@ zusätzlicher VirtIO-Serial-Port (`hvc17`) verbindet den lokalen QEMU-Port mit
 dem ADB-Dienst innerhalb des Gastes. Der Host-Port bindet ausschließlich an
 `127.0.0.1`. Es gibt keine Gast-Netzwerkkarte und keine Hostverzeichnisfreigabe.
 
-`scripts/run-local-qemu.sh` richtet den lokalen Port ein. Bei direktem Aufruf
-des Python-Launchers `--adb-port 15555` ergänzen. Danach, sobald Android gestartet ist:
+`scripts/run-local-qemu.sh` öffnet das bestehende persistente Profil
+`foundation-bfe90925` auf Port **15755**. Bei direktem Aufruf des Python-Launchers
+`--adb-port 15755` ergänzen; parallele Testgäste benötigen einen anderen Port
+und ein eigenes Profil. Danach, sobald Android gestartet ist, das ausgegebene
+neue Laufverzeichnis verwenden:
 
 ```sh
-python3 scripts/connect-local-adb.py out/qemu-first-boot/RUN
+python3 scripts/connect-local-adb.py out/full-build-bfe90925/RUN
 ```
 
 Den angezeigten Mac-Schlüssel im Gast freigeben. Für einen ausdrücklich lokal
@@ -29,9 +32,9 @@ zurück und beschädigt binäre ADB-Pakete. Ports aus dem üblichen Emulatorbere
 um 5555 vermeiden: Die automatische ADB-Suche kann sonst den Kanal belegen.
 
 ```sh
-adb -s 127.0.0.1:15555 shell
-adb -s 127.0.0.1:15555 exec-out screencap -p > out/screen.png
-python3 scripts/qemu_control.py out/qemu-first-boot/RUN query-status
+adb -s 127.0.0.1:15755 shell
+adb -s 127.0.0.1:15755 exec-out screencap -p > out/screen.png
+python3 scripts/qemu_control.py out/full-build-bfe90925/RUN query-status
 ```
 
 Im Lauf `out/qemu-first-boot/adb-1` wurde am 28. September geprüft:
