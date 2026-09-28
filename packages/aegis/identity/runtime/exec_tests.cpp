@@ -308,7 +308,8 @@ TEST_F(RuntimeExec, CompletedResultsKeepTheirSlotsUntilCollected) {
     int status = -1;
     ASSERT_EQ(0, result(1, &status)); EXPECT_EQ(1 << 8, status);
     EXPECT_EQ(-1, start(&id)); EXPECT_EQ(ENOENT, errno);
-    ASSERT_EQ(0, result(AEGIS_RUNTIME_MAX_SHELLS, &status)); EXPECT_EQ(AEGIS_RUNTIME_MAX_SHELLS << 8, status);
+    ASSERT_EQ(0, result(AEGIS_RUNTIME_MAX_SHELLS, &status));
+    EXPECT_EQ(static_cast<int>(AEGIS_RUNTIME_MAX_SHELLS << 8), status);
 }
 
 TEST_F(RuntimeExec, ForkedProcessCannotClaimOrCloseTheOriginalOwner) {
