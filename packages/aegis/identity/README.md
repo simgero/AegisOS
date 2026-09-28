@@ -61,10 +61,12 @@ kann trotz eines Timeouts noch eintreffen; dann muss der tatsächliche Zustand
 erneut ermittelt werden. Die Systemdienst-Lifecycle-Callbacks dürfen nicht auf
 blockierende Adapteroperationen warten, sondern müssen Arbeit einreihen.
 
-Noch offen sind insbesondere Produkt-/SELinux-Integration, Wiederherstellung
-einer unterbrochenen Ersteinrichtung, Runtime-Koordination sowie Build und
-Gasttests des Adapters, Dienstes, der CLI und der neuen Verwaltungsfunktionen.
-Die Module werden absichtlich noch nicht in ein Produkt aufgenommen.
+Die Produktkonfiguration bindet die Module nun in den Systemserver-Classpath,
+die Framework-Startliste und eine eigene SELinux-Service-Zuordnung ein. Diese
+Integration ist noch nicht gebaut oder im Gast geprüft. Ebenfalls offen sind
+die Wiederherstellung einer unterbrochenen Ersteinrichtung, Runtime-Koordination
+sowie Build und Gasttests des Adapters, Dienstes, der CLI und der neuen
+Verwaltungsfunktionen. Das laufende Image enthält sie weiterhin nicht.
 
 ## Abgeglichene AOSP-Schnittstellen
 

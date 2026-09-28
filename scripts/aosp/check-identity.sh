@@ -47,7 +47,7 @@ lunch "$AOSP_LUNCH"
 jobs=$(nproc)
 (( jobs <= 12 )) || jobs=12
 state COMPILING
-m -j"$jobs" aegis aegis-identity-service AegisIdentityTests
+m -j"$jobs" aegis aegis-identity-service AegisIdentityTests framework-res selinux_policy
 product=$(get_build_var PRODUCT_OUT)
 [[ $(get_build_var TARGET_ARCH) == arm64 ]]
 mkdir "$run/modules"
@@ -56,6 +56,7 @@ artifacts=(
     system/bin/aegis
     system/framework/aegis.jar
     system/framework/aegis-identity-service.jar
+    system/framework/framework-res.apk
     testcases/AegisIdentityTests/arm64/AegisIdentityTests.apk
 )
 for relative in "${artifacts[@]}"; do

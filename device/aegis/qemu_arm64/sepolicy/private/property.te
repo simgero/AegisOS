@@ -1,0 +1,2 @@
+# Read-only product contract, not an identity or authorization source.
+system_internal_prop(aegis_runtime_mode_prop)

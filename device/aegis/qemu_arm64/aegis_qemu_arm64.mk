@@ -15,3 +15,18 @@ PRODUCT_MODEL := AegisOS QEMU ARM64 Development
 
 # Development access still requires an explicitly authorized ADB host key.
 PRODUCT_SYSTEM_PROPERTIES += ro.adb.secure=1
+
+# First identity integration: the GNU/Linux lifecycle coordinator is not installed yet.
+# The service refuses any other/unspecified mode instead of claiming a complete runtime logout.
+PRODUCT_SYSTEM_PROPERTIES += ro.aegis.runtime.mode=absent
+
+PRODUCT_PACKAGES += \
+    aegis \
+    aegis-identity-service
+# Append after the common jars regardless of product makefile inheritance order.
+PRODUCT_SYSTEM_SERVER_JARS_EXTRA += aegis-identity-service
+
+# Keep this private boot-time service list in framework-res itself. Inherited Cuttlefish
+# RROs remain enabled; the pinned core/phone overlays do not replace this resource.
+DEVICE_PACKAGE_OVERLAYS += device/aegis/qemu_arm64/overlay
+PRODUCT_ENFORCE_RRO_EXCLUDED_OVERLAYS += device/aegis/qemu_arm64/overlay

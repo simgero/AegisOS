@@ -1,0 +1,3 @@
+# A framework service, deliberately without app_api_service or system_api_service.
+# AOSP already restricts adding system_server_service types to system_server.
+type aegis_identity_service, system_server_service, service_manager_type;

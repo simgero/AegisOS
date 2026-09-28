@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The android-16.0.0_r1 default is empty; retain any future upstream services here. -->
+    <string-array name="config_deviceSpecificSystemServices" translatable="false">
+        <item>org.aegisos.identity.AegisIdentityService</item>
+    </string-array>
+</resources>

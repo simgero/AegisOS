@@ -1,7 +1,7 @@
 # Erste AEGIS-Terminalintegration
 
-Stand 28. September 2026: **Quelltext vorbereitet, nicht kompiliert und nicht
-im Gast installiert.** Die bestehenden Android-Dialogtests aus
+Stand 28. September 2026: **Quelltext und Produktintegration vorbereitet, nicht
+kompiliert und nicht im Gast installiert.** Die bestehenden Android-Dialogtests aus
 [`identity-platform-test.md`](identity-platform-test.md) testen diesen Code nicht.
 
 ## Vorbereitete Komponenten
@@ -13,7 +13,8 @@ im Gast installiert.** Die bestehenden Android-Dialogtests aus
   `aegis_identity` erst bei ausdrücklich passender Entwicklungskonfiguration.
 - `aegis`: Terminalprogramm mit verdeckter Passworteingabe und interaktiver Sitzung.
 - `AegisIdentityTests`: Android-Tests für die Eigentümerschaft von
-  Credential-Kopien bei lokalen Binder-Aufrufen. Noch nicht kompiliert oder ausgeführt.
+  Credential-Kopien bei lokalen Binder-Aufrufen sowie die tatsächlich wirksame
+  Framework-Dienstliste und Mehrbenutzervorgaben. Noch nicht kompiliert oder ausgeführt.
 
 Die erste CLI unterstützt im Quelltext `setup`, `user list`, `user add`,
 `user remove`, `login`, `switch`, `passwd`, `status` und den bestätigten
@@ -171,7 +172,10 @@ Linux x86-64 als vorhandener Benutzer `aegis-build`. Der Projektcheckout muss
 sauber sein und exakt dem zuvor über GitHub bezogenen Commit entsprechen.
 Der Check verwendet die gemeinsame Buildsperre, prüft den Manifest-Pin,
 registriert die verwalteten Produkt- und Paketquellen und baut `aegis`,
-`aegis-identity-service` und `AegisIdentityTests` mit maximal zwölf Jobs.
+`aegis-identity-service`, `AegisIdentityTests`, `framework-res` und
+`selinux_policy` mit maximal zwölf Jobs. Damit werden auch Ressourcen und
+SELinux-Regeln des neuen Produktstands kompiliert; es wird weiterhin kein
+fertiges Boot-Image erzeugt.
 
 Die Registrierung überschreibt keine fremden oder lokal veränderten Quellen.
 Vorherige verwaltete Fassungen bleiben außerhalb der AOSP-Quellsuche unter
@@ -181,15 +185,17 @@ prüfen echte Dateiveränderungen, zusätzliche Dateien, symbolische Links,
 Kopierabbrüche und die Aufbewahrung der vorigen Fassung. Sie prüfen weder Java
 noch AOSP-Berechtigungen.
 
-Erst erfolgreicher Modulbau und vorhandene JAR-/Startdateien samt Test-APK setzen
+Erst erfolgreicher Komponentenbau und vorhandene JAR-/Startdateien samt
+Framework-Ressourcen und Test-APK setzen
 `IDENTITY_COMPILED_NOT_INSTALLED`. Logs, Quellinventar und Modulprüfsummen liegen
 im zugehörigen Verzeichnis unter `/srv/aegis/runs`. Dieser Check ist noch nicht
 ausgeführt. Er startet keine VM, installiert keinen Dienst und veröffentlicht
 keine Artefakte. Die geprüften Ergebnisse müssen anschließend über GitHub
 transportiert werden; ein Modulbau allein liefert noch kein startbares System.
-Der vollständige Build übernimmt die Identitätsquellen inzwischen ebenfalls
-über den [gepinnten GitHub-Quelltransport](build-inputs.md). Das registriert
-die Module, nimmt sie aber noch nicht in das Produkt oder den Systemstart auf.
+Der vollständige Build übernimmt die Identitätsquellen und Produktkonfiguration
+über den [gepinnten GitHub-Quelltransport](build-inputs.md). Die Einbindung in
+das Produkt und den Systemstart ist jetzt ebenfalls im Quelltext vorhanden,
+aber noch nicht gebaut oder im Gast bestätigt.
 Das Test-APK wird gemäß dem gepinnten Soong-Installationsschema aus
 `testcases/AegisIdentityTests/arm64/AegisIdentityTests.apk` aufgenommen. Nach dem
 Transport ist es ausschließlich in der lokalen QEMU-VM zu installieren und mit
@@ -198,9 +204,8 @@ Transport ist es ausschließlich in der lokalen QEMU-VM zu installieren und mit
 Vor der tatsächlichen Nutzung fehlen:
 
 1. Erfolgreiche Server-Kompilierung samt Prüfung der erzeugten Schnittstellen.
-2. Produktintegration in den Systemserver-Classpath, Dienststart über
-   `config_deviceSpecificSystemServices`, ausdrücklicher Runtime-Modus sowie
-   eng begrenzte SELinux-Service-Labels und Zugriffsregeln.
+2. Prüfung der vorbereiteten Produkt-/SELinux-Integration durch den AOSP-Build
+   und anschließend auf den tatsächlich installierten Images.
 3. Neues Image auf dem Server bauen, über GitHub beziehen und in QEMU starten.
 4. CLI-Gasttests für korrekte/falsche Passwörter, Wechsel, Änderung, Logout,
    fremde Binder-Aufrufer, zwei parallele Clients, Clienttod, Benutzerstopp und
@@ -209,6 +214,62 @@ Vor der tatsächlichen Nutzung fehlen:
 5. Gasttests der Ersteinrichtung, Benutzeranlage/-löschung, gesperrten neuen
    Konten, verweigerten Adminaktionen, Löschfehlern, Abbrüchen und ID-Wiederverwendung.
 6. Integration des vollständigen Runtime-/Paketlebenszyklus.
+
+## Vorbereitete Produktintegration
+
+`aegis_qemu_arm64.mk` installiert CLI und Dienst-JAR und ergänzt
+`PRODUCT_SYSTEM_SERVER_JARS_EXTRA`, damit das JAR nach den gemeinsamen
+Framework-Diensten einsortiert wird. Ein gezieltes Build-Overlay trägt
+`org.aegisos.identity.AegisIdentityService` in die Framework-Ressource
+`config_deviceSpecificSystemServices` ein. Nur dieses eigene Overlay ist von
+der automatischen RRO-Umwandlung ausgenommen, damit die private Bootkonfiguration
+in `framework-res` liegt. Die geerbten Cuttlefish-RROs bleiben aktiv.
+
+Der geprüfte AOSP-Standard enthält eine leere Dienstliste. Die gepinnten
+Cuttlefish-Core- und Phone-RROs definieren diese Ressource nicht; das klassische
+Phone-Framework-Overlay betrifft `frameworks/base/libs`. Bei einem Wechsel der
+Plattformbasis ist erneut zu prüfen, ob weitere Dienste in die Liste gehören.
+Die beiden neuen Android-Produkttests lesen die wirksamen installierten
+Ressourcen und verlangen genau einen AEGIS-Eintrag sowie mindestens vier
+Benutzerplätze und den vollständigen Systembenutzer für den Logout-Rückwechsel.
+Sie laufen zusätzlich zu den drei Credential-Transporttests.
+
+Die zusätzliche SELinux-Policy liegt unter `sepolicy/private` im eigenen
+Gerätebaum und wird als `SYSTEM_EXT_PRIVATE_SEPOLICY_DIRS` eingebunden:
+
+- `aegis_identity` erhält einen eigenen Typ mit `system_server_service` und
+  `service_manager_type`, ohne `app_api_service` oder `system_api_service`.
+- AOSP erlaubt `system_server` bereits die Registrierung dieser Service-Typen
+  und das Lesen der benötigten `/proc/PID/stat`-Dateien. Dafür werden keine
+  zusätzlichen pauschalen Freigaben eingeführt.
+- `ro.aegis.runtime.mode` erhält einen eigenen internen Property-Typ und den
+  erlaubten Wert `absent`. Systemserver und Entwicklungs-Shell können ihn lesen;
+  eine Schreibfreigabe für die Shell wird nicht hinzugefügt.
+
+Die vorhandenen privilegierten AOSP-Debugdomänen bleiben Teil der
+Entwicklungs-Vertrauensgrenze. Der neue Service-Typ allein ersetzt nicht die
+UID-/PID-/Sitzungsprüfung im Binder-Dienst. SELinux-Kompilierung, Klassenladen,
+Dienstregistrierung und tatsächliche Zugriffskontrollen sind noch nachzuweisen.
+
+Nach dem vollständigen Server-Build, Transport über GitHub und Start des neuen
+Images im lokalen QEMU kann der ausschließlich lesende Basistest laufen:
+
+```sh
+python3 scripts/check-local-identity.py 127.0.0.1:15555
+```
+
+Er verlangt den QEMU-Produkttyp, Bootabschluss, authentifiziertes ADB,
+SELinux `Enforcing`, den expliziten Runtime-Modus und eine registrierte
+Binder-Schnittstelle. Danach muss ein neuer `aegis status`-Prozess einen
+unangemeldeten Zustand liefern, und der Dienst muss weiterhin vorhanden sein.
+`IDENTITY_SERVICE_RESPONDS` bestätigt nur diese Einbindung, keine Passwort-,
+Benutzerlebenszyklus-, Runtime- oder Sicherheitstests.
+
+Am 28. September wurde dieser Check gegen den noch laufenden alten QEMU-Stand
+`mouse-1` ausgeführt. Die ersten Prüfungen bestanden; der fehlende
+`ro.aegis.runtime.mode` führte erwartungsgemäß zum Abbruch mit Exitcode 1.
+Es wurde keine Gastkonfiguration geändert. Ein positiver Lauf auf dem neuen
+Image steht aus.
 
 ## Abgeglichene Quellen
 

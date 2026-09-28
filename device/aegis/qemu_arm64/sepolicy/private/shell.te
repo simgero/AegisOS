@@ -1,0 +1,4 @@
+# Read-only diagnostics for the development console; never permit changing this property.
+userdebug_or_eng(`
+    get_prop(shell, aegis_runtime_mode_prop)
+')

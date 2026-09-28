@@ -1,0 +1,1 @@
+get_prop(system_server, aegis_runtime_mode_prop)

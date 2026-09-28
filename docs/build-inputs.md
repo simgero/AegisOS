@@ -48,5 +48,6 @@ nicht zum stillen Überschreiben.
 Der vollständige Build registriert außerdem die Identitätsquellen. Beide
 Quellinventare werden im Laufverzeichnis abgelegt. **Eine registrierte Quelle
 allein aktiviert den Systemdienst noch nicht.** Produktpakete, Systemserver-
-Classpath, Dienststart und SELinux-Regeln müssen zusätzlich integriert und
-anschließend auf dem Builder kompiliert sowie in QEMU geprüft werden.
+Classpath, Dienststart und SELinux-Regeln sind inzwischen im Quelltext
+eingebunden. Diese [Produktintegration](identity-cli.md#vorbereitete-produktintegration)
+muss noch auf dem Builder kompiliert und in QEMU geprüft werden.
