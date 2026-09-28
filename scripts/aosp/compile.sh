@@ -57,10 +57,11 @@ python3 "$script_dir/register-runtime-storage.py" --aosp /srv/aegis/work/aosp \
 # Host-side readers for the actual delivered logical partition, built only here.
 m -j"$jobs" simg2img lpunpack fsck.erofs
 get_build_var PRODUCT_OUT > "$1/product-out.txt"
-# Missing XIncludes can leave the audio HAL alive but without IModule/default,
-# blocking SystemServer at boot. Resolve the installed policy before packaging.
-xmllint --nonet --xinclude --noout \
-    "$(cat "$1/product-out.txt")/vendor/etc/audio_policy_configuration.xml"
+# Every declared audio module must be configured, including the software
+# Bluetooth audio endpoint in the inherited APEX even with no HCI hardware.
+python3 "$script_dir/check-audio.py" \
+    "$(cat "$1/product-out.txt")/vendor/etc/audio_policy_configuration.xml" \
+    hardware/interfaces/audio/aidl/default/android.hardware.audio.service-aidl.xml
 cmp "$project/packages/aegis/identity/cli/aegis" \
     "$(cat "$1/product-out.txt")/system_ext/bin/aegis"
 if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then

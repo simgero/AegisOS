@@ -20,6 +20,7 @@ REQUIRED = {
     "scripts/aosp/setup-sandbox.sh", "scripts/aosp/link-product.py",
     "scripts/aosp/register-identity.py",
     "scripts/aosp/check-memory.py",
+    "scripts/aosp/check-audio.py",
     "scripts/aosp/register-runtime-storage.py", "runtime/aosp-storage-hooks.json",
     "packages/aegis/identity/platform/com/android/server/aegis/AegisRuntimeStorage.java",
     "device/aegis/qemu_arm64/AndroidProducts.mk",

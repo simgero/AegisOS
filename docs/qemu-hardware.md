@@ -1,35 +1,36 @@
 # Hardware des lokalen QEMU-Produkts
 
-Stand 28. September 2026: Produktänderung in Vollbuild `336e9275` erfolgreich
-gebaut und über GitHub verifiziert. Der lokale Erststart hängt jedoch an einer
-inkonsistenten Audio-Konfiguration. Der zur Ansicht geöffnete ältere Gast
-enthält diese Änderung nicht.
+Stand 28. September 2026: Die Vollbuilds `336e9275` und `be1ad9ad` wurden
+gebaut und über GitHub verifiziert. Beide lokalen Erststarts zeigten
+Audio-Konfigurationsfehler; die zweite Korrektur ist vorbereitet, noch nicht
+gebaut oder gebootet.
 
-## Gefundener Startfehler und Korrektur
+## Gefundene Startfehler und Korrektur
 
-Im neuen Gast fehlt `/vendor/etc/bluetooth_with_le_audio_policy_configuration_7_0.xml`
-wegen `BOARD_HAVE_BLUETOOTH=false`; Cuttlefishs übernommene
-`audio_policy_configuration.xml` enthält weiterhin ein XInclude auf diese Datei.
-Der AIDL-Audio-HAL registriert `IConfig/default`, aber kein `IModule/default`.
-SystemServer bleibt in `StartAudioService`; `sys.boot_completed` bleibt leer.
-Kernel und authentifiziertes ADB funktionieren mit SELinux Enforcing. Logs:
-`out/full-build-336e9275/boot-1`, Hashes in dessen `../progress.json`.
+In `336e9275` fehlt die Bluetooth-Audio-Policy wegen
+`BOARD_HAVE_BLUETOOTH=false`. Das geerbte XInclude bleibt bestehen; der
+Audio-HAL registriert deshalb kein `IModule/default`. In `be1ad9ad` wurde der
+Include entfernt. Damit starten `IModule/default` und `IModule/r_submix`,
+aber Audioserver wartet nun auf `IModule/bluetooth`: Das unveränderte Audio-APEX
+meldet diesen Software-Endpunkt weiterhin im VINTF-Manifest. In beiden Fällen
+bleibt SystemServer in `StartAudioService` und `sys.boot_completed` leer.
+Kernel, authentifiziertes ADB, FBE und SELinux Enforcing sind erreichbar.
+Beide Testprofile wurden mit bestätigtem Android- und Helper-Powerdown beendet.
+Logs: `out/full-build-336e9275/boot-1` und `out/full-build-be1ad9ad/boot-1`.
 
-Die Korrektur nutzt `LOCAL_AUDIO_PRODUCT_COPY_FILES` vor der Produktvererbung.
-Die eigene Audiopolicy lässt ausschließlich den Bluetooth-Include weg; primäre
-Audio-/Submix-Konfiguration, Effekte und Lautstärketabellen bleiben erhalten.
-Der Korrekturbuild `be1ad9ad` (Lauf `aosp-20260928T190055Z-be1ad9ad-ba90a514`)
-hat die Image-Erzeugung und den tatsächlichen Basisnachweis innerhalb von
-`super.img` bestanden; Paketierung/GitHub-Verifikation und Gastboot stehen noch
-aus. Die installierte Audiopolicy stimmt byteweise mit der Korrektur überein.
+Die neue Korrektur übernimmt wieder Cuttlefishs vollständige Original-Audiopolicy
+und kopiert `bluetooth_with_le_audio_policy_configuration_7_0.xml` ausdrücklich
+über `LOCAL_AUDIO_PRODUCT_COPY_FILES`. Der Bluetooth-Audio-Endpunkt im Audio-APEX
+ist vom nicht vorhandenen HCI-Controller getrennt. Dessen HAL bleibt abgeschaltet;
+Bluetooth bleibt für Apps als nicht verfügbar deklariert. Audioserver, VINTF,
+SELinux und AVB bleiben unverändert aktiv.
 
-Zusätzlich löst der Build künftig vor dem Paketieren sämtliche XIncludes mit
-`xmllint --nonet --xinclude --noout` in der installierten Policy auf. Diese
-Prüfung wurde auf dem Builder mit echten XML-Kopien ausgeführt: Die korrigierte
-Policy besteht, die ursprüngliche Policy wird wegen des fehlenden Bluetooth-
-Includes abgewiesen. Der zusätzliche Build-Schritt liegt nach dem laufenden
-Image-Commit; dort wurde er gesondert manuell geprüft. Er ersetzt keinen Gastboot.
-Der Fehler wird nicht durch Abschalten von Audioserver, SELinux oder AVB umgangen.
+Vor der Paketierung löst `scripts/aosp/check-audio.py` die XIncludes aus der
+installierten Vendor-Konfiguration auf und vergleicht alle Modulnamen mit dem
+gewählten AOSP-Audio-APEX-Manifest. Vier inerte XML-Regressionen bestätigen:
+vollständige Konfiguration akzeptiert, fehlender Include abgewiesen, gültige XML
+mit fehlendem Bluetooth-Modul abgewiesen, zusätzlich deklariertes USB-Modul ohne
+Konfiguration abgewiesen. Dies ersetzt weder Imageprüfung noch Gastboot.
 
 Der Launcher `scripts/qemu-with-secure-env.py` verbindet die kryptografischen
 Kanäle hvc3/4/10/11 mit dem lokalen `secure_env`-Helper. Für die anderen

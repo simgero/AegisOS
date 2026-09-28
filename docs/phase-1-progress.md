@@ -52,11 +52,15 @@ aber keinen Android-Bootabschluss: Die geerbte Audiokonfiguration referenziert
 eine durch `BOARD_HAVE_BLUETOOTH=false` entfernte Datei. Der Audio-HAL meldet
 eine ungültige XML-Konfiguration; `IModule/default` fehlt und SystemServer wartet
 in `StartAudioService`. Android und sein gepaarter Helper wurden sauber beendet.
-Die lokale Korrektur wählt vor der Produktvererbung eine passende Audiopolicy
-mit unveränderten primären/submix-Modulen und Lautstärketabellen. Neubau und
-erneuter Gasttest dieser Korrektur stehen aus. Der bisher bootfähige Stand wurde
-für die gewünschte sichtbare Ansicht wieder geöffnet; er ist kein Nachweis für
-den neuen Vollbuild.
+Die erste Audiokorrektur wurde als `be1ad9ad` gebaut und um 19:19:52 UTC
+mit `UPLOAD_VERIFIED` ausgeliefert. Im lokalen QEMU registriert sie nun primäres
+Audio und Submix, aber Audioserver wartet auf den weiterhin im APEX deklarierten
+Bluetooth-Audio-Endpunkt. Android bleibt erneut vor dem Bootabschluss stehen.
+Der gepaarte Gast wurde sauber beendet. Die zweite Korrektur liefert die
+vollständige ursprüngliche Audiopolicy einschließlich des benötigten
+Software-Moduls bei weiterhin abgeschaltetem HCI-Controller. Vier XML-
+Regressionen bestehen; der neue Serverbuild und Gastboot stehen aus.
+Siehe [QEMU-Hardware](qemu-hardware.md).
 
 Der private AOSP-/Broker-Kanal, Ressourcenbesitz, begrenzte Cgroup-Wiederherstellung
 und readonly-Basisvorbereitung sind kompiliert. Frühere Soong-Probleme mit
