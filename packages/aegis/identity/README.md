@@ -1,10 +1,18 @@
 # AOSP-Anbindung für AEGIS-Identität
 
 Stand 28. September 2026: **Bibliothek, Systemdienst und erste interaktive CLI
-im Quelltext. Noch nicht auf `aegis-build` kompiliert, nicht installiert und
-keine fertige `aegis`-CLI.** Die laufende QEMU-VM enthält diesen Code noch nicht.
-Sitzungsmodell, Kompilierprüfung und offene Integrationsschritte stehen in
+sind auf `aegis-build` gebaut und im Image `25fde995` in lokalem QEMU installiert.**
+Der [reale Zwei-Benutzer-Test](../../../docs/identity-cli-qemu-test.md) bestätigt
+Anlage, Anmeldung, Passwortwechsel, Abmeldung und geordneten Neustart mit
+unveränderten CE-Dateien. Linux-Runtime und Paketverwaltung sind nicht aktiviert.
+52 Java- und 83 von 86 nativen Tests bestehen; die drei Basis-Mount-Fehler stehen
+im [Komponentenbericht](../../../docs/component-tests.md).
+Sitzungsmodell und offene Integrationsschritte stehen in
 [`docs/identity-cli.md`](../../../docs/identity-cli.md).
+
+Die folgenden Bausteinbeschreibungen dokumentieren ihren ursprünglichen
+Entwurfsstand. Angaben zur damaligen fehlenden Kompilierung werden durch den
+aktuellen Komponentenbericht oben ersetzt; sie sind keine aktuelle Statusliste.
 
 Unter `runtime/` liegt zusätzlich der noch unkompilierte native
 [Prozessaufseher](../../../runtime/process-supervisor.md) mit privaten
@@ -112,16 +120,15 @@ blockierende Adapteroperationen warten, sondern müssen Arbeit einreihen.
 
 Die Produktkonfiguration bindet die Module nun in den Systemserver-Classpath,
 die Framework-Startliste und eine eigene SELinux-Service-Zuordnung ein. Diese
-Integration ist noch nicht gebaut oder im Gast geprüft. Die ausdrückliche
+Integration ist im aktuellen Image gebaut und im Gast geprüft. Die ausdrückliche
 Fortsetzung einer protokollierten Ersteinrichtung über `setup --resume NAME`
 ist jetzt im Quelltext vorbereitet: vorhandene Passwörter werden über AOSP
 verifiziert, niemals zurückgesetzt; Benutzerstopp und CE-Sperre müssen vor dem
-Abschluss bestätigt sein. Zwölf weitere Gerätetests sind vorbereitet, aber noch
-unkompiliert und unausgeführt. Unklar zugeordnete oder partielle Konten werden
+Abschluss bestätigt sein. Zwölf Gerätetests mit simulierter Plattform bestehen;
+ein echter Unterbrechungstest steht aus. Unklar zugeordnete oder partielle Konten werden
 nicht automatisch übernommen oder gelöscht.
-Offen sind weiterhin Runtime-Koordination sowie Build und Gasttests des Adapters,
-Dienstes, der CLI und der neuen
-Verwaltungsfunktionen. Das laufende Image enthält sie weiterhin nicht.
+Offen sind weiterhin Runtime-Koordination, Paketverwaltung und die im
+CLI-Gasttest ausdrücklich aufgeführten Verwaltungs-/Fehlerfälle.
 
 ## Abgeglichene AOSP-Schnittstellen
 

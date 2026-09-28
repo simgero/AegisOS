@@ -108,7 +108,9 @@ CE-Speicher vorhanden. Android und Helper wurden erneut geordnet beendet und
 die Credential-Puffer des Host-Testprozesses überschrieben. Die absichtlich
 beschädigte Profilkopie bleibt getrennt als Diagnoseartefakt erhalten.
 
-Diese Prüfung bestätigt einen geordneten Neustart mit einem persönlichen
-Benutzer. Stromausfall/erzwungener Abbruch, Migration auf neue Systemimages,
-zwei Benutzer samt AEGIS-CLI und Runtime-Abmeldung bleiben offen. Die
-Plattformdialoge ersetzen keinen Test des noch nicht integrierten AEGIS-Diensts.
+Diese ältere Prüfung bestätigt einen geordneten Neustart mit einem persönlichen
+Benutzer. Ein späterer [Test der installierten AEGIS-CLI](identity-cli-qemu-test.md)
+bestätigt zusätzlich zwei persönliche Benutzer, Passwortwechsel, CE-Sperre und
+unveränderte Dateien nach geordnetem Neustart im Image `25fde995`.
+Stromausfall/erzwungener Abbruch, Migration auf neue Systemimages und
+Runtime-Abmeldung bleiben offen.

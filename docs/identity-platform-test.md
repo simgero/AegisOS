@@ -79,6 +79,8 @@ Neustart mit erhaltenen Dateien und Schlüsseln wurde in diesem Lauf nicht gepr�
 Ein späterer, separater [Persistenztest](persistent-qemu.md#tatsächlicher-neustarttest)
 mit dem neuen Helper bestätigt inzwischen einen geordneten Neustart samt
 Passwort- und Dateiprüfung. Weiterhin offen sind der integrierte
-AEGIS-Dienst, CLI, zwei persönliche Benutzer, Linux-Prozess-/Mount-Isolation,
-Adminautorisierung und Pakettransaktionen. Die Benutzerwechsel dieses Tests
-ersetzen insbesondere keinen vollständigen AEGIS-Logout mit Runtime-Abbau.
+Linux-Prozess-/Mount-Isolation, vollständige Admin-Negativtests und
+Pakettransaktionen. Der spätere [CLI-Gasttest](identity-cli-qemu-test.md)
+bestätigt inzwischen den integrierten AEGIS-Dienst, zwei persönliche Benutzer,
+Passwortwechsel und geordneten Neustart. Keiner dieser Tests ersetzt einen
+vollständigen AEGIS-Logout mit Runtime-Abbau.

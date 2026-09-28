@@ -10,6 +10,12 @@ Der Crash-Puffer war bei der anschließenden Kontrolle leer; dies ist eine
 Momentaufnahme, kein Langzeitnachweis. Von 86 nativen Tests bestehen 83;
 drei Basis-Mount-Tests bleiben offen (siehe Komponentenbericht).
 
+Der längere [Zwei-Benutzer-CLI-Test](identity-cli-qemu-test.md) zeigt inzwischen
+eine weitere offene Störung: `com.android.phone` wartet wiederholt auf den
+fehlenden `IRadioModem/slot1`, endet in einem Start-ANR und wird neu gestartet.
+Das trat in beiden Testboots auf. Die leere Crash-Puffer-Momentaufnahme oben
+erfasst diese ANR-Schleife nicht; dauerhafte Gerätestabilität ist noch nicht erreicht.
+
 Die sichtbare Instanz bleibt für den Nutzer geöffnet, Profil
 `out/qemu-profiles/foundation-25fde995`, ADB `127.0.0.1:15755`.
 Android und der tatsächliche QEMU-Framebuffer wurden geprüft. Der neue
@@ -85,8 +91,8 @@ OEMLock, verschlüsselte Benutzerdaten und Secure Element werden nicht veränder
 
 Der Android-Test `ProductConfigurationTest.unsupportedRadiosAreNotAdvertised`
 prüft die tatsächliche PackageManager-Featureliste einschließlich geerbter
-Unterfunktionen. Er ist kompiliert, aber noch nicht im neuen Gast ausgeführt.
-Danach sind in der lokalen QEMU-VM zusätzlich die Abwesenheit der Framework-Dienste
+Unterfunktionen. Er besteht im vollständig gestarteten Image `25fde995`.
+Zusätzlich sind in der lokalen QEMU-VM die Abwesenheit der Framework-Dienste
 NFC/UWB/Thread, neue Crashmeldungen sowie die Stabilität der verbleibenden HALs
 über ein Beobachtungsintervall zu prüfen. Ein erfolgreicher XML-Check oder eine
 fehlende Feature-Angabe allein belegt keine Crashfreiheit.

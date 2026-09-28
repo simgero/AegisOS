@@ -17,7 +17,9 @@ Funkfunktionen. Nachweise: `out/full-build-25fde995/component-tests/`.
 Zusätzlich erreichen die installierten CLI-Befehle `aegis user list` und
 `aegis status` den echten Dienst: keine persönlichen Benutzer, Terminal nicht
 angemeldet, Ersteinrichtung verfügbar, Runtime nicht installiert. Das ersetzt
-keine interaktive Passwortprüfung; persönliche Benutzer wurden noch nicht angelegt.
+keine interaktive Passwortprüfung. Der spätere, separate
+[CLI-Gasttest](identity-cli-qemu-test.md) bestätigt inzwischen zwei persönliche
+Benutzer samt Passwortwechsel, Abmeldung und geordnetem Neustart.
 
 ## Aktueller vollständiger nativer Lauf mit dem neuen Kernel
 

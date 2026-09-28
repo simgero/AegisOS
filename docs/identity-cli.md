@@ -1,8 +1,10 @@
 # Erste AEGIS-Terminalintegration
 
-Stand 28. September 2026: **Quelltext und Produktintegration vorbereitet und
-auf dem Builder vollständig kompiliert; noch nicht im neuen Gast installiert.** Die bestehenden Android-Dialogtests aus
-[`identity-platform-test.md`](identity-platform-test.md) testen diesen Code nicht.
+Stand 28. September 2026: **Im Vollbuild `25fde995` installiert und mit zwei
+persönlichen Benutzern in lokalem QEMU geprüft.** Ersteinrichtung, Anmeldung,
+Benutzerwechsel, Passwortwechsel, Abmeldung und geordneter Neustart sind über
+die echte CLI nachgewiesen; Details und Grenzen stehen im
+[CLI-Gasttest](identity-cli-qemu-test.md). Linux-Runtime und Paketverwaltung fehlen.
 
 ## Vorbereitete Komponenten
 
@@ -21,15 +23,16 @@ auf dem Builder vollständig kompiliert; noch nicht im neuen Gast installiert.**
   [vorgeschalteten Speicher-Schnittstelle](../runtime/aosp-storage-lifecycle.md)
   sowie zwölf Tests der [Zugangsserialisierung](../runtime/admission.md);
   einschließlich der Brokerprotokoll-Tests insgesamt 52 kompilierte Android-Tests. Die Zuordnung startet keinen Linux-Kontext.
-  48 isolierte Java-Gerätetests bestehen; vier Produktkonfigurationstests
-  benötigen das neue Image.
+  Alle 52 Java-Gerätetests einschließlich der vier Produktkonfigurationstests
+  bestehen im vollständig gestarteten Image `25fde995`.
 
 Die erste CLI unterstützt im Quelltext `setup`, `user list`, `user add`,
 `user remove`, `login`, `switch`, `passwd`, `status` und den bestätigten
 Android-Logout im ausdrücklich runtimefreien Build. Benutzeranlage und Löschung
 fordern für jede Aktion erneut das Passwort des angemeldeten AOSP-Administrators.
 Alle `linux`- und Paketoperationen fehlen noch und werden nicht als erfolgreich
-ausgegeben. Keine dieser neuen CLI-Funktionen ist bereits im Gast nachgewiesen.
+ausgegeben. Löschung, unterbrochene Ersteinrichtung und vollständige
+Admin-Negativtests sind noch nicht als reale CLI-Abläufe nachgewiesen.
 
 ## Sitzung gehört zum aufrufenden Terminal
 
@@ -58,7 +61,8 @@ Der Dienst bindet jede Sitzung an Binder-Aufrufer-UID, PID, die Startzeit des
 Prozesses aus `/proc/PID/stat` sowie dessen Binder-Lebenszeichen. Ein übertragener
 Binder-Verweis allein oder eine wiederverwendete PID erteilt keine Berechtigung.
 Wenn die Prozessprüfung nicht möglich ist, wird abgelehnt. Die dafür benötigten
-SELinux-Zugriffe müssen noch im tatsächlichen Gast überprüft werden.
+SELinux-Zugriffe funktionieren für den geprüften Entwicklungs-root-Client bei
+Enforcing; daraus folgt kein vollständiger Nachweis aller Aufrufer-/Missbrauchsfälle.
 
 Erst eine erfolgreiche AOSP-Passwortprüfung bindet den Client an eine persönliche
 `userId` samt Seriennummer. Ein globaler Vordergrundwechsel ändert keine andere
@@ -188,7 +192,7 @@ die AIDL-Parcel-Kopie: AOSP verwaltet die empfangene Kopie, während der Adapter
 seine eigene löscht. Drei vorbereitete Android-Tests prüfen getrennte
 Pufferlebensdauer in beide Richtungen und die Weitergabe von Transportfehlern.
 Sie verwenden öffentliche Testdaten, kontaktieren keine echten LockSettings
-und sind noch nicht ausgeführt. Das behauptet keine vollständige Eliminierung
+und bestehen im Komponentenlauf. Das behauptet keine vollständige Eliminierung
 aller temporären Kopien in einer verwalteten Laufzeit.
 
 AOSPs falsches Passwort und dessen Wiederholungsverzögerung werden getrennt
@@ -252,8 +256,8 @@ mehrere Minuten. Das ist keine Messung der gesamten Builddauer.
 Erst erfolgreicher Komponentenbau und vorhandene JAR-/Startdateien samt
 Framework-Ressourcen, Test-APK und nativen ARM64-Artefakten setzen
 `IDENTITY_COMPILED_NOT_INSTALLED`. Logs, Quellinventar und Modulprüfsummen liegen
-im zugehörigen Verzeichnis unter `/srv/aegis/runs`. Die bisherigen Läufe endeten
-vor erfolgreicher Kompilierung; siehe [Fortschritt](phase-1-progress.md).
+im zugehörigen Verzeichnis unter `/srv/aegis/runs`. Erfolgreiche Läufe und
+Gastprüfungen stehen im [Komponentenbericht](component-tests.md).
 Er startet keine VM, installiert keinen Dienst und veröffentlicht
 keine Artefakte. Die geprüften Ergebnisse müssen anschließend über GitHub
 transportiert werden; ein Modulbau allein liefert noch kein startbares System.
@@ -284,8 +288,8 @@ den Dienst `aegis-build`.
 
 Der vollständige Build übernimmt die Identitätsquellen und Produktkonfiguration
 über den [gepinnten GitHub-Quelltransport](build-inputs.md). Die Einbindung in
-das Produkt und den Systemstart ist jetzt ebenfalls im Quelltext vorhanden,
-aber noch nicht gebaut oder im Gast bestätigt.
+das Produkt und den Systemstart ist im Vollbuild `25fde995` gebaut und im
+vollständig gestarteten Gast bestätigt.
 Das Test-APK wird gemäß dem gepinnten Soong-Installationsschema aus
 `testcases/AegisIdentityTests/arm64/AegisIdentityTests.apk` aufgenommen. Nach dem
 Transport ist es ausschließlich in der lokalen QEMU-VM zu installieren und mit
@@ -298,19 +302,18 @@ Der [Komponentenexport](component-transport.md) über GitHub mit geprüftem
 Download und Entpacken ist vorbereitet. Er verlangt einen tatsächlich
 erfolgreichen Komponentenlauf und erhält dessen ursprünglichen Status.
 
-Vor der tatsächlichen Nutzung fehlen:
+Noch offen sind:
 
-1. Erfolgreiche Server-Kompilierung samt Prüfung der erzeugten Schnittstellen.
-2. Prüfung der vorbereiteten Produkt-/SELinux-Integration durch den AOSP-Build
-   und anschließend auf den tatsächlich installierten Images.
-3. Neues Image auf dem Server bauen, über GitHub beziehen und in QEMU starten.
-4. CLI-Gasttests für korrekte/falsche Passwörter, Wechsel, Änderung, Logout,
-   fremde Binder-Aufrufer, zwei parallele Clients, Clienttod, Benutzerstopp und
-   Rennen zwischen diesen Operationen. Verdeckt-Eingabe, EOF und Abbruch samt
-   Terminalzustand sind ebenfalls praktisch zu prüfen.
-5. Gasttests der Ersteinrichtung einschließlich `setup --resume`, Benutzeranlage/-löschung, gesperrten neuen
-   Konten, verweigerten Adminaktionen, Löschfehlern, Abbrüchen und ID-Wiederverwendung.
-6. Integration des vollständigen Runtime-/Paketlebenszyklus.
+1. Fremde Binder-Aufrufer, zwei parallele Clients, Clienttod, externer
+   Benutzerstopp und Rennen zwischen diesen Operationen; EOF-/Abbruchpfade
+   samt Terminalzustand.
+2. Unterbrochene Ersteinrichtung einschließlich `setup --resume`,
+   Benutzerlöschung, verweigerte Adminaktionen, Löschfehler und ID-Wiederverwendung.
+3. Integration des vollständigen Runtime-/Paketlebenszyklus.
+
+Der [reale CLI-Gasttest](identity-cli-qemu-test.md) deckt bereits normale
+Ersteinrichtung/Anlage, korrekte und falsche Passwörter, Wechsel, Passwortänderung,
+Logout und einen geordneten Neustart mit zwei Benutzern ab.
 
 ## Vorbereitete Produktintegration
 

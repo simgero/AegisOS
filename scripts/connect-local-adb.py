@@ -65,9 +65,10 @@ def main():
           '>/data/local/aegis-debug/bridge.log 2>&1 &')
     time.sleep(1)
     # A newly created serial transport can retain a pending host connection
-    # from the previous VM. Retry one fresh authentication after provisioning;
-    # never infer authorization from adb connect's exit code.
-    attempts=2 if args.authorize_this_mac else 1
+    # from the previous VM. Retry one fresh authentication on both first setup
+    # and profile restart; the existing key can need the same reconnect.
+    # Never infer authorization from adb connect's exit code or add a key here.
+    attempts=2
     for attempt in range(attempts):
         subprocess.run(['adb','disconnect',address],capture_output=True,timeout=10)
         subprocess.run(['adb','connect',address],check=True,timeout=15)
