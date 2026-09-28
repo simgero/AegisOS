@@ -107,6 +107,7 @@ class ProductTests(unittest.TestCase):
 
     def test_interrupted_copy_cannot_add_another_discoverable_product(self):
         product.register(self.source, self.aosp)
+        (self.source / "BoardConfig.mk").write_text("replacement")
         real_copy = product.shutil.copyfile
 
         def interrupt(source, destination):
@@ -119,6 +120,33 @@ class ProductTests(unittest.TestCase):
             with self.assertRaises(OSError): product.register(self.source, self.aosp)
         self.assertEqual((self.aosp / "device/aegis/qemu_arm64/AndroidProducts.mk").read_text(), "fixture")
         self.assertEqual(list((self.aosp / "out/aegis-product-staging").iterdir()), [])
+
+    def test_identical_checkout_preserves_build_inputs_and_updates_receipt(self):
+        product.register(self.source, self.aosp)
+        target = self.aosp / "device/aegis/qemu_arm64"
+        before = {name: (target / name).stat() for name in product.FILES}
+        second = self.root / "identical-checkout"
+        second.mkdir()
+        for name in product.FILES:
+            (second / name).write_bytes((self.source / name).read_bytes())
+        product.register(second, self.aosp)
+        for name, old in before.items():
+            now = (target / name).stat()
+            self.assertEqual((now.st_ino, now.st_mtime_ns), (old.st_ino, old.st_mtime_ns))
+        record = json.loads((target.parent / ".aegis-product-link.json").read_text())
+        self.assertEqual(record["source"], str(second.resolve()))
+        self.assertFalse((self.aosp / "out/aegis-product-backups").exists())
+
+    def test_changed_product_keeps_unchanged_make_input_mtime(self):
+        product.register(self.source, self.aosp)
+        target = self.aosp / "device/aegis/qemu_arm64"
+        timestamp = 1_700_000_000_000_000_000
+        for name in product.FILES:
+            os.utime(target / name, ns=(timestamp, timestamp))
+        (self.source / "aegis_qemu_arm64.mk").write_text("changed product")
+        product.register(self.source, self.aosp)
+        self.assertEqual((target / "BoardConfig.mk").stat().st_mtime_ns, timestamp)
+        self.assertNotEqual((target / "aegis_qemu_arm64.mk").stat().st_mtime_ns, timestamp)
 
     def test_device_ancestor_link_cannot_redirect_registration(self):
         outside = self.root / "outside"

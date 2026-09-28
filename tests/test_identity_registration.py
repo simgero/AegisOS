@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -35,6 +36,39 @@ class IdentityRegistrationTests(unittest.TestCase):
         self.assertEqual(len(backups), 1)
         self.assertEqual((backups[0] / "src/example/Main.java").read_text(), "first")
         self.assertEqual(len(list((self.aosp / "packages").rglob("Android.bp"))), 1)
+
+    def test_identical_sources_preserve_build_inputs(self):
+        registration.register(self.source, self.aosp)
+        bp = self.target / "Android.bp"
+        before = bp.stat()
+        registration.register(self.source, self.aosp)
+        after = bp.stat()
+        self.assertEqual((after.st_ino, after.st_mtime_ns), (before.st_ino, before.st_mtime_ns))
+        self.assertFalse((self.aosp / "out/aegis-identity-backups").exists())
+
+    def test_update_preserves_unchanged_blueprint_mtime(self):
+        registration.register(self.source, self.aosp)
+        timestamp = 1_700_000_000_000_000_000
+        bp = self.target / "Android.bp"
+        java = self.target / "src/example/Main.java"
+        for file in (bp, java):
+            os.utime(file, ns=(timestamp, timestamp))
+        (self.source / "src/example/Main.java").write_text("second")
+        registration.register(self.source, self.aosp)
+        self.assertEqual(bp.stat().st_mtime_ns, timestamp)
+        self.assertNotEqual(java.stat().st_mtime_ns, timestamp)
+        self.assertEqual(java.read_text(), "second")
+
+    def test_destination_edit_during_copy_is_preserved(self):
+        registration.register(self.source, self.aosp)
+        (self.source / "src/example/Main.java").write_text("replacement")
+        real_copy = registration.shutil.copyfile
+        def edit_during_copy(source, destination):
+            real_copy(source, destination)
+            (self.target / "src/example/Main.java").write_text("builder's new work")
+        with patch.object(registration.shutil, "copyfile", side_effect=edit_during_copy):
+            with self.assertRaises(ValueError): registration.register(self.source, self.aosp)
+        self.assertEqual((self.target / "src/example/Main.java").read_text(), "builder's new work")
 
     def test_modified_or_extra_destination_files_are_preserved(self):
         registration.register(self.source, self.aosp)

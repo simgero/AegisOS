@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import tempfile
@@ -36,6 +37,7 @@ def owned_directory(path):
     record = json.loads(marker.read_text())
     if record.get("version") != 1 or record.get("files") != inventory(path):
         raise ValueError("Existing identity sources changed outside the installer")
+    return record["files"]
 
 
 def directory_chain(base, parts):
@@ -65,8 +67,11 @@ def register(source, aosp):
     target = parent / "identity"
     backups = directory_chain(aosp, ("out", "aegis-identity-backups"))
     staging_parent = directory_chain(aosp, ("out", "aegis-identity-staging"))
+    previous = None
     if target.exists() or target.is_symlink():
-        owned_directory(target)
+        previous = owned_directory(target)
+    if previous == expected:
+        return target
     parent.mkdir(parents=True, exist_ok=True)
     # Even after SIGKILL, an incomplete copy must not be discovered as another
     # Android.bp module by a later AOSP build. out/ is outside source discovery.
@@ -77,11 +82,16 @@ def register(source, aosp):
             destination = staged / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source / relative, destination)
+            if previous is not None and previous.get(relative) == expected[relative]:
+                old = (target / relative).stat()
+                os.utime(destination, ns=(old.st_atime_ns, old.st_mtime_ns))
         if inventory(staged) != expected:
             raise ValueError("Identity sources changed while staging")
         (staged / MARKER).write_text(json.dumps({"version": 1, "files": expected},
                                                sort_keys=True) + "\n")
         if target.exists():
+            if owned_directory(target) != previous:
+                raise ValueError("Identity sources changed while staging")
             backups.mkdir(parents=True, exist_ok=True)
             target.rename(backups / uuid.uuid4().hex)
         staged.rename(target)

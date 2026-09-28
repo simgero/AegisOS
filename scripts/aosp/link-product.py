@@ -3,6 +3,7 @@
 import argparse
 import json
 import hashlib
+import os
 import shutil
 import tempfile
 import uuid
@@ -46,6 +47,7 @@ def verify_existing(target, marker):
             expected = recorded.get("sha256", {})
             if not set(FILES).issubset(expected) or inventory(target) != expected:
                 raise ValueError("Product sources changed outside the installer")
+            return expected
         else:
             raise ValueError("Existing product is not a directory")
 
@@ -70,7 +72,14 @@ def register(source, aosp):
     pending = parent / ".aegis-product-link.json.tmp"
     if pending.exists() or pending.is_symlink():
         raise ValueError("Unfinished product ownership update requires inspection")
-    verify_existing(target, marker)
+    previous = verify_existing(target, marker)
+    if previous == expected:
+        # Keep Make input mtimes stable when a new Git checkout has identical
+        # contents, but retain the current checkout in the ownership receipt.
+        with pending.open("x") as stream:
+            stream.write(json.dumps({"source": str(source), "sha256": expected}) + "\n")
+        pending.replace(marker)
+        return
     # AOSP's file finder does not discover products through directory symlinks.
     # Install actual files, preserving the previous managed installation for recovery.
     # Stage outside device/ too: an interrupted copy must not be discovered as a product.
@@ -82,6 +91,9 @@ def register(source, aosp):
             destination = staged / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source / name, destination)
+            if previous is not None and previous.get(name) == expected[name]:
+                old = (target / name).stat()
+                os.utime(destination, ns=(old.st_atime_ns, old.st_mtime_ns))
         if inventory(staged) != expected:
             raise ValueError("Product sources changed while staging")
         verify_existing(target, marker)

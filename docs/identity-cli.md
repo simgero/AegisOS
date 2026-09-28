@@ -236,6 +236,16 @@ prüfen echte Dateiveränderungen, zusätzliche Dateien, symbolische Links,
 Kopierabbrüche und die Aufbewahrung der vorigen Fassung. Sie prüfen weder Java
 noch AOSP-Berechtigungen.
 
+Inhaltlich unveränderte Registrierungen behalten jetzt ihre Dateien und
+Zeitstempel. Bei einer Teiländerung behalten unveränderte Dateien ihren
+Zeitstempel; dadurch sollen unveränderte Make-/Soong-Eingaben keine erneute
+Buildplanerzeugung auslösen. Neue Inhalte erhalten weiterhin neue Zeitstempel
+und die vorige verwaltete Fassung bleibt als Backup erhalten. Die Prüfung auf
+fremde Änderungen erfolgt auch unmittelbar vor dem Austausch der Identitätsquellen.
+25 gezielte Hosttests zu Produktregistrierung, Identitätsregistrierung und
+QEMU-Befehlsbildung bestehen. Die Zeitersparnis auf dem Builder ist noch nicht
+gemessen.
+
 Erst erfolgreicher Komponentenbau und vorhandene JAR-/Startdateien samt
 Framework-Ressourcen, Test-APK und nativen ARM64-Artefakten setzen
 `IDENTITY_COMPILED_NOT_INSTALLED`. Logs, Quellinventar und Modulprüfsummen liegen
