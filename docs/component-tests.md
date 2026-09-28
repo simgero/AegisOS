@@ -3,6 +3,41 @@
 Stand: 28. September 2026. Einzelne Module geprüft, noch keine Abnahme der
 installierten AEGIS-Dienste oder einer GNU/Linux-Sitzung.
 
+## Aktueller vollständiger nativer Lauf mit dem neuen Kernel
+
+Im Image `be1ad9ad` wurden alle **86 nativen Tests des Komponentencommits
+`336e9275`** ausgeführt: **83 bestanden, drei fehlgeschlagen, keiner abgewählt**.
+Lokaler Mac-QEMU, Kernel `6.12.18-android16-1-maybe-dirty-4k`, authentifiziertes
+ADB und SELinux Enforcing. Androids Framework-Boot bleibt wegen der separat
+beschriebenen Audiokonfiguration unvollständig; hier wurden ausschließlich
+native Kernel-/Dateisystembausteine geprüft, keine Java- oder Anmeldetests.
+
+Neu positiv belegt sind die tatsächlichen Namensräume, getrennte Host-IDs
+zweier gleichzeitig lebender Kinder, geschlossene Startfreigabe, private
+Geräteansichten, reservierte Bionic-Kennungen und der kombinierte Speichergruppen-/
+Namespace-Start. Alle fünf CE-Negativtests bestehen nun einschließlich der
+Tmpfs-Seriennummernattribute. Dies sind Tests als Entwicklungs-root, kein Nachweis
+produktiver SELinux-Domänen oder persönlicher Linux-Sitzungen.
+
+Drei Basis-Mount-Tests scheitern weiterhin mit `EINVAL`:
+
+- `PreparedMappingsKeepExecBlockedWhileBaseMountIsBuilt`
+- `TwoViewsKeepSharedInodesWithSeparateUserOwnership`
+- `WritableOrNonDirectorySourcesAreRefusedWithoutMutationOrLeaks`
+
+Der gepinnte Kernel ruft bei `open_tree(OPEN_TREE_CLONE)` `__do_loopback` auf,
+das über `check_mnt` einen Quellmount im aktuellen Mount-Namespace verlangt.
+Die Fixtures liefern einen detached `fsmount`; auch `aegis_base_open` liefert
+gegenwärtig einen solchen Mount. Die Besitz-/Namespace-Anbindung muss vor der
+Runtime-Aktivierung korrigiert werden. Prüfungen wurden nicht gelockert und
+kein alternativer `chroot`-Betrieb eingeführt.
+
+Nachweise: `out/full-build-be1ad9ad/native-tests-before-boot/` mit Rohlog,
+Gastzustand, Ergebnis und SHA-256. Android und der gepaarte Schlüssel-Helper
+wurden anschließend mit bestätigtem Powerdown beendet.
+
+Die folgenden Abschnitte halten frühere, eingeschränkte Läufe fest.
+
 ## Herkunft
 
 - Buildcommit: `9d3295106d7c6f4841ab5db1bf29a8cd085cccf3`.

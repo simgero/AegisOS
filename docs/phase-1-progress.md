@@ -9,15 +9,16 @@ wurde auf `aegis-build` vollständig kompiliert und gelinkt. Lauf
 Er enthält Identitätsdienst, den noch nicht aktivierten Runtime-Broker,
 52 Java- und 86 native Tests. Runtime-Modus bleibt `absent`.
 
-**Aktuelle Gastnachweise:** Beim unmittelbaren Vorgänger `878fc970` bestehen
-48 ausgewählte Java-Tests und 22 von 23 ausgewählten nativen Tests im lokalen
-Mac-QEMU. Ein Basisparser-Test zeigte unzulässige Kommentare; `336e9275`
-korrigiert diese Annahme und ergänzt Regressionen. Seine fünf Parser-Tests
-bestehen im gezielten lokalen Gast-Nachtest. Im ursprünglichen Lauf wurden vier
-Java-Produktkonfigurationstests und 63 native Tests nicht ausgewählt; beim
-gezielten Parser-Nachtest blieben 81 native Tests unausgewählt. Die zuvor am alten Kernel gescheiterten drei
-CE-Tests sowie positive Namespace-Tests müssen mit dem neuen Kernel bestehen.
-Einzelheiten und Grenzen: [Komponententests](component-tests.md).
+**Aktuelle Gastnachweise:** Mit dem neuen Kernel wurden alle 86 nativen
+Tests des Komponentencommits `336e9275` im lokalen Mac-QEMU ausgeführt:
+83 bestehen, drei Tests zur gemeinsamen Basis-Mount-Sicht scheitern mit `EINVAL`.
+Namensräume, getrennte Kernel-IDs, private Geräte, Kennungsregister und alle
+fünf CE-Negativtests bestehen. Das Fixture und der geplante Produktpfad liefern
+einen detached Mount, den der gepinnte Kernel nicht über `open_tree` klont;
+die Mount-Besitzanbindung bleibt zu korrigieren. Android war dabei durch Audio
+blockiert; dies ist kein vollständiger Boot-, Anmelde- oder Runtime-Nachweis.
+Zuvor bestanden 48 ausgewählte Java-Tests im alten Gast; die vollständigen 52
+Java-Tests im neuen Produkt stehen aus. Siehe [Komponententests](component-tests.md).
 
 **Kernel:** Der Vollbuild `aosp-20260928T155300Z-96f9ed6b-c975dba9`
 scheiterte um 16:57 UTC an `check_vintf_all`: FCM 202504 verlangt
@@ -59,7 +60,9 @@ Bluetooth-Audio-Endpunkt. Android bleibt erneut vor dem Bootabschluss stehen.
 Der gepaarte Gast wurde sauber beendet. Die zweite Korrektur liefert die
 vollständige ursprüngliche Audiopolicy einschließlich des benötigten
 Software-Moduls bei weiterhin abgeschaltetem HCI-Controller. Vier XML-
-Regressionen bestehen; der neue Serverbuild und Gastboot stehen aus.
+Regressionen bestehen. Ersatzbuild `25fde995`, Lauf
+`aosp-20260928T193617Z-25fde995-aecfe99a`, wurde um 19:36 UTC gestartet;
+GitHub-Verifikation und Gastboot stehen aus.
 Siehe [QEMU-Hardware](qemu-hardware.md).
 
 Der private AOSP-/Broker-Kanal, Ressourcenbesitz, begrenzte Cgroup-Wiederherstellung
