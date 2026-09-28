@@ -183,12 +183,14 @@ def inspect(run, project):
     release, embedded = image_metadata(image)
     if not release.startswith("6.12."):
         raise ValueError("The selected Android product requires the pinned 6.12 kernel family")
-    config = include("provenance/gki.config", gki / ".config", MAX_TEXT)
+    # The pinned Kleaf dist exports target-qualified names (confirmed by the
+    # first real build), not the source-tree .config/Module.symvers names.
+    config = include("provenance/gki.config", gki / "kernel_aarch64_dot_config", MAX_TEXT)
     if configuration(config) != embedded:
         raise ValueError("Sidecar configuration does not match the executable kernel")
     if any(embedded.get(key) != "y" for key in REQUIRED_CONFIG):
         raise ValueError("Kernel lacks required namespace or Android security configuration")
-    include("provenance/Module.symvers", gki / "Module.symvers", MAX_TEXT)
+    include("provenance/Module.symvers", gki / "kernel_aarch64_Module.symvers", MAX_TEXT)
     module_names = set()
     gki_names = set()
     versions = set()

@@ -14,7 +14,10 @@ Lauf `runtime-base-20260928T145204Z-87ab3f54-WclcLl` meldet
 `BUILT_VERIFIED_NOT_MOUNTED`. Das korrigierte Rezept erzeugt zwei bytegleiche
 Images und liest alle Dateien/Eigentümer zurück. Noch keine Gast-Einbindung.
 Der erforderliche Kernel-Lauf `kernel-20260928T145446Z-87ab3f54-wgP3Hz`
-hat die 40 festgelegten Quellprojekte bezogen und kompiliert jetzt den Kernel.
+hat Kernel und passende Treiber erfolgreich gebaut (`BUILT_UNVERIFIED`).
+Beide Kernel-Kopien sind bytegleich; die tatsächliche Konfiguration enthält
+die erforderlichen Namespaces und Tmpfs-Xattrs. Android-Integration und Boot
+stehen aus; siehe [Kernel-Nachweis](../kernel/README.md).
 
 Seit dem letzten Komponentenlauf ist die F2FS-Prüfung für das tatsächliche
 Android-CE-Dateisystem korrigiert. Zusätzlich ist der Namespace-Start im
@@ -28,7 +31,9 @@ Der [Kontextbesitzer](../runtime/context-owner.md) verbindet inzwischen im Quell
 Speichergruppe, Namespace-/Mount-Aufbau, private Übergabe und geprüfte READY-Antwort.
 Der Abbau verlangt getrennt Gruppenleere und Kind-Exit mit gemeinsamer Frist.
 Drei weitere native Fehlerpfadtests sind vorbereitet (insgesamt 63);
-Kompilierung und tatsächlicher Start mit CE-HOME/SELinux stehen aus.
+Commit `481f738c` wird gerade im Komponentenlauf
+`identity-20260928T154101Z-481f738c-NDVInX` kompiliert. Tatsächlicher Start mit
+CE-HOME/SELinux steht aus.
 
 | Anforderung | Nachweis / verbleibende Arbeit |
 | --- | --- |

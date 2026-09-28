@@ -1,23 +1,29 @@
 # Kernel für die gemeinsame GNU/Linux-Runtime
 
-Stand 28. September 2026: **Erster Buildlauf gestartet, zunächst Quellbeschaffung.**
+Stand 28. September 2026: **Erster Kernel- und Treiber-Build erfolgreich beendet.**
 Kein neuer Kernel ist in die Android-Images integriert oder in QEMU abgenommen.
 
 Start 14:54:46 UTC aus GitHub-Commit
 `87ab3f54e52a3e312500011ab9f65278ac72ac0d`, Dienst `aegis-kernel.service`,
 InvocationID `330aeafe17884e91ad9d7ea87ebe5af3`, Lauf
 `kernel-20260928T145446Z-87ab3f54-wgP3Hz`.
-Der Dienst hat eine Laufzeitgrenze von zwölf Stunden; Quellen und Ergebnisse
-bleiben erhalten. Ein verschwundener Dienst allein bestätigt keinen Erfolg.
+Der Lauf meldet `BUILT_UNVERIFIED`; beide Kleaf-Befehle und die abschließende
+Prüfung aller 40 Quellprojekte sind erfolgreich. GKI- und Virtual-Device-`Image`
+sind bytegleich (SHA-256
+`bfb463982b48178d01f931a56e9990e33417aabde2d8c4928283ca5f43cf56d8`).
+Die Ausgabe-Konfiguration bestätigt User-/PID-/IPC-Namespaces, System-V-IPC,
+Tmpfs-Xattrs, Speichercontroller, F2FS-Xattrs/-Security und SELinux.
+Die vollständige Eingabeprüfung aller Module und Android-Integration folgen noch.
+Die Überwachung dieses abgeschlossenen Kernel-Laufs wurde beendet.
 
-Vom Mac live mitlesen:
+Kernel-Journal vom Mac lesen:
 
 ```sh
 ssh -o BatchMode=yes -o StrictHostKeyChecking=yes aegis-build \
-  'journalctl -f -u aegis-kernel.service -n 30'
+  'journalctl _SYSTEMD_INVOCATION_ID=330aeafe17884e91ad9d7ea87ebe5af3 --no-pager'
 ```
 
-`Ctrl+C` beendet nur die Anzeige. Der Serverlauf bleibt davon unabhängig.
+Quellen und Ergebnisse des abgeschlossenen Laufs bleiben erhalten.
 
 ## Festgelegte Grundlage
 
@@ -96,7 +102,7 @@ Compiler. Es prüft unter anderem:
   Konfigurationsfragment; aufgelöste und gepinnte Quellrevisionen müssen übereinstimmen;
 - identische ARM64-`Image`-Dateien aus GKI- und Virtual-Device-Ausgabe;
 - die komprimierte Konfiguration **innerhalb der ausführbaren Kernel-Datei**,
-  Übereinstimmung mit `.config`, Namespace-Funktionen sowie wesentliche Android-
+  Übereinstimmung mit `kernel_aarch64_dot_config`, Namespace-Funktionen sowie wesentliche Android-
   Voraussetzungen wie SELinux, Seccomp, Modulsignaturunterstützung, Dateiverschlüsselung
   und dm-verity, außerdem die bereits im bisherigen GKI vorhandenen Cgroup-/
   Speichercontroller sowie F2FS einschließlich Xattrs und SELinux-Dateiattributen
@@ -136,7 +142,11 @@ den Transport des Kernel-Nachweises und den Abbruch bei fehlendem Nachweis.
 Als reale Formatprüfung wurden das vorhandene Kernel-Image und 19 Module seines
 Vendor-Ramdisks gelesen, ohne sie zu verändern, zu laden oder auszuführen. Dabei
 bestätigte die Prüfroutine die fehlenden Namespace-Optionen des bisherigen Kernels.
-**Der neue Kernel selbst wurde noch nicht gebaut oder gestartet.**
+**Der neue Kernel ist inzwischen gebaut, aber noch nicht in Android integriert
+oder lokal gestartet.** Der erste reale Kleaf-Lauf liefert die Metadaten als
+`kernel_aarch64_dot_config` und `kernel_aarch64_Module.symvers`; die Übernahme
+verwendet diese festen Namen und vergleicht die Konfiguration weiterhin mit
+dem tatsächlich ausführbaren Kernel.
 
 ## Noch notwendige Integration und Abnahme
 

@@ -74,8 +74,8 @@ class KernelIntegrationTests(unittest.TestCase):
         shutil.copyfile(ROOT / "kernel/manifest.xml", self.run / "resolved-manifest.xml")
         for directory in (self.gki, self.vendor):
             (directory / "Image").write_bytes(image())
-        (self.gki / ".config").write_bytes(config_bytes())
-        (self.gki / "Module.symvers").write_text("public metadata fixture\n")
+        (self.gki / "kernel_aarch64_dot_config").write_bytes(config_bytes())
+        (self.gki / "kernel_aarch64_Module.symvers").write_text("public metadata fixture\n")
         for directory, names in ((self.gki, kernel.BOOT_GKI), (self.vendor, kernel.BOOT_VENDOR)):
             for name in names:
                 (directory / name).write_bytes(module())
@@ -110,7 +110,7 @@ class KernelIntegrationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "different kernels"):
             self.inspect()
         (self.vendor / "Image").write_bytes(image())
-        (self.gki / ".config").write_bytes(config_bytes().replace(b"CONFIG_USER_NS=y", b"CONFIG_USER_NS=n"))
+        (self.gki / "kernel_aarch64_dot_config").write_bytes(config_bytes().replace(b"CONFIG_USER_NS=y", b"CONFIG_USER_NS=n"))
         with self.assertRaisesRegex(ValueError, "Sidecar"):
             self.inspect()
 
@@ -122,7 +122,7 @@ class KernelIntegrationTests(unittest.TestCase):
             config = config_bytes().replace((option + "=y").encode(), (option + "=n").encode())
             for directory in (self.gki, self.vendor):
                 (directory / "Image").write_bytes(image(config))
-            (self.gki / ".config").write_bytes(config)
+            (self.gki / "kernel_aarch64_dot_config").write_bytes(config)
             with self.subTest(option=option), self.assertRaisesRegex(ValueError, "configuration"):
                 self.inspect()
 
