@@ -115,7 +115,7 @@ class KernelIntegrationTests(unittest.TestCase):
             self.inspect()
 
     def test_missing_namespace_or_security_option_cannot_be_packaged(self):
-        for option in ("CONFIG_USER_NS", "CONFIG_PID_NS", "CONFIG_IPC_NS", "CONFIG_SECURITY_SELINUX",
+        for option in ("CONFIG_USER_NS", "CONFIG_PID_NS", "CONFIG_IPC_NS", "CONFIG_TMPFS_XATTR", "CONFIG_SECURITY_SELINUX",
                        "CONFIG_MODULE_SIG", "CONFIG_FS_ENCRYPTION", "CONFIG_DM_VERITY"):
             config = config_bytes().replace((option + "=y").encode(), (option + "=n").encode())
             for directory in (self.gki, self.vendor):

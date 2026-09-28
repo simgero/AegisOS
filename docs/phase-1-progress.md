@@ -2,6 +2,17 @@
 
 Stand: 28. September 2026. Keine Abnahme des Gesamtziels.
 
+**Aktueller Nachweis:** Komponentencommit `9d329510` wurde auf `aegis-build`
+erfolgreich kompiliert und über GitHub auf den Mac übertragen. Im lokalen
+QEMU bestehen 40 Java- und 32 native Tests; drei weitere native Tests scheitern
+an fehlenden Tmpfs-Dateiattributen im bisherigen Kernel. Vier Java- und
+16 native Tests benötigen das neue integrierte Image. Einzelheiten und
+Abgrenzung: [Komponententests](component-tests.md).
+
+Der erste echte Debian-Dateisystembau ist noch **nicht freigegeben**:
+Die zwei Erzeugungen liefern unterschiedliche Bytes. Die Wiederholungsprüfung
+weist sie zurück; die Ursache wird anhand erhaltener Diagnoseimages untersucht.
+
 | Anforderung | Nachweis / verbleibende Arbeit |
 | --- | --- |
 | Lokaler Android-Start | Bootabschluss und sichtbare Oberfläche bestätigt, siehe `qemu-first-boot.md`. |
@@ -9,11 +20,18 @@ Stand: 28. September 2026. Keine Abnahme des Gesamtziels.
 | Bedienung | Virtuelle Tastatur schreibt den vollständigen Testtext; relative Maus öffnet mit linkem Klick eine Einstellungsseite. Native Mac-Fensterbedienung noch prüfen; Mac beim Versuch gesperrt. |
 | Dauerhafte Daten und Schlüssel | Neuer Helper auf dem Server gebaut und über GitHub geprüft bezogen. Vollständiger QEMU-Neustart mit persönlichem Passwort: falsches Passwort abgewiesen, CE gesperrt, richtiges Passwort liefert dieselben 4096 Bytes. Doppelstart, fehlende/fremde Disk und verlorener TPM-Zustand auf einer Kopie abgewiesen. Stromausfall- und Migrationsnachweis offen; siehe `persistent-qemu.md`. |
 | Gerätedienste | Bluetooth-Abstürze und NFC-Controller-Timeouts im bisherigen Image dokumentiert; zuletzt keine laufende Absturzschleife aller HALs belegt. Bluetooth-Schalter sowie fehlende NFC-/UWB-/Thread-Funktionen im nächsten Produktstand konfiguriert. Noch ungebaut; Framework-Start, verbliebene native HALs und weitere geerbte Geräte im neuen Gast prüfen. Siehe `qemu-hardware.md`. |
-| AEGIS-Identität/CLI | AOSP-Adapter, prozessgebundener Binder-Dienst und interaktive CLI einschließlich Ersteinrichtung und Benutzeranlage/-löschung mit frischer Adminprüfung im Quelltext. Produktpakete, Systemserver-Classpath, Bootressource und SELinux-Zuordnung ergänzt; alles noch unkompiliert und nicht im Gast. Server-Check baut auch Ressourcen/Policy, Kennungsregister, die betroffenen Framework-Dienste und 44 vorbereitete Android-Tests. Der neue lesende Dienstcheck weist die fehlende Integration im bisherigen Image korrekt zurück. Runtime-Koordination fehlt. Siehe `identity-cli.md`. |
+| AEGIS-Identität/CLI | AOSP-Adapter, Binder-Dienst, CLI, Ressourcen/Policy, Kennungsregister, betroffene Framework-Dienste und 44 Android-Tests erfolgreich kompiliert. 40 isolierte Java-Gerätetests bestehen; Produktintegration und reale Anmeldung über AEGIS im neuen Image stehen aus. Runtime-Koordination fehlt. Siehe `component-tests.md` und `identity-cli.md`. |
 | AOSP-Passwortgrundlage | Ein persönlicher Testbenutzer: falsches Passwort abgewiesen, CE-Sperre nach Benutzerstopp bestätigt, richtiges Passwort stellt Dateizugriff wieder her. Nach Passwortwechsel wird das alte Passwort abgewiesen; das neue erhält dieselben Daten. Anschließend Plattformlöschung und Abwesenheit von acht Schlüssel-/Datenpfaden bestätigt. Tests über AOSP-Dialoge und Plattformbefehle, noch nicht über AEGIS; siehe `identity-platform-test.md`. |
-| GNU/Linux-Runtime | Offizielle Debian-13.7-ARM64-Basis festgelegt und als unverändertes Archiv importiert/geprüft: 78 Pakete, darunter glibc, Bash und apt. Keine Extraktion oder Ausführung. UID/GID-Zuordnung und AOSP-Registerprüfung vorbereitet; alle 38 Basiskennungen abgedeckt, aber noch keine laufenden Maps. Laufzeitverwaltung, AOSP-Autorisierung, Mounts und SELinux-Integration fehlen. Der aktuelle Kernel erfüllt die notwendigen Namespace-Anforderungen nicht. Siehe `../runtime/README.md` und `../runtime/uid-mapping.md`. |
+| GNU/Linux-Runtime | Gepinnte Debian-13.7-ARM64-Basis mit 78 Paketen importiert und auf dem Builder als inerte Dateien zu ext4 verarbeitet. Wiederholungsprüfung des Images fehlgeschlagen; keine Freigabe oder Ausführung. Native Module einschließlich 51 Tests kompiliert; 32 Tests bestehen im bisherigen Gast. Laufende Maps, Laufzeitverwaltung, AOSP-Autorisierung, Mounts und SELinux-Integration fehlen. Neuer Kernel erforderlich. Siehe `component-tests.md`, `../runtime/generations.md` und `../runtime/uid-mapping.md`. |
 | Pakete und Isolation | Noch zu implementieren und mit zwei AOSP-Benutzern praktisch zu prüfen. |
 | Vollständiger Ablauf | Noch kein Nachweis für Login, Wechsel, Logout mit CE-Sperrung und Neustart mit zwei passwortgeschützten Benutzern. |
+
+## Frühere Vorbereitungsschritte
+
+Die folgenden Absätze dokumentieren den damaligen Stand vor dem ersten
+erfolgreichen Komponentenbau. Aussagen „unkompiliert“ oder „ungetestet“ darin
+werden durch den aktuellen Nachweis oben präzisiert; die noch fehlende
+Integration und vollständigen Systemtests bleiben offen.
 
 Die ausdrückliche Fortsetzung einer protokollierten Ersteinrichtung ist mit
 `setup --resume NAME` im Quelltext angebunden. Vorhandene Passwörter bleiben

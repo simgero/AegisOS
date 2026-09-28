@@ -79,6 +79,16 @@ class GenerationTests(unittest.TestCase):
         self.assertIn("home/user 1000 1000 0700 capabilities=0", rows)
         self.assertTrue(all(row.endswith(" capabilities=0") for row in rows))
 
+    def test_lost_found_is_planned_but_only_filesystem_tool_may_create_it(self):
+        plan = self.plan()
+        entries = generation.validate_plan(plan)
+        self.assertEqual(entries["lost+found"], generation.directory("lost+found", mode=0o700))
+        stage = self.root / "staged"
+        generation.materialize(plan, self.imported / "rootfs.tar.gz", stage)
+        self.assertFalse((stage / "lost+found").exists())
+        self.assertIn("lost+found 0 0 0700 capabilities=0\n", generation.fs_config(plan))
+        self.assertTrue((stage / "home/user").is_dir())
+
     def test_generic_account_collision_and_other_nss_authority_are_rejected(self):
         for changed in ("group-id", "group-name", "authority"):
             with self.subTest(changed=changed):

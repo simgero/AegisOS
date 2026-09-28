@@ -1,9 +1,14 @@
 # Gemeinsame Softwaregeneration
 
-Stand: 28. September 2026. **Buildrezept vorbereitet, noch nicht auf dem Builder
-ausgeführt.** Die echte Debian-Basis wurde nur gelesen und geplant. Es gibt
-noch kein daraus erzeugtes, veröffentlichtes oder in QEMU eingebundenes
-Runtime-Dateisystem. `ro.aegis.runtime.mode=absent` bleibt unverändert.
+Stand: 28. September 2026. **Erste echte Images erzeugt, Wiederholungsprüfung
+noch fehlgeschlagen.** Der Builder hat die AOSP-Dateisystemwerkzeuge kompiliert
+und den geprüften Debian-Import zweimal zu ext4 verarbeitet. Drei unterschiedliche
+Bytes betrafen ausschließlich den Zugriffszeitstempel von `lost+found`; dessen
+Eigentümer entsprach zudem dem Buildkonto. Das korrigierte Rezept überlässt
+dieses Verzeichnis vollständig `mke2fs`, weil das gepinnte `e2fsdroid` es von
+seiner nachträglichen Metadatenkorrektur ausnimmt. Erneuter Build und volle
+Inhaltsprüfung stehen aus. Kein freigegebenes oder in QEMU eingebundenes
+Runtime-Dateisystem; `ro.aegis.runtime.mode=absent` bleibt unverändert.
 
 ## Inhalt und Kennungen
 
@@ -70,7 +75,11 @@ Dateiinhalte werden gegen den vorherigen Plan geprüft. Bestehende Ziele werden
 abgewiesen und erhalten; bei einem Kopierfehler wird nur die eigens angelegte
 Staging-Fläche entfernt. Die in diesem Pin verwendeten Symlinks passen in
 ext4s kurze Linkdarstellung. Längere oder nicht darstellbare Links in künftigen
-Basen erfordern eine Anpassung und Prüfung des Rezepts.
+Basen erfordern eine Anpassung und Prüfung des Rezepts. `lost+found` steht im
+Soll-Inventar, wird aber ausschließlich von `mke2fs` erzeugt: Eine Hostkopie
+würde in diesem AOSP-Werkzeug ungeprüfte Host-Eigentümer und Zeitstempel
+übernehmen. Eigentümer, Modus und leeres Inventar werden anschließend wie bei
+allen anderen Verzeichnissen aus dem tatsächlichen Image gelesen.
 
 Der vollständige `fs_config.txt` ordnet allen Einträgen die vorgesehenen
 Eigentümer und Rechte zu, mit Dateicapabilities null. Der gepinnte

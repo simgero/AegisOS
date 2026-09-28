@@ -215,7 +215,11 @@ def materialize(plan, archive, destination):
     destination.mkdir(mode=0o700, exist_ok=False)
     try:
         for name in sorted(entries, key=lambda n: (len(PurePosixPath(n).parts), n)):
-            if name != "." and entries[name]["kind"] == "directory":
+            # mke2fs creates lost+found with root ownership and fixed times.
+            # e2fsdroid copies a staged directory's host ownership/ctime, then
+            # explicitly skips androidify_inode() for lost+found. Do not feed
+            # it such a directory; still require/read back it in the final plan.
+            if name not in {".", "lost+found"} and entries[name]["kind"] == "directory":
                 (destination / name).mkdir(mode=0o700)
         with tarfile.open(archive, "r:gz") as tar:
             for name in sorted(entries):
@@ -244,7 +248,8 @@ def materialize(plan, archive, destination):
             elif entry["kind"] == "symlink":
                 os.symlink(entry["target"], destination / name)
         for name in sorted(entries, reverse=True):
-            os.utime(destination / name, (plan["epoch"], plan["epoch"]), follow_symlinks=False)
+            if name != "lost+found":
+                os.utime(destination / name, (plan["epoch"], plan["epoch"]), follow_symlinks=False)
     except BaseException:
         shutil.rmtree(destination)  # Only our freshly-created private staging tree.
         raise
