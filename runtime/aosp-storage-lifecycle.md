@@ -77,8 +77,8 @@ in einem temporären Verzeichnis geprüft.
 
 Acht zusätzliche Android-Java-Tests sind vorbereitet: Reihenfolge,
 fehlgeschlagene Akquisition, Modusprüfung, Threadbindung, einmalige Freigabe
-und Fehlerweitergabe. Insgesamt sind damit 32 Java- und 50 native Gerätetests
-vorbereitet; **die neuen Gerätetests sind weiterhin unkompiliert und unausgeführt**.
+und Fehlerweitergabe. Zusammen mit der [Zugangsserialisierung](admission.md)
+sind 44 Java- und 50 native Gerätetests vorbereitet; **die neuen Gerätetests sind weiterhin unkompiliert und unausgeführt**.
 
 Es fehlen weiterhin der tatsächliche Controller/Broker, die gemeinsame
 Serialisierung von Start/Stop und Pakettransaktionen, Ressourcenabbau auch bei

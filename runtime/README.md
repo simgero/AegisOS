@@ -86,6 +86,11 @@ ist ebenfalls als Quelltext vorbereitet. Sie definiert die bestätigte
 Ressourcenfreigabe vor Schlüsseloperationen; der dafür erforderliche
 Runtime-Controller fehlt noch. Der verwaltete Modus bleibt deaktiviert.
 
+Die [Zugangsserialisierung](admission.md) ergänzt im Quelltext einen
+Widerruf vor und nach destruktiven Speicheroperationen sowie eine
+Seriennummernbindung. Der Adapter bleibt unregistriert, bis tatsächlicher
+Ressourcenabbau und die übrigen Lebenszykluspfade integriert sind.
+
 ## Vor dem ersten Runtime-Start noch erforderlich
 
 Das [Buildrezept für eine gemeinsame Softwaregeneration](generations.md)

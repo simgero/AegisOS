@@ -18,8 +18,9 @@ kompiliert und nicht im Gast installiert.** Die bestehenden Android-Dialogtests 
   Hinzu kommen die Runtime-UID/GID-Zuordnung und installierte Ressourcenkennungen;
   Zusätzlich zwölf Tests zur ausdrücklichen Fortsetzung einer unterbrochenen
   Ersteinrichtung mit einer simulierten Plattform und acht Tests der
-  [vorgeschalteten Speicher-Schnittstelle](../runtime/aosp-storage-lifecycle.md);
-  insgesamt 32 vorbereitete Android-Tests. Die Zuordnung startet keinen Linux-Kontext.
+  [vorgeschalteten Speicher-Schnittstelle](../runtime/aosp-storage-lifecycle.md)
+  sowie zwölf Tests der [Zugangsserialisierung](../runtime/admission.md);
+  insgesamt 44 vorbereitete Android-Tests. Die Zuordnung startet keinen Linux-Kontext.
   Noch nicht kompiliert oder ausgeführt.
 
 Die erste CLI unterstützt im Quelltext `setup`, `user list`, `user add`,

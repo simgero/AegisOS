@@ -9,7 +9,7 @@ Stand: 28. September 2026. Keine Abnahme des Gesamtziels.
 | Bedienung | Virtuelle Tastatur schreibt den vollständigen Testtext; relative Maus öffnet mit linkem Klick eine Einstellungsseite. Native Mac-Fensterbedienung noch prüfen; Mac beim Versuch gesperrt. |
 | Dauerhafte Daten und Schlüssel | Gekoppelte Profile implementiert und mit echten Diskdateien getestet. Neuer Helper-Build und echter Passwort-/Neustarttest fehlen; siehe `persistent-qemu.md`. |
 | Gerätedienste | Bluetooth-Abstürze und NFC-Controller-Timeouts im bisherigen Image dokumentiert; zuletzt keine laufende Absturzschleife aller HALs belegt. Bluetooth-Schalter sowie fehlende NFC-/UWB-/Thread-Funktionen im nächsten Produktstand konfiguriert. Noch ungebaut; Framework-Start, verbliebene native HALs und weitere geerbte Geräte im neuen Gast prüfen. Siehe `qemu-hardware.md`. |
-| AEGIS-Identität/CLI | AOSP-Adapter, prozessgebundener Binder-Dienst und interaktive CLI einschließlich Ersteinrichtung und Benutzeranlage/-löschung mit frischer Adminprüfung im Quelltext. Produktpakete, Systemserver-Classpath, Bootressource und SELinux-Zuordnung ergänzt; alles noch unkompiliert und nicht im Gast. Server-Check baut auch Ressourcen/Policy, Kennungsregister, die betroffenen Framework-Dienste und 32 vorbereitete Android-Tests. Der neue lesende Dienstcheck weist die fehlende Integration im bisherigen Image korrekt zurück. Runtime-Koordination fehlt. Siehe `identity-cli.md`. |
+| AEGIS-Identität/CLI | AOSP-Adapter, prozessgebundener Binder-Dienst und interaktive CLI einschließlich Ersteinrichtung und Benutzeranlage/-löschung mit frischer Adminprüfung im Quelltext. Produktpakete, Systemserver-Classpath, Bootressource und SELinux-Zuordnung ergänzt; alles noch unkompiliert und nicht im Gast. Server-Check baut auch Ressourcen/Policy, Kennungsregister, die betroffenen Framework-Dienste und 44 vorbereitete Android-Tests. Der neue lesende Dienstcheck weist die fehlende Integration im bisherigen Image korrekt zurück. Runtime-Koordination fehlt. Siehe `identity-cli.md`. |
 | AOSP-Passwortgrundlage | Ein persönlicher Testbenutzer: falsches Passwort abgewiesen, CE-Sperre nach Benutzerstopp bestätigt, richtiges Passwort stellt Dateizugriff wieder her. Nach Passwortwechsel wird das alte Passwort abgewiesen; das neue erhält dieselben Daten. Anschließend Plattformlöschung und Abwesenheit von acht Schlüssel-/Datenpfaden bestätigt. Tests über AOSP-Dialoge und Plattformbefehle, noch nicht über AEGIS; siehe `identity-platform-test.md`. |
 | GNU/Linux-Runtime | Offizielle Debian-13.7-ARM64-Basis festgelegt und als unverändertes Archiv importiert/geprüft: 78 Pakete, darunter glibc, Bash und apt. Keine Extraktion oder Ausführung. UID/GID-Zuordnung und AOSP-Registerprüfung vorbereitet; alle 38 Basiskennungen abgedeckt, aber noch keine laufenden Maps. Laufzeitverwaltung, AOSP-Autorisierung, Mounts und SELinux-Integration fehlen. Der aktuelle Kernel erfüllt die notwendigen Namespace-Anforderungen nicht. Siehe `../runtime/README.md` und `../runtime/uid-mapping.md`. |
 | Pakete und Isolation | Noch zu implementieren und mit zwei AOSP-Benutzern praktisch zu prüfen. |
@@ -89,6 +89,13 @@ entzogen werden; Fehler dürfen keine erfolgreiche Sperrbestätigung erzeugen.
 Acht zusätzliche Java-Tests sind vorbereitet, insgesamt 32. Der Komponentenlauf
 baut nun auch die betroffenen Framework-Dienste. **Noch nicht auf dem Server
 kompiliert oder im Gast getestet; Runtime-Modus weiterhin `absent`.**
+
+Die [Zugangsserialisierung](../runtime/admission.md) liegt ebenfalls als
+Quelltext vor: einmalige Anmeldeversuche, getrennte Benutzersperren,
+Seriennummernbindung und Widerruf vor/nach destruktiven Speicheroperationen.
+Zwölf weitere Android-Tests sind vorbereitet, insgesamt 44. **Unkompiliert,
+ungetestet und noch nicht aktiviert.** Native Abbaubestätigung, vollständige
+AOSP-Lebenszyklus-Anbindung und Pakettransaktionen fehlen weiterhin.
 
 Auch die [gemeinsame Softwaregeneration](../runtime/generations.md) besitzt nun
 ein Buildrezept: technischer NSS-Benutzer, explizite Datei-Eigentümer, Entfernen
