@@ -55,3 +55,8 @@ Speicherdrucktest der tatsächlichen Grenze, CPU-Budget, Broker-Neustart/Recover
 SELinux-Anbindung und vollständiger Zwei-Benutzer-Logout. `CONFIG_CGROUP_PIDS`
 ist im bisherigen Kernel nicht aktiv; hier wird keine PID-Cgroup-Grenze behauptet.
 Der bestehende Aufseher setzt zusätzlich `RLIMIT_NPROC` für seine Nutzprozesse.
+
+Der neue [Kontextbesitzer](context-owner.md) verbindet diese Gruppe im Quelltext
+mit dem Namespace-/Mount-Start und verlangt beim Abbau sowohl eine leere Gruppe
+als auch den beobachteten Kind-Exit. Auch diese Verbindung muss noch auf dem
+Builder kompiliert und im Gast geprüft werden.

@@ -21,8 +21,14 @@ Android-CE-Dateisystem korrigiert. Zusätzlich ist der Namespace-Start im
 Quelltext mit einer [Speichergruppe](../runtime/memory-groups.md) verbunden:
 1 GiB Grenze ab Prozesserzeugung, einmalige ID-/Seriennummernbindung und
 bestätigter Gruppenstopp. Neun weitere native Gerätetests sind vorbereitet
-(insgesamt 60). **Diese Änderungen sind noch nicht kompiliert oder im Gast
+(insgesamt zunächst 60). **Diese Änderungen sind noch nicht kompiliert oder im Gast
 geprüft; Runtime-Broker, SELinux-Anbindung und vollständiger Logout fehlen.**
+
+Der [Kontextbesitzer](../runtime/context-owner.md) verbindet inzwischen im Quelltext
+Speichergruppe, Namespace-/Mount-Aufbau, private Übergabe und geprüfte READY-Antwort.
+Der Abbau verlangt getrennt Gruppenleere und Kind-Exit mit gemeinsamer Frist.
+Drei weitere native Fehlerpfadtests sind vorbereitet (insgesamt 63);
+Kompilierung und tatsächlicher Start mit CE-HOME/SELinux stehen aus.
 
 | Anforderung | Nachweis / verbleibende Arbeit |
 | --- | --- |

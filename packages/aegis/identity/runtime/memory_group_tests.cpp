@@ -1,10 +1,12 @@
 // Compile on aegis-build; run only in the local Android QEMU guest. These
 // fixtures own empty, exclusive cgroups and inert children, never AOSP users.
 #include "memory_group.h"
+#include "context.h"
 #include "namespace.h"
 #include "namespace_probe.h"
 
 #include <gtest/gtest.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
@@ -50,6 +52,7 @@ class RuntimeMemoryGroup : public ::testing::Test {
     bool created = false;
     aegis_memory_group* groups[2] = {nullptr, nullptr};
     aegis_namespace* context = nullptr;
+    aegis_context* runtime = nullptr;
     int peers[2] = {-1, -1}, setup = -1;
 
     void SetUp() override {
@@ -75,6 +78,7 @@ class RuntimeMemoryGroup : public ::testing::Test {
     }
 
     void TearDown() override {
+        if (runtime) EXPECT_EQ(0, aegis_context_stop(&runtime, 5000));
         if (context) {
             EXPECT_EQ(0, aegis_namespace_stop(context));
             aegis_child_exit result = {};
@@ -143,6 +147,71 @@ class RuntimeMemoryGroup : public ::testing::Test {
         ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, peers));
     }
 };
+
+class RuntimeContext : public RuntimeMemoryGroup {};
+
+int descriptors() {
+    DIR* directory = opendir("/proc/self/fd");
+    if (!directory) return -1;
+    int count = 0;
+    while (dirent* entry = readdir(directory)) if (entry->d_name[0] != '.') count++;
+    closedir(directory);
+    return count;
+}
+
+TEST_F(RuntimeContext, RejectedHelperRetainsCleanupAndPreservesCallerDescriptors) {
+    int file = open("/dev/null", O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    ASSERT_GE(file, 0);
+    int before = descriptors();
+    ASSERT_GT(before, 0);
+    int result = aegis_context_start(10, 1234, parent, file, file, file, 0, &runtime);
+    EXPECT_EQ(-1, result); EXPECT_NE(nullptr, runtime);
+    EXPECT_GE(fcntl(file, F_GETFD), 0); EXPECT_GE(fcntl(parent, F_GETFD), 0);
+    if (runtime) {
+        EXPECT_EQ(-1, aegis_context_channel(runtime)); EXPECT_EQ(EAGAIN, errno);
+        EXPECT_EQ(-1, aegis_context_stop(&runtime, -1)); EXPECT_EQ(EINVAL, errno);
+        EXPECT_NE(nullptr, runtime);
+        EXPECT_EQ(0, aegis_context_stop(&runtime, 5000));
+        EXPECT_EQ(nullptr, runtime);
+    }
+    struct stat st;
+    EXPECT_EQ(-1, fstatat(parent, "u10-s1234", &st, AT_SYMLINK_NOFOLLOW)); EXPECT_EQ(ENOENT, errno);
+    EXPECT_EQ(before, descriptors());
+    close(file);
+}
+
+TEST_F(RuntimeContext, RejectedStartNeverRemovesAnAlreadyOwnedGroup) {
+    ASSERT_EQ(0, make(0));
+    // Valid descriptors are sufficient to reach exclusive group creation;
+    // the duplicate name must stop before helper validation or CE access.
+    EXPECT_EQ(-1, aegis_context_start(10, 1234, parent, parent, parent, parent, 0, &runtime));
+    EXPECT_EQ(EEXIST, errno); ASSERT_NE(nullptr, runtime);
+    ASSERT_EQ(0, aegis_context_stop(&runtime, 5000));
+    EXPECT_GE(aegis_memory_group_claim(groups[0], 10, 1234), 0);
+}
+
+TEST_F(RuntimeContext, RawCloneCannotReleaseAnInheritedPartialContext) {
+    ASSERT_EQ(-1, aegis_context_start(10, 1234, parent, parent, parent, parent, 0, &runtime));
+    ASSERT_NE(nullptr, runtime);
+    clone_args args = {};
+    args.flags = CLONE_PIDFD;
+    args.pidfd = reinterpret_cast<uintptr_t>(&pidfds[0]);
+    args.exit_signal = SIGCHLD;
+    pid_t child = static_cast<pid_t>(syscall(SYS_clone3, &args, sizeof(args)));
+    if (!child) {
+        bool denied = aegis_context_channel(runtime) == -1 && errno == EPERM;
+        denied = denied && aegis_context_stop(&runtime, 0) == -1 && errno == EPERM;
+        syscall(SYS_exit_group, denied ? 0 : 92);
+        __builtin_unreachable();
+    }
+    ASSERT_GT(child, 0);
+    pollfd exited = {pidfds[0], POLLIN, 0};
+    ASSERT_EQ(1, poll(&exited, 1, 5000));
+    siginfo_t info = {};
+    ASSERT_EQ(0, waitid(P_PIDFD, static_cast<id_t>(pidfds[0]), &info, WEXITED | WNOHANG));
+    EXPECT_EQ(CLD_EXITED, info.si_code); EXPECT_EQ(0, info.si_status);
+    EXPECT_EQ(0, aegis_context_stop(&runtime, 5000));
+}
 
 TEST_F(RuntimeMemoryGroup, ExactLimitsIdentityAndOneUseClaim) {
     ASSERT_EQ(0, make(0)) << strerror(errno);
