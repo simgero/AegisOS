@@ -191,15 +191,30 @@ für einen folgenden Quellstand vorbereitet. Die Partitionskorrektur setzt CLI
 und Dienst auf `system_ext` und ergänzt den nötigen expliziten CLI-Klassenpfad;
 Details in [Identitätsintegration](identity-cli.md#vorbereitete-produktintegration).
 **Weiterhin kein bestätigter Komponentenabschluss oder Gasttest.** Der
-fehlgeschlagene Checkout bleibt erhalten. Sudo verlangt weiterhin interaktive
-Anmeldung für einen neuen Komponentenlauf.
+fehlgeschlagene Checkout bleibt erhalten. Ein um 13:18 UTC gestarteter weiterer
+Lauf verwendete nochmals die alte Revision `5447a96` und endete um 13:24:45 UTC
+mit demselben Partitionsfehler; er prüfte die Korrektur noch nicht.
 
 Der [Komponenten-Transport](component-transport.md) ist jetzt ebenfalls
 vorbereitet: erfolgreicher Buildstatus und vollständige Modulprüfsummen als
 Voraussetzung, getrennte Build-/Export-Commits, GitHub-Entwurf, Rückdownload
 aller Assets und geprüfte lokale Extraktion. Die Transportfixtures führen
 keinen neuen Android-/Runtime-Code aus. **Noch kein echter Komponentenexport:**
-Der zuletzt überprüfte Serverdienst ist inaktiv und es liegt weiterhin kein
-erfolgreicher Lauf mit dem korrigierten System-Ext-Profil vor. Das bereits
-bereitgestellte Startskript für `283452a` bleibt dafür gültig; die späteren
-Exportwerkzeuge verändern dessen zu kompilierende Komponenten nicht.
+Ein erfolgreicher Lauf mit dem korrigierten System-Ext-Profil ist weiterhin
+Voraussetzung. Die späteren Exportwerkzeuge verändern die mit `283452a`
+zu kompilierenden Komponenten nicht.
+
+Nach der Mitteilung des Nutzers wurde der passwortlose `sudo -n`-Zugriff
+erfolgreich geprüft. Am 28. September um 13:29:07 UTC wurde der **korrigierte**
+Stand `283452ae7ce82344bd94fc865e35abe58b1241b6` direkt gestartet:
+InvocationID `7b0d8b055ab94cafb892e6c424f8e1f1`, Lauf
+`identity-20260928T132908Z-283452ae-N06WMX`. Quellcode und Startskript kamen von
+GitHub. Dieser Lauf passierte die Artefaktgrenze; die erzeugten Modulregeln
+verweisen korrekt auf `system_ext`. Um 13:35:20 UTC endete er nach 5:57 Minuten
+an der anschließenden Systemserver-Dex-Prüfung, die noch `system/framework`
+erwartete. Die Produktliste erhält deshalb zusätzlich den in AOSPs
+`ConfiguredJarList` vorgesehenen Präfix `system_ext:aegis-identity-service`.
+Kompilierabschluss und Gasttests bleiben offen. Die Linux-CI des separaten
+Exportwerkzeugs `f234349` besteht mit 190 Tests ohne Auslassungen; davon prüfen
+16 neue Tests ausschließlich Transport und Veröffentlichungsablauf mit
+inerten Dateien und einer GitHub-Fixture.

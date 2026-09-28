@@ -302,7 +302,8 @@ Vor der tatsächlichen Nutzung fehlen:
 ## Vorbereitete Produktintegration
 
 `aegis_qemu_arm64.mk` installiert CLI und Dienst-JAR unter `system_ext` und ergänzt
-`PRODUCT_SYSTEM_SERVER_JARS_EXTRA`, damit das JAR nach den gemeinsamen
+`PRODUCT_SYSTEM_SERVER_JARS_EXTRA` um `system_ext:aegis-identity-service`,
+damit das JAR nach den gemeinsamen
 Framework-Diensten einsortiert wird. Die AEGIS-Module nutzen private
 Framework-Schnittstellen und deklarieren deshalb `system_ext_specific: true`;
 siehe [AOSP: System-Erweiterungen](https://source.android.com/docs/core/architecture/partitions/shared-system-image#system_ext-partition).
@@ -310,6 +311,10 @@ Die geerbte `generic_system.mk` behält ihre geprüfte Artefaktgrenze, ohne
 Ausnahmen für die AEGIS-Dateien. Die Änderungen an `services` und
 `framework-res` verbleiben als Änderungen vorhandener Plattformmodule in
 `system`.
+Der Präfix `system_ext:` ist zusätzlich zur Moduleigenschaft erforderlich:
+[AOSPs gepinnte Klassenpfadliste](https://android.googlesource.com/platform/build/soong/+/refs/tags/android-16.0.0_r1/android/configured_jars.go)
+leitet daraus den Gerätepfad und die erwarteten Systemserver-Dex-Artefakte ab.
+Ohne Präfix erwartet die Prüfung weiterhin Dateien unter `system/framework`.
 
 Der CLI-Starter liegt unter `/system_ext/bin/aegis`, seine JAR-Datei und das
 Dienst-JAR unter `/system_ext/framework/`. Ein eigener Wrapper setzt den

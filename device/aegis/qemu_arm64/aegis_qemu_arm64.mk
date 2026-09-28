@@ -32,8 +32,9 @@ PRODUCT_PACKAGES += \
 # Install AOSP's generated numeric-account registries for the reserved runtime IDs.
 # These are platform resource names, not personal accounts or authentication data.
 PRODUCT_PACKAGES += passwd_vendor group_vendor passwd_system_ext group_system_ext
-# Append after the common jars regardless of product makefile inheritance order.
-PRODUCT_SYSTEM_SERVER_JARS_EXTRA += aegis-identity-service
+# Append after the common jars. The explicit partition prefix also selects the
+# system-server classpath and expected dexpreopt artifact locations.
+PRODUCT_SYSTEM_SERVER_JARS_EXTRA += system_ext:aegis-identity-service
 
 # Keep this private boot-time service list in framework-res itself. Inherited Cuttlefish
 # RROs remain enabled; the pinned core/phone overlays do not replace this resource.
