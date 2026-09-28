@@ -71,8 +71,13 @@ nicht abgedeckte Debian-Datei-, Benutzer- und Gruppenkennungen.
 
 Fünf vorbereitete Android-Tests vergleichen Zuordnung, Grenzen und Wiederverwendung
 mit der tatsächlichen Plattform-API. Ein weiterer Produkt-Test fragt alle 1002
-Ressourcennamen über Bionics installierte `passwd`-Register vorwärts und rückwärts
-ab. Diese sechs neuen Tests sind **noch nicht kompiliert oder in QEMU ausgeführt**.
+Ressourcennamen über `Process.getUidForName` und `getGidForName` ab; diese APIs
+delegieren an Bionic. Der zusätzliche native Test
+`RuntimeRegistry.InstalledNamesAndIdsRoundTripThroughBionic` prüft direkte
+`passwd`-/`group`-Auflösung und die kanonischen Rückwärtsnamen aller 1002 Einträge.
+`Os.getpwnam` und `StructPasswd` gehören nicht zur stabilen libcore-API des
+Testmoduls; der erste Java-Build hat diese falsche Annahme aufgedeckt.
+Die korrigierten Gerätetests sind **noch nicht kompiliert oder in QEMU ausgeführt**.
 Sie ersetzen keine praktischen Zugriffsversuche zwischen zwei Benutzern.
 
 ## Vor Verwendung im Runtime-Koordinator

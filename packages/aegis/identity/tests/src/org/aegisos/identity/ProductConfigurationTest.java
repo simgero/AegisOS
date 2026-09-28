@@ -2,7 +2,6 @@ package org.aegisos.identity;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
@@ -10,8 +9,7 @@ import android.content.pm.FeatureInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.UserManager;
-import android.system.Os;
-import android.system.StructPasswd;
+import android.os.Process;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -37,14 +35,11 @@ public final class ProductConfigurationTest {
     }
 
     private static void checkResourceName(String name, int appId) throws Exception {
-        StructPasswd entry = Os.getpwnam(name);
-        assertNotNull("Missing generated resource name " + name, entry);
-        assertEquals(name, entry.pw_name);
-        assertEquals(appId, entry.pw_uid);
-        assertEquals(appId, entry.pw_gid);
-        StructPasswd reverse = Os.getpwuid(appId);
-        assertNotNull("Missing reverse resource lookup " + appId, reverse);
-        assertEquals(name, reverse.pw_name);
+        // Os.getpwnam/StructPasswd are not in the stable libcore platform API.
+        // Process delegates these named lookups to bionic. The native registry
+        // test additionally checks the canonical reverse passwd/group names.
+        assertEquals("Missing generated user resource " + name, appId, Process.getUidForName(name));
+        assertEquals("Missing generated group resource " + name, appId, Process.getGidForName(name));
     }
 
     @Test public void frameworkStartsExactlyOneAegisIdentityService() throws Exception {

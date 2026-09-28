@@ -6,8 +6,11 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <grp.h>
 #include <linux/sched.h>
+#include <pwd.h>
 #include <signal.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/prctl.h>
 #include <sys/socket.h>
@@ -20,6 +23,37 @@
 
 namespace {
 using Packet = std::vector<char>;
+
+static void check_resource_name(const char* name, uid_t app_id) {
+    SCOPED_TRACE(name);
+    const passwd* user = getpwnam(name);
+    ASSERT_NE(nullptr, user);
+    EXPECT_STREQ(name, user->pw_name);
+    EXPECT_EQ(app_id, user->pw_uid);
+    EXPECT_EQ(app_id, user->pw_gid);
+    const passwd* reverse_user = getpwuid(app_id);
+    ASSERT_NE(nullptr, reverse_user);
+    EXPECT_STREQ(name, reverse_user->pw_name);
+    const group* resource_group = getgrnam(name);
+    ASSERT_NE(nullptr, resource_group);
+    EXPECT_STREQ(name, resource_group->gr_name);
+    EXPECT_EQ(app_id, resource_group->gr_gid);
+    const group* reverse_group = getgrgid(app_id);
+    ASSERT_NE(nullptr, reverse_group);
+    EXPECT_STREQ(name, reverse_group->gr_name);
+}
+
+TEST(RuntimeRegistry, InstalledNamesAndIdsRoundTripThroughBionic) {
+    // Inspect the installed partition registries, not generated source text.
+    // Canonical reverse names distinguish real entries from OEM fallbacks.
+    for (unsigned inside = 0; inside < 1000; inside++) {
+        char name[64];
+        snprintf(name, sizeof(name), "vendor_aegis_linux_%04u", inside);
+        check_resource_name(name, 5000 + inside);
+    }
+    check_resource_name("system_ext_aegis_runtime_user", 7500);
+    check_resource_name("system_ext_aegis_runtime_nobody", 7501);
+}
 
 Packet request(uint16_t operation, uint64_t id, const std::vector<std::string>& args) {
     aegis_runtime_request header = {};
