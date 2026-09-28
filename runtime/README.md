@@ -81,6 +81,11 @@ ist ebenfalls als ungeprüfter nativer Quelltext vorbereitet. AOSP-Broker,
 praktischer Mount-/Rootwechsel-Nachweis und SELinux-Anbindung fehlen weiterhin;
 daraus folgt noch keine ausführbare Runtime.
 
+Die [vorgeschaltete AOSP-Speicherkoordination](aosp-storage-lifecycle.md)
+ist ebenfalls als Quelltext vorbereitet. Sie definiert die bestätigte
+Ressourcenfreigabe vor Schlüsseloperationen; der dafür erforderliche
+Runtime-Controller fehlt noch. Der verwaltete Modus bleibt deaktiviert.
+
 ## Vor dem ersten Runtime-Start noch erforderlich
 
 Das [Buildrezept für eine gemeinsame Softwaregeneration](generations.md)

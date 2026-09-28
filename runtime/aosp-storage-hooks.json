@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "aosp_tag": "android-16.0.0_r1",
+  "files": {
+    "services/core/java/com/android/server/StorageManagerService.java": "073a918bf11db680f63ba5da2430a9e3032b70558b4c2e94bb3af8af33eea43b",
+    "services/core/java/com/android/server/am/UserController.java": "75529a79f7e0354cf973b7b719d043b80663e58ef024c41022314c5db0708c0b"
+  }
+}

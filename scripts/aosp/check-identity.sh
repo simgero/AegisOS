@@ -34,6 +34,8 @@ state PREPARING
 printf '%s\n' "$commit" > "$run/project-commit.txt"
 python3 "$script_dir/link-product.py" "$project/device/aegis/qemu_arm64" "$aosp"
 python3 "$script_dir/register-identity.py" "$project/packages/aegis/identity" "$aosp"
+python3 "$script_dir/register-runtime-storage.py" --project "$project" --aosp "$aosp" \
+    --receipt "$run/runtime-storage-source.json"
 cp "$aosp/packages/aegis/identity/.aegis-source.json" "$run/source-files.json"
 cp "$aosp/device/aegis/.aegis-product-link.json" "$run/product-source-files.json"
 cd "$aosp"
@@ -50,9 +52,11 @@ python3 "$project/scripts/runtime/uid_layout.py" check --aosp "$aosp" \
 jobs=$(nproc)
 (( jobs <= 12 )) || jobs=12
 state COMPILING
-m -j"$jobs" aegis aegis-identity-service AegisIdentityTests framework-res selinux_policy \
+m -j"$jobs" aegis aegis-identity-service AegisIdentityTests services framework-res selinux_policy \
     passwd_vendor group_vendor passwd_system_ext group_system_ext \
     aegis-runtime-init aegis-runtime-setup AegisRuntimeNativeTests
+python3 "$script_dir/register-runtime-storage.py" --aosp "$aosp" \
+    --receipt "$run/runtime-storage-source.json" --verify
 product=$(get_build_var PRODUCT_OUT)
 [[ $(get_build_var TARGET_ARCH) == arm64 ]]
 mkdir "$run/modules"
@@ -62,6 +66,7 @@ artifacts=(
     system/bin/aegis
     system/framework/aegis.jar
     system/framework/aegis-identity-service.jar
+    system/framework/services.jar
     system/framework/framework-res.apk
     vendor/etc/passwd
     vendor/etc/group

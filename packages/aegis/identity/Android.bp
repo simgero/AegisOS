@@ -34,10 +34,19 @@ android_test {
     name: "AegisIdentityTests",
     manifest: "tests/AndroidManifest.xml",
     srcs: ["tests/src/**/*.java"],
-    static_libs: ["aegis-identity-core", "androidx.test.runner", "androidx.test.ext.junit"],
+    static_libs: ["aegis-identity-core", "aegis-runtime-storage-gate", "androidx.test.runner", "androidx.test.ext.junit"],
     platform_apis: true,
     certificate: "platform",
     test_suites: ["device-tests"],
+}
+
+// The production source is installed into pinned services.core by the source
+// integrator. This noninstalled library gives device tests their own copy.
+java_library {
+    name: "aegis-runtime-storage-gate",
+    srcs: ["platform/**/*.java"],
+    libs: ["framework"],
+    installable: false,
 }
 
 // Explicit builder targets only. No PRODUCT_PACKAGES/init.rc entry: the AOSP

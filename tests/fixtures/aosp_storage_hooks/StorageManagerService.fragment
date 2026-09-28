@@ -1,0 +1,105 @@
+/*
+ * Copyright (C) 2007 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Text-only original AOSP android-16.0.0_r1 fragment; never compiled.
+    public void createUserStorageKeys(int userId, boolean ephemeral) {
+
+        super.createUserStorageKeys_enforcePermission();
+
+        try {
+            mVold.createUserStorageKeys(userId, ephemeral);
+            // Since the user's CE key was just created, the user's CE storage is now unlocked.
+            synchronized (mLock) {
+                mCeUnlockedUsers.append(userId);
+            }
+        } catch (Exception e) {
+            Slog.wtf(TAG, e);
+        }
+    }
+
+    @android.annotation.EnforcePermission(android.Manifest.permission.STORAGE_INTERNAL)
+    @Override
+    public void destroyUserStorageKeys(int userId) {
+
+        super.destroyUserStorageKeys_enforcePermission();
+
+        try {
+            mVold.destroyUserStorageKeys(userId);
+            // Since the user's CE key was just destroyed, the user's CE storage is now locked.
+            synchronized (mLock) {
+                mCeUnlockedUsers.remove(userId);
+            }
+        } catch (Exception e) {
+            Slog.wtf(TAG, e);
+        }
+    }
+
+    /* Only for use by LockSettingsService */
+    @android.annotation.EnforcePermission(android.Manifest.permission.STORAGE_INTERNAL)
+    @Override
+    public void setCeStorageProtection(@UserIdInt int userId, byte[] secret)
+            throws RemoteException {
+        super.setCeStorageProtection_enforcePermission();
+
+        mVold.setCeStorageProtection(userId, secret);
+    }
+
+    /* Only for use by LockSettingsService */
+    @android.annotation.EnforcePermission(android.Manifest.permission.STORAGE_INTERNAL)
+    @Override
+    public void unlockCeStorage(@UserIdInt int userId, byte[] secret) throws RemoteException {
+        super.unlockCeStorage_enforcePermission();
+
+        if (StorageManager.isFileEncrypted()) {
+            mVold.unlockCeStorage(userId, secret);
+        }
+        synchronized (mLock) {
+            mCeUnlockedUsers.append(userId);
+        }
+    }
+
+    @android.annotation.EnforcePermission(android.Manifest.permission.STORAGE_INTERNAL)
+    @Override
+    public void lockCeStorage(int userId) {
+        super.lockCeStorage_enforcePermission();
+
+        // Never lock the CE storage of a headless system user.
+        if (userId == UserHandle.USER_SYSTEM
+                && UserManager.isHeadlessSystemUserMode()) {
+            throw new IllegalArgumentException("Headless system user data cannot be locked..");
+        }
+
+        if (!isCeStorageUnlocked(userId)) {
+            Slog.d(TAG, "User " + userId + "'s CE storage is already locked");
+            return;
+        }
+
+        try {
+            mVold.lockCeStorage(userId);
+        } catch (Exception e) {
+            Slog.wtf(TAG, e);
+            return;
+        }
+
+        synchronized (mLock) {
+            mCeUnlockedUsers.remove(userId);
+        }
+        if (android.os.Flags.allowPrivateProfile()
+                && android.multiuser.Flags.enablePrivateSpaceFeatures()
+                && android.multiuser.Flags.enableBiometricsToUnlockPrivateSpace()) {
+            dispatchCeStorageLockedEvent(userId);
+        }
+    }

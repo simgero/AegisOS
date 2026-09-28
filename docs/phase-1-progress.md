@@ -9,7 +9,7 @@ Stand: 28. September 2026. Keine Abnahme des Gesamtziels.
 | Bedienung | Virtuelle Tastatur schreibt den vollständigen Testtext; relative Maus öffnet mit linkem Klick eine Einstellungsseite. Native Mac-Fensterbedienung noch prüfen; Mac beim Versuch gesperrt. |
 | Dauerhafte Daten und Schlüssel | Gekoppelte Profile implementiert und mit echten Diskdateien getestet. Neuer Helper-Build und echter Passwort-/Neustarttest fehlen; siehe `persistent-qemu.md`. |
 | Gerätedienste | Bluetooth-Abstürze und NFC-Controller-Timeouts im bisherigen Image dokumentiert; zuletzt keine laufende Absturzschleife aller HALs belegt. Bluetooth-Schalter sowie fehlende NFC-/UWB-/Thread-Funktionen im nächsten Produktstand konfiguriert. Noch ungebaut; Framework-Start, verbliebene native HALs und weitere geerbte Geräte im neuen Gast prüfen. Siehe `qemu-hardware.md`. |
-| AEGIS-Identität/CLI | AOSP-Adapter, prozessgebundener Binder-Dienst und interaktive CLI einschließlich Ersteinrichtung und Benutzeranlage/-löschung mit frischer Adminprüfung im Quelltext. Produktpakete, Systemserver-Classpath, Bootressource und SELinux-Zuordnung ergänzt; alles noch unkompiliert und nicht im Gast. Server-Check baut auch Ressourcen/Policy, Kennungsregister und 24 vorbereitete Android-Tests. Der neue lesende Dienstcheck weist die fehlende Integration im bisherigen Image korrekt zurück. Runtime-Koordination fehlt. Siehe `identity-cli.md`. |
+| AEGIS-Identität/CLI | AOSP-Adapter, prozessgebundener Binder-Dienst und interaktive CLI einschließlich Ersteinrichtung und Benutzeranlage/-löschung mit frischer Adminprüfung im Quelltext. Produktpakete, Systemserver-Classpath, Bootressource und SELinux-Zuordnung ergänzt; alles noch unkompiliert und nicht im Gast. Server-Check baut auch Ressourcen/Policy, Kennungsregister, die betroffenen Framework-Dienste und 32 vorbereitete Android-Tests. Der neue lesende Dienstcheck weist die fehlende Integration im bisherigen Image korrekt zurück. Runtime-Koordination fehlt. Siehe `identity-cli.md`. |
 | AOSP-Passwortgrundlage | Ein persönlicher Testbenutzer: falsches Passwort abgewiesen, CE-Sperre nach Benutzerstopp bestätigt, richtiges Passwort stellt Dateizugriff wieder her. Nach Passwortwechsel wird das alte Passwort abgewiesen; das neue erhält dieselben Daten. Anschließend Plattformlöschung und Abwesenheit von acht Schlüssel-/Datenpfaden bestätigt. Tests über AOSP-Dialoge und Plattformbefehle, noch nicht über AEGIS; siehe `identity-platform-test.md`. |
 | GNU/Linux-Runtime | Offizielle Debian-13.7-ARM64-Basis festgelegt und als unverändertes Archiv importiert/geprüft: 78 Pakete, darunter glibc, Bash und apt. Keine Extraktion oder Ausführung. UID/GID-Zuordnung und AOSP-Registerprüfung vorbereitet; alle 38 Basiskennungen abgedeckt, aber noch keine laufenden Maps. Laufzeitverwaltung, AOSP-Autorisierung, Mounts und SELinux-Integration fehlen. Der aktuelle Kernel erfüllt die notwendigen Namespace-Anforderungen nicht. Siehe `../runtime/README.md` und `../runtime/uid-mapping.md`. |
 | Pakete und Isolation | Noch zu implementieren und mit zwei AOSP-Benutzern praktisch zu prüfen. |
@@ -81,6 +81,14 @@ der Android-Wurzel und anschließendes Rücklesen der Mounts. Acht weitere nativ
 Tests sind vorbereitet, insgesamt 50. **Noch nicht kompiliert oder im Gast
 ausgeführt.** Broker, Lebenszyklus-Sperre, Ressourcen-Cgroups, SELinux-Typen und
 Übergänge sowie der praktische Rootwechsel-/Isolationsnachweis fehlen weiterhin.
+
+Die [vorgeschaltete Speicherkoordination](../runtime/aosp-storage-lifecycle.md)
+ist jetzt an fünf AOSP-Schlüsseloperationen im Quelltext angebunden. Der
+fehlende Controller muss den Ressourcenabbau bestätigen, bevor Schlüssel
+entzogen werden; Fehler dürfen keine erfolgreiche Sperrbestätigung erzeugen.
+Acht zusätzliche Java-Tests sind vorbereitet, insgesamt 32. Der Komponentenlauf
+baut nun auch die betroffenen Framework-Dienste. **Noch nicht auf dem Server
+kompiliert oder im Gast getestet; Runtime-Modus weiterhin `absent`.**
 
 Auch die [gemeinsame Softwaregeneration](../runtime/generations.md) besitzt nun
 ein Buildrezept: technischer NSS-Benutzer, explizite Datei-Eigentümer, Entfernen
@@ -156,8 +164,9 @@ neuen Kernel auf dem Builder ausgeführt; tatsächliche Images und Gasttests feh
 
 Nach dem Hinweis des Nutzers war eine SSH-Abfrage wieder erfolgreich: Dienst
 `aegis-build` inaktiv, rund 536 GiB frei. Sudo verlangt interaktive Anmeldung.
-Weitere SSH-Abfragen liefen erneut in einen Timeout bzw. lieferten keine Antwort;
-die Verbindung ist noch nicht als stabil bestätigt. Kein neuer Build wurde gestartet.
+Nach vorübergehenden SSH-Timeouts war die erneute Abfrage wieder erfolgreich:
+beide Build-Dienste inaktiv, weiterhin rund 536 GiB frei. Sudo verlangt weiterhin
+interaktive Anmeldung. Kein neuer Build wurde gestartet.
 `scripts/start-components.sh` bereitet einen gezielten, per systemd beobachtbaren
 Komponenten-Check aus einem unveränderlichen GitHub-Commit vor. Er benötigt die
 vorhandene Einrichtung und interaktive sudo-Freigabe; keine Serverkonfiguration

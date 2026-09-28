@@ -40,6 +40,8 @@ elif name == 'env':
     pathlib.Path(args[-1], 'product-target.txt').write_text('aegis_qemu_arm64-bp2a-userdebug\n')
     if mode != 'missing_image_receipt':
         pathlib.Path(args[-1], 'runtime-base-image.json').write_text('public image receipt transport fixture\n')
+    if mode != 'missing_storage_receipt':
+        pathlib.Path(args[-1], 'runtime-storage-source.json').write_text('public framework source receipt transport fixture\n')
     if os.environ.get('AEGIS_KERNEL_RUN') and mode != 'missing_kernel_receipt':
         pathlib.Path(args[-1], 'kernel-inputs.json').write_text('{"fixture":"kernel input transport only"}\n')
     if os.environ.get('AEGIS_RUNTIME_RUN'):
@@ -66,6 +68,8 @@ elif name == 'gh':
             target.write_bytes(b'corrupted runtime receipt')
         if mode == 'corrupt_image_receipt' and filename == 'runtime-base-image.json':
             target.write_bytes(b'corrupted image receipt')
+        if mode == 'corrupt_storage_receipt' and filename == 'runtime-storage-source.json':
+            target.write_bytes(b'corrupted framework source receipt')
     elif action == 'edit':
         if mode == 'publish': sys.exit(9)
         (store/'published').touch()
@@ -140,6 +144,9 @@ class WorkerTests(unittest.TestCase):
                 self.assertEqual((root/'remote/runtime-base-image.json').read_bytes(),
                                  (runs[0]/'artifacts/runtime-base-image.json').read_bytes())
                 self.assertIn('runtime-base-image.json', (root/'remote/SHA256SUMS').read_text())
+                self.assertEqual((root/'remote/runtime-storage-source.json').read_bytes(),
+                                 (runs[0]/'artifacts/runtime-storage-source.json').read_bytes())
+                self.assertIn('runtime-storage-source.json', (root/'remote/SHA256SUMS').read_text())
                 if runtime_kernel:
                     self.assertEqual((root/'remote/kernel-inputs.json').read_bytes(),
                                      (runs[0]/'artifacts/kernel-inputs.json').read_bytes())
@@ -153,6 +160,8 @@ class WorkerTests(unittest.TestCase):
     def test_verified_success(self): self.exercise()
     def test_missing_image_receipt_prevents_success(self): self.exercise('missing_image_receipt')
     def test_corrupt_image_receipt_prevents_success(self): self.exercise('corrupt_image_receipt')
+    def test_missing_storage_receipt_prevents_success(self): self.exercise('missing_storage_receipt')
+    def test_corrupt_storage_receipt_prevents_success(self): self.exercise('corrupt_storage_receipt')
     def test_selected_kernel_receipt_is_published_and_verified(self): self.exercise(runtime_kernel=True)
     def test_missing_kernel_receipt_prevents_success(self): self.exercise('missing_kernel_receipt', runtime_kernel=True)
     def test_selected_base_receipts_are_published_and_verified(self): self.exercise(runtime_base=True)

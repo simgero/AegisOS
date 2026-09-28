@@ -126,6 +126,7 @@ for required in kernel boot.img init_boot.img vendor_boot.img super.img userdata
 done
 cp "$run/product-target.txt" "$run/artifacts/product-target.txt"
 cp "$run/runtime-base-image.json" "$run/artifacts/runtime-base-image.json"
+cp "$run/runtime-storage-source.json" "$run/artifacts/runtime-storage-source.json"
 if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
     cp "$run/kernel-inputs.json" "$run/artifacts/kernel-inputs.json"
 fi
