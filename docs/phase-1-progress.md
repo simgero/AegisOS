@@ -24,6 +24,14 @@ vorbereitete ARM64-Gerätetests. **Noch nicht kompiliert, nicht aktiviert und
 nicht im Gast getestet.** Broker, Mounts, SELinux-Anbindung, Paketverwaltung
 und vollständige AOSP-Logout-Koordination bleiben offen.
 
+Auch die [gemeinsame Softwaregeneration](../runtime/generations.md) besitzt nun
+ein Buildrezept: technischer NSS-Benutzer, explizite Datei-Eigentümer, Entfernen
+der Set-ID-Bits, wiederholte ext4-Erzeugung und Lesen des tatsächlichen
+Image-Inhalts. Die echte Debian-Basis ergibt im Plan 78 Pakete und 3.271
+Einträge. Vierzehn Hosttests mit inerten Archiv-/Dateisystemfixtures prüfen
+Metadaten und Fehlerpfade. **Das echte Image wurde noch nicht auf dem Server
+gebaut, hochgeladen oder in QEMU eingebunden.**
+
 ## Bestätigte Kernel-Lücke
 
 Der laufende Kernel 6.12.18 meldet in `/proc/config.gz`:

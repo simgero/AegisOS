@@ -44,6 +44,7 @@ jobs:
           bash -n scripts/aosp/setup-sandbox.sh
           bash -n scripts/aosp/config.sh
           bash -n scripts/kernel/build.sh
+          bash -n scripts/runtime/build-base.sh
           bash -n scripts/check-environment.sh
           bash -n scripts/prepare-builder.sh
           bash -n scripts/export-secure-env.sh

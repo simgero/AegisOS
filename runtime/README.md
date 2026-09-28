@@ -81,6 +81,11 @@ weiterhin; daraus folgt noch keine ausführbare Runtime.
 
 ## Vor dem ersten Runtime-Start noch erforderlich
 
+Das [Buildrezept für eine gemeinsame Softwaregeneration](generations.md)
+ist jetzt vorbereitet. Eine reine Planung mit der echten Basis erfasst 78
+Pakete und 3.271 Einträge einschließlich des technischen NSS-Kontos. Ein
+ext4-Image wurde daraus bisher nicht erzeugt, veröffentlicht oder eingebunden.
+
 1. Die [vorbereitete UID/GID-Zuordnung](uid-mapping.md) auf dem Builder gegen
    sämtliche Produktkennungen prüfen und im Gast einrichten. Alle 38 Kennungen
    der echten Basis sind abgedeckt; es gibt noch keinen Namespace oder Broker.
@@ -90,7 +95,8 @@ weiterhin; daraus folgt noch keine ausführbare Runtime.
    Hostkennung je AOSP-Benutzer. Ein generischer NSS-Eintrag für diese UID ist in
    der Originalbasis noch nicht vorhanden.
 2. Auf dem Builder eine verwaltete, für normale Runtime-Prozesse schreibgeschützte
-   Generation erzeugen. Die Basis enthält normale Debian-Set-ID-Dateien; diese
+   Generation mit dem vorbereiteten Rezept erzeugen. Die Originalbasis enthält
+   normale Debian-Set-ID-Dateien; das Rezept entfernt diese Rechte. Die Dateien
    erteilen keine AOSP-Adminberechtigung. `nosuid`, `no_new_privs`, Capability- und
    SELinux-Grenzen müssen vor dem Ausführen von Programmen durchgesetzt und
    getestet werden. Der Import allein setzt diese Grenzen nicht.
@@ -107,6 +113,6 @@ weiterhin; daraus folgt noch keine ausführbare Runtime.
 6. Erzeugte Artefakte mit Prüfsummen über AegisOS-GitHub-Releases transportieren
    und den vollständigen Ablauf mit zwei Benutzern in QEMU nachweisen.
 
-Der AOSP-Quellsnapshot transportiert inzwischen Pin und Importer, führt diesen
-Import aber noch nicht im Vollbuild aus und integriert keine Runtime-Dateien
+Der AOSP-Quellsnapshot transportiert inzwischen Pin, Importer und Generationsrezept,
+führt diesen Import aber noch nicht im Vollbuild aus und integriert keine Runtime-Dateien
 ins Android-Produkt. `ro.aegis.runtime.mode=absent` bleibt deshalb zutreffend.

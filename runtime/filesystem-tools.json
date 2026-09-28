@@ -1,0 +1,8 @@
+{
+  "aosp_tag": "android-16.0.0_r1",
+  "sha256": {
+    "system/core/libcutils/canned_fs_config.cpp": "3cfe37500d7f2bb4c6a76bdb68c258c849515bc47bef76a8321ae0f44f62112a",
+    "system/extras/ext4_utils/mke2fs.conf": "ad58a58dcdd24d85055814ca9cac67db89d4e67c434e96774bdce0d0a007d067",
+    "system/extras/ext4_utils/mkuserimg_mke2fs.py": "8bda1a67fa742f06d8a23b905e544b3b0b327a83484df1f0b3c61c93b08468b1"
+  }
+}
