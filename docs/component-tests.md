@@ -1,4 +1,4 @@
-# Erster Komponentenlauf in lokalem QEMU
+# Komponentenläufe in lokalem QEMU
 
 Stand: 28. September 2026. Einzelne Module geprüft, noch keine Abnahme der
 installierten AEGIS-Dienste oder einer GNU/Linux-Sitzung.
@@ -71,3 +71,48 @@ Profil erneut gestartet und ADB verbunden werden.
 Dies belegt weder den Systemserver-Dienst noch AEGIS-Passwortanmeldung,
 Runtime-Start, SELinux-Übergänge oder Isolation zweier persönlicher Benutzer.
 Diese Nachweise folgen mit dem vollständig integrierten Image.
+
+## Zweiter Lauf: Speichergruppen und Ressourcenbesitz
+
+Commit `481f738c7417f644c01d08f5a1cb4426aa761eaa` wurde im Lauf
+`identity-20260928T154101Z-481f738c-NDVInX` erfolgreich kompiliert
+(InvocationID `3fdadaffe02b4620943459ee1a881045`, Buildzeit 7:43 Minuten).
+Die nativen Module einschließlich F2FS-Korrektur, Speichergruppen und
+zusammengesetztem Kontextbesitzer umfassen jetzt **63 kompilierte Tests**.
+Der [zweite Komponenten-Release](https://github.com/simgero/AegisOS/releases/tag/components-20260928T154958Z-481f738c-96f9ed6b-WR0G9Q)
+wurde vom Exporter zurückgeladen und verglichen sowie auf dem Mac geprüft
+heruntergeladen und entpackt.
+
+Im lokalen QEMU-Lauf `out/qemu-first-boot/components-481f738` wurden **elf neue
+native Tests ausgeführt; alle elf bestehen**. Drei davon prüfen den Abbau
+abgewiesener Starts, erhaltene Aufrufer-Deskriptoren, den Schutz vorhandener
+Gruppen und Kontextbesitz nach direktem `clone3`. Acht prüfen tatsächliche
+Speicher-Cgroup-Dateien und Grenzen, einmalige Freigabe, falsche Identität,
+fehlende Controller, manipulierte Limits und getrennten Stopp zweier Kinder.
+Eine leere Gruppe wird dabei ausdrücklich von einem verbrauchten Pidfd-Exit
+unterschieden. Die direkten Clone-Tests erfassen Bionics geerbten PID-Cache.
+
+```sh
+adb -s 127.0.0.1:15655 shell su 0 \
+  /data/local/tmp/aegis-native-481f738/AegisRuntimeNativeTests \
+  '--gtest_filter=RuntimeMemoryGroup.*:RuntimeContext.*-RuntimeMemoryGroup.NamespaceIsAlreadyBoundedWhileExecGateIsClosed'
+```
+
+Dieser Lauf verwendet weiterhin den bisherigen Kernel. Der kombinierte neue
+Namespace-/Cgroup-Test wurde deshalb nicht ausgewählt. Insgesamt sind in
+diesem Lauf 52 native Tests nicht ausgewählt; die Java-Tests wurden nicht erneut
+ausgeführt. Es wurde kein tatsächlicher CE-HOME-Start und kein produktiver
+SELinux-Übergang geprüft. Das ist kein Speicherdruck-/OOM-Nachweis und keine
+Abnahme persönlicher GNU/Linux-Sitzungen oder des vollständigen Logouts.
+
+Der Gast meldete Bootabschluss `1`, `ro.adb.secure=1`, FBE `file`, globales
+SELinux `Enforcing` und den Cgroup-Speichercontroller. Root-Gerätetests allein
+belegen keine durchgesetzte Produktionspolicy des künftigen Brokers.
+Alle eigenen Testgruppen wurden entfernt; Android und KeyMint-Helfer wurden
+geordnet beendet. Android bestätigte das Aushängen von `/data` und `/metadata`,
+der Helper `AEGIS_HELPER_SHUTDOWN_CLEAN`.
+
+Lokale Nachweise: `out/component-tests-481f738/{native-memory.log,guest.txt,cleanup.txt,result.json}`.
+SHA-256 des nativen Rohprotokolls:
+`e657c2d6ecd9ce0fa79d1d893bef3ab63eb7d39d02303075a45cd77ebb8551b6`.
+Das Ergebnis-JSON enthält auch die Hashes der Gast- und Bereinigungsprotokolle.

@@ -13,7 +13,16 @@ sind bytegleich (SHA-256
 `bfb463982b48178d01f931a56e9990e33417aabde2d8c4928283ca5f43cf56d8`).
 Die Ausgabe-Konfiguration bestätigt User-/PID-/IPC-Namespaces, System-V-IPC,
 Tmpfs-Xattrs, Speichercontroller, F2FS-Xattrs/-Security und SELinux.
-Die vollständige Eingabeprüfung aller Module und Android-Integration folgen noch.
+Die vollständige Eingabeprüfung mit Commit `96f9ed6b` besteht ebenfalls:
+105 GKI- und 51 Vendor-Module, 162 inventarisierte Dateien, Bundle
+`a0526a0805ced49bee7c723c62b9d5ae297c4a1a15e90d453374c7f3775363dd`.
+Prüfbericht auf dem Builder:
+`/srv/aegis/work/kernel-inspect-96f9ed6-RNWE3m/kernel-inspection.json`.
+Status `CHECKED_INPUTS_NOT_BOOTED`; Module wurden gelesen, nicht geladen.
+Version und gemeinsames Vermagic beginnen mit
+`6.12.18-android16-1-maybe-dirty-4k`. `-maybe-dirty` ist der feste Wert des
+gepinnten Kleaf-`stamp.bzl` bei ausgeschaltetem Stamping; die separate
+40-Projekte-Prüfung bestätigte unveränderte Checkouts und die erwarteten Pins.
 Die Überwachung dieses abgeschlossenen Kernel-Laufs wurde beendet.
 
 Kernel-Journal vom Mac lesen:

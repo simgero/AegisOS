@@ -3,9 +3,10 @@
 Stand: **Helfer kompiliert und acht Protokoll-/Aufruftests im lokalen QEMU
 bestanden; erfolgreiche Mounts und Produktaktivierung stehen aus.** Siehe
 [erster Komponentenlauf](../docs/component-tests.md). Die danach ergänzte
-F2FS-HOME-Korrektur muss noch auf dem Builder kompiliert und im Gast geprüft werden.
+F2FS-HOME-Korrektur ist im Komponentenlauf `481f738c` kompiliert; der positive
+Mount-Nachweis im Gast steht weiterhin aus.
 `aegis-runtime-setup` ergänzt den Namespace-Launcher und den Prozessaufseher.
-Der AOSP-Broker, dessen Lebenszyklus-Sperre, Ressourcen-Cgroups, die konkreten
+Der AOSP-Broker, dessen Lebenszyklus-Sperre, die Produktanbindung der Ressourcen-Cgroups und die konkreten
 SELinux-Typen/Übergänge und ein ausführbarer Zwei-Benutzer-Ablauf fehlen weiter.
 `ro.aegis.runtime.mode` bleibt `absent`.
 
@@ -125,7 +126,7 @@ Acht neue native Tests prüfen die echte FD-Übertragung, Eigentumserhalt,
 falsche ID/Seriennummer, beschädigte Reihenfolge/Frames/Ancillary-Daten,
 unvollständige Übertragung, Peer-Verlust, ungültige Parameter und den direkten
 Host-Aufruf. Diese acht Tests bestehen im ersten Komponentenlauf; insgesamt
-sind inzwischen **51 native Tests** kompiliert. Diese Protokolltests allein beweisen weder
+sind inzwischen **63 native Tests** kompiliert. Diese Protokolltests allein beweisen weder
 erfolgreiche Mounts noch Isolation oder Verschlüsselung.
 
 Der Komponenten-Build erzeugt und sammelt den Helfer zusätzlich, aktiviert ihn

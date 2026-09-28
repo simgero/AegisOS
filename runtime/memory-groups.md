@@ -1,7 +1,9 @@
 # Speichergrenze und bestätigter Prozessstopp
 
-Stand: Quelltext und neun native Gerätetests vorbereitet. **Noch nicht auf dem
-Builder kompiliert oder in QEMU ausgeführt.** Zehn Hosttests zur Registrierung
+Stand: Auf dem Builder kompiliert; **acht Speichergruppen-Tests im lokalen
+QEMU bestanden**. Der neunte, mit Namespaces kombinierte Test verlangt noch
+den neuen Kernel. Siehe [zweiter Komponentenlauf](../docs/component-tests.md#zweiter-lauf-speichergruppen-und-ressourcenbesitz).
+Zehn Hosttests zur Registrierung
 und neun zum Komponententransport bestehen; sieben nur unter Linux ausführbare
 Transporttests sind auf dem Mac ausgelassen. Kein aktiver Runtime-Broker.
 
@@ -50,7 +52,7 @@ eigene leere Testgruppen und inerte Kinder im lokalen Android-QEMU.
 Die Besitzprüfung liest die Kernel-PID direkt, damit Bionics nach einem direkten
 Klon geerbter PID-Cache keine Berechtigung für den elterlichen Handle erhält.
 
-Offen bleiben insbesondere Kompilierung und Ausführung dieser Tests, ein
+Offen bleiben insbesondere der kombinierte Namespace-Test, ein
 Speicherdrucktest der tatsächlichen Grenze, CPU-Budget, Broker-Neustart/Recovery,
 SELinux-Anbindung und vollständiger Zwei-Benutzer-Logout. `CONFIG_CGROUP_PIDS`
 ist im bisherigen Kernel nicht aktiv; hier wird keine PID-Cgroup-Grenze behauptet.
@@ -58,5 +60,6 @@ Der bestehende Aufseher setzt zusätzlich `RLIMIT_NPROC` für seine Nutzprozesse
 
 Der neue [Kontextbesitzer](context-owner.md) verbindet diese Gruppe im Quelltext
 mit dem Namespace-/Mount-Start und verlangt beim Abbau sowohl eine leere Gruppe
-als auch den beobachteten Kind-Exit. Auch diese Verbindung muss noch auf dem
-Builder kompiliert und im Gast geprüft werden.
+als auch den beobachteten Kind-Exit. Er ist kompiliert; drei Fehlerpfadtests
+bestehen im Gast. Der positive Start und vollständige Abbau einer persönlichen
+Runtime müssen noch praktisch nachgewiesen werden.

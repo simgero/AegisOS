@@ -2,38 +2,39 @@
 
 Stand: 28. September 2026. Keine Abnahme des Gesamtziels.
 
-**Aktueller Nachweis:** Komponentencommit `9d329510` wurde auf `aegis-build`
-erfolgreich kompiliert und über GitHub auf den Mac übertragen. Im lokalen
-QEMU bestehen 40 Java- und 32 native Tests; drei weitere native Tests scheitern
-an fehlenden Tmpfs-Dateiattributen im bisherigen Kernel. Vier Java- und
-16 native Tests benötigen das neue integrierte Image. Einzelheiten und
-Abgrenzung: [Komponententests](component-tests.md).
+**Aktueller Nachweis:** Komponentencommit `481f738c` wurde auf `aegis-build`
+erfolgreich kompiliert und über GitHub auf den Mac übertragen. Alle 63 nativen
+Tests sind gebaut. Im lokalen QEMU bestehen elf neu ausgewählte Tests:
+acht Speichergruppen- und drei Kontext-Fehlerpfadtests. Die übrigen 52 wurden
+in diesem Lauf nicht ausgewählt. Der Namespace-/Speichergruppentest benötigt
+den neuen Kernel. Der frühere Komponentenlauf `9d329510` bestätigte 40 Java-
+und 32 native Tests; drei CE-Tests scheiterten an fehlenden Tmpfs-Dateiattributen
+im bisherigen Kernel. Diese Fehler müssen im neuen Gast erneut geprüft werden.
+Einzelheiten und Nachweisgrenzen: [Komponententests](component-tests.md).
 
-Die echte Debian-Basis ist inzwischen **gebaut und inhaltlich geprüft**:
+Die echte Debian-Basis ist **gebaut und inhaltlich geprüft**:
 Lauf `runtime-base-20260928T145204Z-87ab3f54-WclcLl` meldet
 `BUILT_VERIFIED_NOT_MOUNTED`. Das korrigierte Rezept erzeugt zwei bytegleiche
 Images und liest alle Dateien/Eigentümer zurück. Noch keine Gast-Einbindung.
-Der erforderliche Kernel-Lauf `kernel-20260928T145446Z-87ab3f54-wgP3Hz`
-hat Kernel und passende Treiber erfolgreich gebaut (`BUILT_UNVERIFIED`).
-Beide Kernel-Kopien sind bytegleich; die tatsächliche Konfiguration enthält
-die erforderlichen Namespaces und Tmpfs-Xattrs. Android-Integration und Boot
-stehen aus; siehe [Kernel-Nachweis](../kernel/README.md).
+Der Kernel-Lauf `kernel-20260928T145446Z-87ab3f54-wgP3Hz` hat Kernel und
+passende Treiber erfolgreich gebaut. Die anschließende Eingabenprüfung
+bestätigt 162 Dateien einschließlich 105 GKI- und 51 Vendor-Modulen,
+bytegleiche Kernel-Kopien und die erforderliche eingebettete Konfiguration.
+Status: `CHECKED_INPUTS_NOT_BOOTED`; siehe [Kernel-Nachweis](../kernel/README.md).
 
-Seit dem letzten Komponentenlauf ist die F2FS-Prüfung für das tatsächliche
-Android-CE-Dateisystem korrigiert. Zusätzlich ist der Namespace-Start im
-Quelltext mit einer [Speichergruppe](../runtime/memory-groups.md) verbunden:
-1 GiB Grenze ab Prozesserzeugung, einmalige ID-/Seriennummernbindung und
-bestätigter Gruppenstopp. Neun weitere native Gerätetests sind vorbereitet
-(insgesamt zunächst 60). **Diese Änderungen sind noch nicht kompiliert oder im Gast
-geprüft; Runtime-Broker, SELinux-Anbindung und vollständiger Logout fehlen.**
+Der vollständige Android-Build
+`aosp-20260928T155300Z-96f9ed6b-c975dba9` ist mit Commit
+`96f9ed6b895eaa386c1da77d97c02c5c7a2bc18f` gestartet. Er wählt genau diesen
+Kernel und diese Debian-Basis. Paketierung, Prüfung der tatsächlich ausgelieferten
+Partitionen, GitHub-Upload und Boot im lokalen QEMU stehen noch aus.
 
-Der [Kontextbesitzer](../runtime/context-owner.md) verbindet inzwischen im Quelltext
-Speichergruppe, Namespace-/Mount-Aufbau, private Übergabe und geprüfte READY-Antwort.
+Die F2FS-Korrektur für das tatsächliche Android-CE-Dateisystem ist kompiliert.
+Der [Kontextbesitzer](../runtime/context-owner.md) verbindet Speichergruppe,
+Namespace-/Mount-Aufbau, private Übergabe und geprüfte READY-Antwort.
 Der Abbau verlangt getrennt Gruppenleere und Kind-Exit mit gemeinsamer Frist.
-Drei weitere native Fehlerpfadtests sind vorbereitet (insgesamt 63);
-Commit `481f738c` wird gerade im Komponentenlauf
-`identity-20260928T154101Z-481f738c-NDVInX` kompiliert. Tatsächlicher Start mit
-CE-HOME/SELinux steht aus.
+Die elf neuen Tests bestätigen Fehlerbehandlung, Eigentumsgrenzen und
+Gruppenstopp; **erfolgreicher Runtime-Start mit CE-HOME, Runtime-Broker,
+SELinux-Anbindung und vollständiger Logout sind weiterhin nicht nachgewiesen.**
 
 | Anforderung | Nachweis / verbleibende Arbeit |
 | --- | --- |
@@ -41,10 +42,10 @@ CE-HOME/SELinux steht aus.
 | ADB und Bildschirm | Authentifizierte Verbindung, Dateiübertragung und Bildschirmaufnahme geprüft; siehe `local-adb.md`. |
 | Bedienung | Virtuelle Tastatur schreibt den vollständigen Testtext; relative Maus öffnet mit linkem Klick eine Einstellungsseite. Native Mac-Fensterbedienung noch prüfen; Mac beim Versuch gesperrt. |
 | Dauerhafte Daten und Schlüssel | Neuer Helper auf dem Server gebaut und über GitHub geprüft bezogen. Vollständiger QEMU-Neustart mit persönlichem Passwort: falsches Passwort abgewiesen, CE gesperrt, richtiges Passwort liefert dieselben 4096 Bytes. Doppelstart, fehlende/fremde Disk und verlorener TPM-Zustand auf einer Kopie abgewiesen. Stromausfall- und Migrationsnachweis offen; siehe `persistent-qemu.md`. |
-| Gerätedienste | Bluetooth-Abstürze und NFC-Controller-Timeouts im bisherigen Image dokumentiert; zuletzt keine laufende Absturzschleife aller HALs belegt. Bluetooth-Schalter sowie fehlende NFC-/UWB-/Thread-Funktionen im nächsten Produktstand konfiguriert. Noch ungebaut; Framework-Start, verbliebene native HALs und weitere geerbte Geräte im neuen Gast prüfen. Siehe `qemu-hardware.md`. |
+| Gerätedienste | Bluetooth-Abstürze und NFC-Controller-Timeouts im bisherigen Image dokumentiert; zuletzt keine laufende Absturzschleife aller HALs belegt. Bluetooth-Schalter sowie fehlende NFC-/UWB-/Thread-Funktionen im nächsten Produktstand konfiguriert. Im neuen Vollbuild ausgewählt; Framework-Start, verbliebene native HALs und weitere geerbte Geräte im neuen Gast prüfen. Siehe `qemu-hardware.md`. |
 | AEGIS-Identität/CLI | AOSP-Adapter, Binder-Dienst, CLI, Ressourcen/Policy, Kennungsregister, betroffene Framework-Dienste und 44 Android-Tests erfolgreich kompiliert. 40 isolierte Java-Gerätetests bestehen; Produktintegration und reale Anmeldung über AEGIS im neuen Image stehen aus. Runtime-Koordination fehlt. Siehe `component-tests.md` und `identity-cli.md`. |
 | AOSP-Passwortgrundlage | Ein persönlicher Testbenutzer: falsches Passwort abgewiesen, CE-Sperre nach Benutzerstopp bestätigt, richtiges Passwort stellt Dateizugriff wieder her. Nach Passwortwechsel wird das alte Passwort abgewiesen; das neue erhält dieselben Daten. Anschließend Plattformlöschung und Abwesenheit von acht Schlüssel-/Datenpfaden bestätigt. Tests über AOSP-Dialoge und Plattformbefehle, noch nicht über AEGIS; siehe `identity-platform-test.md`. |
-| GNU/Linux-Runtime | Gepinnte Debian-13.7-ARM64-Basis mit 78 Paketen zu einem 256-MiB-ext4-Image gebaut; Bytegleichheit zweier Builds und sämtliche Inhalte/Eigentümer geprüft. Noch keine Gast-Einbindung oder Ausführung. Native Module einschließlich 51 Tests kompiliert; 32 Tests bestehen im bisherigen Gast. Laufende Maps, Laufzeitverwaltung, AOSP-Autorisierung, Mounts und SELinux-Integration fehlen. Neuer Kernel-Build gestartet. Siehe `component-tests.md`, `../runtime/generations.md` und `../runtime/uid-mapping.md`. |
+| GNU/Linux-Runtime | Gepinnte Debian-13.7-ARM64-Basis mit 78 Paketen zu einem 256-MiB-ext4-Image gebaut; Bytegleichheit zweier Builds und sämtliche Inhalte/Eigentümer geprüft. Noch keine Gast-Einbindung oder Ausführung. Native Module einschließlich 63 Tests kompiliert; im früheren Gast 32 Tests bestanden, im neuen Komponentenlauf elf ausgewählte Speichergruppen-/Kontexttests bestanden. Laufende Maps, Laufzeitverwaltung, AOSP-Autorisierung, Mounts und SELinux-Integration fehlen. Neuer Kernel gebaut und für den laufenden Vollbuild geprüft ausgewählt. Siehe `component-tests.md`, `../runtime/generations.md` und `../runtime/uid-mapping.md`. |
 | Pakete und Isolation | Noch zu implementieren und mit zwei AOSP-Benutzern praktisch zu prüfen. |
 | Vollständiger Ablauf | Noch kein Nachweis für Login, Wechsel, Logout mit CE-Sperrung und Neustart mit zwei passwortgeschützten Benutzern. |
 
@@ -196,8 +197,9 @@ gemeinsamem Namespace-Fragment für Kernel und Module liegt unter
 Laufs in den vollständigen AOSP-Build ist inzwischen im Quelltext vorbereitet:
 eingebettete Kernelkonfiguration, Modulversionen, Boot-Treiber, gemeinsame
 Pfadauswahl und der resultierende Kernel werden geprüft, der Eingabenachweis
-über GitHub mitgeliefert. Das Rezept und die Übernahme sind noch nicht mit einem
-neuen Kernel auf dem Builder ausgeführt; tatsächliche Images und Gasttests fehlen.
+über GitHub mitgeliefert. Der neue Kernel wurde auf dem Builder gebaut und einschließlich der tatsächlichen
+Module geprüft. Der laufende Vollbuild hat diese Eingaben ausgewählt; Prüfung
+der resultierenden Android-Images und Gasttests stehen weiterhin aus.
 
 ## Reihenfolge
 

@@ -1,6 +1,8 @@
 # Zusammengesetzter Runtime-Start und Ressourcenbesitz
 
-Stand: Quelltext vorbereitet, **noch nicht kompiliert oder in QEMU ausgeführt**.
+Stand: Auf dem Builder kompiliert; **drei Fehlerpfadtests im lokalen QEMU
+bestanden**. Positiver Runtime-Start und vollständiger Logout sind nicht belegt.
+Siehe [zweiter Komponentenlauf](../docs/component-tests.md#zweiter-lauf-speichergruppen-und-ressourcenbesitz).
 Der interne Besitzer `context.c` verbindet erstmals den begrenzten Namespace-Start,
 die echten persönlichen Mounts und das private Startprotokoll. Der öffentliche
 AOSP-/CLI-Aufrufer, die Basis-Einbindung und SELinux-Integration fehlen weiterhin.
