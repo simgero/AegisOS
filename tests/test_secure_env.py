@@ -16,7 +16,7 @@ spec.loader.exec_module(helper)
 
 
 class HelperArchiveTests(unittest.TestCase):
-    def fixture(self,folder,extra=None):
+    def fixture(self,folder,extra=None,protocol=False):
         root=Path(folder);images=root/'images';images.mkdir()
         header=bytearray(4096)
         header[:8]=b'VNDRBOOT'
@@ -29,6 +29,11 @@ class HelperArchiveTests(unittest.TestCase):
             for name in ['init','host/bin/secure_env','lib/ld-musl-aarch64.so.1']:
                 item=tarfile.TarInfo(name);item.size=3;item.mode=0o755
                 tar.addfile(item,io.BytesIO(b'ELF'))
+            if protocol:
+                item=tarfile.TarInfo('etc');item.type=tarfile.DIRTYPE;tar.addfile(item)
+                data=b'persistent-state-v1\n'
+                item=tarfile.TarInfo('etc/aegis-helper-protocol');item.size=len(data)
+                tar.addfile(item,io.BytesIO(data))
             if extra:tar.addfile(extra,io.BytesIO(b''))
         (root/'SHA256SUMS').write_text(hashlib.sha256(archive.read_bytes()).hexdigest()+'  '+archive.name+'\n')
         return root,images
@@ -49,6 +54,23 @@ class HelperArchiveTests(unittest.TestCase):
             root,images=self.fixture(d)
             with (root/'secure-env-arm64.tar.gz').open('ab') as f:f.write(b'corrupt')
             with self.assertRaisesRegex(ValueError,'checksum'):helper.helper_initrd(root,images)
+
+    def test_legacy_helper_cannot_use_persistent_data(self):
+        with tempfile.TemporaryDirectory() as d:
+            root,images=self.fixture(d)
+            with self.assertRaisesRegex(ValueError,'does not support persistent'):
+                helper.helper_initrd(root,images,require_persistent=True)
+
+    @unittest.skipUnless(shutil.which('cpio'),'Independent cpio reader not installed')
+    def test_profile_identity_is_in_the_helper_ramdisk(self):
+        with tempfile.TemporaryDirectory() as d:
+            root,images=self.fixture(d,protocol=True)
+            identity='496b14be-e8c3-4f9d-a199-9b1020c2ca74'
+            data=helper.helper_initrd(root,images,profile_id=identity)
+            extracted=root/'extracted';extracted.mkdir()
+            subprocess.run(['cpio','-id','etc/*'],input=data[4:],cwd=extracted,
+                           capture_output=True,check=True)
+            self.assertEqual((extracted/'etc/aegis-profile-id').read_text(),identity+'\n')
 
     @unittest.skipUnless(shutil.which('cpio'),'Independent cpio reader not installed')
     def test_generated_archive_is_readable_by_cpio(self):

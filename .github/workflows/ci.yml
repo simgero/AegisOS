@@ -30,6 +30,11 @@ jobs:
           test -d docs/architecture
           echo "AegisOS repository structure OK"
 
+      - name: Install disk and archive test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-utils e2fsprogs cpio lz4
+
       - name: Validate build scripts
         run: |
           sh -n build.sh
@@ -40,6 +45,7 @@ jobs:
           bash -n scripts/check-environment.sh
           bash -n scripts/prepare-builder.sh
           bash -n scripts/export-secure-env.sh
+          bash -n tools/qemu/adb-bridge.sh
 
       - name: Validate helper init source
         run: clang -target aarch64-linux-gnu -ffreestanding -fno-builtin -fsyntax-only -Wall -Wextra -Werror tools/secure-env/init.c

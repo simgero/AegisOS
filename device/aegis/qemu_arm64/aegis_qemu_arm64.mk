@@ -8,3 +8,6 @@ PRODUCT_DEVICE := qemu_arm64
 PRODUCT_BRAND := AegisOS
 PRODUCT_MANUFACTURER := AegisOS
 PRODUCT_MODEL := AegisOS QEMU ARM64 Development
+
+# Development access still requires an explicitly authorized ADB host key.
+PRODUCT_SYSTEM_PROPERTIES += ro.adb.secure=1

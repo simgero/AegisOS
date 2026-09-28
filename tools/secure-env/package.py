@@ -49,7 +49,7 @@ def main():
     args.output = args.output.resolve()
     root = args.output/'root'
     root.mkdir(parents=True, exist_ok=False)
-    for folder in ['host/bin','host/lib64','lib','state/logs','state/internal','tmp','proc','sys','dev']:
+    for folder in ['host/bin','host/lib64','lib','etc','state/logs','state/internal','tmp','proc','sys','dev']:
         (root/folder).mkdir(parents=True, exist_ok=True)
 
     # Follow only ELF DT_NEEDED dependencies, never execute the ARM64 programs here.
@@ -86,6 +86,7 @@ def main():
     (root/'state/cuttlefish_config.json').write_text(
         '{"root_dir":"/state","instances":{"1":{"instance_dir":"/state",'
         '"instance_uds_dir":"/state","run_as_daemon":false}}}\n')
+    (root/'etc/aegis-helper-protocol').write_text('persistent-state-v1\n')
     archive = args.output/'secure-env-arm64.tar.gz'
     with tarfile.open(archive,'w:gz') as tar:
         for item in sorted(root.rglob('*')):

@@ -10,4 +10,4 @@ for file in "$base/images/kernel" "$disk" "$base/runtime.bootconfig" "$helper/SH
 done
 exec python3 scripts/qemu-with-secure-env.py "$base/images" "$helper" \
     "$disk" "$base/runtime.bootconfig" \
-    "$base/interactive-$(date +%Y%m%dT%H%M%S)-$$" --seconds 0 --display cocoa
+    "$base/interactive-$(date +%Y%m%dT%H%M%S)-$$" --seconds 0 --display cocoa --adb-port 15555
