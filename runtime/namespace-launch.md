@@ -1,6 +1,6 @@
 # Erzeugen persönlicher Namespaces
 
-Stand: **Quelltext und neun Gerätetests vorbereitet, noch nicht kompiliert oder
+Stand: **Quelltext und dreizehn Gerätetests vorbereitet, noch nicht kompiliert oder
 ausgeführt.** `libaegis-runtime-namespace` ist ein interner Baustein des noch
 fehlenden Brokers. Sie aktiviert keine Runtime und hat keinen öffentlichen
 Endpunkt. AOSP-Anmeldung, Seriennummer, CE-Zustand, Mounts, SELinux-Übergänge und
@@ -31,6 +31,13 @@ das zugehörige Proc-Verzeichnis, schreibt `setgroups=deny` und beide generierte
 UID/GID-Maps und liest alles zurück. Erst dann geht die Freigabe zum Kind.
 Jeder Fehler schließt den Startkanal und verhindert weitere Startversuche mit
 diesem Handle. Bereits eingesammelte Kinder werden nicht erneut per PID gesucht.
+
+Optional führt `aegis_namespace_prepare` die Map-Prüfung getrennt aus und hält
+den Startkanal geschlossen. Dazwischen kann der Broker eine
+[persönliche Sicht auf die gemeinsame Basis](base-mounts.md) erzeugen. Der dabei
+festgehaltene User-Namespace stammt vom tatsächlichen pausierten Kind. Ein
+anschließendes `resume` prüft dessen Lebenszustand erneut und gibt es frei;
+ohne vorheriges `prepare` erledigt `resume` beide Schritte wie bisher.
 
 Das Kind entfernt geerbte Deskriptoren und Signaleinstellungen, wechselt auf
 die zugeordnete Namespace-UID/GID 0 und setzt die Mountweitergabe rekursiv auf
@@ -77,7 +84,7 @@ und [generische Struktur](https://android.googlesource.com/platform/bionic/+/ref
 abgeglichen. Der statische ELF-Exec über einen CLOEXEC-Deskriptor verwendet
 [execveat mit AT_EMPTY_PATH](https://man7.org/linux/man-pages/man2/execveat.2.html).
 
-Neun neue Tests in `AegisRuntimeNativeTests` benötigen den neuen Kernel und
+Die ersten neun Tests in `AegisRuntimeNativeTests` benötigen den neuen Kernel und
 passende durchgesetzte SELinux-Regeln. Sie prüfen Startsperre, echte Maps und
 Namespaces zweier gleichzeitig lebender Kinder, feste Umgebung, fehlende
 FD-Vererbung, Abbruch, Starttimeout mit bereits eingesammeltem Kind, ungültige

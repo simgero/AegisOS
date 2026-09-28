@@ -45,9 +45,17 @@ Quelltext vorbereitet: gemeinsam erzeugte Namespaces/Pidfd, begrenztes Warten
 auf beide geprüften UID/GID-Maps, keine geerbten Zusatzgruppen, feste Umgebung
 und FD-Übergabe sowie beobachtbares Prozessende auch nach Startfehlern. Neun
 zusätzliche native Gerätetests sind vorbereitet; damit sind es insgesamt
-31 native Tests. **Noch nicht kompiliert, aktiviert oder in QEMU ausgeführt.**
+zunächst 31 native Tests. **Noch nicht kompiliert, aktiviert oder in QEMU ausgeführt.**
 Der neue Code ersetzt weder den fehlenden Broker noch den Mount-Helfer,
 SELinux-Integration, AOSP-Sitzungsprüfung oder den Zwei-Benutzer-Nachweis.
+
+Die Maps können inzwischen ohne Exec-Freigabe vorbereitet werden. Darauf baut
+eine [persönliche, schreibgeschützte Basis-Sicht](../runtime/base-mounts.md) auf:
+derselbe Dateibestand erhält unterschiedliche Mount-Eigentümer, ohne die Quelle
+umzuschreiben. Vier weitere native Tests sind vorbereitet, insgesamt jetzt 35.
+**Auch diese Erweiterung ist unkompiliert und nicht im Gast geprüft.** Die Tests
+verwenden ein inertes Tmpfs; echter ext4-Basis-Mount, CE-Einbindung, Rootwechsel
+und ausführbarer Runtime-Kontext bleiben gesondert offen.
 
 Auch die [gemeinsame Softwaregeneration](../runtime/generations.md) besitzt nun
 ein Buildrezept: technischer NSS-Benutzer, explizite Datei-Eigentümer, Entfernen

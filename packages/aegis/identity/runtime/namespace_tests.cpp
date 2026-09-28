@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <grp.h>
 #include <limits.h>
+#include <linux/mount.h>
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
@@ -17,6 +18,8 @@
 #include <string>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -33,7 +36,7 @@ int descriptors() {
 
 class RuntimeNamespace : public ::testing::Test {
  protected:
-    int setup = -1, peers[2] = {-1, -1};
+    int setup = -1, peers[2] = {-1, -1}, source = -1, mounts[2] = {-1, -1};
     aegis_namespace* contexts[2] = {nullptr, nullptr};
 
     void SetUp() override {
@@ -69,7 +72,9 @@ class RuntimeNamespace : public ::testing::Test {
                 aegis_namespace_release(contexts[i]);
             }
             if (peers[i] >= 0) close(peers[i]);
+            if (mounts[i] >= 0) close(mounts[i]);
         }
+        if (source >= 0) close(source);
         if (setup >= 0) close(setup);
         unsetenv("AEGIS_NAMESPACE_TEST_ONLY");
     }
@@ -122,6 +127,78 @@ class RuntimeNamespace : public ::testing::Test {
         aegis_child_exit result = {};
         ASSERT_EQ(0, aegis_namespace_wait(contexts[slot], 5000, &result));
         EXPECT_EQ(CLD_EXITED, result.code); EXPECT_EQ(0, result.status);
+    }
+
+    int fixture(bool readonly) {
+        // Real kernel filesystem operations, ONLY in the local Android guest.
+        // The inert fixture is detached throughout: no host path is mounted,
+        // no loop device or AOSP user/CE directory is created or changed.
+        int fs = static_cast<int>(syscall(SYS_fsopen, "tmpfs", FSOPEN_CLOEXEC));
+        if (fs < 0) return -1;
+        if (syscall(SYS_fsconfig, fs, FSCONFIG_SET_STRING, "mode", "0755", 0) < 0
+                || syscall(SYS_fsconfig, fs, FSCONFIG_SET_STRING, "size", "1048576", 0) < 0
+                || syscall(SYS_fsconfig, fs, FSCONFIG_CMD_CREATE, nullptr, nullptr, 0) < 0) {
+            int saved = errno; close(fs); errno = saved; return -1;
+        }
+        source = static_cast<int>(syscall(SYS_fsmount, fs, FSMOUNT_CLOEXEC, 0u));
+        int saved = errno;
+        close(fs);
+        errno = saved;
+        if (source < 0) return -1;
+        const char* names[] = {"root.txt", "user.txt", "nobody.txt"};
+        const uid_t owners[] = {0, 1000, 65534};
+        for (unsigned i = 0; i < 3; i++) {
+            int file = openat(source, names[i], O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC, 0644);
+            if (file < 0) return -1;
+            int result = write(file, "fixture\n", 8) == 8
+                    && fchown(file, owners[i], owners[i]) == 0 && fchmod(file, 0644) == 0 ? 0 : -1;
+            saved = errno; close(file); errno = saved;
+            if (result < 0) return -1;
+        }
+        if (readonly) return freeze_source();
+        return 0;
+    }
+
+    int freeze_source() {
+        mount_attr attributes = {};
+        attributes.attr_set = MOUNT_ATTR_RDONLY | MOUNT_ATTR_NOEXEC;
+        return static_cast<int>(syscall(SYS_mount_setattr, source, "", AT_EMPTY_PATH,
+                                        &attributes, sizeof(attributes)));
+    }
+
+    void mapped_files(int tree, uint32_t user) {
+        struct stat root;
+        ASSERT_EQ(0, fstat(tree, &root));
+        EXPECT_EQ(user * 100000 + 5000, root.st_uid);
+        EXPECT_EQ(user * 100000 + 5000, root.st_gid);
+        EXPECT_EQ(static_cast<mode_t>(0755), root.st_mode & 07777);
+        struct statvfs flags;
+        ASSERT_EQ(0, fstatvfs(tree, &flags));
+        EXPECT_EQ(static_cast<unsigned long>(ST_RDONLY | ST_NOSUID | ST_NODEV),
+                  flags.f_flag & (ST_RDONLY | ST_NOSUID | ST_NODEV));
+        EXPECT_EQ(0u, flags.f_flag & ST_NOEXEC);
+        int fd_flags = fcntl(tree, F_GETFD);
+        ASSERT_GE(fd_flags, 0); EXPECT_NE(0, fd_flags & FD_CLOEXEC);
+        ASSERT_EQ(0, fstatvfs(source, &flags));
+        EXPECT_NE(0u, flags.f_flag & ST_NOEXEC);
+        const char* names[] = {"root.txt", "user.txt", "nobody.txt"};
+        const uid_t originals[] = {0, 1000, 65534};
+        const uid_t offsets[] = {5000, 7500, 7501};
+        for (unsigned i = 0; i < 3; i++) {
+            struct stat mapped, original;
+            ASSERT_EQ(0, fstatat(tree, names[i], &mapped, AT_SYMLINK_NOFOLLOW));
+            ASSERT_EQ(0, fstatat(source, names[i], &original, AT_SYMLINK_NOFOLLOW));
+            EXPECT_EQ(user * 100000 + offsets[i], mapped.st_uid);
+            EXPECT_EQ(user * 100000 + offsets[i], mapped.st_gid);
+            EXPECT_EQ(originals[i], original.st_uid); EXPECT_EQ(originals[i], original.st_gid);
+            EXPECT_EQ(original.st_dev, mapped.st_dev); EXPECT_EQ(original.st_ino, mapped.st_ino);
+            int file = openat(tree, names[i], O_RDONLY | O_CLOEXEC);
+            ASSERT_GE(file, 0);
+            char bytes[8] = {};
+            EXPECT_EQ(8, read(file, bytes, sizeof(bytes)));
+            EXPECT_EQ(std::string("fixture\n"), std::string(bytes, sizeof(bytes)));
+            close(file);
+        }
     }
 };
 
@@ -209,6 +286,8 @@ TEST_F(RuntimeNamespace, InheritedObserverCannotReleaseOrSignalAnotherContext) {
     ASSERT_GE(observer, 0);
     if (observer == 0) {
         bool ok = aegis_namespace_resume(contexts[0]) == -1 && errno == EPERM;
+        ok &= aegis_namespace_prepare(contexts[0]) == -1 && errno == EPERM;
+        ok &= aegis_namespace_base_mount(contexts[0], -1) == -1 && errno == EPERM;
         ok &= aegis_namespace_stop(contexts[0]) == -1 && errno == EPERM;
         aegis_child_exit result = {};
         ok &= aegis_namespace_wait(contexts[0], 0, &result) == -1 && errno == EPERM;
@@ -275,6 +354,89 @@ TEST_F(RuntimeNamespace, MultithreadedCallersAreRejectedBeforeCloning) {
     EXPECT_EQ(1, write(pipe_fds[1], "Q", 1));
     EXPECT_EQ(0, pthread_join(thread, nullptr));
     close(pipe_fds[0]); close(pipe_fds[1]);
+}
+
+TEST_F(RuntimeNamespace, PreparedMappingsKeepExecBlockedWhileBaseMountIsBuilt) {
+    ASSERT_EQ(0, fixture(true)) << strerror(errno);
+    ASSERT_EQ(0, create(0, 10)) << strerror(errno);
+    ASSERT_EQ(0, aegis_namespace_prepare(contexts[0])) << strerror(errno);
+    EXPECT_EQ(-1, aegis_namespace_prepare(contexts[0])); EXPECT_EQ(EALREADY, errno);
+    pollfd ready = {peers[0], POLLIN, 0};
+    EXPECT_EQ(0, poll(&ready, 1, 20));
+    mounts[0] = aegis_namespace_base_mount(contexts[0], source);
+    ASSERT_GE(mounts[0], 0) << strerror(errno);
+    mapped_files(mounts[0], 10);
+    EXPECT_EQ(0, poll(&ready, 1, 20));
+    // Root in the initial namespace cannot override the mount's read-only bit.
+    int write_fd = openat(mounts[0], "new.txt", O_CREAT | O_EXCL | O_WRONLY | O_CLOEXEC, 0600);
+    EXPECT_EQ(-1, write_fd); EXPECT_EQ(EROFS, errno);
+    if (write_fd >= 0) close(write_fd);
+    EXPECT_EQ(-1, unlinkat(mounts[0], "root.txt", 0)); EXPECT_EQ(EROFS, errno);
+    ASSERT_EQ(0, aegis_namespace_resume(contexts[0]));
+    aegis_namespace_probe actual = {};
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(actual)), report(0, &actual));
+    check(actual, 10);
+    finish(0);
+}
+
+TEST_F(RuntimeNamespace, TwoViewsKeepSharedInodesWithSeparateUserOwnership) {
+    ASSERT_EQ(0, fixture(true));
+    ASSERT_EQ(0, create(0, 10)); ASSERT_EQ(0, create(1, 11));
+    ASSERT_EQ(0, aegis_namespace_prepare(contexts[0]));
+    ASSERT_EQ(0, aegis_namespace_prepare(contexts[1]));
+    mounts[0] = aegis_namespace_base_mount(contexts[0], source);
+    mounts[1] = aegis_namespace_base_mount(contexts[1], source);
+    ASSERT_GE(mounts[0], 0); ASSERT_GE(mounts[1], 0);
+    mapped_files(mounts[0], 10); mapped_files(mounts[1], 11);
+    struct stat first, second;
+    ASSERT_EQ(0, fstatat(mounts[0], "user.txt", &first, 0));
+    ASSERT_EQ(0, fstatat(mounts[1], "user.txt", &second, 0));
+    EXPECT_EQ(first.st_dev, second.st_dev); EXPECT_EQ(first.st_ino, second.st_ino);
+    EXPECT_NE(first.st_uid, second.st_uid); EXPECT_NE(first.st_gid, second.st_gid);
+    ASSERT_EQ(0, aegis_namespace_stop(contexts[0]));
+    aegis_child_exit result = {};
+    ASSERT_EQ(0, aegis_namespace_wait(contexts[0], 5000, &result));
+    close(mounts[0]); mounts[0] = -1;
+    // A second context and the original base remain intact after closing one view.
+    mapped_files(mounts[1], 11);
+    ASSERT_EQ(0, aegis_namespace_resume(contexts[1]));
+    aegis_namespace_probe actual = {};
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(actual)), report(1, &actual));
+    finish(1);
+}
+
+TEST_F(RuntimeNamespace, WritableOrNonDirectorySourcesAreRefusedWithoutMutationOrLeaks) {
+    ASSERT_EQ(0, fixture(false));
+    ASSERT_EQ(0, create(0, 10)); ASSERT_EQ(0, aegis_namespace_prepare(contexts[0]));
+    int before = descriptors();
+    ASSERT_GT(before, 0);
+    for (unsigned i = 0; i < 16; i++) {
+        EXPECT_EQ(-1, aegis_namespace_base_mount(contexts[0], source)); EXPECT_EQ(EPERM, errno);
+        EXPECT_EQ(-1, aegis_namespace_base_mount(contexts[0], setup)); EXPECT_EQ(EPERM, errno);
+        EXPECT_EQ(-1, aegis_namespace_base_mount(contexts[0], -1)); EXPECT_EQ(EBADF, errno);
+    }
+    EXPECT_EQ(before, descriptors());
+    struct statvfs flags;
+    ASSERT_EQ(0, fstatvfs(source, &flags)); EXPECT_EQ(0u, flags.f_flag & ST_RDONLY);
+    struct stat st;
+    ASSERT_EQ(0, fstat(source, &st)); EXPECT_EQ(0u, st.st_uid); EXPECT_EQ(0u, st.st_gid);
+    ASSERT_EQ(0, freeze_source());
+    mounts[0] = aegis_namespace_base_mount(contexts[0], source);
+    ASSERT_GE(mounts[0], 0);
+    mapped_files(mounts[0], 10);
+}
+
+TEST_F(RuntimeNamespace, MissingMappingsAndStoppedChildrenCannotProvideBaseViews) {
+    ASSERT_EQ(0, fixture(true));
+    ASSERT_EQ(0, create(0, 10));
+    EXPECT_EQ(-1, aegis_namespace_base_mount(contexts[0], source)); EXPECT_EQ(EAGAIN, errno);
+    ASSERT_EQ(0, aegis_namespace_prepare(contexts[0]));
+    ASSERT_EQ(0, aegis_namespace_stop(contexts[0]));
+    aegis_child_exit result = {};
+    ASSERT_EQ(0, aegis_namespace_wait(contexts[0], 5000, &result));
+    int before = descriptors();
+    EXPECT_EQ(-1, aegis_namespace_base_mount(contexts[0], source)); EXPECT_EQ(EALREADY, errno);
+    EXPECT_EQ(before, descriptors());
 }
 
 }  // namespace

@@ -72,7 +72,7 @@ cc_library_static {
 cc_library_static {
     name: "libaegis-runtime-namespace",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/namespace.c"],
+    srcs: ["runtime/namespace.c", "runtime/mounts.c"],
     static_libs: ["libaegis-runtime-child"],
     export_include_dirs: ["runtime"],
     stl: "none",

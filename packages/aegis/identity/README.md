@@ -25,6 +25,13 @@ eines vertrauenswürdigen Setup-Helfers. Neun weitere Gerätetests sind vorberei
 Bibliothek und Probe-Helfer sind unkompiliert und nicht im Produkt aktiviert;
 der echte Mount-Helfer, Broker und dessen AOSP-Autorisierung fehlen weiterhin.
 
+Zusätzlich ist eine [persönliche Basis-Sicht](../../../runtime/base-mounts.md)
+als detached ID-mapped Mount vorbereitet. Die Maps lassen sich dafür ohne
+Exec-Freigabe einrichten; die schreibgeschützte Quelle wird nicht umgeschrieben.
+Vier weitere native Tests sind vorbereitet. Auch diese Mount-Erweiterung ist
+noch nicht kompiliert oder im Gast ausgeführt; CE-Einbindung und Rootwechsel
+fehlen weiterhin.
+
 `AospIdentityBackend` ist für den späteren AEGIS-Systemdienst vorgesehen.
 Der Konstruktor verlangt den Android-Systemprozess-UID. Die Klasse besitzt
 keinen Binder-Endpunkt und keine eigene Benutzer-, Passwort- oder Schlüsseldatenbank.

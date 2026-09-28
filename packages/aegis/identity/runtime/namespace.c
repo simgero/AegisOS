@@ -4,6 +4,7 @@
 #include "namespace.h"
 #include "child_private.h"
 #include "uid_layout.h"
+#include "mounts_private.h"
 
 #include <dirent.h>
 #include <elf.h>
@@ -11,6 +12,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/magic.h>
+#include <linux/nsfs.h>
 #include <linux/sched.h>
 #include <poll.h>
 #include <signal.h>
@@ -19,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mount.h>
+#include <sys/ioctl.h>
 #include <sys/prctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -36,7 +39,7 @@
 
 struct aegis_namespace {
     struct aegis_child *child;
-    int proc_root, gate, attempted;
+    int proc_root, gate, attempted, mapped, userns;
     pid_t pid; /* Used once for proc anchoring; NEVER for kill/wait/reopening. */
     uint32_t user_id;
 };
@@ -219,7 +222,7 @@ int aegis_namespace_create(uint32_t user_id, int setup_fd, int control_fd,
     int setup = -1, control = -1, parent = -1, pair[2] = {-1, -1}, child_gate = -1;
     if (!context || !child) { free(context); free(child); return -1; }
     context->child = child;
-    context->gate = context->proc_root = child->pidfd = -1;
+    context->gate = context->proc_root = context->userns = child->pidfd = -1;
     context->user_id = user_id;
     child->owner = (pid_t)syscall(SYS_getpid);
     context->proc_root = open("/proc", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
@@ -304,23 +307,30 @@ static int mapped(int proc, const char *name, uint32_t user_id) {
     return *cursor == '\0' ? 0 : denied();
 }
 
-int aegis_namespace_resume(struct aegis_namespace *context) {
+static int still_waiting(struct aegis_namespace *context) {
     if (owner(context) < 0) return -1;
     if (context->attempted || context->gate < 0) { errno = EALREADY; return -1; }
-    context->attempted = 1;
-    char number[32], map[1024], groups[32];
-    int proc = -1, result = -1;
-    if (check_broker(context->proc_root, context->child->owner) < 0) goto done;
+    if (check_broker(context->proc_root, context->child->owner) < 0) return -1;
     /* Public wait() might already have reaped this child. Never look up its
      * numeric proc name after that, nor after somebody stole the exit status. */
     if (context->child->observed || context->child->observation_error) {
         errno = ECHILD;
-        goto done;
+        return -1;
     }
     siginfo_t info = {0};
     if (waitid(P_PIDFD, (id_t)context->child->pidfd, &info,
-               WEXITED | WNOHANG | WNOWAIT) < 0) goto done;
-    if (info.si_pid) { errno = ESRCH; goto done; }
+               WEXITED | WNOHANG | WNOWAIT) < 0) return -1;
+    if (info.si_pid) { errno = ESRCH; return -1; }
+    return 0;
+}
+
+int aegis_namespace_prepare(struct aegis_namespace *context) {
+    if (owner(context) < 0) return -1;
+    if (context->mapped) { errno = EALREADY; return -1; }
+    char number[32], map[1024], groups[32];
+    int proc = -1, result = -1;
+    if (still_waiting(context) < 0) goto done;
+    context->mapped = -1;  /* Writing either kernel map is a one-shot action. */
     snprintf(number, sizeof(number), "%ld", (long)context->pid);
     proc = openat(context->proc_root, number, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (proc < 0) goto done;
@@ -341,11 +351,41 @@ int aegis_namespace_resume(struct aegis_namespace *context) {
             || mapped(proc, "uid_map", context->user_id) < 0
             || mapped(proc, "gid_map", context->user_id) < 0) goto done;
     if (strcmp(groups, "deny\n")) { errno = EPERM; goto done; }
-    if (send(context->gate, "G", 1, MSG_NOSIGNAL | MSG_DONTWAIT) != 1) goto done;
+    /* This is a kernel nsfs magic link beneath our anchored proc directory.
+     * Keep the exact namespace, never reconstruct a map from another process. */
+    context->userns = openat(proc, "ns/user", O_RDONLY | O_CLOEXEC);
+    if (context->userns < 0) goto done;
+    if (ioctl(context->userns, NS_GET_NSTYPE) != CLONE_NEWUSER) { errno = EPROTO; goto done; }
+    context->mapped = 1;
     result = 0;
 done:;
     int saved = errno;
     if (proc >= 0) close(proc);
+    if (result < 0) close_gate(context);
+    errno = saved;
+    return result;
+}
+
+int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_source_fd) {
+    if (still_waiting(context) < 0) return -1;
+    if (context->mapped != 1 || context->userns < 0) { errno = EAGAIN; return -1; }
+    return aegis_clone_base_mount(verified_source_fd, context->userns, context->user_id);
+}
+
+int aegis_namespace_resume(struct aegis_namespace *context) {
+    if (owner(context) < 0) return -1;
+    if (context->attempted || context->gate < 0) { errno = EALREADY; return -1; }
+    /* Preserve the combined create/resume interface for callers that have no
+     * host-side mount work. Preparing maps separately never executes code. */
+    if (!context->mapped && aegis_namespace_prepare(context) < 0) return -1;
+    int result = -1;
+    if (still_waiting(context) < 0) goto done;
+    if (context->mapped != 1 || context->userns < 0) { errno = EPROTO; goto done; }
+    if (send(context->gate, "G", 1, MSG_NOSIGNAL | MSG_DONTWAIT) != 1) goto done;
+    result = 0;
+done:;
+    int saved = errno;
+    context->attempted = 1;
     close_gate(context);
     errno = saved;
     return result;
@@ -368,6 +408,7 @@ void aegis_namespace_release(struct aegis_namespace *context) {
     if (!context) return;
     close_gate(context);
     if (context->proc_root >= 0) close(context->proc_root);
+    if (context->userns >= 0) close(context->userns);
     aegis_child_release(context->child);
     free(context);
 }

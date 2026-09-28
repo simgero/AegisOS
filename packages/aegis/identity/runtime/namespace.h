@@ -42,6 +42,29 @@ int aegis_namespace_create(uint32_t user_id, int setup_fd, int control_fd,
  */
 int aegis_namespace_resume(struct aegis_namespace *context);
 
+/* Optional separate mapping step for host-side mount preparation. One-shot;
+ * performs exactly the map checks of resume(), but KEEPS the exec gate closed.
+ * resume() after this step only rechecks the live child/broker and opens the
+ * gate. The original 10s child startup deadline is NOT extended.
+ */
+int aegis_namespace_prepare(struct aegis_namespace *context);
+
+/* After prepare() and before resume(): clone a preopened, broker-verified,
+ * readonly shared base root as a DETACHED readonly/nosuid/nodev/private mount,
+ * ID-mapped to this exact child's namespace. Returns a new CLOEXEC fd; caller
+ * owns it and must close it on cancellation/teardown. Never attaches a mount,
+ * changes disk ownership or changes the source mount. The approved clone is
+ * executable even if the source is noexec. On failure context
+ * remains paused: abort it or correct preparation within the same deadline.
+ *
+ * Source provenance, generation hash, absence of private data, and backing
+ * filesystem immutability are BROKER obligations. Root ownership/read-only
+ * flags alone cannot authenticate a base. Not for CE directories: their host
+ * ownership is already user-specific and MUST NOT be remapped a second time.
+ * Does not provide mount/exec readiness, AOSP authorization or cleanup proof.
+ */
+int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_source_fd);
+
 /* Stable pidfd termination/observation, with the same semantics as child.h.
  * stop also closes the gate. wait confirms ONLY this child's actual exit.
  */
