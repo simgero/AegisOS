@@ -28,6 +28,8 @@
 
 #define CONTROL_FD 3
 #define COUNT(a) (sizeof(a) / sizeof((a)[0]))
+/* ipc/mqueue.c in pinned kernel 50eb8d5d443b: not exported in Bionic's UAPI. */
+#define AEGIS_MQUEUE_MAGIC UINT64_C(0x19800202)
 static int denied(void) { errno = EPERM; return -1; }
 
 static int decimal(const char *text, uint32_t *value) {
@@ -273,7 +275,7 @@ static int readback(void) {
         {"/dev", TMPFS_MAGIC, ST_RDONLY | ST_NOSUID | ST_NOEXEC, ST_NODEV},
         {"/proc", PROC_SUPER_MAGIC, restricted, ST_RDONLY},
         {"/dev/pts", DEVPTS_SUPER_MAGIC, ST_NOSUID | ST_NOEXEC, ST_RDONLY | ST_NODEV},
-        {"/dev/mqueue", MQUEUE_MAGIC, restricted, ST_RDONLY},
+        {"/dev/mqueue", AEGIS_MQUEUE_MAGIC, restricted, ST_RDONLY},
         {"/dev/shm", TMPFS_MAGIC, restricted, ST_RDONLY},
         {"/tmp", TMPFS_MAGIC, ST_NOSUID | ST_NODEV, ST_RDONLY | ST_NOEXEC},
         {"/run", TMPFS_MAGIC, restricted, ST_RDONLY},

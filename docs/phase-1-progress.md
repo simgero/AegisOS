@@ -234,3 +234,11 @@ Server kompiliert und als `secure-env-20260928T134804Z-024354c1` über GitHub
 veröffentlicht. Das Exportskript hat das Archiv zurückgeladen und bytegenau
 verglichen. Lokale Prüfung und tatsächliche Wiederentschlüsselung nach
 einem Neustart stehen weiterhin aus.
+
+Der nächste Komponentenlauf `identity-20260928T135507Z-d8cfe22b-ZoTz0n`
+kompilierte die korrigierte Dateisystemprüfung. Er endete um 14:03:17 UTC nach
+7:53 Minuten: `MQUEUE_MAGIC` fehlt in Bionics UAPI-Headern. Der Mount-Helfer
+erhält den Wert `0x19800202` aus `ipc/mqueue.c` des exakten Kernel-Pins
+`50eb8d5d443b43f38d6e72f005f1b8601ac88a05` unter einem eigenen Konstantennamen.
+Die Prüfung des Message-Queue-Dateisystems bleibt erhalten. Der weitere
+`sizeof`-Fehler war eine Folge des ungültigen Tabelleninitialisierers.
