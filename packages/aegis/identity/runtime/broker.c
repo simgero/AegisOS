@@ -214,7 +214,7 @@ int main(int argc, char **argv) {
     umask(0077);
     char mode[PROP_VALUE_MAX], *context = NULL;
     if (argc != 1 || __system_property_get("ro.aegis.runtime.mode", mode) <= 0
-            || strcmp(mode, "managed") || is_selinux_enabled() != 1 || security_getenforce() != 1
+            || strcmp(mode, "managed-v1") || is_selinux_enabled() != 1 || security_getenforce() != 1
             || getcon(&context) < 0 || !context || strcmp(context, "u:r:aegis_runtime_broker:s0")) {
         freecon(context); fprintf(stderr, "AEGIS_RUNTIME_BROKER_REJECTED: mode or security context\n");
         return 1;

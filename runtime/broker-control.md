@@ -95,7 +95,10 @@ Vor jeder Wiederherstellung verlangt er eine exklusive Dateisperre in einem
 eigenen, streng geprüften DE-Verzeichnis. Erst nach bestätigtem Abbau von
 Vorgängerresten, geprüftem Basismount und Helfern wird der Socket geöffnet.
 Der Prozess muss Root im ursprünglichen Host-Namespace, im exakten Broker-
-SELinux-Kontext und im konfigurierten Modus `managed` laufen.
+SELinux-Kontext und im konfigurierten Modus `managed-v1` laufen, wie die
+AOSP-Speicherkoordination. Der Modusabgleich wurde nach Komponentencommit
+`336e9275` korrigiert; sein erneuter Build und die produktive Aktivierung stehen
+noch aus. Der aktuell laufende Vollbuild behält den Modus `absent`.
 
 `broker_cgroup.c` inventarisiert die private Cgroup `aegis-runtime`, bevor
 es Prozesse beendet. Nur bis zu 16 direkte Kinder mit kanonischem
