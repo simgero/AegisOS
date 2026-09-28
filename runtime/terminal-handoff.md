@@ -1,9 +1,16 @@
 # Terminalübergabe aus einem persönlichen Runtime-Kontext
 
-Stand 28. September 2026: **Quelltext vorbereitet, noch nicht auf dem Server
-kompiliert oder im Gast ausgeführt.** Der laufende Vollbuild `bfe90925` enthält
-diese spätere Erweiterung nicht. Ein Linux-Befehl über die AEGIS-CLI ist damit
-noch nicht verfügbar.
+Stand 28. September 2026: **ARM64-Syntax auf dem Builder geprüft, noch nicht
+gelinkt oder im Gast ausgeführt.** Commit `8bd04981f094e89877e9f3fc2714fe63ddab5cc8`
+besteht die drei Prüfungen für `exec.c`, `context.c` und `exec_tests.cpp` im Lauf
+`runtime-syntax-20260928T213328Z-8bd04981-NOs0h3`. Dabei werden die vorhandenen
+AOSP-Compilerregeln nur gelesen und mit `-fsyntax-only` auf einen getrennten,
+über GitHub bezogenen Checkout angewandt. AOSP-Quellen und Build-Ausgaben
+werden nicht verändert. Der erste Versuch fand einen Typvergleich im Test;
+die Korrektur ändert dessen Typ, nicht die Warnungsregeln oder Erwartung.
+
+Der laufende Vollbuild `bfe90925` enthält diese spätere Erweiterung nicht.
+Ein Linux-Befehl über die AEGIS-CLI ist damit noch nicht verfügbar.
 
 `aegis_context_exec` verwendet nach der bestätigten Namespace-READY-Antwort
 einen eigenen Besitzer des privaten Kontrollkanals. Nur der ursprüngliche

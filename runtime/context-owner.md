@@ -9,8 +9,9 @@ AOSP-/CLI-Aufrufer, die Basis-Einbindung und SELinux-Integration fehlen weiterhi
 Der Produktmodus bleibt `absent`.
 
 Eine nachfolgende [Terminalübergabe](terminal-handoff.md) ergänzt im Quelltext
-den persönlichen Befehlskanal und dessen Besitz beim Kontextabbau. Sie ist
-noch nicht kompiliert, im Gast ausgeführt oder an die AEGIS-CLI angebunden.
+den persönlichen Befehlskanal und dessen Besitz beim Kontextabbau. Ihre
+ARM64-Syntax ist auf dem Builder geprüft; Linken, Gasttest und Anbindung an
+die AEGIS-CLI stehen noch aus.
 
 Der ausschließlich vertrauenswürdige, einthreadige Host-Broker erhält aus seiner
 verifizierten Systembasis bereits geöffnete Basis-, Setup- und Init-Deskriptoren
@@ -31,8 +32,10 @@ Der Start läuft in dieser Reihenfolge:
 
 Ein erfolgreicher Start ist keine AOSP-Autorisierung und keine Garantie, dass das
 Kind weiterlebt. Vor jeder Nutzung des privaten Kanals wird erneut sein Pidfd
-geprüft. Der Broker behält den Kanal; CLI-Clients erhalten ihn niemals. Sequenznummern,
-Shell-Aufträge, PTYs und Sitzungsprüfung bleiben Aufgaben des fehlenden Aufrufers.
+geprüft. Der Broker behält den Kanal; CLI-Clients erhalten ihn niemals.
+Die vorbereitete Terminalübergabe besitzt Sequenznummern und Befehlsergebnisse;
+die Autorisierung und Weitergabe der PTYs an CLI-Sitzungen bleiben Aufgaben
+des noch zu integrierenden Broker-/AOSP-Aufrufers.
 
 Schon ein fehlgeschlagener Start kann Ressourcen besitzen. Die Ausgabe behält
 deshalb den Besitzer, bis `aegis_context_stop` die Bereinigung bestätigt. Fehler
