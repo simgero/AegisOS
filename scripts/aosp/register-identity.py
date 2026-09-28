@@ -64,10 +64,14 @@ def register(source, aosp):
     parent = directory_chain(aosp, ("packages", "aegis"))
     target = parent / "identity"
     backups = directory_chain(aosp, ("out", "aegis-identity-backups"))
+    staging_parent = directory_chain(aosp, ("out", "aegis-identity-staging"))
     if target.exists() or target.is_symlink():
         owned_directory(target)
     parent.mkdir(parents=True, exist_ok=True)
-    staged = Path(tempfile.mkdtemp(prefix=".identity-stage-", dir=parent))
+    # Even after SIGKILL, an incomplete copy must not be discovered as another
+    # Android.bp module by a later AOSP build. out/ is outside source discovery.
+    staging_parent.mkdir(parents=True, exist_ok=True)
+    staged = Path(tempfile.mkdtemp(prefix="identity-", dir=staging_parent))
     try:
         for relative in sorted(expected):
             destination = staged / relative

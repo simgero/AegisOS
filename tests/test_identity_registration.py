@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("identity_registration",
@@ -45,6 +46,22 @@ class IdentityRegistrationTests(unittest.TestCase):
         (self.target / "local-notes").write_text("keep")
         with self.assertRaises(ValueError): registration.register(self.source, self.aosp)
         self.assertEqual((self.target / "local-notes").read_text(), "keep")
+
+    def test_interrupted_copy_keeps_only_complete_source_discoverable(self):
+        registration.register(self.source, self.aosp)
+        (self.source / "src/example/Main.java").write_text("replacement")
+        real_copy = registration.shutil.copyfile
+
+        def fail_after_copy(source, destination):
+            real_copy(source, destination)
+            discovered = list((self.aosp / "packages").rglob("Android.bp"))
+            self.assertEqual(discovered, [self.target / "Android.bp"])
+            raise OSError("simulated interrupted copy")
+
+        with patch.object(registration.shutil, "copyfile", side_effect=fail_after_copy):
+            with self.assertRaises(OSError): registration.register(self.source, self.aosp)
+        self.assertEqual((self.target / "src/example/Main.java").read_text(), "first")
+        registration.owned_directory(self.target)
 
     def test_unmanaged_destination_is_preserved(self):
         self.target.mkdir(parents=True)

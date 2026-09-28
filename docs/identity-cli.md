@@ -111,9 +111,11 @@ registriert die verwalteten Produkt- und Paketquellen und baut nur `aegis` sowie
 
 Die Registrierung überschreibt keine fremden oder lokal veränderten Quellen.
 Vorherige verwaltete Fassungen bleiben außerhalb der AOSP-Quellsuche unter
-`out/aegis-identity-backups` erhalten. Sechs lokale Tests prüfen echte
-Dateiveränderungen, zusätzliche Dateien, symbolische Links und die Aufbewahrung
-der vorigen Fassung. Sie prüfen weder Java noch AOSP-Berechtigungen.
+`out/aegis-identity-backups` erhalten. Unvollständige Kopien liegen ebenfalls
+außerhalb der Quellsuche unter `out/aegis-identity-staging`. Sieben lokale Tests
+prüfen echte Dateiveränderungen, zusätzliche Dateien, symbolische Links,
+Kopierabbrüche und die Aufbewahrung der vorigen Fassung. Sie prüfen weder Java
+noch AOSP-Berechtigungen.
 
 Erst erfolgreicher Modulbau und vorhandene JAR-/Startdateien setzen
 `IDENTITY_COMPILED_NOT_INSTALLED`. Logs, Quellinventar und Modulprüfsummen liegen
