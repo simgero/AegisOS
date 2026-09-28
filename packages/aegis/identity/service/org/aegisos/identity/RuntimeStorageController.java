@@ -4,9 +4,10 @@ import com.android.server.aegis.AegisRuntimeStorage;
 import java.util.Objects;
 
 /**
- * Provider adapter for a fully initialized managed runtime owner. Deliberately
- * NOT registered by the current runtime-absent identity service: the real
- * Quiescer, start/package/lifecycle wiring and SELinux policy are still missing.
+ * Provider adapter for a fully initialized managed runtime owner.
+ * Registered by the identity service only in managed-v1 mode. The current
+ * product remains absent pending native init/SELinux integration. The quiescer
+ * must be extended before enabling any public terminal or package endpoints.
  */
 final class RuntimeStorageController implements AegisRuntimeStorage.Controller {
     private final RuntimeAdmission admission;

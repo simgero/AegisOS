@@ -49,8 +49,12 @@ bool request(int channel, uint64_t id) {
             && header.operation == AEGIS_EXEC && header.request_id == id
             && header.argc == 2 && !strcmp(argv[0], "/bin/bash") && !strcmp(argv[1], "--noprofile");
 }
-int pty(uint32_t user = 10) {
-    int master = posix_openpt(O_RDWR | O_CLOEXEC | O_NOCTTY);
+int pty(uint32_t user = 10, bool legacy = false) {
+    // Match the production supervisor's devpts inode. Android's legacy
+    // /dev/ptmx lives on tmpfs; posix_openpt() opens it and must be rejected by
+    // the resource owner's devpts check even though it can allocate a slave.
+    int master = open(legacy ? "/dev/ptmx" : "/dev/pts/ptmx",
+            O_RDWR | O_CLOEXEC | O_NOCTTY | O_NOFOLLOW);
     if (master < 0) return -1;
     if (grantpt(master) < 0 || unlockpt(master) < 0) { close(master); return -1; }
     int slave = ioctl(master, TIOCGPTPEER, O_RDWR | O_CLOEXEC | O_NOCTTY);
@@ -60,8 +64,8 @@ int pty(uint32_t user = 10) {
     if (result < 0) { close(master); return -1; }
     return master;
 }
-bool started(int channel, uint64_t id, int pid, uint32_t user = 10) {
-    int master = pty(user);
+bool started(int channel, uint64_t id, int pid, uint32_t user = 10, bool legacy = false) {
+    int master = pty(user, legacy);
     if (master < 0) return false;
     int result = aegis_send_reply(channel, AEGIS_STARTED, id, 0, pid, 0, master);
     close(master);
@@ -193,6 +197,17 @@ TEST_F(RuntimeExec, WrongUserPtyIsClosedAndCannotBePublished) {
     EXPECT_EQ(-1, start(&id)); EXPECT_EQ(EPROTO, errno);
     EXPECT_EQ(0u, id); EXPECT_EQ(-1, master);
     EXPECT_EQ(before - 1, descriptors());  // The poisoned engine fd alone was closed.
+    EXPECT_EQ(-1, aegis_exec_healthy(owner)); EXPECT_EQ(EPIPE, errno);
+}
+
+TEST_F(RuntimeExec, LegacyAndroidPtmxCannotSubstituteForDevptsMaster) {
+    peer([](int channel) { return request(channel, 1) && started(channel, 1, 41, 10, true); });
+    ASSERT_FALSE(HasFatalFailure());
+    int before = descriptors();
+    uint64_t id = 0;
+    EXPECT_EQ(-1, start(&id)); EXPECT_EQ(EPROTO, errno);
+    EXPECT_EQ(0u, id); EXPECT_EQ(-1, master);
+    EXPECT_EQ(before - 1, descriptors());
     EXPECT_EQ(-1, aegis_exec_healthy(owner)); EXPECT_EQ(EPIPE, errno);
 }
 

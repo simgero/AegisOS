@@ -28,10 +28,12 @@ public final class RuntimeAdmissionTest {
         try (RuntimeAdmission.Access owned = access) { owned.checkCurrent(); }
     }
 
-    private static void fakeLogin(RuntimeAdmission gate, int user, int serial) {
+    private static RuntimeAdmission.Binding fakeLogin(RuntimeAdmission gate, int user, int serial) {
         // The real caller must authenticate/check the user in AOSP BETWEEN these
         // calls. This fixture exercises only internal serialization and epochs.
-        check(gate.afterAuthentication(gate.beforeAuthentication(user, serial)));
+        try (RuntimeAdmission.Access access = gate.afterAuthentication(gate.beforeAuthentication(user, serial))) {
+            return access.binding();
+        }
     }
 
     @Test public void nativeDeadlineIsTheSameOwnedAdmissionBudget() {
@@ -47,17 +49,17 @@ public final class RuntimeAdmissionTest {
     @Test public void initialAdmissionAndDestructiveStorageRequireQuiescence() {
         List<Integer> stopped = new ArrayList<>();
         RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> stopped.add(user));
-        fails(SecurityException.class, () -> check(gate.existing(10, 100)));
-        fakeLogin(gate, 10, 100);
-        check(gate.existing(10, 100));
+        fails(SecurityException.class, () -> check(gate.existing(null)));
+        RuntimeAdmission.Binding first = fakeLogin(gate, 10, 100);
+        check(gate.existing(first));
         try (RuntimeAdmission.Storage storage = gate.storage(10, false)) {
             assertEquals(List.of(10), stopped);
         }
-        check(gate.existing(10, 100));
+        check(gate.existing(first));
         try (RuntimeAdmission.Storage storage = gate.storage(10, true)) {
             assertEquals(List.of(10, 10), stopped);
         }
-        fails(SecurityException.class, () -> check(gate.existing(10, 100)));
+        fails(SecurityException.class, () -> check(gate.existing(first)));
         fakeLogin(gate, 10, 100);
         assertEquals(List.of(10, 10, 10), stopped);
     }
@@ -76,7 +78,7 @@ public final class RuntimeAdmissionTest {
 
     @Test public void attemptsBeforeAndDuringKeyMutationCannotReopenAfterward() {
         RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> {});
-        fakeLogin(gate, 10, 100);
+        RuntimeAdmission.Binding first = fakeLogin(gate, 10, 100);
         RuntimeAdmission.AuthenticationAttempt before = gate.beforeAuthentication(10, 100);
         RuntimeAdmission.AuthenticationAttempt during;
         try (RuntimeAdmission.Storage storage = gate.storage(10, true)) {
@@ -89,7 +91,7 @@ public final class RuntimeAdmissionTest {
 
     @Test public void failedKeyMutationAlsoInvalidatesAttemptsMadeInsideIt() {
         RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> {});
-        fakeLogin(gate, 10, 100);
+        RuntimeAdmission.Binding first = fakeLogin(gate, 10, 100);
         AtomicReference<RuntimeAdmission.AuthenticationAttempt> attempt = new AtomicReference<>();
         IllegalStateException failure = new IllegalStateException("fake vold failure");
         assertSame(failure, fails(IllegalStateException.class, () -> {
@@ -99,7 +101,7 @@ public final class RuntimeAdmissionTest {
             }
         }));
         fails(SecurityException.class, () -> check(gate.afterAuthentication(attempt.get())));
-        fails(SecurityException.class, () -> check(gate.existing(10, 100)));
+        fails(SecurityException.class, () -> check(gate.existing(first)));
     }
 
     @Test public void timedOutDestructionSealsAnAlreadyHeldAccessWithoutCallingQuiescer()
@@ -107,9 +109,9 @@ public final class RuntimeAdmissionTest {
         AtomicInteger stops = new AtomicInteger();
         RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> stops.incrementAndGet(),
                 TimeUnit.MILLISECONDS.toNanos(200));
-        fakeLogin(gate, 10, 100);
+        RuntimeAdmission.Binding first = fakeLogin(gate, 10, 100);
         AtomicReference<Throwable> result = new AtomicReference<>();
-        try (RuntimeAdmission.Access access = gate.existing(10, 100)) {
+        try (RuntimeAdmission.Access access = gate.existing(first)) {
             Thread waiting = new Thread(() -> {
                 try (RuntimeAdmission.Storage storage = gate.storage(10, true)) {
                     result.set(new AssertionError("acquired while another thread owns access"));
@@ -121,7 +123,7 @@ public final class RuntimeAdmissionTest {
             fails(SecurityException.class, access::checkCurrent);
             assertEquals(1, stops.get()); // Only the earlier fake login drained.
         }
-        fails(SecurityException.class, () -> check(gate.existing(10, 100)));
+        fails(SecurityException.class, () -> check(gate.existing(first)));
         try (RuntimeAdmission.Storage storage = gate.storage(10, true)) {
             assertEquals(2, stops.get()); // Explicit retry can now obtain exclusivity.
         }
@@ -130,11 +132,11 @@ public final class RuntimeAdmissionTest {
     @Test public void interruptedDestructionPreservesInterruptAndLeavesAdmissionSealed()
             throws Exception {
         RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> {});
-        fakeLogin(gate, 10, 100);
+        RuntimeAdmission.Binding first = fakeLogin(gate, 10, 100);
         CountDownLatch entered = new CountDownLatch(1);
         AtomicBoolean interrupted = new AtomicBoolean();
         AtomicReference<Throwable> result = new AtomicReference<>();
-        try (RuntimeAdmission.Access access = gate.existing(10, 100)) {
+        try (RuntimeAdmission.Access access = gate.existing(first)) {
             Thread waiting = new Thread(() -> {
                 entered.countDown();
                 try (RuntimeAdmission.Storage storage = gate.storage(10, true)) {
@@ -159,7 +161,7 @@ public final class RuntimeAdmissionTest {
         RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> {
             if (broken.get()) throw new IllegalStateException("owned descriptors remain");
         });
-        fakeLogin(gate, 10, 100);
+        RuntimeAdmission.Binding first = fakeLogin(gate, 10, 100);
         broken.set(true);
         fails(IllegalStateException.class, () -> {
             try (RuntimeAdmission.Storage storage = gate.storage(10, true)) {
@@ -172,31 +174,32 @@ public final class RuntimeAdmissionTest {
         broken.set(false);
         fails(SecurityException.class, () -> check(gate.afterAuthentication(attempt)));
         fails(SecurityException.class, () -> check(gate.afterAuthentication(concurrent)));
-        fails(SecurityException.class, () -> check(gate.existing(10, 100)));
+        fails(SecurityException.class, () -> check(gate.existing(first)));
         fakeLogin(gate, 10, 100);
     }
 
     @Test public void serialReplacementDrainsOldOwnershipAndDoesNotAffectAnotherUser() {
         List<Integer> stopped = new ArrayList<>();
         RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> stopped.add(user));
-        fakeLogin(gate, 10, 100);
-        fakeLogin(gate, 11, 101);
+        RuntimeAdmission.Binding first = fakeLogin(gate, 10, 100);
+        RuntimeAdmission.Binding second = fakeLogin(gate, 11, 101);
         RuntimeAdmission.AuthenticationAttempt old = gate.beforeAuthentication(10, 100);
-        fakeLogin(gate, 10, 102);
+        RuntimeAdmission.Binding replacement = fakeLogin(gate, 10, 102);
         assertEquals(List.of(10, 11, 10), stopped);
         fails(SecurityException.class, () -> check(gate.afterAuthentication(old)));
-        fails(SecurityException.class, () -> check(gate.existing(10, 100)));
-        check(gate.existing(10, 102));
-        check(gate.existing(11, 101));
+        fails(SecurityException.class, () -> check(gate.existing(first)));
+        check(gate.existing(replacement));
+        check(gate.existing(second));
         gate.revoke(10);
-        fails(SecurityException.class, () -> check(gate.existing(10, 102)));
-        check(gate.existing(11, 101));
+        fails(SecurityException.class, () -> check(gate.existing(replacement)));
+        check(gate.existing(second));
     }
 
     @Test public void scopesRejectAnotherThreadDoubleCloseAndRecursiveEntry() throws Exception {
         RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> {});
-        fakeLogin(gate, 10, 100);
-        RuntimeAdmission.Access access = gate.existing(10, 100);
+        RuntimeAdmission.Binding first = fakeLogin(gate, 10, 100);
+        RuntimeAdmission.Binding second = fakeLogin(gate, 11, 101);
+        RuntimeAdmission.Access access = gate.existing(first);
         AtomicReference<Throwable> failure = new AtomicReference<>();
         Thread other = new Thread(() -> {
             try { access.close(); } catch (Throwable error) { failure.set(error); }
@@ -205,33 +208,36 @@ public final class RuntimeAdmissionTest {
         assertFalse(other.isAlive());
         assertTrue(failure.get() instanceof IllegalStateException);
         access.checkCurrent();
-        fails(IllegalStateException.class, () -> check(gate.existing(10, 100)));
-        fails(IllegalStateException.class, () -> check(gate.existing(11, 101)));
+        fails(IllegalStateException.class, () -> check(gate.existing(first)));
+        fails(IllegalStateException.class, () -> check(gate.existing(second)));
         access.close();
         fails(IllegalStateException.class, access::close);
         fails(IllegalStateException.class, access::checkCurrent);
-        check(gate.existing(10, 100));
+        check(gate.existing(first));
     }
 
     @Test public void quiescerCannotReenterTheGateAndAuthorizeItsOwnResources() {
         AtomicReference<RuntimeAdmission> ref = new AtomicReference<>();
-        RuntimeAdmission gate = new RuntimeAdmission((user, deadline) ->
-                check(ref.get().existing(user, 100)));
+        RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> {
+            try (RuntimeAdmission.Storage nested = ref.get().storage(user, false)) {
+                fail("quiescer reentered storage");
+            }
+        });
         ref.set(gate);
         fails(IllegalStateException.class, () -> fakeLogin(gate, 10, 100));
-        fails(SecurityException.class, () -> check(gate.existing(10, 100)));
+        fails(SecurityException.class, () -> check(gate.existing(null)));
     }
 
     @Test public void anotherUserCanAcquireOnAnotherThreadWhileThisUserIsHeld() throws Exception {
         RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> {});
-        fakeLogin(gate, 10, 100);
-        fakeLogin(gate, 11, 101);
+        RuntimeAdmission.Binding first = fakeLogin(gate, 10, 100);
+        RuntimeAdmission.Binding second = fakeLogin(gate, 11, 101);
         AtomicReference<Throwable> failure = new AtomicReference<>();
         AtomicBoolean completed = new AtomicBoolean();
-        try (RuntimeAdmission.Access access = gate.existing(10, 100)) {
+        try (RuntimeAdmission.Access access = gate.existing(first)) {
             Thread other = new Thread(() -> {
                 try {
-                    check(gate.existing(11, 101));
+                    check(gate.existing(second));
                     completed.set(true);
                 } catch (Throwable error) { failure.set(error); }
             });
@@ -241,6 +247,46 @@ public final class RuntimeAdmissionTest {
             assertTrue(completed.get());
             access.checkCurrent();
         }
+    }
+
+
+    @Test public void laterLoginCannotReviveAnotherTerminalsRevokedBinding() {
+        RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> {});
+        RuntimeAdmission.Binding old = fakeLogin(gate, 10, 100);
+        gate.revoke(10);
+        RuntimeAdmission.Binding fresh = fakeLogin(gate, 10, 100);
+        check(gate.existing(fresh));
+        fails(SecurityException.class, () -> check(gate.existing(old)));
+        assertTrue(fresh.matches(10, 100));
+        assertFalse(fresh.matches(11, 100));
+        assertFalse(fresh.matches(10, 101));
+    }
+
+    @Test public void independentLoginsShareContextUntilAStorageRevocation() {
+        AtomicInteger stops = new AtomicInteger();
+        RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> stops.incrementAndGet());
+        RuntimeAdmission.Binding first = fakeLogin(gate, 10, 100);
+        RuntimeAdmission.Binding second = fakeLogin(gate, 10, 100);
+        assertEquals(1, stops.get());
+        check(gate.existing(first));
+        check(gate.existing(second));
+        try (RuntimeAdmission.Storage storage = gate.storage(10, true)) { }
+        RuntimeAdmission.Binding fresh = fakeLogin(gate, 10, 100);
+        fails(SecurityException.class, () -> check(gate.existing(first)));
+        fails(SecurityException.class, () -> check(gate.existing(second)));
+        check(gate.existing(fresh));
+    }
+
+    @Test public void bindingsAreInternalToOneGateAndCannotBeMintedAfterScopeClose() {
+        RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> {});
+        RuntimeAdmission other = new RuntimeAdmission((user, deadline) -> {});
+        RuntimeAdmission.Access access = gate.afterAuthentication(gate.beforeAuthentication(10, 100));
+        RuntimeAdmission.Binding binding = access.binding();
+        access.close();
+        fails(IllegalStateException.class, access::binding);
+        fakeLogin(other, 10, 100);
+        fails(SecurityException.class, () -> check(other.existing(binding)));
+        check(gate.existing(binding));
     }
 
     @Test public void systemUserInvalidSerialAndNonpositiveTimeoutAreRejected() {

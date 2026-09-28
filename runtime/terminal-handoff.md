@@ -1,16 +1,14 @@
 # Terminalübergabe aus einem persönlichen Runtime-Kontext
 
-Stand 28. September 2026: **ARM64-Syntax auf dem Builder geprüft, noch nicht
-gelinkt oder im Gast ausgeführt.** Commit `8bd04981f094e89877e9f3fc2714fe63ddab5cc8`
-besteht die drei Prüfungen für `exec.c`, `context.c` und `exec_tests.cpp` im Lauf
-`runtime-syntax-20260928T213328Z-8bd04981-NOs0h3`. Dabei werden die vorhandenen
-AOSP-Compilerregeln nur gelesen und mit `-fsyntax-only` auf einen getrennten,
-über GitHub bezogenen Checkout angewandt. AOSP-Quellen und Build-Ausgaben
-werden nicht verändert. Der erste Versuch fand einen Typvergleich im Test;
-die Korrektur ändert dessen Typ, nicht die Warnungsregeln oder Erwartung.
-
-Der laufende Vollbuild `bfe90925` enthält diese spätere Erweiterung nicht.
-Ein Linux-Befehl über die AEGIS-CLI ist damit noch nicht verfügbar.
+Stand 29. September 2026: Komponentencommit `ac87df1f` ist auf `aegis-build`
+kompiliert und gelinkt. Im lokalen Android-QEMU bestehen 106/110 native und
+58/59 Java-Tests. Die vier Terminalfehler liegen am Fixture-Gerät: Androids
+`posix_openpt()` öffnet den Tmpfs-Knoten `/dev/ptmx`, den die produktive
+Devpts-Prüfung ausdrücklich abweist. Der nächste Quellstand verwendet wie der
+echte Supervisor `/dev/pts/ptmx` und testet die Legacy-Ablehnung zusätzlich.
+Diese Korrektur ist noch nicht gebaut oder ausgeführt. Der Java-Fehler betrifft
+die geerbte SMS-RRO; siehe [aktuellen Stand](../docs/phase-1-progress.md).
+Ein Linux-Befehl über die AEGIS-CLI ist weiterhin nicht verfügbar.
 
 `aegis_context_exec` verwendet nach der bestätigten Namespace-READY-Antwort
 einen eigenen Besitzer des privaten Kontrollkanals. Nur der ursprüngliche
@@ -48,17 +46,18 @@ ausschließlich selbst erzeugte PTYs im lokalen Android-Testgast. Sie prüfen
 Deskriptorfreigabe sowie Abweisung eines fremden Benutzerterminals und eines
 geerbten Prozessbesitzes. Sie starten selbst keine Debian-Programme und ersetzen
 keine persönliche Linux-Sitzung oder deren vollständigen Logout-Nachweis.
-Mit ihnen enthielt die Suite 100 Tests; dieser neue Gesamtstand ist noch ungeprüft.
+Die zwölf Tests sind Bestandteil des geprüften 110er-Komponentenstands;
+die vier positiven Handoff-Fälle erfordern die oben beschriebene Fixture-Korrektur.
 
-## Interne Broker-/AOSP-Verbindung, noch nicht ausgeführt
+## Interne Broker-/AOSP-Verbindung
 
 Commit `ac87df1fc333893d08db0ceb9c67b13c59eed758` besteht außerdem alle acht
 ARM64-Syntaxprüfungen im Builderlauf
 `runtime-syntax-20260928T215856Z-ac87df1f-rOLeXi`, einschließlich Broker,
-Protokoll und der ergänzten nativen Tests. Java-Kompilierung, Verlinkung und
-Gasttests stehen noch aus. Der nachfolgende Komponentenauftrag wartet auf
-den bereits separat gestarteten Bootanimations-Vollbuild; der gemeinsame
-AOSP-Baum wird nicht parallel neu registriert.
+Protokoll und der ergänzten nativen Tests. Anschließend lieferte der Komponentenlauf
+`identity-20260928T222328Z-ac87df1f-Iu66cE` die über GitHub geprüften Testartefakte.
+Die Tests verwenden ein eigenes lokales Profil; das sichtbare Benutzer-QEMU
+bleibt getrennt davon.
 
 Die vorbereitete Version 2 ergänzt den weiterhin nur für `system_server`
 zugelassenen SEQPACKET-Kanal um `EXEC` und `RESULT`. Persönliche Kennung,
@@ -86,7 +85,12 @@ Zehn zusätzliche native Tests prüfen diese Paketgrenzen, Deskriptorübergabe,
 Ablehnung fremder Eingaben sowie fehlender, teilweise gestarteter und veralteter
 Kontexte. Sechs Java-Gerätetests prüfen gemeinsame Literal-Testpakete,
 Unicode-/Größenbegrenzung und widersprüchliche Antworten. Der Quellstand enthält
-damit 110 native und 59 Java-Tests; die neuen Tests sind noch nicht ausgeführt.
-Die Produktionsregistrierung, SELinux-/Init-Integration, echte persönliche
-Debian-Sitzungen und CLI-seitiger Widerruf bleiben offen. `runtime.mode=absent`
-und das bisherige CLI-Verhalten bleiben deshalb bestehen.
+damit 110 native und 59 Java-Tests; Ergebnisse stehen oben. Die aktuelle
+Weiterentwicklung bindet Start/Status/Stopp an die tatsächlich über AOSP
+authentifizierte CLI-Sitzung und registriert den Speichercontroller nur im
+künftigen verwalteten Modus. Eine interne Epoch-Bindung bleibt nach Widerruf
+ungültig, auch wenn ein anderer Terminalkanal denselben Benutzer neu anmeldet.
+Ein persönliches PTY wird noch nicht an die CLI herausgegeben.
+SELinux-/Init-Aktivierung, echte Debian-Sitzungen, PTY-Widerruf und Paketabläufe
+bleiben offen. `runtime.mode=absent` bleibt im Produkt gesetzt. Die nächste
+Suite umfasst 111 native und 62 Java-Tests; noch kein Ausführungsnachweis.

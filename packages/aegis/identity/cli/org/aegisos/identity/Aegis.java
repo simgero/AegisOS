@@ -148,8 +148,15 @@ public final class Aegis {
                     System.out.println(session.logout());
                     return 0;
                 case "linux":
-                    System.err.println("Die GNU/Linux-Runtime ist in diesem Entwicklungsstand noch nicht integriert.");
-                    return 2;
+                    exact(args, 2);
+                    switch (args[1]) {
+                        case "start": System.out.println(session.linuxStart()); return 0;
+                        case "status": System.out.println(session.linuxStatus()); return 0;
+                        case "stop": System.out.println(session.linuxStop()); return 0;
+                        default:
+                            System.err.println("Verfügbar: linux start, status oder stop. Die Linux-Shell ist noch nicht freigegeben.");
+                            return 2;
+                    }
                 default:
                     System.err.println("Unbekannter Befehl. help zeigt verfügbare Befehle.");
                     return 2;
@@ -292,9 +299,10 @@ public final class Aegis {
                 + "  switch NAME           Ziel authentifizieren; bisherigen Benutzer nicht abmelden\n"
                 + "  passwd                eigenes Passwort über AOSP ändern\n"
                 + "  status                diesen Sitzungs- und Speicherzustand anzeigen\n"
+                + "  linux start|status|stop eigenen Kontext steuern, sobald die Runtime installiert ist\n"
                 + "  logout                Android-Benutzer stoppen und CE-Sperre bestätigen\n"
                 + "  exit                  nur den Terminalkanal schließen\n"
-                + "Die GNU/Linux-Runtime ist noch nicht integriert.\n"
+                + "Linux-Shell und Paketaktionen sind noch nicht freigegeben.\n"
                 + "Ein getrennt gestartetes aegis erbt keine persönliche Anmeldung.");
     }
 }

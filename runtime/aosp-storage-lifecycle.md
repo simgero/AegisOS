@@ -1,9 +1,12 @@
 # AOSP-Speicheroperationen und Runtime-Abbau
 
-Stand 28. September 2026: **Quelltext vorbereitet; nicht auf dem Builder
-kompiliert und nicht in QEMU ausgeführt.** Die Schnittstelle besitzt noch keinen
-Runtime-Controller. `ro.aegis.runtime.mode=absent` bleibt gesetzt; diese Änderung
-aktiviert weder Linux-Kontexte noch Paketoperationen.
+Stand 29. September 2026: Die fünf AOSP-Hooks sind im gebooteten Image vorhanden;
+ihre Gerätetests bestehen im Komponentenstand `ac87df1f`. Der aktuelle Quelltext
+verbindet im Modus `managed-v1` den echten nativen Besitzer, `RuntimeAdmission`
+und den Identitätsdienst. Diese neue Verbindung ist noch nicht kompiliert oder
+praktisch geprüft. Das Produkt bleibt `ro.aegis.runtime.mode=absent`, bis auch
+SELinux, Init und die erforderlichen Systemtests integriert sind. Es sind keine
+öffentlichen PTY- oder Paketoperationen freigegeben.
 
 ## Warum eine vorgeschaltete Sperre erforderlich ist
 
@@ -16,7 +19,7 @@ geschlossen sein. AOSP bleibt allein für Passwörter und Schlüssel zuständig.
 
 Der vorbereitete Integrator ergänzt `StorageManagerService` an fünf Stellen:
 
-| Operation | Vertrag des noch fehlenden Controllers |
+| Operation | Vertrag des Controllers |
 | --- | --- |
 | Schlüssel erzeugen, löschen oder CE sperren | Neue Runtime-/Paketaktionen für alle Seriennummern der numerischen Benutzer-ID sperren; laufende Transaktionen abschließen oder abbrechen; Prozesse beenden und einsammeln; sämtliche CE-, Mount-, Terminal- und Socketreferenzen schließen. Erst danach darf die AOSP-Operation beginnen. |
 | CE entsperren oder Passwortschutz aktualisieren | Gegen konkurrierenden Schlüsselentzug serialisieren, ohne einen gültigen laufenden Kontext allein deshalb zu beenden. |
@@ -75,15 +78,22 @@ veränderte Release-Berichte. Sie kompilieren oder starten keinen Android-Code.
 Die Quellintegration wurde außerdem mit den vollständigen gepinnten Dateien
 in einem temporären Verzeichnis geprüft.
 
-Acht zusätzliche Android-Java-Tests sind vorbereitet: Reihenfolge,
-fehlgeschlagene Akquisition, Modusprüfung, Threadbindung, einmalige Freigabe
-und Fehlerweitergabe. Zusammen mit der [Zugangsserialisierung](admission.md)
-sind 44 Java- und 50 native Gerätetests vorbereitet; **die neuen Gerätetests sind weiterhin unkompiliert und unausgeführt**.
+Die acht Android-Java-Tests für Reihenfolge, fehlgeschlagene Akquisition,
+Modusprüfung, Threadbindung, einmalige Freigabe und Fehlerweitergabe bestehen
+im 59er-Komponentenstand. Sie verwenden kontrollierte Provider; dies beweist
+keinen tatsächlichen nativen Ressourcenabbau vor AOSP-Schlüsselentzug.
 
-Es fehlen weiterhin der tatsächliche Controller/Broker, die gemeinsame
-Serialisierung von Start/Stop und Pakettransaktionen, Ressourcenabbau auch bei
-externem AOSP-Benutzerstopp, SELinux-Regeln und echte Parallelitätstests.
-Direkte privilegierte vold-Aufrufe durchlaufen diese Java-Schnittstelle nicht;
-insbesondere die direkte Löschbereinigung des vorhandenen AOSP-Adapters muss
-vor Aktivierung des verwalteten Modus ebenfalls in die Koordination einbezogen
-werden. Die bestehende Beschränkung `requireRuntimeAbsent()` bleibt bestehen.
+Die neu angebundene Verwaltung hält keinen Runtime-Gate während AOSP-Aufrufen.
+Vor Logout sperrt sie die Zulassung und verlangt nativen Stopp; die anschließende
+AOSP-Keyoperation erwirbt selbst nochmals ihre Storage-Lease. Neue Anmeldungen
+müssen ihre eigene interne Bindung erhalten. Lifecycle-Callbacks widerrufen
+Sitzungen ohne den Identitätsmonitor zu erwerben; beim gleichzeitigen Wechsel
+verhindert ein atomarer Vergleich das Löschen der neuen Benutzerbindung.
+
+Weiterhin offen sind produktive SELinux-/Init-Aktivierung, öffentlicher
+Terminalbesitz, Pakettransaktionen sowie reale Start/Stop/CE-Rennentests.
+Direkte privilegierte vold-Aufrufe durchlaufen die Java-Schnittstelle nicht.
+Die Löschbereinigung nach Freigabe einer numerischen AOSP-ID muss in den noch
+reservierten AOSP-Lebenszyklus verlegt werden. Für Benutzerlöschung bleibt
+`requireRuntimeAbsent()` deshalb bestehen; die übrigen neuen Lifecycle-Pfade
+berechtigen noch nicht zur Aktivierung des Produkts.

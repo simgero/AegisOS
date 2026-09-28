@@ -13,4 +13,9 @@ interface IAegisSession {
     String logout();
     void close();
     String resumeFirstAdmin(String name, in byte[] password);
+    // Personal target is the service's authenticated binding, never a client userId.
+    // No shell/PTY/package endpoint until revocation and production policy are integrated.
+    String linuxStart();
+    String linuxStatus();
+    String linuxStop();
 }

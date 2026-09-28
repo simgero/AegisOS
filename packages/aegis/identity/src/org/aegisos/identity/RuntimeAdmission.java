@@ -106,7 +106,7 @@ public final class RuntimeAdmission {
                 slot.serial = attempt.serial;
                 slot.admittedEpoch = admittedEpoch;
             }
-            Access access = new Access(slot, attempt.serial, admittedEpoch, deadline);
+            Access access = new Access(slot, attempt.userId, attempt.serial, admittedEpoch, deadline);
             access.checkCurrent();
             handedOff = true;
             return access;
@@ -126,17 +126,38 @@ public final class RuntimeAdmission {
      * Holds serialization for the bounded start/shell/package handoff. Long
      * operations must be owned/cancellable by Quiescer, not hold this scope.
      */
-    public Access existing(int userId, int serial) {
-        Slot slot = slot(userId);
+    public Access existing(Binding binding) {
+        if (binding == null || slots.get(binding.userId) != binding.slot) {
+            throw new SecurityException("Missing or foreign personal runtime binding");
+        }
+        Slot slot = binding.slot;
         long deadline = acquire(slot);
         boolean handedOff = false;
         try {
-            Access access = new Access(slot, serial, slot.admittedEpoch, deadline);
+            // Use THIS session's authenticated epoch, never the slot's newest
+            // admission. Another terminal's later login cannot revive this one.
+            Access access = new Access(slot, binding.userId, binding.serial, binding.epoch, deadline);
             access.checkCurrent();
             handedOff = true;
             return access;
         } finally {
             if (!handedOff) release(slot);
+        }
+    }
+
+    /** Internal, non-parcelable evidence of an admitted authentication, not a client token. */
+    public final class Binding {
+        private final Slot slot;
+        private final int userId, serial;
+        private final long epoch;
+        private Binding(Slot slot, int userId, int serial, long epoch) {
+            this.slot = slot;
+            this.userId = userId;
+            this.serial = serial;
+            this.epoch = epoch;
+        }
+        public boolean matches(int userId, int serial) {
+            return this.userId == userId && this.serial == serial;
         }
     }
 
@@ -193,14 +214,21 @@ public final class RuntimeAdmission {
     }
 
     public final class Access extends Scope {
+        private final int userId;
         private final int serial;
         private final long admittedEpoch;
         private final long deadline;
-        private Access(Slot slot, int serial, long admittedEpoch, long deadline) {
+        private Access(Slot slot, int userId, int serial, long admittedEpoch, long deadline) {
             super(slot);
+            this.userId = userId;
             this.serial = serial;
             this.admittedEpoch = admittedEpoch;
             this.deadline = deadline;
+        }
+        /** Publish only after the enclosing service has rechecked its terminal lifetime. */
+        public Binding binding() {
+            checkCurrent();
+            return new Binding(slot, userId, serial, admittedEpoch);
         }
         public void checkCurrent() {
             requireOwner();
