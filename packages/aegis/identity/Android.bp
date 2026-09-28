@@ -1,0 +1,7 @@
+// Internal library for the AEGIS system service; not an independently callable app.
+java_library {
+    name: "aegis-identity-core",
+    srcs: ["src/**/*.java"],
+    libs: ["framework"],
+    installable: false,
+}

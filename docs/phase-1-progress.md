@@ -9,7 +9,8 @@ Stand: 28. September 2026. Keine Abnahme des Gesamtziels.
 | Bedienung | Virtuelle Tastatur schreibt den vollständigen Testtext; relative Maus öffnet mit linkem Klick eine Einstellungsseite. Native Mac-Fensterbedienung noch prüfen; Mac beim Versuch gesperrt. |
 | Dauerhafte Daten und Schlüssel | Gekoppelte Profile implementiert und mit echten Diskdateien getestet. Neuer Helper-Build und echter Passwort-/Neustarttest fehlen; siehe `persistent-qemu.md`. |
 | Gerätedienste | Bluetooth stürzt im bisherigen Image wegen fehlender HCI-Gegenstelle ab. Der nächste Produktbuild schaltet Bluetooth über den vorhandenen AOSP-Schalter ab; noch kein Gastnachweis. Thread/UWB/NFC und weitere geerbte Geräte bleiben zu bereinigen. |
-| AEGIS-Identität/CLI | Noch zu implementieren; AOSP bleibt alleinige Passwort-, Benutzer- und Schlüsselautorität. |
+| AEGIS-Identität/CLI | Interner AOSP-Adapter für Identitätsprüfung, Passwortprüfung/-wechsel und den Android-Teil des Logouts im Quelltext angelegt. Noch unkompiliert und nicht eingebunden; CLI, Aufrufer-/Sitzungsbindung und Adminaktionen fehlen. Siehe `packages/aegis/identity/README.md`. |
+| AOSP-Passwortgrundlage | Ein persönlicher Testbenutzer: falsches Passwort abgewiesen, CE-Sperre nach Benutzerstopp bestätigt, richtiges Passwort stellt Dateizugriff wieder her. Nach Passwortwechsel wird das alte Passwort abgewiesen; das neue erhält dieselben Daten. Test über Android-Dialoge, noch nicht über AEGIS; siehe `identity-platform-test.md`. |
 | GNU/Linux-Runtime | Noch zu implementieren. Der aktuelle Kernel erfüllt die notwendigen Namespace-Anforderungen nicht. |
 | Pakete und Isolation | Noch zu implementieren und mit zwei AOSP-Benutzern praktisch zu prüfen. |
 | Vollständiger Ablauf | Noch kein Nachweis für Login, Wechsel, Logout mit CE-Sperrung und Neustart mit zwei passwortgeschützten Benutzern. |
