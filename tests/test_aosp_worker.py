@@ -38,6 +38,8 @@ elif name == 'env':
             (product/name).write_bytes(b'fixture image')
     pathlib.Path(args[-1], 'product-out.txt').write_text(str(product))
     pathlib.Path(args[-1], 'product-target.txt').write_text('aegis_qemu_arm64-bp2a-userdebug\n')
+    if mode != 'missing_image_receipt':
+        pathlib.Path(args[-1], 'runtime-base-image.json').write_text('public image receipt transport fixture\n')
     if os.environ.get('AEGIS_KERNEL_RUN') and mode != 'missing_kernel_receipt':
         pathlib.Path(args[-1], 'kernel-inputs.json').write_text('{"fixture":"kernel input transport only"}\n')
     if os.environ.get('AEGIS_RUNTIME_RUN'):
@@ -62,6 +64,8 @@ elif name == 'gh':
         if mode == 'corrupt': target.write_bytes(b'corrupted')
         if mode == 'corrupt_runtime_receipt' and filename == 'runtime-base-plan.json':
             target.write_bytes(b'corrupted runtime receipt')
+        if mode == 'corrupt_image_receipt' and filename == 'runtime-base-image.json':
+            target.write_bytes(b'corrupted image receipt')
     elif action == 'edit':
         if mode == 'publish': sys.exit(9)
         (store/'published').touch()
@@ -133,6 +137,9 @@ class WorkerTests(unittest.TestCase):
                 self.assertTrue((root/'remote/published').exists())
                 self.assertTrue((root/'remote/manifest.xml').exists())
                 self.assertTrue(list((root/'remote').glob('images.tar.xz.part-*')))
+                self.assertEqual((root/'remote/runtime-base-image.json').read_bytes(),
+                                 (runs[0]/'artifacts/runtime-base-image.json').read_bytes())
+                self.assertIn('runtime-base-image.json', (root/'remote/SHA256SUMS').read_text())
                 if runtime_kernel:
                     self.assertEqual((root/'remote/kernel-inputs.json').read_bytes(),
                                      (runs[0]/'artifacts/kernel-inputs.json').read_bytes())
@@ -144,6 +151,8 @@ class WorkerTests(unittest.TestCase):
                         self.assertIn(name, (root/'remote/SHA256SUMS').read_text())
 
     def test_verified_success(self): self.exercise()
+    def test_missing_image_receipt_prevents_success(self): self.exercise('missing_image_receipt')
+    def test_corrupt_image_receipt_prevents_success(self): self.exercise('corrupt_image_receipt')
     def test_selected_kernel_receipt_is_published_and_verified(self): self.exercise(runtime_kernel=True)
     def test_missing_kernel_receipt_prevents_success(self): self.exercise('missing_kernel_receipt', runtime_kernel=True)
     def test_selected_base_receipts_are_published_and_verified(self): self.exercise(runtime_base=True)

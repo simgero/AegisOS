@@ -27,6 +27,11 @@ Kernel-Laufs sind enthalten; siehe [`kernel/README.md`](../kernel/README.md).
 auswählen. Er wird erneut geprüft und als Basisdateien im Produkt hinterlegt;
 Plan und Herkunft werden mit dem Release transportiert. Diese Integration ist
 noch nicht im tatsächlichen Server-Build oder Gast ausgeführt.
+Nach dem Build prüft ein zusätzlicher Schritt die eingebetteten Basisdateien
+direkt in der Slot-A-Partition von `super.img`. Sein Bericht
+`runtime-base-image.json` ist auch ohne Basiswahl verpflichtend und bestätigt
+dann die Abwesenheit alter Basisdateien. Siehe
+[Prüfung des Super-Images](../runtime/generations.md#prüfung-innerhalb-des-ausgelieferten-super-images).
 Der bisherige Download nur dreier Make-Dateien konnte diese Erweiterungen
 nicht transportieren. Nicht ausgewählte Repository-Verzeichnisse werden
 nicht auf dem Server abgelegt.

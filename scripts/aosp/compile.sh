@@ -49,6 +49,8 @@ python3 "$project/scripts/runtime/uid_layout.py" check --aosp /srv/aegis/work/ao
 jobs=$(nproc)
 (( jobs <= 16 )) || jobs=16
 m -j"$jobs"
+# Host-side readers for the actual delivered logical partition, built only here.
+m -j"$jobs" simg2img lpunpack fsck.erofs
 get_build_var PRODUCT_OUT > "$1/product-out.txt"
 if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
     python3 "$project/scripts/kernel/integrate.py" verify-image --receipt "$1/kernel-inputs.json" \
@@ -62,4 +64,11 @@ else
     python3 "$project/scripts/runtime/integrate.py" verify-absent \
         --product-out "$(cat "$1/product-out.txt")" --system-ext "$(get_build_var TARGET_COPY_OUT_SYSTEM_EXT)"
 fi
+image_args=()
+if [[ -n ${AEGIS_RUNTIME_RUN:-} ]]; then
+    image_args+=(--receipt "$1/runtime-base-inputs.json")
+fi
+python3 "$project/scripts/runtime/verify_product_image.py" \
+    --super-image "$(cat "$1/product-out.txt")/super.img" --aosp /srv/aegis/work/aosp \
+    --output "$1/runtime-base-image.json" "${image_args[@]}"
 printf '%s\n' "$AOSP_LUNCH" > "$1/product-target.txt"

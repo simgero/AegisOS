@@ -146,12 +146,46 @@ Der Release enthält zusätzlich `runtime-base-inputs.json`,
 hochgeladen, erneut heruntergeladen und byteweise verglichen. Fehlende oder
 beim Rücklesen veränderte Nachweise verhindern `UPLOAD_VERIFIED`.
 
-**Das ist bislang Quelltextintegration mit Hosttests.** Ein erfolgreicher
-Staging-Vergleich prüft noch nicht die fertigen Partitions-/Super-Images oder
-ihre Sicht im gebooteten QEMU. Diese Prüfungen und die erste tatsächliche
-Image-Erzeugung stehen aus. Das Installieren der Basisdateien startet keine
+**Das ist bislang Quelltextintegration mit Hosttests.** Der folgende zusätzliche
+Prüfschritt für das fertige Super-Image ist ebenfalls vorbereitet, aber noch
+nicht im echten AOSP-Build gelaufen. Die erste Image-Erzeugung und die Sicht
+im gebooteten QEMU stehen aus. Das Installieren der Basisdateien startet keine
 Runtime: `ro.aegis.runtime.mode=absent` bleibt gesetzt, bis Broker, Namespaces,
 CE-Mounts und AOSP-Lebenszyklus integriert sind.
+
+## Prüfung innerhalb des ausgelieferten Super-Images
+
+`scripts/runtime/verify_product_image.py` liest nach dem AOSP-Build ausdrücklich
+`super.img`. Eine separate `system_ext.img` oder das Produkt-Staging wird nicht
+als Ersatz akzeptiert. Die bestehende QEMU-Konfiguration bootet Slot A; der
+Prüfschritt verwendet entsprechend Metadatenslot 0 und `system_ext_a`.
+
+Der Builder erzeugt die Hostwerkzeuge `simg2img`, `lpunpack` und `fsck.erofs`
+aus seinem AOSP-Stand. Eine Android-Sparse-Datei wird zunächst in einer privaten
+temporären Fläche dekodiert; Header und expandierte Größe sind begrenzt.
+Das offizielle [lpunpack](https://android.googlesource.com/platform/system/extras/+/refs/tags/android-16.0.0_r1/partition_tools/lpunpack.cc)
+liest daraus die ausgewählte logische Partition. Das bestehende Produktimage
+hat EROFS-Magie; andere Dateisysteme werden nicht stillschweigend angenommen.
+Der [EROFS-Leser](https://android.googlesource.com/platform/external/erofs-utils/+/refs/tags/android-16.0.0_r1/fsck/main.c)
+prüft und entpackt das Dateisystem ohne Mount und ohne Ausführung eines
+Gastprogramms. Die Prüfung läuft unprivilegiert auf dem Builder, ohne
+Wiederherstellung von Host-Eigentümern oder erweiterten Dateiattributen.
+
+Die beiden eingebetteten Basisdateien müssen exakt die gewählten Größen und
+SHA-256-Werte besitzen. Fehlende, zusätzliche oder über Symlinks erreichbare
+Basisdateien führen zum Abbruch. Ohne Basiswahl darf auch im fertigen Image
+kein altes Runtime-Verzeichnis vorhanden sein. Änderungen an Eingabeimage,
+Auswahlbericht oder Werkzeugen während der Prüfung verhindern den Abschluss.
+Die private temporäre Fläche wird auch nach einem Fehler entfernt.
+
+Jeder vollständige Release benötigt zusätzlich `runtime-base-image.json`:
+Hash des tatsächlich geprüften Super-Images, Partition, Dateisystem,
+Werkzeugdateien und gegebenenfalls der ausgewählten Basisdateien samt
+Eingabenachweis. Der Bericht durchläuft ebenfalls Upload und Rücklesevergleich.
+`PACKAGED_BASE_BYTES_VERIFIED_NOT_BOOTED` beziehungsweise
+`PACKAGED_BASE_ABSENT_NOT_BOOTED` bezeichnen ausschließlich diesen Dateinachweis.
+Sie bestätigen keine AVB-Signaturkette, keine SELinux-Zugriffsrechte, keine
+Laufzeitaktivierung und keine Benutzerisolation.
 
 ## Bisherige Prüfungen
 
@@ -171,6 +205,16 @@ Erhalt einer Kernelwahl und alte Staging-Dateien. Vier zusätzliche Linux-
 Worker-Tests prüfen den Release-Ablauf mit kleinen lokalen Transportfixtures;
 sie bauen oder starten kein Android. Eine Bootstrap-Prüfung weist manipulierte
 Laufpfade ab.
+
+Weitere Fehlerfalltests prüfen den Super-Image-Ablauf mit inerten Fixtures,
+einschließlich fehlgeschlagener Leser, falscher Dateiinhalte, alter Basisdateien,
+Symlinks und während der Prüfung veränderter Eingaben. Die LP-/Sparse-
+Werkzeuggrenze ist dabei simuliert. Drei Linux-Tests lesen zusätzlich kleine,
+komprimierte EROFS-Dateisysteme mit ausschließlich Text über das installierte
+Distributionswerkzeug; dafür wird kein neuer nativer Code kompiliert. Zwei
+Worker-Tests verhindern Erfolg bei fehlendem oder beschädigt zurückgelesenem
+Image-Bericht. Dies ersetzt noch keinen Lauf mit den AOSP-Werkzeugen und dem
+neuen echten Systemimage.
 
 Das echte AOSP-Dateisystemrezept und dessen wiederholter Build sind weiterhin
 unausgeführt. Erst nach Server-Build und GitHub-Transport müssen im lokalen

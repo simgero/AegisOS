@@ -125,6 +125,7 @@ for required in kernel boot.img init_boot.img vendor_boot.img super.img userdata
     [[ -s "$product/$required" ]] || { echo "Missing QEMU bring-up artifact: $required"; exit 1; }
 done
 cp "$run/product-target.txt" "$run/artifacts/product-target.txt"
+cp "$run/runtime-base-image.json" "$run/artifacts/runtime-base-image.json"
 if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
     cp "$run/kernel-inputs.json" "$run/artifacts/kernel-inputs.json"
 fi

@@ -24,7 +24,7 @@ REQUIRED = {
     "device/aegis/qemu_arm64/BoardConfig.mk", "packages/aegis/identity/Android.bp",
     "scripts/runtime/base.py", "runtime/debian-arm64.json",
     "scripts/runtime/generation.py", "scripts/runtime/build-base.sh", "runtime/filesystem-tools.json",
-    "scripts/runtime/integrate.py",
+    "scripts/runtime/integrate.py", "scripts/runtime/verify_product_image.py",
     "scripts/runtime/uid_layout.py", "runtime/uid-map.json", "runtime/aosp-id-reference.json",
     "device/aegis/qemu_arm64/runtime-ids.fs",
     "scripts/kernel/integrate.py", "scripts/kernel/source_manifest.py",

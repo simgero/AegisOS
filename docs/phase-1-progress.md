@@ -48,6 +48,14 @@ vier Worker-Transporttests und eine Pfadprüfung wurden ergänzt. **Server-Build
 Prüfung der tatsächlichen Partitionsimages, Gast-Mounts und Runtime-Start stehen
 weiterhin aus.** Die Ablage von Basisdateien aktiviert keinen Runtime-Modus.
 
+Der Vollbuild enthält jetzt zusätzlich einen vorbereiteten Prüfschritt für die
+Basisdateien innerhalb der tatsächlich ausgelieferten `super.img`: Slot-A-
+Partition lesen, EROFS-Inhalte prüfen und Größen/Hashes abgleichen. Der zugehörige
+Bericht ist für jeden Release erforderlich und wird nach dem Upload zurückgelesen.
+Fehlerfalltests verwenden inerte Dateien; Linux-CI prüft zusätzlich echte kleine
+EROFS-Textfixtures. **Mit dem neuen echten AOSP-Image und dessen Werkzeugen ist
+dieser Schritt noch nicht ausgeführt; er bestätigt keinen Boot oder Runtime-Start.**
+
 ## Bestätigte Kernel-Lücke
 
 Der laufende Kernel 6.12.18 meldet in `/proc/config.gz`:
