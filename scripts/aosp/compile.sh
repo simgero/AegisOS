@@ -25,6 +25,8 @@ fi
 python3 "$script_dir/register-identity.py" "$project/packages/aegis/identity" /srv/aegis/work/aosp
 python3 "$script_dir/register-runtime-storage.py" --project "$project" --aosp /srv/aegis/work/aosp \
     --receipt "$1/runtime-storage-source.json"
+python3 "$script_dir/register-runtime-policy.py" --project "$project" --aosp /srv/aegis/work/aosp \
+    --receipt "$1/runtime-policy-source.json"
 cp /srv/aegis/work/aosp/packages/aegis/identity/.aegis-source.json "$1/identity-source-files.json"
 cp /srv/aegis/work/aosp/device/aegis/.aegis-product-link.json "$1/product-source-files.json"
 cd /srv/aegis/work/aosp
@@ -54,6 +56,8 @@ jobs=$(nproc)
 m -j"$jobs"
 python3 "$script_dir/register-runtime-storage.py" --aosp /srv/aegis/work/aosp \
     --receipt "$1/runtime-storage-source.json" --verify
+python3 "$script_dir/register-runtime-policy.py" --aosp /srv/aegis/work/aosp \
+    --receipt "$1/runtime-policy-source.json" --verify
 # Host-side readers for the actual delivered logical partition, built only here.
 m -j"$jobs" simg2img lpunpack fsck.erofs
 get_build_var PRODUCT_OUT > "$1/product-out.txt"

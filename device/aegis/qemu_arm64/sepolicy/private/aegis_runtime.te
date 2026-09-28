@@ -1,0 +1,168 @@
+# Trusted owner and namespace construction are separate from ordinary GNU code.
+type aegis_runtime_broker, domain, coredomain, aegis_runtime_domain,
+    aegis_runtime_mount_domain, aegis_runtime_broker_domain;
+type aegis_runtime_setup, domain, coredomain, aegis_runtime_domain,
+    aegis_runtime_mount_domain;
+type aegis_runtime_init, domain, coredomain, aegis_runtime_domain;
+type aegis_runtime_program, domain, coredomain, aegis_runtime_domain;
+type aegis_runtime_broker_exec, exec_type, file_type, system_file_type;
+type aegis_runtime_setup_exec, exec_type, file_type, system_file_type;
+type aegis_runtime_init_exec, exec_type, file_type, system_file_type;
+
+type aegis_runtime_image_file, file_type, system_file_type;
+type aegis_runtime_base_file, file_type, fs_type, contextmount_type;
+type aegis_runtime_state_file, file_type, data_file_type, core_data_file_type;
+type aegis_runtime_home_file, file_type, data_file_type, core_data_file_type;
+type aegis_runtime_devices_file, file_type;
+type aegis_runtime_scratch_file, file_type;
+type aegis_runtime_cgroup, fs_type;
+type aegis_runtime_socket, file_type, coredomain_socket;
+
+# A public attribute is not a general exception that vendor policy can reuse.
+# All domains receive self:fork from AOSP; these guards close membership.
+neverallow { aegis_runtime_broker_domain -aegis_runtime_broker } self:process fork;
+neverallow { aegis_runtime_mount_domain -aegis_runtime_broker -aegis_runtime_setup } self:process fork;
+neverallow { aegis_runtime_domain -aegis_runtime_broker -aegis_runtime_setup
+    -aegis_runtime_init -aegis_runtime_program } self:process fork;
+
+init_daemon_domain(aegis_runtime_broker)
+domain_auto_trans(aegis_runtime_broker, aegis_runtime_setup_exec, aegis_runtime_setup)
+domain_auto_trans(aegis_runtime_setup, aegis_runtime_init_exec, aegis_runtime_init)
+domain_auto_trans(aegis_runtime_init, aegis_runtime_base_file, aegis_runtime_program)
+# The supervisor deliberately sets no_new_privs and the base remains nosuid.
+# This transition grants no capabilities or Android management access.
+allow aegis_runtime_init aegis_runtime_program:process2 { nnp_transition nosuid_transition };
+neverallow * { aegis_runtime_broker aegis_runtime_setup aegis_runtime_init
+    aegis_runtime_program }:process dyntransition;
+neverallow { domain -init } aegis_runtime_broker:process transition;
+neverallow { domain -aegis_runtime_broker } aegis_runtime_setup:process transition;
+neverallow { domain -aegis_runtime_setup } aegis_runtime_init:process transition;
+neverallow { domain -aegis_runtime_init } aegis_runtime_program:process transition;
+neverallow aegis_runtime_domain { shell_exec toolbox_exec }:file execute;
+
+# The sole externally reachable endpoint is init-owned, system:system 0600.
+# Native code additionally requires exact system_server SO_PEERCRED/SO_PEERSEC.
+allow aegis_runtime_broker self:unix_stream_socket create_stream_socket_perms;
+allow aegis_runtime_broker aegis_runtime_socket:sock_file { getattr read write };
+allow system_server aegis_runtime_socket:sock_file { getattr write };
+allow system_server aegis_runtime_broker:unix_stream_socket connectto;
+allow system_server aegis_runtime_broker:fd use;
+allow aegis_runtime_broker system_server:fd use;
+neverallow { domain -system_server } aegis_runtime_broker:unix_stream_socket connectto;
+get_prop(aegis_runtime_broker, aegis_runtime_mode_prop)
+
+# Fixed broker-owned lock, no client-selected paths.
+allow aegis_runtime_broker system_data_root_file:dir { getattr search open read };
+allow aegis_runtime_broker system_data_file:dir { getattr search open read write add_name remove_name ioctl };
+allow aegis_runtime_broker system_userdir_file:dir { getattr search open read };
+allow aegis_runtime_broker aegis_runtime_state_file:dir rw_dir_perms;
+allow aegis_runtime_broker aegis_runtime_state_file:file create_file_perms;
+type_transition aegis_runtime_broker system_data_file:dir aegis_runtime_home_file ".aegis-preparing";
+allow aegis_runtime_broker aegis_runtime_home_file:dir create_dir_perms;
+allow aegis_runtime_broker aegis_runtime_home_file:filesystem { getattr remount };
+# CE policy/key status is read-only; no key creation/removal ioctl is granted.
+allowxperm aegis_runtime_broker { system_data_file aegis_runtime_home_file }:dir ioctl { 0x6616 0x661a };
+allow aegis_runtime_broker self:capability {
+    chown dac_override dac_read_search fowner kill setgid setuid sys_admin mknod
+};
+
+# Private cgroup subtree; root controller settings and Android groups stay read-only.
+allow aegis_runtime_broker cgroup_v2:dir { getattr search open read write add_name };
+allow aegis_runtime_broker cgroup_v2:file r_file_perms;
+allow aegis_runtime_broker aegis_runtime_cgroup:dir create_dir_perms;
+allow aegis_runtime_broker aegis_runtime_cgroup:file rw_file_perms;
+
+# Startup validation of fixed immutable EROFS files and a readonly loop mount.
+r_dir_file(aegis_runtime_broker, aegis_runtime_image_file)
+allow aegis_runtime_broker { aegis_runtime_setup_exec aegis_runtime_init_exec }:file r_file_perms;
+allow aegis_runtime_broker block_device:dir { getattr search };
+allow aegis_runtime_broker loop_control_device:chr_file rw_file_perms;
+allowxperm aegis_runtime_broker loop_control_device:chr_file ioctl { LOOP_CTL_GET_FREE };
+allow aegis_runtime_broker loop_device:blk_file rw_file_perms;
+allowxperm aegis_runtime_broker loop_device:blk_file ioctl {
+    LOOP_CONFIGURE LOOP_GET_STATUS64 BLKGETSIZE64 BLKROGET
+};
+allow aegis_runtime_broker labeledfs:filesystem { mount relabelfrom };
+allow aegis_runtime_broker aegis_runtime_base_file:filesystem { mount remount relabelto unmount };
+allow aegis_runtime_broker tmpfs:dir mounton;
+r_dir_file(aegis_runtime_mount_domain, aegis_runtime_base_file)
+
+# Fresh tmpfs inodes receive private labels via fs_use_trans; none is executable.
+type_transition aegis_runtime_broker tmpfs:file aegis_runtime_devices_file;
+type_transition aegis_runtime_setup tmpfs:file aegis_runtime_scratch_file;
+allow aegis_runtime_mount_domain tmpfs:filesystem { mount remount unmount };
+allow aegis_runtime_broker aegis_runtime_devices_file:dir create_dir_perms;
+allow aegis_runtime_broker aegis_runtime_devices_file:chr_file { create setattr getattr };
+allow aegis_runtime_broker aegis_runtime_devices_file:lnk_file create_lnk_perms;
+allow aegis_runtime_devices_file tmpfs:filesystem associate;
+allow aegis_runtime_scratch_file tmpfs:filesystem associate;
+allow aegis_runtime_setup aegis_runtime_scratch_file:dir create_dir_perms;
+allow aegis_runtime_setup aegis_runtime_scratch_file:dir mounton;
+allow aegis_runtime_setup { aegis_runtime_base_file aegis_runtime_devices_file
+    aegis_runtime_home_file }:dir { getattr open read search mounton };
+allow aegis_runtime_setup aegis_runtime_devices_file:chr_file getattr;
+allow aegis_runtime_setup aegis_runtime_devices_file:lnk_file r_file_perms;
+allow aegis_runtime_setup { aegis_runtime_base_file labeledfs proc devpts mqueue }:filesystem { mount remount unmount };
+# /mnt still refers to the broker's readonly private base at this point.
+allow aegis_runtime_setup tmpfs:dir { getattr search mounton };
+allow aegis_runtime_setup self:cap_userns { chown fowner setuid setgid sys_admin };
+
+# Kernel-generated /proc/<pid> nodes carry the task domain, not generic proc.
+allow aegis_runtime_domain proc:dir r_dir_perms;
+allow aegis_runtime_domain proc:lnk_file r_file_perms;
+allow aegis_runtime_domain self:dir r_dir_perms;
+allow aegis_runtime_domain self:file r_file_perms;
+allow aegis_runtime_domain self:lnk_file r_file_perms;
+allow aegis_runtime_mount_domain selinuxfs:file r_file_perms;
+allow aegis_runtime_broker self:file { write ioctl };
+allow aegis_runtime_broker init:dir { getattr search };
+allow aegis_runtime_broker init:lnk_file r_file_perms;
+allow aegis_runtime_broker init:file read;
+allow aegis_runtime_broker self:user_namespace create;
+allow aegis_runtime_broker self:cap_userns { setuid setgid sys_admin };
+
+# Trusted, inherited descriptor-only setup/supervision protocol; no named socket.
+allow { aegis_runtime_setup aegis_runtime_init } aegis_runtime_broker:fd use;
+allow { aegis_runtime_setup aegis_runtime_init } aegis_runtime_broker:unix_stream_socket { read write getattr getopt setopt shutdown };
+allow aegis_runtime_broker { aegis_runtime_setup aegis_runtime_init }:fd use;
+allow aegis_runtime_broker { aegis_runtime_setup aegis_runtime_init aegis_runtime_program }:process { signal sigkill sigchld };
+allow aegis_runtime_init aegis_runtime_broker:process sigchld;
+allow aegis_runtime_init aegis_runtime_setup:fd use;
+allow aegis_runtime_setup aegis_runtime_init_exec:file r_file_perms;
+
+# The namespace supervisor drops its bounding set and keeps only namespace IDs
+# and kill until forking the shell. Ordinary program children drop all caps.
+allow aegis_runtime_init self:cap_userns { setpcap setuid setgid kill };
+allow aegis_runtime_init aegis_runtime_program:process { signal sigkill };
+allow aegis_runtime_init { aegis_runtime_base_file aegis_runtime_home_file
+    aegis_runtime_scratch_file aegis_runtime_devices_file }:dir r_dir_perms;
+allow aegis_runtime_init aegis_runtime_devices_file:lnk_file r_file_perms;
+allow aegis_runtime_init aegis_runtime_devices_file:chr_file rw_file_perms;
+allow aegis_runtime_init devpts:dir r_dir_perms;
+allow aegis_runtime_setup devpts:chr_file getattr;
+allow aegis_runtime_init devpts:chr_file rw_file_perms;
+allowxperm aegis_runtime_init devpts:chr_file ioctl unpriv_tty_ioctls;
+create_pty(aegis_runtime_init)
+allow { aegis_runtime_broker system_server aegis_runtime_program } aegis_runtime_init:fd use;
+allow { aegis_runtime_broker system_server aegis_runtime_program } aegis_runtime_init_devpts:chr_file rw_file_perms;
+allowxperm { aegis_runtime_broker system_server aegis_runtime_program } aegis_runtime_init_devpts:chr_file ioctl unpriv_tty_ioctls;
+
+# GNU programs see only their pivoted root, private namespaces and CE HOME.
+# There is no permission to mutate the shared software or execute writable data.
+r_dir_file(aegis_runtime_program, aegis_runtime_base_file)
+allow aegis_runtime_program aegis_runtime_base_file:file { rx_file_perms execute_no_trans };
+allow aegis_runtime_program { aegis_runtime_home_file aegis_runtime_scratch_file }:dir create_dir_perms;
+allow aegis_runtime_program { aegis_runtime_home_file aegis_runtime_scratch_file }:file create_file_perms;
+allow aegis_runtime_program { aegis_runtime_home_file aegis_runtime_scratch_file }:lnk_file create_lnk_perms;
+allow aegis_runtime_program { aegis_runtime_home_file aegis_runtime_scratch_file }:fifo_file create_file_perms;
+allow aegis_runtime_program { aegis_runtime_home_file aegis_runtime_scratch_file }:sock_file create_file_perms;
+allow aegis_runtime_program aegis_runtime_devices_file:dir r_dir_perms;
+allow aegis_runtime_program aegis_runtime_devices_file:lnk_file r_file_perms;
+allow aegis_runtime_program aegis_runtime_devices_file:chr_file rw_file_perms;
+allow aegis_runtime_program self:unix_stream_socket create_stream_socket_perms;
+allow aegis_runtime_program self:unix_dgram_socket create_socket_perms;
+neverallow aegis_runtime_program self:global_capability_class_set *;
+neverallow aegis_runtime_program self:user_namespace create;
+neverallow { aegis_runtime_init aegis_runtime_program } fs_type:filesystem { mount remount relabelfrom relabelto };
+neverallow aegis_runtime_domain { aegis_runtime_home_file aegis_runtime_scratch_file }:file execute;
+neverallow aegis_runtime_program { aegis_runtime_broker aegis_runtime_setup aegis_runtime_init system_server }:process { ptrace signal sigkill sigstop };

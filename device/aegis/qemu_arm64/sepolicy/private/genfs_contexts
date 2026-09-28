@@ -1,0 +1,1 @@
+genfscon cgroup2 /aegis-runtime u:object_r:aegis_runtime_cgroup:s0

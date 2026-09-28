@@ -1,0 +1,16 @@
+# Only the explicit managed product may start the trusted native owner.
+# No on-demand public control property and no shell caller can start contexts.
+on post-fs-data && property:ro.aegis.runtime.mode=managed-v1
+    mkdir /data/misc/aegis-runtime 0700 root root
+    restorecon_recursive /data/misc/aegis-runtime
+    start aegis-runtime-broker
+
+service aegis-runtime-broker /system_ext/bin/aegis-runtime-broker
+    class main
+    user root
+    group root
+    capabilities CHOWN DAC_OVERRIDE DAC_READ_SEARCH FOWNER KILL SETGID SETUID SETPCAP SYS_ADMIN MKNOD
+    socket aegis_runtime seqpacket 0600 system system u:object_r:aegis_runtime_socket:s0
+    disabled
+    # A failed owner stays failed. No restart can imply successful CE cleanup.
+    oneshot

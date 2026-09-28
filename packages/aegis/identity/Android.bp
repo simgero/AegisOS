@@ -158,6 +158,7 @@ cc_library_static {
 cc_binary {
     name: "aegis-runtime-broker",
     system_ext_specific: true,
+    init_rc: ["runtime/aegis-runtime.rc"],
     defaults: ["aegis-runtime-native-defaults"],
     srcs: ["runtime/broker.c", "runtime/control.c", "runtime/setup_control.c"],
     header_libs: ["libcutils_headers"],

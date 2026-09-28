@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "aosp_tag": "android-16.0.0_r1",
+  "sepolicy_commit": "d4a7f392598cee96d9479a8ac0f84259c19b043a",
+  "files": {
+    "public/attributes": "b15230f60f413830f656032862f1dc4e096cbac9d655f5b86063a5e34a02eba6",
+    "private/domain.te": "23ac08d9d898ec028a6c424f6b016699c14b21308c4de2ba73c56e53afca3d01"
+  }
+}

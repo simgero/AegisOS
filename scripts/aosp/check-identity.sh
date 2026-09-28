@@ -49,6 +49,8 @@ python3 "$script_dir/link-product.py" "$project/device/aegis/qemu_arm64" "$aosp"
 python3 "$script_dir/register-identity.py" "$project/packages/aegis/identity" "$aosp"
 python3 "$script_dir/register-runtime-storage.py" --project "$project" --aosp "$aosp" \
     --receipt "$run/runtime-storage-source.json"
+python3 "$script_dir/register-runtime-policy.py" --project "$project" --aosp "$aosp" \
+    --receipt "$run/runtime-policy-source.json"
 cp "$aosp/packages/aegis/identity/.aegis-source.json" "$run/source-files.json"
 cp "$aosp/device/aegis/.aegis-product-link.json" "$run/product-source-files.json"
 cd "$aosp"
@@ -73,6 +75,8 @@ m -j"$jobs" aegis aegis-identity-service AegisIdentityTests AegisQemuHardwareOve
 test -s "$(get_build_var PRODUCT_OUT)/system_ext/bin/aegis-runtime-broker"
 python3 "$script_dir/register-runtime-storage.py" --aosp "$aosp" \
     --receipt "$run/runtime-storage-source.json" --verify
+python3 "$script_dir/register-runtime-policy.py" --aosp "$aosp" \
+    --receipt "$run/runtime-policy-source.json" --verify
 product=$(get_build_var PRODUCT_OUT)
 [[ $(get_build_var TARGET_ARCH) == arm64 ]]
 # A custom wrapper is necessary: pinned Soong's default hardcodes /system.
