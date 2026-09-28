@@ -1,5 +1,33 @@
 # Komponentenläufe in lokalem QEMU
 
+## Vollständiges Image und Komponentenstand 2a766ab5
+
+Am 29. September 2026 bestehen im neuen lokalen Mac-QEMU **111/111 native
+und 62/62 Java-Tests**, ohne Abwahl. Image und Komponenten stammen beide aus
+`2a766ab5d6a6ef5ed4c01fd87fa4e97bb2e2961d`. Der
+[vollständige Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260928T224751Z-2a766ab5-ed1329db)
+wurde nach `UPLOAD_VERIFIED` über GitHub bezogen und lokal auf Prüfsummen,
+Eingangsbelege und AVB-Ketten geprüft.
+
+Die Product-RRO ist tatsächlich aktiv: `config_sms_capable`,
+`config_voice_capable` und `config_force_phone_globals_creation` sind false.
+Der zuvor fehlgeschlagene, unveränderte Produktkonfigurationstest besteht nun.
+Bootabschluss, authentifiziertes ADB, SELinux Enforcing, FBE und tatsächliche
+dm-verity-Tabellen mit `restart_on_corruption` sind bestätigt. Die installierte
+AEGIS-CLI antwortet und verweigert alle drei Linux-Lebenszyklusbefehle, solange
+der Produktmodus `absent` ist.
+
+- Profil: `out/qemu-profiles/foundation-2a766ab5`.
+- Bootbelege: `out/full-build-2a766ab5/boot-1/`.
+- Vollständige Testergebnisse: `out/full-build-2a766ab5/component-tests/`.
+- Native-Log SHA-256: `e6e81922c8b930e2703611f76264d464d6045a8e7578f59250118201a1db389c`.
+- Java-Log SHA-256: `7a526a3fef77b23f93a5f2cd0452b640fdcf51873a9b78439fe4598325d23fd5`.
+
+Diese Komponentenprüfung führt weiterhin keine produktive persönliche
+GNU/Linux-Sitzung aus. Die nativen Tests laufen als Entwicklungs-root;
+produktive Runtime-SELinux-Domänen, Paketverwaltung und der gesamte
+Zwei-Benutzer-Linux-Ablauf bleiben unbewiesen.
+
 ## Komponentenstand 2a766ab5 auf bfe90925
 
 Am 29. September 2026 wurden die auf `aegis-build` kompilierten Komponenten

@@ -1,5 +1,38 @@
 # Hardware des lokalen QEMU-Produkts
 
+## Aktueller Gast `2a766ab5`, 29. September 2026
+
+Der [vollständige Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260928T224751Z-2a766ab5-ed1329db)
+ist nach GitHub-Transport, Prüfsummen- und AVB-Kettenprüfung lokal gebootet.
+Alle **111 nativen und 62 Java-Tests** bestehen. Die Product-RRO
+`org.aegisos.qemu.hardware.overlay` liefert im tatsächlichen Gast die drei
+Telefonie-Booleans als false; die frühere SMS-Abweichung ist behoben.
+
+Profil `out/qemu-profiles/foundation-2a766ab5`, UUID
+`cc39ee93-2a53-4420-8285-98c5da21017f`, wurde nach dem Test geordnet beendet
+(Android `Power down`, sauberer Helper-Abschluss) und sichtbar neu gestartet.
+Der sichtbare Lauf liegt unter
+`out/full-build-2a766ab5/interactive-20260929T011639-68287`; der Starter
+`scripts/run-local-qemu.sh` öffnet jetzt dieses geprüfte Profilpaar.
+Die bestehenden älteren Profile bleiben unverändert verfügbar; keine Migration.
+
+Beide Starts erreichen den Android-Bootabschluss, SELinux Enforcing und den
+AEGIS-Anmeldedienst. Die bestehende Mac-ADB-Autorisierung bleibt erhalten;
+die erste Konsolenabfrage beim Wiederverbinden lief in ein Timeout, deren
+verspäteter erfolgreicher Abschluss wurde gelesen und die Verbindung danach
+ohne erneute Schlüsselaufnahme hergestellt. ADB liegt auf `127.0.0.1:15755`.
+Der tatsächliche QEMU-Framebuffer zeigt den vollständigen Homescreen in
+**720 × 1280 bei 320 dpi**, ohne Größen-/Dichteüberschreibung.
+
+Die AVB-Digest lautet
+`ccadc529983ea6b05d9d19e4666ca662d81f9050b3272b014475ff780fd6343c`.
+Die realen Verity-Tabellen für `system` und `system_ext` enthalten
+`restart_on_corruption`; FBE bleibt aktiv. Im begrenzten ersten Testintervall
+trat kein Telefonie-ANR oder Java-Absturz auf, und der Telefonieprozess behielt
+seine PID. Das ist kein Langzeit-, physischer Mac-Eingabe- oder
+Produktions-SELinux-Nachweis für die weiterhin nicht aktivierte Linux-Runtime.
+Rohbelege und Grenzen: [Komponententests](component-tests.md).
+
 ## Neuer Gast `bfe90925`, 29. September 2026
 
 Der vollständige Release

@@ -78,19 +78,23 @@ prüfungen führen den verwalteten AOSP-Dienst nicht aus. Das Produkt bleibt `ab
 SELinux/Init-Aktivierung, öffentliche PTY-/Shell-Verbindung, Paketaktionen und
 Löschungsintegration vor AOSP-ID-Freigabe fehlen weiterhin. `managed-v1` ist
 kein zur manuellen Aktivierung freigegebener Schalter.
-Vollbuild `aosp-20260928T224751Z-2a766ab5-ed1329db` ist jetzt für diesen
-Komponentencommit gestartet (InvocationID `f906755e34b848a8a377b4e1451f84c5`).
-Er soll die SMS-Product-RRO und die kompilierte Dienstfassung im vollständigen
-Image installieren; Modus bleibt `absent`. Download/AVB-Vorbereitung folgen
-erst nach `UPLOAD_VERIFIED`. Der separate Komponenten-Testgast ist geordnet
-beendet (Android `Power down`, `AEGIS_HELPER_SHUTDOWN_CLEAN`); das sichtbare
-`foundation-bfe90925` bleibt geöffnet. Details: [Terminalübergabe](../runtime/terminal-handoff.md).
+Vollbuild `aosp-20260928T224751Z-2a766ab5-ed1329db` ist inzwischen mit
+`UPLOAD_VERIFIED` abgeschlossen. Nach GitHub-Download, Prüfsummen- und
+AVB-Kettenprüfung bootet das neue lokale Profil `foundation-2a766ab5`
+vollständig. **111/111 native und 62/62 Java-Tests bestehen** auf demselben
+Image- und Komponentencommit. Die SMS-Product-RRO wirkt nun tatsächlich;
+alle drei Telefonie-Booleans sind false. Die installierte Dienstfassung
+antwortet und weist Linux-Lebenszyklusaktionen im Modus `absent` zurück.
+Der erste Testboot endete mit Android `Power down` und sauberem Helper-Abschluss.
+Frühere Profilpaare bleiben erhalten; es erfolgt keine Benutzerdatenmigration.
+Details: [Komponententests](component-tests.md) und
+[Terminalübergabe](../runtime/terminal-handoff.md).
 
 ## Erfüllung der fünf Ziele
 
 | Ziel | Tatsächlicher Stand und fehlender Nachweis |
 | --- | --- |
-| Stabiles, dauerhaftes QEMU | Gepaarte Android-/KeyMint-Persistenz und geordnete Neustarts nachgewiesen. Neuer Gast ohne Telefonie-ANR im ersten Beobachtungsintervall; SMS-Konfiguration noch fehlerhaft. Lesbares Bild und QMP-Mausklick bestätigt; physische Mac-Eingabe, längere Stabilität, Stromausfall und Image-Migration offen. |
+| Stabiles, dauerhaftes QEMU | Gepaarte Android-/KeyMint-Persistenz und geordnete Neustarts nachgewiesen. Neues Image `2a766ab5` besteht alle 111 nativen und 62 Java-Tests einschließlich SMS-Konfiguration. Kein Telefonie-ANR im begrenzten ersten Beobachtungsintervall. Lesbares Bild und früherer QMP-Mausklick bestätigt; physische Mac-Eingabe, längere Stabilität, Stromausfall und Image-Migration offen. |
 | AEGIS-Benutzer und Anmeldung | Zwei-Benutzer-CLI-Test mit AOSP-Passwörtern, Wechsel, Passwortwechsel und Logout bestanden. Unterbrochene Ersteinrichtung, vollständige Admin-Negativtests, CLI-Löschung und ID-Wiederverwendung offen. Die bisherige Nachbereinigung nach Freigabe einer gelöschten AOSP-ID muss vor Löschungsfreigabe in den reservierten Plattform-Lebenszyklus verlegt werden. |
 | Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft; 111/111 native Tests im jüngsten geprüften Komponentenstand. AOSP-Speicherkoordination und CLI-Lebenszyklus kompiliert; der verwaltete Dienst ist noch nicht aktiviert oder integriert geprüft. Produktive SELinux-/Init-Aktivierung, CLI-PTY-Sitzung und wirkliche Linux-Ausführung fehlen; Modus bleibt ausdrücklich `absent`. |
 | Pakete und Isolation | Pakettransaktionen und konsistente Aktivierung fehlen. Sowohl gemeinsame als auch private Pakete erfordern frische AOSP-Adminautorisierung. Persönliche Linux-Datei-/Prozessisolation muss mit zwei angemeldeten Benutzern geprüft werden. |
