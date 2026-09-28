@@ -29,3 +29,13 @@ java_binary {
     libs: ["framework"],
     main_class: "org.aegisos.identity.Aegis",
 }
+
+android_test {
+    name: "AegisIdentityTests",
+    manifest: "tests/AndroidManifest.xml",
+    srcs: ["tests/src/**/*.java"],
+    static_libs: ["aegis-identity-core", "androidx.test.runner", "androidx.test.ext.junit"],
+    platform_apis: true,
+    certificate: "platform",
+    test_suites: ["device-tests"],
+}

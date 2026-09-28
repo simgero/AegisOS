@@ -9,8 +9,8 @@ Stand: 28. September 2026. Keine Abnahme des Gesamtziels.
 | Bedienung | Virtuelle Tastatur schreibt den vollständigen Testtext; relative Maus öffnet mit linkem Klick eine Einstellungsseite. Native Mac-Fensterbedienung noch prüfen; Mac beim Versuch gesperrt. |
 | Dauerhafte Daten und Schlüssel | Gekoppelte Profile implementiert und mit echten Diskdateien getestet. Neuer Helper-Build und echter Passwort-/Neustarttest fehlen; siehe `persistent-qemu.md`. |
 | Gerätedienste | Bluetooth stürzt im bisherigen Image wegen fehlender HCI-Gegenstelle ab. Der nächste Produktbuild schaltet Bluetooth über den vorhandenen AOSP-Schalter ab; noch kein Gastnachweis. Thread/UWB/NFC und weitere geerbte Geräte bleiben zu bereinigen. |
-| AEGIS-Identität/CLI | AOSP-Adapter, prozessgebundener Binder-Dienst und interaktive CLI für Anmeldung/Wechsel/Passwort/Status/Android-Logout im Quelltext. Noch unkompiliert und nicht eingebunden. Gezielte Server-Kompilierprüfung vorbereitet; Benutzeranlage/-löschung, Adminaktionen und Runtime-Koordination fehlen. Siehe `identity-cli.md`. |
-| AOSP-Passwortgrundlage | Ein persönlicher Testbenutzer: falsches Passwort abgewiesen, CE-Sperre nach Benutzerstopp bestätigt, richtiges Passwort stellt Dateizugriff wieder her. Nach Passwortwechsel wird das alte Passwort abgewiesen; das neue erhält dieselben Daten. Test über Android-Dialoge, noch nicht über AEGIS; siehe `identity-platform-test.md`. |
+| AEGIS-Identität/CLI | AOSP-Adapter, prozessgebundener Binder-Dienst und interaktive CLI für Anmeldung/Wechsel/Passwort/Status/Android-Logout im Quelltext. Ersteinrichtung und Benutzeranlage/-löschung mit frischer Adminprüfung hinzugefügt. Alles noch unkompiliert und nicht eingebunden. Server-Kompilierprüfung samt Credential-Transport-Testpaket vorbereitet; Runtime-Koordination fehlt. Siehe `identity-cli.md`. |
+| AOSP-Passwortgrundlage | Ein persönlicher Testbenutzer: falsches Passwort abgewiesen, CE-Sperre nach Benutzerstopp bestätigt, richtiges Passwort stellt Dateizugriff wieder her. Nach Passwortwechsel wird das alte Passwort abgewiesen; das neue erhält dieselben Daten. Anschließend Plattformlöschung und Abwesenheit von acht Schlüssel-/Datenpfaden bestätigt. Tests über AOSP-Dialoge und Plattformbefehle, noch nicht über AEGIS; siehe `identity-platform-test.md`. |
 | GNU/Linux-Runtime | Noch zu implementieren. Der aktuelle Kernel erfüllt die notwendigen Namespace-Anforderungen nicht. |
 | Pakete und Isolation | Noch zu implementieren und mit zwei AOSP-Benutzern praktisch zu prüfen. |
 | Vollständiger Ablauf | Noch kein Nachweis für Login, Wechsel, Logout mit CE-Sperrung und Neustart mit zwei passwortgeschützten Benutzern. |
@@ -59,7 +59,8 @@ die Integration der Ergebnisse in neue AOSP-Images und Gasttests fehlen.
 5. Alle Anmelde-, Daten-, Prozess- und Logout-Anforderungen mit zwei Benutzern
    einschließlich Fehlerfällen prüfen.
 
-Bei der letzten Verbindungsprüfung war `aegis-build` per SSH nicht erreichbar;
-Tailscale meldete den Peer als offline (zuletzt gesehen 2026-09-28 00:20 UTC).
+Bei der letzten Verbindungsprüfung war `aegis-build` per SSH nicht erreichbar
+(Verbindungs-Timeout). Eine frühere Tailscale-Abfrage meldete den Peer als offline
+(zuletzt gesehen 2026-09-28 00:20 UTC).
 Es wurde kein Ersatzbuild auf dem Mac gestartet und keine Serverkonfiguration
 geändert. Diese Erreichbarkeit muss vor dem nächsten Build erneut geprüft werden.

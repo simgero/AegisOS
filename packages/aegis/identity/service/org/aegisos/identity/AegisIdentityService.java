@@ -34,6 +34,7 @@ public final class AegisIdentityService extends SystemService {
     private final Set<Session> sessions = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<Integer, AtomicLong> revocations = new ConcurrentHashMap<>();
     private AospIdentityBackend backend;
+    private volatile boolean bootCompleted;
 
     public AegisIdentityService(Context context) { super(context); }
 
@@ -52,6 +53,7 @@ public final class AegisIdentityService extends SystemService {
                 if (uid != Process.ROOT_UID && uid != Process.SHELL_UID) {
                     throw new SecurityException("An authorized development terminal is required");
                 }
+                if (!bootCompleted) throw new IllegalStateException("AOSP boot is not complete");
                 if (clientLifetime == null) throw new IllegalArgumentException("Missing client");
                 CallerProcess owner = new CallerProcess();
                 synchronized (operations) {
@@ -73,6 +75,10 @@ public final class AegisIdentityService extends SystemService {
                 }
             }
         }, false);
+    }
+
+    @Override public void onBootPhase(int phase) {
+        if (phase == PHASE_BOOT_COMPLETED) bootCompleted = true;
     }
 
     private static void requireRuntimeAbsent() {
@@ -148,11 +154,23 @@ public final class AegisIdentityService extends SystemService {
             AospIdentityBackend.UserKey user = selected;
             if (user == null) throw new SecurityException("Log in in this terminal first");
             AospIdentityBackend.State state = backend.state(user);
-            if (!state.running || !state.ceUnlocked || selected != user) {
+            if (!state.enabled || state.partial || !state.running || !state.ceUnlocked
+                    || selected != user) {
                 selected = null;
                 throw new SecurityException("Personal session is no longer unlocked");
             }
             return user;
+        }
+
+        private AospIdentityBackend.OperationGuard mutationGuard(AospIdentityBackend.UserKey actor) {
+            long initialEpoch = actor == null ? 0 : epoch(actor.id);
+            return () -> {
+                owner.requireAlive();
+                if (!alive || !lifetime.isBinderAlive() || selected != actor
+                        || (actor != null && epoch(actor.id) != initialEpoch)) {
+                    throw new SecurityException("Administration session was revoked");
+                }
+            };
         }
 
         @Override public String login(String name, byte[] password) {
@@ -184,9 +202,12 @@ public final class AegisIdentityService extends SystemService {
         @Override public String status() {
             return checked(() -> {
                 AospIdentityBackend.UserKey user = selected;
-                if (user == null) return "terminal=unauthenticated runtime=not-installed";
+                if (user == null) return "terminal=unauthenticated runtime=not-installed"
+                        + " setup=" + backend.setupStatus();
                 AospIdentityBackend.State state = backend.state(user);
-                if (!state.running || !state.ceUnlocked) selected = null;
+                if (!state.enabled || state.partial || !state.running || !state.ceUnlocked) {
+                    selected = null;
+                }
                 return describe(state);
             });
         }
@@ -198,7 +219,9 @@ public final class AegisIdentityService extends SystemService {
                     AospIdentityBackend.State state = backend.state(key);
                     result.append("user=").append(key.id).append(" serial=").append(key.serial)
                             .append(" name=").append(safeName(state.name))
-                            .append(" admin=").append(state.admin).append('\n');
+                            .append(" admin=").append(state.admin)
+                            .append(" enabled=").append(state.enabled)
+                            .append(" partial=").append(state.partial).append('\n');
                 }
                 return result.length() == 0 ? "No personal AOSP users" : result.toString();
             });
@@ -218,6 +241,62 @@ public final class AegisIdentityService extends SystemService {
             } finally {
                 wipe(previous);
                 wipe(replacement);
+            }
+        }
+
+        @Override public String setupFirstAdmin(String name, byte[] password) {
+            try {
+                return checked(() -> {
+                    if (Binder.getCallingUid() != Process.ROOT_UID || selected != null) {
+                        throw new SecurityException("Initial setup requires the development root console");
+                    }
+                    requireRuntimeAbsent();
+                    try (LockscreenCredential initial = credential(password)) {
+                        AospIdentityBackend.State state = backend.bootstrapFirstAdmin(name, initial,
+                                mutationGuard(null));
+                        return "First AOSP administrator created; log in separately\n" + describe(state);
+                    }
+                });
+            } finally {
+                wipe(password);
+            }
+        }
+
+        @Override public String addUser(String name, boolean administrator, byte[] adminPassword,
+                byte[] password) {
+            try {
+                return checked(() -> {
+                    AospIdentityBackend.UserKey actor = requireAuthenticated();
+                    requireRuntimeAbsent();
+                    try (LockscreenCredential admin = credential(adminPassword);
+                            LockscreenCredential initial = credential(password)) {
+                        AospIdentityBackend.State created = backend.createPersonalUser(actor, admin,
+                                name, initial, administrator, mutationGuard(actor));
+                        return "Personal AOSP user created; CE storage locked\n" + describe(created);
+                    }
+                });
+            } finally {
+                wipe(adminPassword);
+                wipe(password);
+            }
+        }
+
+        @Override public String removeUser(String name, byte[] adminPassword) {
+            try {
+                return checked(() -> {
+                    AospIdentityBackend.UserKey actor = requireAuthenticated();
+                    AospIdentityBackend.UserKey target = backend.resolveName(name);
+                    requireRuntimeAbsent();
+                    try (LockscreenCredential admin = credential(adminPassword)) {
+                        backend.removePersonalUser(actor, admin, target, mutationGuard(actor));
+                    }
+                    revoke(target.id);
+                    return "AOSP user absent; user stopped and CE storage locked"
+                            + " user=" + target.id + " serial=" + target.serial
+                            + " runtime=not-installed";
+                });
+            } finally {
+                wipe(adminPassword);
             }
         }
 
@@ -291,6 +370,7 @@ public final class AegisIdentityService extends SystemService {
     private static String describe(AospIdentityBackend.State state) {
         return "user=" + state.user.id + " serial=" + state.user.serial
                 + " name=" + safeName(state.name) + " admin=" + state.admin
+                + " enabled=" + state.enabled + " partial=" + state.partial
                 + " foreground=" + state.foreground + " running=" + state.running
                 + " ce=" + (state.ceUnlocked ? "unlocked" : "locked")
                 + " runtime=not-installed";

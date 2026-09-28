@@ -21,7 +21,8 @@ CE-Verzeichnis unter `/data/misc_ce/10/aegis-test/probe.bin`.
 | Passwortwechsel über Android-Einstellungen | Bisheriges Passwort bestätigt und ein neues Passwort gesetzt. |
 | Altes Passwort nach erneutem Stoppen/Starten | Zurückgewiesen; `RUNNING_LOCKED`; CE-Benutzer `[0]`. |
 | Neues Passwort | Benutzer und CE entsperrt; ursprüngliche 4096 Byte weiterhin unverändert. |
-| Testabschluss | Zum Systembenutzer zurückgekehrt; Benutzer 10 beendet; CE-Benutzer `[0]`. |
+| Nach dem Passworttest | Zum Systembenutzer zurückgekehrt; Benutzer 10 beendet; CE-Benutzer `[0]`. |
+| Anschließende Plattformlöschung | Name, ID und Seriennummer erneut geprüft; `pm remove-user --wait 10` erfolgreich. Benutzer anschließend aus der AOSP-Liste entfernt, CE-Benutzer weiterhin `[0]`; acht geprüfte Schlüssel-/Datenpfade fehlen. |
 
 SHA-256 der unveränderten Testdatei:
 
@@ -42,6 +43,28 @@ Sie enthält keine Passwörter. Für den fehlgeschlagenen Dateizugriff wurde
 `adb shell` verwendet: `adb exec-out` allein liefert keinen zuverlässigen
 Exitcode des Gastbefehls. Erfolgreiche Binärlesevorgänge wurden zusätzlich
 byteweise mit der ursprünglichen Datei verglichen.
+
+## Löschung des temporären Testbenutzers
+
+Vor dem Löschaufruf wurde nochmals bestätigt, dass ID 10 mit Seriennummer 10
+zum eigens angelegten Konto `aegis-identity-test` gehört und Benutzer 0 im
+Vordergrund ist. Die privaten CE-/DE-Schlüsselverzeichnisse sowie
+`/data/misc_ce/10` und `/data/user/10` waren zu diesem Zeitpunkt vorhanden.
+Schlüsselinhalte wurden nicht gelesen.
+
+Nach dem erfolgreichen AOSP-Löschaufruf wurde unabhängig auf die Abwesenheit des
+Benutzers, CE-Zustand `[0]` und `ENOENT` für folgende Pfade geprüft:
+
+- `/data/misc/vold/user_keys/ce/10`
+- `/data/misc/vold/user_keys/de/10`
+- `/data/misc_ce/10` und `/data/user/10`
+- `/data/system_ce/10` und `/data/system_de/10`
+- `/data/user_de/10` und `/data/misc_de/10`
+
+Ein Berechtigungsfehler wurde nicht als Abwesenheit gewertet. Der Testbenutzer
+ist entfernt. Dies prüft den gewöhnlichen Plattformpfad, weder die neue
+AEGIS-Adminautorisierung noch deren zusätzliche vold-Aufrufe, Fehlerbehandlung,
+ID-Wiederverwendung oder Verhalten nach einem Neustart.
 
 ## Aussagegrenzen
 

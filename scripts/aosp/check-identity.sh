@@ -46,15 +46,23 @@ lunch "$AOSP_LUNCH"
 jobs=$(nproc)
 (( jobs <= 12 )) || jobs=12
 state COMPILING
-m -j"$jobs" aegis aegis-identity-service
+m -j"$jobs" aegis aegis-identity-service AegisIdentityTests
 product=$(get_build_var PRODUCT_OUT)
+[[ $(get_build_var TARGET_ARCH) == arm64 ]]
 mkdir "$run/modules"
-for relative in system/bin/aegis system/framework/aegis.jar system/framework/aegis-identity-service.jar; do
+# The pinned Soong android_test installs under testcases/<module>/<device arch>/.
+artifacts=(
+    system/bin/aegis
+    system/framework/aegis.jar
+    system/framework/aegis-identity-service.jar
+    testcases/AegisIdentityTests/arm64/AegisIdentityTests.apk
+)
+for relative in "${artifacts[@]}"; do
     test -s "$product/$relative"
     install -D -m 644 "$product/$relative" "$run/modules/$relative"
 done
 chmod 755 "$run/modules/system/bin/aegis"
-(cd "$run/modules" && sha256sum system/bin/aegis system/framework/*.jar) > "$run/SHA256SUMS"
+(cd "$run/modules" && sha256sum "${artifacts[@]}") > "$run/SHA256SUMS"
 state IDENTITY_COMPILED_NOT_INSTALLED
 echo "Identity modules compiled: $run"
 echo 'Not installed, not uploaded, and not a guest or security test.'

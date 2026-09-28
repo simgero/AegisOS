@@ -2,6 +2,7 @@ package org.aegisos.identity;
 
 import android.os.Binder;
 import android.os.IBinder;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.ServiceSpecificException;
@@ -107,13 +108,19 @@ public final class Aegis {
                     exact(args, 1);
                     System.out.println(session.status());
                     return 0;
-                case "user":
-                    if (args.length != 2 || !"list".equals(args[1])) {
-                        System.err.println("Verfügbar: user list. Benutzeranlage/-löschung sind noch nicht integriert.");
-                        return 2;
+                case "setup": {
+                    exact(args, 2);
+                    if (Process.myUid() != Process.ROOT_UID) {
+                        System.err.println("Die einmalige Ersteinrichtung benötigt die autorisierte Entwicklungs-Rootkonsole.");
+                        return 1;
                     }
-                    System.out.println(session.listUsers());
+                    byte[] initial = confirmedPassword("Passwort des ersten Administrators: ");
+                    try { System.out.println(session.setupFirstAdmin(args[1], initial)); }
+                    finally { wipe(initial); }
                     return 0;
+                }
+                case "user":
+                    return userCommand(args);
                 case "passwd": {
                     exact(args, 1);
                     byte[] previous = null, replacement = null, confirmation = null;
@@ -157,6 +164,51 @@ public final class Aegis {
                 System.err.println("Aktion nicht bestätigt. Tatsächlichen Benutzer-/Speicherzustand prüfen.");
             }
             return 1;
+        }
+    }
+
+    private int userCommand(String[] args) throws RemoteException {
+        if (args.length == 2 && "list".equals(args[1])) {
+            System.out.println(session.listUsers());
+            return 0;
+        }
+        if (args.length >= 2 && "add".equals(args[1])) {
+            if (args.length != 3 && !(args.length == 4 && "--admin".equals(args[3]))) {
+                throw new IllegalArgumentException("Unexpected user-add arguments");
+            }
+            byte[] initial = null, admin = null;
+            try {
+                initial = confirmedPassword("Passwort des neuen Benutzers: ");
+                admin = password("Passwort des angemeldeten Administrators für diese Anlage: ");
+                System.out.println(session.addUser(args[2], args.length == 4, admin, initial));
+                return 0;
+            } finally {
+                wipe(initial); wipe(admin);
+            }
+        }
+        if (args.length == 3 && "remove".equals(args[1])) {
+            byte[] admin = password("Adminpasswort für die Löschung dieses Benutzers und seiner Daten: ");
+            try { System.out.println(session.removeUser(args[2], admin)); }
+            finally { wipe(admin); }
+            return 0;
+        }
+        throw new IllegalArgumentException("Expected user list, add NAME [--admin], or remove NAME");
+    }
+
+    private byte[] confirmedPassword(String prompt) {
+        byte[] first = null, second = null;
+        boolean confirmed = false;
+        try {
+            first = password(prompt);
+            second = password("Passwort wiederholen: ");
+            if (!Arrays.equals(first, second)) {
+                throw new IllegalArgumentException("Passwords do not match");
+            }
+            confirmed = true;
+            return first;
+        } finally {
+            wipe(second);
+            if (!confirmed) wipe(first);
         }
     }
 
@@ -226,14 +278,17 @@ public final class Aegis {
         System.out.println("AEGIS – interaktiver Entwicklungszugang\n"
                 + "  aegis [login NAME]     Terminal öffnen, optional sofort anmelden\n"
                 + "Im selben Terminal:\n"
+                + "  setup NAME            einmalig den ersten Admin einrichten (Entwicklungs-Root)\n"
                 + "  user list             persönliche AOSP-Benutzer auflisten\n"
+                + "  user add NAME [--admin] Benutzer mit Passwort anlegen; frische Adminprüfung\n"
+                + "  user remove NAME      anderen Benutzer löschen; frische Adminprüfung\n"
                 + "  login NAME            Passwort prüfen und Benutzer aktivieren\n"
                 + "  switch NAME           Ziel authentifizieren; bisherigen Benutzer nicht abmelden\n"
                 + "  passwd                eigenes Passwort über AOSP ändern\n"
                 + "  status                diesen Sitzungs- und Speicherzustand anzeigen\n"
                 + "  logout                Android-Benutzer stoppen und CE-Sperre bestätigen\n"
                 + "  exit                  nur den Terminalkanal schließen\n"
-                + "Die Runtime sowie Benutzeranlage/-löschung sind noch nicht integriert.\n"
+                + "Die GNU/Linux-Runtime ist noch nicht integriert.\n"
                 + "Ein getrennt gestartetes aegis erbt keine persönliche Anmeldung.");
     }
 }

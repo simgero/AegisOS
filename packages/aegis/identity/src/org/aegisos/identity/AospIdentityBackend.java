@@ -4,9 +4,11 @@ import android.app.ActivityManager;
 import android.app.IActivityManager;
 import android.app.IStopUserCallback;
 import android.app.admin.PasswordMetrics;
+import android.app.admin.DevicePolicyManager;
 import android.content.Context;
 import android.content.pm.UserInfo;
 import android.os.Binder;
+import android.os.IVold;
 import android.os.Looper;
 import android.os.Process;
 import android.os.RemoteException;
@@ -15,6 +17,8 @@ import android.os.SystemClock;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.storage.IStorageManager;
+import android.os.storage.VolumeInfo;
+import android.os.storage.VolumeRecord;
 
 import com.android.internal.widget.ILockSettings;
 import com.android.internal.widget.LockPatternUtils;
@@ -38,8 +42,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Mutating operations serialize here; read-only status queries do not take that
  * lock. Blocking operations must run on a worker, not the system-server main
  * thread. Lifecycle callbacks must enqueue work rather than wait on this adapter.
- * Credentials are consumed and zeroized, never
- * retained, logged, written to disk, or converted into Strings.
+ * Caller-owned credentials are consumed and zeroized, never retained, logged,
+ * written to disk, or converted into Strings. AOSP owns its parcelled copies.
  */
 public final class AospIdentityBackend {
     private static final long STATE_TIMEOUT_MS = 30_000;
@@ -48,6 +52,7 @@ public final class AospIdentityBackend {
     private final ILockSettings locks;
     private final IStorageManager storage;
     private final LockPatternUtils lockUtils;
+    private final AospSetupState setup;
 
     /** The serial distinguishes a deleted user from a later reuse of its numeric id. */
     public static final class UserKey {
@@ -75,6 +80,8 @@ public final class AospIdentityBackend {
         public final UserKey user;
         public final String name;
         public final boolean admin;
+        public final boolean enabled;
+        public final boolean partial;
         public final boolean foreground;
         public final boolean running;
         public final boolean ceUnlocked;
@@ -83,6 +90,8 @@ public final class AospIdentityBackend {
             user = new UserKey(info.id, info.serialNumber);
             name = info.name;
             admin = info.isAdmin();
+            enabled = info.isEnabled();
+            partial = info.partial;
             this.foreground = foreground;
             this.running = running;
             ceUnlocked = unlocked;
@@ -106,23 +115,32 @@ public final class AospIdentityBackend {
         }
         users = Objects.requireNonNull(context.getSystemService(UserManager.class));
         activity = Objects.requireNonNull(ActivityManager.getService());
-        locks = Objects.requireNonNull(ILockSettings.Stub.asInterface(
-                ServiceManager.getService("lock_settings")), "LockSettings unavailable");
+        locks = CredentialTransport.connect(Objects.requireNonNull(
+                ServiceManager.getService("lock_settings"), "LockSettings unavailable"));
         storage = Objects.requireNonNull(IStorageManager.Stub.asInterface(
                 ServiceManager.getService("mount")), "StorageManager unavailable");
         lockUtils = new LockPatternUtils(context);
+        setup = new AospSetupState(context.getContentResolver());
     }
 
     private static boolean personal(UserInfo info) {
-        return info != null && info.id != UserHandle.USER_SYSTEM && info.isEnabled()
-                && !info.partial && !info.preCreated && !info.isGuest()
+        return info != null && info.id != UserHandle.USER_SYSTEM
+                && !info.preCreated && !info.isGuest()
                 && UserManager.USER_TYPE_FULL_SECONDARY.equals(info.userType);
     }
 
-    private UserInfo requireCurrent(UserKey key) {
+    private UserInfo requireExisting(UserKey key) {
         UserInfo info = users.getUserInfo(key.id);
         if (!personal(info) || info.serialNumber != key.serial) {
-            throw new SecurityException("AOSP user was removed, replaced or disabled");
+            throw new SecurityException("AOSP user was removed or replaced");
+        }
+        return info;
+    }
+
+    private UserInfo requireCurrent(UserKey key) {
+        UserInfo info = requireExisting(key);
+        if (!info.isEnabled() || info.partial) {
+            throw new SecurityException("AOSP user is disabled or incomplete");
         }
         return info;
     }
@@ -132,7 +150,7 @@ public final class AospIdentityBackend {
         long identity = Binder.clearCallingIdentity();
         try {
             List<UserKey> result = new ArrayList<>();
-            for (UserInfo info : users.getAliveUsers()) {
+            for (UserInfo info : users.getUsers(false, false, false)) {
                 if (personal(info)) result.add(new UserKey(info.id, info.serialNumber));
             }
             return result;
@@ -146,7 +164,7 @@ public final class AospIdentityBackend {
         long identity = Binder.clearCallingIdentity();
         try {
             UserKey result = null;
-            for (UserInfo info : users.getAliveUsers()) {
+            for (UserInfo info : users.getUsers(false, false, false)) {
                 if (!personal(info) || !name.equals(info.name)) continue;
                 if (result != null) throw new IllegalArgumentException("Ambiguous AOSP user name");
                 result = new UserKey(info.id, info.serialNumber);
@@ -161,12 +179,12 @@ public final class AospIdentityBackend {
     public State state(UserKey key) throws RemoteException {
         long identity = Binder.clearCallingIdentity();
         try {
-            UserInfo info = requireCurrent(key);
+            UserInfo info = requireExisting(key);
             boolean foreground = activity.getCurrentUserId() == key.id;
             boolean running = users.isUserRunning(key.id);
             // Use the Binder API directly: absence/failure must not look like locked storage.
             boolean unlocked = storage.isCeStorageUnlocked(key.id);
-            requireCurrent(key);
+            requireExisting(key);
             return new State(info, foreground, running, unlocked);
         } finally {
             Binder.restoreCallingIdentity(identity);
@@ -190,11 +208,16 @@ public final class AospIdentityBackend {
     private interface Condition { boolean satisfied() throws RemoteException; }
 
     private void await(UserKey key, Condition condition, String failure) throws RemoteException {
+        await(key, condition, failure, false);
+    }
+
+    private void await(UserKey key, Condition condition, String failure, boolean allowDisabled)
+            throws RemoteException {
         long deadline = SystemClock.elapsedRealtime() + STATE_TIMEOUT_MS;
         do {
-            requireCurrent(key);
+            if (allowDisabled) requireExisting(key); else requireCurrent(key);
             if (condition.satisfied()) {
-                requireCurrent(key);
+                if (allowDisabled) requireExisting(key); else requireCurrent(key);
                 return;
             }
             if (Thread.currentThread().isInterrupted()) {
@@ -240,7 +263,8 @@ public final class AospIdentityBackend {
                         "AOSP user switch was not confirmed");
             }
             State resultState = state(key);
-            if (!resultState.running || !resultState.ceUnlocked
+            if (!resultState.enabled || resultState.partial
+                    || !resultState.running || !resultState.ceUnlocked
                     || (bringToForeground && !resultState.foreground)) {
                 throw new IllegalStateException("AOSP user state changed during authentication");
             }
@@ -279,6 +303,318 @@ public final class AospIdentityBackend {
         }
     }
 
+    /** Rechecks the validated client; must not call back into framework lifecycle operations. */
+    public interface OperationGuard { void check(); }
+
+    private interface CreationCheck { void check(UserKey created) throws RemoteException; }
+
+    private void administrator(UserKey actor, String restriction, boolean grantingAdmin) {
+        if (!requireCurrent(actor).isAdmin()) {
+            throw new SecurityException("AOSP administrator required");
+        }
+        if (users.hasUserRestriction(restriction, UserHandle.of(actor.id))
+                || (grantingAdmin && users.hasUserRestriction(UserManager.DISALLOW_GRANT_ADMIN,
+                        UserHandle.of(actor.id)))) {
+            throw new SecurityException("AOSP restricts this administration action");
+        }
+    }
+
+    private static void userName(String name) {
+        if (name == null || name.isBlank() || !name.equals(name.strip())
+                || name.length() > UserManager.MAX_USER_NAME_LENGTH) {
+            throw new IllegalArgumentException("Invalid personal user name");
+        }
+        name.codePoints().forEach(c -> {
+            int type = Character.getType(c);
+            if (Character.isISOControl(c) || type == Character.FORMAT
+                    || type == Character.LINE_SEPARATOR || type == Character.PARAGRAPH_SEPARATOR) {
+                throw new IllegalArgumentException("Invalid personal user name");
+            }
+        });
+    }
+
+    private void unusedName(String name) {
+        for (UserInfo info : users.getUsers(false, false, false)) {
+            if (name.equals(info.name)) {
+                throw new IllegalArgumentException("An AOSP user already has this name");
+            }
+        }
+    }
+
+    private void validateNewPassword(int userId, LockscreenCredential credential) {
+        password(credential);
+        if (!PasswordMetrics.validatePasswordMetrics(lockUtils.getRequestedPasswordMetrics(userId),
+                lockUtils.getRequestedPasswordComplexity(userId),
+                PasswordMetrics.computeForCredential(credential)).isEmpty()) {
+            throw new IllegalArgumentException("Password does not satisfy AOSP policy");
+        }
+    }
+
+    /** No credential is cached and no reusable admin ticket escapes this operation. */
+    public synchronized State createPersonalUser(UserKey actor, LockscreenCredential adminPassword,
+            String name, LockscreenCredential initialPassword, boolean makeAdmin,
+            OperationGuard guard) throws RemoteException {
+        long identity = Binder.clearCallingIdentity();
+        try (LockscreenCredential adminOwned = adminPassword;
+                LockscreenCredential initialOwned = initialPassword) {
+            workerThread();
+            userName(name);
+            guard.check();
+            administrator(actor, UserManager.DISALLOW_ADD_USER, makeAdmin);
+            verify(actor, adminOwned); // fresh AOSP authentication, even if already unlocked
+            return createProtectedUser(name, initialOwned, makeAdmin, created -> {
+                guard.check();
+                administrator(actor, UserManager.DISALLOW_ADD_USER, makeAdmin);
+            });
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    private void onlyBootstrapUser(UserKey allowed) {
+        for (UserInfo info : users.getUsers(false, false, false)) {
+            if (info.id != UserHandle.USER_SYSTEM
+                    && UserManager.USER_TYPE_FULL_SECONDARY.equals(info.userType)
+                    && (allowed == null || info.id != allowed.id
+                            || info.serialNumber != allowed.serial)) {
+                // Partial, disabled, pre-created and pending-removal secondary users count too.
+                throw new SecurityException("Personal AOSP users already exist");
+            }
+        }
+    }
+
+    private void bootstrapRestrictions() {
+        if (users.hasUserRestriction(UserManager.DISALLOW_ADD_USER, UserHandle.SYSTEM)
+                || users.hasUserRestriction(UserManager.DISALLOW_GRANT_ADMIN, UserHandle.SYSTEM)) {
+            throw new SecurityException("AOSP restricts initial administrator creation");
+        }
+    }
+
+    public String setupStatus() {
+        long identity = Binder.clearCallingIdentity();
+        try {
+            String value = setup.read();
+            if (value == null) {
+                for (UserInfo info : users.getUsers(false, false, false)) {
+                    if (info.id != UserHandle.USER_SYSTEM
+                            && UserManager.USER_TYPE_FULL_SECONDARY.equals(info.userType)) {
+                        return "existing-users";
+                    }
+                }
+                return "available";
+            }
+            if (value.matches("complete:[0-9]+:[0-9]+")) return "complete";
+            if ("reserved".equals(value) || value.matches("created:[0-9]+:[0-9]+")) {
+                return "incomplete";
+            }
+            return "invalid";
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /** Caller must be the explicitly authorized development root console, not just any session. */
+    public synchronized State bootstrapFirstAdmin(String name, LockscreenCredential initialPassword,
+            OperationGuard guard) throws RemoteException {
+        long identity = Binder.clearCallingIdentity();
+        try (LockscreenCredential owned = initialPassword) {
+            workerThread();
+            userName(name);
+            preflightPassword(owned);
+            unusedName(name);
+            guard.check();
+            onlyBootstrapUser(null);
+            bootstrapRestrictions();
+            if (setup.read() != null) {
+                throw new SecurityException("First-admin setup has already been reserved or completed");
+            }
+            setup.write("reserved"); // never automatically cleared, including after failure
+            State created = createProtectedUser(name, owned, true, pending -> {
+                guard.check();
+                onlyBootstrapUser(pending);
+                bootstrapRestrictions();
+                String expected = pending == null ? "reserved"
+                        : "created:" + pending.id + ":" + pending.serial;
+                String recorded = setup.read();
+                if (pending != null && "reserved".equals(recorded)) setup.write(expected);
+                else if (!expected.equals(recorded)) {
+                    throw new SecurityException("Provisioning reservation changed");
+                }
+            });
+            setup.write("complete:" + created.user.id + ":" + created.user.serial);
+            return created;
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    private static void preflightPassword(LockscreenCredential credential) {
+        password(credential);
+        if (!PasswordMetrics.validatePasswordMetrics(
+                new PasswordMetrics(LockPatternUtils.CREDENTIAL_TYPE_NONE),
+                DevicePolicyManager.PASSWORD_COMPLEXITY_NONE,
+                PasswordMetrics.computeForCredential(credential)).isEmpty()) {
+            throw new IllegalArgumentException("Password does not satisfy base AOSP policy");
+        }
+    }
+
+    private State createProtectedUser(String name, LockscreenCredential initialPassword,
+            boolean makeAdmin, CreationCheck authority) throws RemoteException {
+        preflightPassword(initialPassword);
+        unusedName(name);
+        authority.check(null);
+        // Do not grant ADMIN until after credential enrollment and CE locking.
+        UserInfo created = users.createUser(name, UserManager.USER_TYPE_FULL_SECONDARY,
+                UserInfo.FLAG_DISABLED);
+        if (created == null || !personal(created) || created.partial) {
+            throw new IllegalStateException("AOSP did not finish creating a personal user");
+        }
+        UserKey key = new UserKey(created.id, created.serialNumber);
+        try {
+            requireUnstartedDisabled(key);
+            authority.check(key);
+            validateNewPassword(key.id, initialPassword);
+            if (locks.getCredentialType(key.id) != LockPatternUtils.CREDENTIAL_TYPE_NONE) {
+                throw new IllegalStateException("New AOSP user already has a credential");
+            }
+            try (LockscreenCredential empty = LockscreenCredential.createNone()) {
+                if (!locks.setLockCredential(initialPassword, empty, key.id)) {
+                    throw new IllegalStateException("AOSP rejected initial credential enrollment");
+                }
+            }
+            requireUnstartedDisabled(key);
+            if (locks.getCredentialType(key.id) != LockPatternUtils.CREDENTIAL_TYPE_PASSWORD) {
+                throw new IllegalStateException("Initial AOSP password was not confirmed");
+            }
+            // AOSP initially unlocks a freshly created CE key even while the user is stopped.
+            // lockCeStorage can log a vold failure and return, so its result must be re-read.
+            storage.lockCeStorage(key.id);
+            requireUnstartedDisabled(key);
+            if (storage.isCeStorageUnlocked(key.id)) {
+                throw new IllegalStateException("New user's CE storage is still unlocked");
+            }
+            authority.check(key);
+            if (makeAdmin) users.setUserAdmin(key.id);
+            requireUnstartedDisabled(key);
+            authority.check(key);
+            users.setUserEnabled(key.id);
+            State result = state(key);
+            if (!result.enabled || result.partial || result.running || result.ceUnlocked
+                    || result.admin != makeAdmin || !name.equals(result.name)) {
+                throw new IllegalStateException("Provisioned AOSP state was not confirmed");
+            }
+            return result;
+        } catch (RemoteException | RuntimeException failure) {
+            // Preserve incomplete accounts for explicit admin inspection/removal. Never enable
+            // or reset a failed account, nor silently delete an account that became usable.
+            try {
+                UserInfo current = requireExisting(key);
+                if (!current.isEnabled() && !current.partial) {
+                    stopAndroidUserAndLock(key);
+                }
+            } catch (RemoteException | RuntimeException ignored) { }
+            throw failure;
+        }
+    }
+
+    private void requireUnstartedDisabled(UserKey key) {
+        UserInfo info = requireExisting(key);
+        if (info.isEnabled() || info.partial || users.isUserRunning(key.id)) {
+            throw new IllegalStateException("New account became enabled or running unexpectedly");
+        }
+    }
+
+    /** Runtime processes/mounts must already be quiesced by the enclosing coordinator. */
+    public synchronized void removePersonalUser(UserKey actor, LockscreenCredential adminPassword,
+            UserKey target, OperationGuard guard) throws RemoteException {
+        long identity = Binder.clearCallingIdentity();
+        try (LockscreenCredential owned = adminPassword) {
+            workerThread();
+            if (actor.equals(target)) {
+                throw new SecurityException("Removal requires a different administrator session");
+            }
+            guard.check();
+            administrator(actor, UserManager.DISALLOW_REMOVE_USER, false);
+            verify(actor, owned);
+            requireInternalStorageOnly();
+            UserInfo info = requireExisting(target);
+            if (info.partial) throw new IllegalStateException("User removal or creation is incomplete");
+            // The authenticated different administrator remains; system user 0 is never a target.
+            guard.check();
+            administrator(actor, UserManager.DISALLOW_REMOVE_USER, false);
+            stopAndroidUserAndLock(target);
+            guard.check();
+            administrator(actor, UserManager.DISALLOW_REMOVE_USER, false);
+            requireExisting(target);
+            if (!users.removeUser(target.id)) {
+                throw new IllegalStateException("AOSP did not accept user removal");
+            }
+            long deadline = SystemClock.elapsedRealtime() + STATE_TIMEOUT_MS;
+            do {
+                UserInfo current = users.getUserInfo(target.id);
+                if (current != null && current.serialNumber != target.serial) {
+                    throw new IllegalStateException("User id was reused during removal");
+                }
+                if (current == null && !users.isUserRunning(target.id)
+                        && !storage.isCeStorageUnlocked(target.id)) {
+                    finishStorageRemoval(target);
+                    return;
+                }
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new IllegalStateException("User removal wait interrupted");
+                }
+                SystemClock.sleep(50);
+            } while (SystemClock.elapsedRealtime() < deadline);
+            throw new IllegalStateException("AOSP user removal has not completed");
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    private void requireInternalStorageOnly() throws RemoteException {
+        VolumeInfo[] volumes = storage.getVolumes(0);
+        if (volumes == null) throw new IllegalStateException("Storage inventory unavailable");
+        for (VolumeInfo volume : volumes) {
+            if (volume == null) throw new IllegalStateException("Storage inventory incomplete");
+            if (volume.getType() == VolumeInfo.TYPE_PRIVATE
+                    && !VolumeInfo.ID_PRIVATE_INTERNAL.equals(volume.getId())) {
+                throw new IllegalStateException("Adopted private volumes require removal integration");
+            }
+        }
+        // A disconnected adopted disk can be absent from getVolumes while its record remains.
+        // Never confirm full removal while private data on such a disk cannot be cleaned up.
+        VolumeRecord[] records = storage.getVolumeRecords(0);
+        if (records == null) throw new IllegalStateException("Storage records unavailable");
+        for (VolumeRecord record : records) {
+            if (record == null) throw new IllegalStateException("Storage records incomplete");
+            if (record.getType() == VolumeInfo.TYPE_PRIVATE) {
+                throw new IllegalStateException("Adopted private storage requires removal integration");
+            }
+        }
+    }
+
+    private void requireRemoved(UserKey target) throws RemoteException {
+        if (users.getUserInfo(target.id) != null || users.isUserRunning(target.id)
+                || storage.isCeStorageUnlocked(target.id)) {
+            throw new IllegalStateException("Removed user identity is no longer absent and locked");
+        }
+    }
+
+    private void finishStorageRemoval(UserKey target) throws RemoteException {
+        // The pinned StorageManagerService logs and swallows some vold deletion failures.
+        // After UserManager has completed LockSettings cleanup, require acknowledgement from
+        // AOSP vold itself. These pinned vold operations also succeed for already-absent keys
+        // and directories. Never do this before UserManager has released the user's DE state.
+        requireRemoved(target);
+        requireInternalStorageOnly();
+        IVold vold = IVold.Stub.asInterface(Objects.requireNonNull(
+                ServiceManager.getService("vold"), "AOSP vold unavailable"));
+        vold.destroyUserStorageKeys(target.id);
+        requireRemoved(target);
+        vold.destroyUserStorage(null, target.id, IVold.STORAGE_FLAG_DE | IVold.STORAGE_FLAG_CE);
+        requireRemoved(target);
+    }
+
     /**
      * Android part of logout ONLY. The coordinator must first stop and reap the
      * user's runtimes/transactions and remove their mounts/IPC resources. It must
@@ -289,13 +625,22 @@ public final class AospIdentityBackend {
         long identity = Binder.clearCallingIdentity();
         try {
             workerThread();
-            requireCurrent(key);
+            if (requireExisting(key).partial) {
+                throw new IllegalStateException("Cannot stop an incomplete personal user");
+            }
+            if (!users.isUserRunning(key.id)) {
+                // A never-started user can still have the initially unlocked key from creation.
+                // ActivityManager's already-stopped callback does not itself evict that key.
+                storage.lockCeStorage(key.id);
+                State stopped = state(key);
+                if (!stopped.running && !stopped.ceUnlocked && !stopped.foreground) return stopped;
+            }
             if (activity.getCurrentUserId() == key.id) {
                 if (!activity.switchUser(UserHandle.USER_SYSTEM)) {
                     throw new IllegalStateException("AOSP refused to leave the personal user");
                 }
                 await(key, () -> activity.getCurrentUserId() == UserHandle.USER_SYSTEM,
-                        "System-user handover was not confirmed");
+                        "System-user handover was not confirmed", true);
             }
             AtomicBoolean stopped = new AtomicBoolean();
             AtomicBoolean aborted = new AtomicBoolean();
@@ -310,7 +655,7 @@ public final class AospIdentityBackend {
                 if (aborted.get()) throw new IllegalStateException("AOSP aborted user stop");
                 return stopped.get() && !users.isUserRunning(key.id)
                         && !storage.isCeStorageUnlocked(key.id);
-            }, "Android user stop and CE storage locking were not both confirmed");
+            }, "Android user stop and CE storage locking were not both confirmed", true);
             State resultState = state(key);
             if (resultState.running || resultState.ceUnlocked || resultState.foreground) {
                 throw new IllegalStateException("AOSP user restarted during storage locking");

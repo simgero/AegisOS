@@ -21,9 +21,16 @@ final class CallerProcess {
     }
 
     void requireSameCaller() {
-        if (Binder.getCallingUid() != uid || Binder.getCallingPid() != pid
-                || startTicks(pid) != startTicks) {
+        if (Binder.getCallingUid() != uid || Binder.getCallingPid() != pid) {
             throw new SecurityException("Session belongs to a different process");
+        }
+        requireAlive();
+    }
+
+    /** For in-progress guards after Binder identity has been cleared by the AOSP adapter. */
+    void requireAlive() {
+        if (startTicks(pid) != startTicks) {
+            throw new SecurityException("Original client process is no longer alive");
         }
     }
 

@@ -13,7 +13,9 @@ keinen Binder-Endpunkt und keine eigene Benutzer-, Passwort- oder Schlüsseldate
 Implementiert im Quelltext:
 
 - Persönliche AOSP-Vollbenutzer auflisten und Namen eindeutig auflösen. Der
-  Systembenutzer, Profile, Gäste und unvollständige Benutzer sind ausgeschlossen.
+  Systembenutzer, Profile, Gäste und vorab erzeugte Konten sind ausgeschlossen.
+  Deaktivierte und unvollständige Konten sind zur Diagnose sichtbar; Anmeldung
+  ist nur für aktivierte, vollständig angelegte Benutzer zulässig.
 - Jede Zuordnung mit AOSP-`userId` **und** Seriennummer prüfen. Die Kennung
   selbst erteilt keine Berechtigung.
 - Passwort über `ILockSettings.verifyCredential(..., flags=0)` prüfen und auf
@@ -21,8 +23,17 @@ Implementiert im Quelltext:
   entsperrter Benutzer wird erneut authentifiziert. AOSPs Sperrfrist bleibt erhalten.
 - Optional erst nach erfolgreicher Authentifizierung in den Vordergrund wechseln.
 - Passwortwechsel über AOSP einschließlich dessen Passwortregeln und Historie.
-  Alle übergebenen Credential-Puffer und der kurzlebige AOSP-Historienfaktor
-  werden anschließend gelöscht. CE-Schlüssel werden nicht abgefragt/exportiert.
+  Eigene Credential-Puffer und der kurzlebige AOSP-Historienfaktor werden
+  anschließend gelöscht. Eine Parcel-Kopie hält die Eigentümerschaft für
+  verzögerte Arbeit in LockSettings getrennt. CE-Schlüssel werden nicht
+  abgefragt/exportiert.
+- Einmalige Ersteinrichtung aus der autorisierten Entwicklungs-Rootkonsole,
+  anschließend Anlage/Löschung über einen frisch authentifizierten persönlichen
+  AOSP-Administrator. Neue Konten werden erst nach Passwortsetzung und CE-Sperre
+  aktiviert. Ein fehlgeschlagener Vorgang wird nicht automatisch wiederholt.
+- Benutzerlöschung bestätigt AOSP-Benutzerende, CE-Sperre und Metadatenabwesenheit
+  und fordert anschließend AOSPs vold-Bereinigung für Schlüssel und interne Daten
+  an. Private Zusatzvolumes werden bis zur entsprechenden Integration abgelehnt.
 - Den Android-Teil einer Abmeldung durchführen: zum Systembenutzer zurückkehren,
   `stopUserWithCallback` ohne verzögertes Sperren aufrufen und anschließend
   **sowohl** den beendeten Benutzer **als auch** den gesperrten CE-Speicher prüfen.
@@ -50,9 +61,9 @@ kann trotz eines Timeouts noch eintreffen; dann muss der tatsächliche Zustand
 erneut ermittelt werden. Die Systemdienst-Lifecycle-Callbacks dürfen nicht auf
 blockierende Adapteroperationen warten, sondern müssen Arbeit einreihen.
 
-Noch offen sind insbesondere Benutzereinrichtung/-löschung mit Adminfreigabe,
-einmalige abgesicherte Ersteinrichtung, Produkt-/SELinux-Integration,
-Runtime-Koordination sowie Build und Gasttests des Adapters, Dienstes und der CLI.
+Noch offen sind insbesondere Produkt-/SELinux-Integration, Wiederherstellung
+einer unterbrochenen Ersteinrichtung, Runtime-Koordination sowie Build und
+Gasttests des Adapters, Dienstes, der CLI und der neuen Verwaltungsfunktionen.
 Die Module werden absichtlich noch nicht in ein Produkt aufgenommen.
 
 ## Abgeglichene AOSP-Schnittstellen
