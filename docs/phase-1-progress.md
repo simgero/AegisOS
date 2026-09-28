@@ -257,5 +257,10 @@ bleiben offen; der Dienst-/Framework-Build ist noch nicht abgeschlossen.
 Unveränderte Produkt-/Identitätsdateien behalten nun ihre Zeitstempel, damit
 kleine Änderungen nicht allein wegen erneuter Quellkopien den gesamten
 Make-/Soong-Buildplan invalidieren. Die Linux-CI von `13485f1` besteht mit
-195 Tests ohne Auslassungen. Eine tatsächliche Zeitmessung folgt mit dem
-nächsten Komponentenlauf.
+195 Tests ohne Auslassungen. Der Lauf `identity-20260928T142429Z-d16e74f1-oH6LDF`
+erreichte Ninja nach 28 Sekunden statt mehrminütiger Vorbereitung. Die
+korrigierten Java-Gerätetests kompilierten; beim Dienst scheiterte nun
+`CallerProcess` an `Files.readString`, das in diesem Android-API-Stand fehlt.
+Der gleiche ASCII-Lesevorgang verwendet deshalb `Files.readAllBytes` und den
+expliziten String-Konstruktor. Die Bindung an PID, UID und Kernel-Startzeit
+bleibt erhalten. Ein erfolgreicher Gesamtabschluss ist noch nicht bestätigt.

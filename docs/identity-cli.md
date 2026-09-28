@@ -243,8 +243,10 @@ Buildplanerzeugung auslösen. Neue Inhalte erhalten weiterhin neue Zeitstempel
 und die vorige verwaltete Fassung bleibt als Backup erhalten. Die Prüfung auf
 fremde Änderungen erfolgt auch unmittelbar vor dem Austausch der Identitätsquellen.
 25 gezielte Hosttests zu Produktregistrierung, Identitätsregistrierung und
-QEMU-Befehlsbildung bestehen. Die Zeitersparnis auf dem Builder ist noch nicht
-gemessen.
+QEMU-Befehlsbildung bestehen. Die Linux-CI besteht insgesamt mit 195 Tests ohne
+Auslassungen. Im Lauf `d16e74f` erreichte der Dienst nach 28 Sekunden den
+Ninja-Compilerlauf (14:24:28 bis 14:24:56 UTC); zuvor dauerte die Vorbereitung
+mehrere Minuten. Das ist keine Messung der gesamten Builddauer.
 
 Erst erfolgreicher Komponentenbau und vorhandene JAR-/Startdateien samt
 Framework-Ressourcen, Test-APK und nativen ARM64-Artefakten setzen

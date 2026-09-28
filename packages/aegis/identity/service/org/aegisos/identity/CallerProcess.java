@@ -38,8 +38,8 @@ final class CallerProcess {
         try {
             // The path contains only a kernel-supplied positive PID. comm can contain spaces
             // and parentheses, so fields start after its LAST closing parenthesis.
-            String stat = Files.readString(Paths.get("/proc", Integer.toString(pid), "stat"),
-                    StandardCharsets.US_ASCII);
+            String stat = new String(Files.readAllBytes(
+                    Paths.get("/proc", Integer.toString(pid), "stat")), StandardCharsets.US_ASCII);
             int end = stat.lastIndexOf(')');
             if (end < 0) throw new IOException("Invalid proc stat");
             String[] fields = stat.substring(end + 1).trim().split("\\s+");
