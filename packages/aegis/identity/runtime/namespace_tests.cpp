@@ -106,6 +106,7 @@ class RuntimeNamespace : public ::testing::Test {
         EXPECT_EQ(1234u, result.serial);
         EXPECT_EQ(1u, result.pid); EXPECT_EQ(0u, result.ppid);
         EXPECT_EQ(1u, result.session_id); EXPECT_EQ(1u, result.process_group);
+        EXPECT_EQ(0, result.oom_score_adj);
         EXPECT_EQ(0u, result.uid); EXPECT_EQ(0u, result.gid);
         EXPECT_EQ(0u, result.groups); EXPECT_EQ(static_cast<uint32_t>(SIGKILL), result.death_signal);
         EXPECT_EQ(0u, result.extra_fds); EXPECT_EQ(1u, result.fixed_environment);

@@ -6,6 +6,7 @@
 #include "child_private.h"
 #include "uid_layout.h"
 #include "mounts_private.h"
+#include "memory_group.h"
 
 #include <dirent.h>
 #include <elf.h>
@@ -217,8 +218,8 @@ static _Noreturn void child_exec(int setup, int control, int gate, int parent,
     child_failed();
 }
 
-int aegis_namespace_create(uint32_t user_id, uint32_t serial, int setup_fd, int control_fd,
-                           struct aegis_namespace **output) {
+static int create(uint32_t user_id, uint32_t serial, int setup_fd, int control_fd,
+                   struct aegis_memory_group *group, struct aegis_namespace **output) {
     if (!output || *output || user_id < 10 || user_id >= 21473 || serial > INT32_MAX) {
         errno = EINVAL; return -1;
     }
@@ -258,6 +259,12 @@ int aegis_namespace_create(uint32_t user_id, uint32_t serial, int setup_fd, int 
         .pidfd = (uint64_t)(uintptr_t)&child->pidfd,
         .exit_signal = SIGCHLD,
     };
+    if (group) {
+        int cgroup = aegis_memory_group_claim(group, user_id, serial);
+        if (cgroup < 0) goto fail;
+        args.flags |= CLONE_INTO_CGROUP;
+        args.cgroup = (uint64_t)cgroup;
+    }
     uint64_t all = UINT64_MAX, previous;
     if (syscall(SYS_rt_sigprocmask, SIG_SETMASK, &all, &previous, sizeof(all)) < 0) goto fail;
     pid_t pid = (pid_t)syscall(SYS_clone3, &args, sizeof(args));
@@ -284,6 +291,18 @@ fail:;
     aegis_namespace_release(context);
     errno = error;
     return -1;
+}
+
+int aegis_namespace_create(uint32_t user_id, uint32_t serial, int setup_fd, int control_fd,
+                           struct aegis_namespace **output) {
+    return create(user_id, serial, setup_fd, control_fd, NULL, output);
+}
+
+int aegis_namespace_create_limited(uint32_t user_id, uint32_t serial, int setup_fd,
+                                   int control_fd, struct aegis_memory_group *group,
+                                   struct aegis_namespace **output) {
+    if (!group) { errno = EINVAL; return -1; }
+    return create(user_id, serial, setup_fd, control_fd, group, output);
 }
 
 static int write_at(int proc, const char *name, const char *text, size_t length) {
@@ -334,13 +353,19 @@ static int still_waiting(struct aegis_namespace *context) {
 int aegis_namespace_prepare(struct aegis_namespace *context) {
     if (owner(context) < 0) return -1;
     if (context->mapped) { errno = EALREADY; return -1; }
-    char number[32], map[1024], groups[32];
+    char number[32], map[1024], groups[32], oom[32];
     int proc = -1, result = -1;
     if (still_waiting(context) < 0) goto done;
     context->mapped = -1;  /* Writing either kernel map is a one-shot action. */
     snprintf(number, sizeof(number), "%ld", (long)context->pid);
     proc = openat(context->proc_root, number, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (proc < 0) goto done;
+    /* Never inherit Android's protected-daemon OOM exemption. Do this while
+     * the child is gated, before its maps and later credential changes.
+     * memory.oom.group cannot kill a member with oom_score_adj=-1000. */
+    if (write_at(proc, "oom_score_adj", "0", 1) < 0
+            || text_at(proc, "oom_score_adj", oom, sizeof(oom)) < 0) goto done;
+    if (strcmp(oom, "0\n")) { errno = EPROTO; goto done; }
     /* Only this library reaps the child. Its proc entry cannot be recycled
      * before this first/only open, even if it exited while waiting on the gate. */
     size_t length = 0;

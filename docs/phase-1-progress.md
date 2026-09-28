@@ -14,7 +14,15 @@ Lauf `runtime-base-20260928T145204Z-87ab3f54-WclcLl` meldet
 `BUILT_VERIFIED_NOT_MOUNTED`. Das korrigierte Rezept erzeugt zwei bytegleiche
 Images und liest alle Dateien/Eigentümer zurück. Noch keine Gast-Einbindung.
 Der erforderliche Kernel-Lauf `kernel-20260928T145446Z-87ab3f54-wgP3Hz`
-wurde gestartet und beschafft zunächst die 40 festgelegten Quellprojekte.
+hat die 40 festgelegten Quellprojekte bezogen und kompiliert jetzt den Kernel.
+
+Seit dem letzten Komponentenlauf ist die F2FS-Prüfung für das tatsächliche
+Android-CE-Dateisystem korrigiert. Zusätzlich ist der Namespace-Start im
+Quelltext mit einer [Speichergruppe](../runtime/memory-groups.md) verbunden:
+1 GiB Grenze ab Prozesserzeugung, einmalige ID-/Seriennummernbindung und
+bestätigter Gruppenstopp. Neun weitere native Gerätetests sind vorbereitet
+(insgesamt 60). **Diese Änderungen sind noch nicht kompiliert oder im Gast
+geprüft; Runtime-Broker, SELinux-Anbindung und vollständiger Logout fehlen.**
 
 | Anforderung | Nachweis / verbleibende Arbeit |
 | --- | --- |

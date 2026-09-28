@@ -46,6 +46,11 @@ int main(int argc, char **argv) {
     report.serial = (uint32_t)serial;
     report.pid = getpid(); report.ppid = getppid();
     report.session_id = getsid(0); report.process_group = getpgrp();
+    FILE *oom = fopen("/proc/self/oom_score_adj", "re");
+    if (!oom) return 93;
+    int parsed = fscanf(oom, "%d", &report.oom_score_adj);
+    fclose(oom);
+    if (parsed != 1) return 93;
     uid_t r, e, s;
     gid_t gr, ge, gs;
     if (getresuid(&r, &e, &s) < 0 || getresgid(&gr, &ge, &gs) < 0

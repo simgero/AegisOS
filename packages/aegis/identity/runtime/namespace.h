@@ -16,6 +16,7 @@ extern "C" {
  * CE state; user_id alone grants no authority and must not come from a client.
  */
 struct aegis_namespace;
+struct aegis_memory_group;
 
 /* setup_fd: already authenticated, preopened static ARM64 ELF from trusted
  * system code (NOT a user's executable). control_fd: one end of a private,
@@ -30,9 +31,21 @@ struct aegis_namespace;
  * means ONLY a child was created. All fallible parent allocations precede
  * clone; *output must initially be NULL. Failure owns no new child and leaves
  * that output unchanged (including rejection of an already populated output).
+ * This unrestricted entry is for inert device probes. The production broker
+ * must use create_limited() so workload memory is bounded at process creation.
  */
 int aegis_namespace_create(uint32_t user_id, uint32_t serial, int setup_fd, int control_fd,
                            struct aegis_namespace **output);
+
+/* Same child/gate contract, atomically born in the caller's prepared memory
+ * group via CLONE_INTO_CGROUP. No create-then-migrate window. The group is
+ * matched to this exact id+serial and claimed once. A failed attempt can seal
+ * it even without a child; the caller still owns and must remove that group.
+ * No success implies authorization, READY, pidfd reaping or CE cleanup.
+ */
+int aegis_namespace_create_limited(uint32_t user_id, uint32_t serial, int setup_fd,
+                                   int control_fd, struct aegis_memory_group *group,
+                                   struct aegis_namespace **output);
 
 /* One attempt: anchor the child's proc directory, deny setgroups, write and
  * read back BOTH fixed maps, then release the gate. Any failure closes the
@@ -43,7 +56,8 @@ int aegis_namespace_create(uint32_t user_id, uint32_t serial, int setup_fd, int 
 int aegis_namespace_resume(struct aegis_namespace *context);
 
 /* Optional separate mapping step for host-side mount preparation. One-shot;
- * performs exactly the map checks of resume(), but KEEPS the exec gate closed.
+ * resets/readbacks oom_score_adj=0 and performs exactly the map checks of
+ * resume(), but KEEPS the exec gate closed.
  * resume() after this step only rechecks the live child/broker and opens the
  * gate. The original 10s child startup deadline is NOT extended.
  */
