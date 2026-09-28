@@ -1,8 +1,16 @@
 # SELinux- und Init-Integration der Runtime
 
-Stand 29. September 2026: Implementierung zur Kompilierung vorbereitet;
-noch kein Nachweis eines gestarteten, erzwingend getrennten Linux-Kontexts.
-Das ausgelieferte Produkt bleibt `ro.aegis.runtime.mode=absent`.
+Stand 29. September 2026: Die Policy und Komponenten von
+`6633a0862796d70304456c363158d133e9711513` wurden auf `aegis-build` erfolgreich
+kompiliert, einschließlich Neverallow-, API-Freeze-, Treble-, Kontext- und
+Policy-Tests. Lauf `identity-20260928T235046Z-6633a086-BVktdL` endete mit
+`IDENTITY_COMPILED_NOT_INSTALLED`. Das ist noch kein Nachweis eines gestarteten,
+erzwingend getrennten Linux-Kontexts.
+Das zuletzt ausgelieferte Produkt bleibt `ro.aegis.runtime.mode=absent`.
+Der nächste Teststand aktiviert `managed-v1` nur mit den explizit geprüften
+Basis- und Kernel-Eingaben des Build-Workers. Eine normale Quellregistrierung
+entfernt diese Auswahl; ohne Basis bleiben Modus und Dienste inaktiv, mit Basis
+aber ohne ausgewählten Kernel bricht bereits die Produktkonfiguration ab.
 
 Vier eigene Domänen trennen den vertrauenswürdigen Speicher-/Prozessbesitzer,
 die kurzlebige Namespace-Einrichtung, den persönlichen Aufseher und normale
@@ -50,7 +58,7 @@ zu einem gewöhnlichen Programm aus der unveränderlichen Softwarebasis.
 Der Init-Eintrag startet nur im expliziten verwalteten Modus nach `post-fs-data`.
 Ein fehlgeschlagener Broker wird nicht automatisch neu gestartet. Der native
 Handshake darf erst nach bestätigter Altprozessbereinigung erfolgreich sein.
-Der Modus wird erst nach Policy-Kompilierung und eigenen neuen QEMU-Prüfungen
-aktiviert. Noch erforderlich sind die tatsächlichen Domänenübergänge,
+Der aktivierte Teststand wird erst nach Policy-Kompilierung in einem eigenen
+neuen QEMU-Profil geprüft. Noch erforderlich sind die tatsächlichen Domänenübergänge,
 Mount-/CE-/PTY-Zugriffe und Fehlerfälle einschließlich Benutzerisolation und
 vollständigem Abbau vor CE-Sperre. Ein erfolgreicher Compiler allein genügt nicht.

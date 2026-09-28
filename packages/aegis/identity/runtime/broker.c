@@ -242,13 +242,22 @@ int main(int argc, char **argv) {
     freecon(context);
     struct sigaction action = {.sa_handler = SIG_DFL};
     sigemptyset(&action.sa_mask);
-    if (sigaction(SIGCHLD, &action, NULL) < 0 || setgroups(0, NULL) < 0
-            || aegis_namespace_check_broker() < 0) return 1;
+    if (sigaction(SIGCHLD, &action, NULL) < 0 || setgroups(0, NULL) < 0) {
+        fprintf(stderr, "AEGIS_RUNTIME_BROKER_FAILED: initial process state errno=%d\n", errno);
+        return 1;
+    }
+    if (aegis_namespace_check_broker() < 0) {
+        fprintf(stderr, "AEGIS_RUNTIME_BROKER_FAILED: initial namespaces errno=%d\n", errno);
+        return 1;
+    }
     sigset_t mask;
     sigemptyset(&mask);
     sigaddset(&mask, SIGTERM); sigaddset(&mask, SIGINT);
     sigaddset(&mask, SIGHUP); sigaddset(&mask, SIGCHLD);
-    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) return 1;
+    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) {
+        fprintf(stderr, "AEGIS_RUNTIME_BROKER_FAILED: initial signal mask errno=%d\n", errno);
+        return 1;
+    }
     int signals = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
     int lock = -1, root = -1, parent = -1, base = -1, setup = -1, init = -1, listener = -1;
     struct aegis_broker_owner *owner = NULL;

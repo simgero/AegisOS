@@ -42,6 +42,20 @@ lunch "$AOSP_LUNCH"
 [[ $(get_build_var TARGET_PRODUCT) == aegis_qemu_arm64 ]] || {
     echo 'Unexpected AOSP product; refusing to compile.' >&2; exit 1;
 }
+runtime_mode=absent
+if [[ -n ${AEGIS_RUNTIME_RUN:-} ]]; then runtime_mode=managed-v1; fi
+runtime_properties=0
+for property in $(get_build_var PRODUCT_SYSTEM_PROPERTIES); do
+    if [[ $property == ro.aegis.runtime.mode=* ]]; then
+        [[ $property == "ro.aegis.runtime.mode=$runtime_mode" ]] || {
+            echo 'Runtime mode differs from the selected checked inputs.' >&2; exit 1;
+        }
+        runtime_properties=$((runtime_properties + 1))
+    fi
+done
+[[ $runtime_properties == 1 ]] || {
+    echo 'Expected exactly one runtime mode property.' >&2; exit 1;
+}
 if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
     python3 "$project/scripts/kernel/integrate.py" verify-selection --receipt "$1/kernel-inputs.json" \
         --kernel "$(get_build_var TARGET_KERNEL_PATH)" --system "$(get_build_var SYSTEM_DLKM_SRC)" \
@@ -73,6 +87,10 @@ if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
         --image "$(cat "$1/product-out.txt")/kernel" --boot-image "$(cat "$1/product-out.txt")/boot.img"
 fi
 if [[ -n ${AEGIS_RUNTIME_RUN:-} ]]; then
+    for helper in system/bin/aegis-runtime-init system/bin/aegis-runtime-setup \
+        system_ext/bin/aegis-runtime-broker system_ext/etc/init/aegis-runtime.rc; do
+        test -s "$(cat "$1/product-out.txt")/$helper"
+    done
     python3 "$project/scripts/runtime/integrate.py" verify-installed \
         --receipt "$1/runtime-base-inputs.json" --product-out "$(cat "$1/product-out.txt")" \
         --system-ext "$(get_build_var TARGET_COPY_OUT_SYSTEM_EXT)"

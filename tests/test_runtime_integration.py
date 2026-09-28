@@ -105,7 +105,7 @@ class RuntimeIntegrationTests(unittest.TestCase):
     def prepare(self, **kwargs):
         return integration.prepare(self.run, self.project, self.imported, self.aosp, self.receipt, **kwargs)
 
-    def test_selection_rechecks_image_and_installs_assets_without_runtime_activation(self):
+    def test_selection_rechecks_image_and_installs_assets_before_any_runtime_start(self):
         bundle = self.prepare()
         self.image_check.assert_called_once()
         self.assertEqual(self.image_check.call_args.args[0], self.plan)

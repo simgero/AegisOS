@@ -195,7 +195,7 @@ def prepare(run, project, imported, aosp, receipt, kernel_receipt=None):
             shutil.copyfile(current / name, target)
         if tool.inventory(product) != expected:
             raise ValueError("Registered product changed while adding shared base")
-        text = "# Generated checked base assets only; no runtime activation or mount.\n"
+        text = "# Generated checked base assets; the product separately gates service activation.\n"
         for target, origin in installed.items():
             text += f"PRODUCT_COPY_FILES += {relative}/{origin}:$(TARGET_COPY_OUT_SYSTEM_EXT)/{target}\n"
         (product / INCLUDE).write_text(text)

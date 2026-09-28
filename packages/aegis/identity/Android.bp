@@ -53,8 +53,8 @@ java_library {
     installable: false,
 }
 
-// Explicit builder targets only. No PRODUCT_PACKAGES/init.rc entry: the AOSP
-// broker, private mount setup and SELinux transition are not integrated yet.
+// Explicit component targets and the checked managed-runtime product only.
+// The ordinary product without selected base/kernel inputs remains inactive.
 cc_defaults {
     name: "aegis-runtime-native-defaults",
     enabled: false,
@@ -72,8 +72,7 @@ cc_binary {
     stl: "none",
 }
 
-// Trusted namespace PID1 mount helper. Still an explicit component target:
-// broker authorization, resource groups and SELinux policy are not wired yet.
+// Trusted namespace PID1 mount helper, separate from ordinary GNU programs.
 cc_binary {
     name: "aegis-runtime-setup",
     defaults: ["aegis-runtime-native-defaults"],

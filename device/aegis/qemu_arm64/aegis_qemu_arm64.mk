@@ -37,9 +37,18 @@ PRODUCT_MODEL := AegisOS QEMU ARM64 Development
 # Development access still requires an explicitly authorized ADB host key.
 PRODUCT_SYSTEM_PROPERTIES += ro.adb.secure=1
 
-# First identity integration: the GNU/Linux lifecycle coordinator is not installed yet.
-# The service refuses any other/unspecified mode instead of claiming a complete runtime logout.
+# A normal source/component selection has no active Linux runtime. A full image
+# may opt in only through the build worker's checked base AND kernel receipts.
+# These generated includes are outside the project and replaced on registration.
+ifeq ($(wildcard device/aegis/qemu_arm64/aegis-runtime-base.mk),)
 PRODUCT_SYSTEM_PROPERTIES += ro.aegis.runtime.mode=absent
+else
+ifeq ($(wildcard device/aegis/qemu_arm64/aegis-runtime-kernel.mk),)
+$(error AEGIS managed runtime requires a checked runtime kernel selection)
+endif
+PRODUCT_SYSTEM_PROPERTIES += ro.aegis.runtime.mode=managed-v1
+PRODUCT_PACKAGES += aegis-runtime-broker aegis-runtime-setup aegis-runtime-init
+endif
 
 PRODUCT_PACKAGES += \
     aegis \
@@ -62,5 +71,5 @@ PRODUCT_ENFORCE_RRO_EXCLUDED_OVERLAYS += device/aegis/qemu_arm64/overlay
 include device/aegis/qemu_arm64/branding/branding.mk
 
 # Present only for an explicitly selected, checked shared-base generation.
-# Installing immutable assets does not activate the missing runtime coordinator.
+# The guarded selection above also installs the corresponding trusted services.
 -include device/aegis/qemu_arm64/aegis-runtime-base.mk
