@@ -3,6 +3,14 @@
 # android.hardware.bluetooth unavailable instead of starting a crashing HAL.
 BOARD_HAVE_BLUETOOTH := false
 
+# Cuttlefish's default audio policy unconditionally includes the Bluetooth
+# policy omitted by that switch. Select a matching policy before inheritance,
+# retaining its primary module and effect configuration through the upstream hook.
+LOCAL_AUDIO_PRODUCT_COPY_FILES := \
+    device/aegis/qemu_arm64/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml \
+    device/google/cuttlefish/shared/config/audio/policy/primary_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/primary_audio_policy_configuration.xml \
+    hardware/interfaces/audio/aidl/default/audio_effects_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_effects_config.xml
+
 # Keep upstream partitions and security policy while adapting virtual hardware.
 $(call inherit-product, device/google/cuttlefish/vsoc_arm64_only/phone/aosp_cf.mk)
 

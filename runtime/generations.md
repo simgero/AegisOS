@@ -1,7 +1,8 @@
 # Gemeinsame Softwaregeneration
 
 Stand: 28. September 2026. **Echtes Basis-Image auf `aegis-build` erfolgreich
-erzeugt und geprüft, noch nicht installiert oder in QEMU eingebunden.**
+erzeugt, geprüft und im ausgelieferten Android-Image nachgewiesen; noch nicht
+in QEMU eingebunden.**
 `ro.aegis.runtime.mode=absent` bleibt unverändert.
 
 Lauf `runtime-base-20260928T145204Z-87ab3f54-WclcLl`, Commit
@@ -123,7 +124,8 @@ den wiederholten Build. Es bedeutet weder Upload noch Start, Anmeldung,
 Schreibschutz im Gast oder nachgewiesene Benutzerisolation. Ein einfacher
 Dateihash ist keine zusätzliche Signatur oder eigenständige Vertrauensbasis.
 Die folgende Auswahl bindet Basisdateien in einen ausdrücklich gewählten
-AOSP-Build ein. Ein solcher Build wurde noch nicht ausgeführt. Die autorisierte
+AOSP-Build ein. Der Vollbuild `aosp-20260928T181511Z-336e9275-4af8ec7d` hat diese Auswahl
+erfolgreich verwendet. Die autorisierte
 Mount-Anbindung und Aktivierung fehlen weiterhin; ein existierendes QEMU-Profil
 wird nicht verändert.
 
@@ -163,10 +165,12 @@ Der Release enthält zusätzlich `runtime-base-inputs.json`,
 hochgeladen, erneut heruntergeladen und byteweise verglichen. Fehlende oder
 beim Rücklesen veränderte Nachweise verhindern `UPLOAD_VERIFIED`.
 
-**Das ist bislang Quelltextintegration mit Hosttests.** Der folgende zusätzliche
-Prüfschritt für das fertige Super-Image ist ebenfalls vorbereitet, aber noch
-nicht im echten AOSP-Build gelaufen. Die erste Image-Erzeugung und die Sicht
-im gebooteten QEMU stehen aus. Das Installieren der Basisdateien startet keine
+**Der echte Image-Nachweis besteht:** Der vollständige Android-Build aus
+`336e9275` bestätigte um 18:27:09 UTC exakt diese Basisdateien in
+`system_ext_a` innerhalb von `super.img` (`PACKAGED_BASE_BYTES_VERIFIED_NOT_BOOTED`).
+Der Release `aosp-20260928T181511Z-336e9275-4af8ec7d` wurde um 18:40:13 UTC
+mit 20 byteweise zurückgeprüften Assets veröffentlicht. Die Sicht im
+gebooteten QEMU und Runtime-Ausführung stehen weiterhin aus. Das Installieren der Basisdateien startet keine
 Runtime: `ro.aegis.runtime.mode=absent` bleibt gesetzt, bis Broker, Namespaces,
 CE-Mounts und AOSP-Lebenszyklus integriert sind.
 
@@ -230,8 +234,8 @@ Werkzeuggrenze ist dabei simuliert. Drei Linux-Tests lesen zusätzlich kleine,
 komprimierte EROFS-Dateisysteme mit ausschließlich Text über das installierte
 Distributionswerkzeug; dafür wird kein neuer nativer Code kompiliert. Zwei
 Worker-Tests verhindern Erfolg bei fehlendem oder beschädigt zurückgelesenem
-Image-Bericht. Dies ersetzt noch keinen Lauf mit den AOSP-Werkzeugen und dem
-neuen echten Systemimage.
+Image-Bericht. Der tatsächliche Lauf mit den AOSP-Werkzeugen und dem neuen echten
+Systemimage ist oben separat dokumentiert; die Fixtures ersetzen ihn nicht.
 
 Das echte AOSP-Dateisystemrezept und dessen wiederholter Build sind weiterhin
 unausgeführt. Erst nach Server-Build und GitHub-Transport müssen im lokalen

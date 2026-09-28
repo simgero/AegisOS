@@ -1,7 +1,25 @@
 # Hardware des lokalen QEMU-Produkts
 
-Stand 28. September 2026: Produktänderung vorbereitet, noch nicht gebaut oder
-im Gast bestätigt. Der laufende ältere Gast enthält diese Änderung nicht.
+Stand 28. September 2026: Produktänderung in Vollbuild `336e9275` erfolgreich
+gebaut und über GitHub verifiziert. Der lokale Erststart hängt jedoch an einer
+inkonsistenten Audio-Konfiguration. Der zur Ansicht geöffnete ältere Gast
+enthält diese Änderung nicht.
+
+## Gefundener Startfehler und Korrektur
+
+Im neuen Gast fehlt `/vendor/etc/bluetooth_with_le_audio_policy_configuration_7_0.xml`
+wegen `BOARD_HAVE_BLUETOOTH=false`; Cuttlefishs übernommene
+`audio_policy_configuration.xml` enthält weiterhin ein XInclude auf diese Datei.
+Der AIDL-Audio-HAL registriert `IConfig/default`, aber kein `IModule/default`.
+SystemServer bleibt in `StartAudioService`; `sys.boot_completed` bleibt leer.
+Kernel und authentifiziertes ADB funktionieren mit SELinux Enforcing. Logs:
+`out/full-build-336e9275/boot-1`, Hashes in dessen `../progress.json`.
+
+Die Korrektur nutzt `LOCAL_AUDIO_PRODUCT_COPY_FILES` vor der Produktvererbung.
+Die eigene Audiopolicy lässt ausschließlich den Bluetooth-Include weg; primäre
+Audio-/Submix-Konfiguration, Effekte und Lautstärketabellen bleiben erhalten.
+Ein Neubau mit anschließendem QEMU-Boot muss die Korrektur noch bestätigen.
+Der Fehler wird nicht durch Abschalten von Audioserver, SELinux oder AVB umgangen.
 
 Der Launcher `scripts/qemu-with-secure-env.py` verbindet die kryptografischen
 Kanäle hvc3/4/10/11 mit dem lokalen `secure_env`-Helper. Für die anderen
@@ -42,7 +60,7 @@ OEMLock, verschlüsselte Benutzerdaten und Secure Element werden nicht veränder
 
 Der Android-Test `ProductConfigurationTest.unsupportedRadiosAreNotAdvertised`
 prüft die tatsächliche PackageManager-Featureliste einschließlich geerbter
-Unterfunktionen. Er ist vorbereitet, noch nicht kompiliert oder ausgeführt.
+Unterfunktionen. Er ist kompiliert, aber noch nicht im neuen Gast ausgeführt.
 Danach sind in der lokalen QEMU-VM zusätzlich die Abwesenheit der Framework-Dienste
 NFC/UWB/Thread, neue Crashmeldungen sowie die Stabilität der verbleibenden HALs
 über ein Beobachtungsintervall zu prüfen. Ein erfolgreicher XML-Check oder eine

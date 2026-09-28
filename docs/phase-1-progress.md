@@ -39,11 +39,24 @@ Noch keine Gast-Einbindung oder Ausführung.
 **Android-Folgebuild:** Ein Bootstrap mit `878fc970` und dem korrigierten
 Kernel scheiterte beim GitHub-Abruf seiner unveränderlichen Quellen, bevor ein
 Build-Dienst gestartet wurde. Der erneute Abruf mit `336e9275` gelang.
-Vollbuild `aosp-20260928T181511Z-336e9275-4af8ec7d` läuft seit 18:15:11 UTC,
-InvocationID `99c0ee3011674ca9819b4d5adc8cb093`, mit genau den oben genannten
-Kernel- und Runtime-Basisläufen.
-Paketierung, Prüfung der tatsächlich ausgelieferten Partitionen, GitHub-Upload
-und Boot des neuen Images sind weiterhin offen.
+Vollbuild `aosp-20260928T181511Z-336e9275-4af8ec7d`, InvocationID
+`99c0ee3011674ca9819b4d5adc8cb093`, bestand um 18:26:27 UTC einschließlich
+VINTF. Die tatsächliche Basis innerhalb von `super.img` wurde um 18:27:09 UTC
+bytegenau bestätigt. Um 18:40:13 UTC meldete der Lauf `UPLOAD_VERIFIED`:
+alle 20 Assets wurden erneut heruntergeladen und verglichen. Der
+[veröffentlichte Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260928T181511Z-336e9275-4af8ec7d)
+bindet genau die oben genannten Kernel- und Basisläufe. Die abgeschlossene
+Buildüberwachung wurde beendet. Der lokale Erststart am 28. September um
+18:51 UTC erreichte Kernel, KeyMint, SELinux Enforcing und authentifiziertes ADB,
+aber keinen Android-Bootabschluss: Die geerbte Audiokonfiguration referenziert
+eine durch `BOARD_HAVE_BLUETOOTH=false` entfernte Datei. Der Audio-HAL meldet
+eine ungültige XML-Konfiguration; `IModule/default` fehlt und SystemServer wartet
+in `StartAudioService`. Android und sein gepaarter Helper wurden sauber beendet.
+Die lokale Korrektur wählt vor der Produktvererbung eine passende Audiopolicy
+mit unveränderten primären/submix-Modulen und Lautstärketabellen. Neubau und
+erneuter Gasttest dieser Korrektur stehen aus. Der bisher bootfähige Stand wurde
+für die gewünschte sichtbare Ansicht wieder geöffnet; er ist kein Nachweis für
+den neuen Vollbuild.
 
 Der private AOSP-/Broker-Kanal, Ressourcenbesitz, begrenzte Cgroup-Wiederherstellung
 und readonly-Basisvorbereitung sind kompiliert. Frühere Soong-Probleme mit
@@ -63,7 +76,7 @@ vollständige Zwei-Benutzer-Ablauf bleiben umzusetzen.
 | Gerätedienste | Bluetooth-Abstürze und NFC-Controller-Timeouts im bisherigen Image dokumentiert; zuletzt keine laufende Absturzschleife aller HALs belegt. Bluetooth-Schalter sowie fehlende NFC-/UWB-/Thread-Funktionen im nächsten Produktstand konfiguriert. Im neuen Vollbuild ausgewählt; Framework-Start, verbliebene native HALs und weitere geerbte Geräte im neuen Gast prüfen. Siehe `qemu-hardware.md`. |
 | AEGIS-Identität/CLI | AOSP-Adapter, Binder-Dienst, CLI, Ressourcen/Policy, Kennungsregister, betroffene Framework-Dienste und 52 Android-Tests erfolgreich kompiliert. 48 isolierte Java-Gerätetests bestehen; Produktintegration und reale Anmeldung über AEGIS im neuen Image stehen aus. Runtime-Koordination fehlt. Siehe `component-tests.md` und `identity-cli.md`. |
 | AOSP-Passwortgrundlage | Ein persönlicher Testbenutzer: falsches Passwort abgewiesen, CE-Sperre nach Benutzerstopp bestätigt, richtiges Passwort stellt Dateizugriff wieder her. Nach Passwortwechsel wird das alte Passwort abgewiesen; das neue erhält dieselben Daten. Anschließend Plattformlöschung und Abwesenheit von acht Schlüssel-/Datenpfaden bestätigt. Tests über AOSP-Dialoge und Plattformbefehle, noch nicht über AEGIS; siehe `identity-platform-test.md`. |
-| GNU/Linux-Runtime | Gepinnte Debian-13.7-ARM64-Basis mit 78 Paketen zu einem 256-MiB-ext4-Image gebaut; Bytegleichheit zweier Builds und sämtliche Inhalte/Eigentümer geprüft. Noch keine Gast-Einbindung oder Ausführung. Native Module einschließlich 86 Tests kompiliert; zuletzt 22 von 23 ausgewählten nativen Tests bestanden, die fünf Parser-Tests bestehen nach der Korrektur. Laufende Maps, Laufzeitverwaltung, AOSP-Autorisierung, Mounts und SELinux-Integration fehlen. Neuer kompatibler Kernel gebaut und geprüft; Vollbuild `336e9275` läuft. Siehe `component-tests.md`, `../runtime/generations.md` und `../runtime/uid-mapping.md`. |
+| GNU/Linux-Runtime | Gepinnte Debian-13.7-ARM64-Basis mit 78 Paketen zu einem 256-MiB-ext4-Image gebaut; Bytegleichheit zweier Builds und sämtliche Inhalte/Eigentümer geprüft. Noch keine Gast-Einbindung oder Ausführung. Native Module einschließlich 86 Tests kompiliert; zuletzt 22 von 23 ausgewählten nativen Tests bestanden, die fünf Parser-Tests bestehen nach der Korrektur. Laufende Maps, Laufzeitverwaltung, AOSP-Autorisierung, Mounts und SELinux-Integration fehlen. Neuer kompatibler Kernel gebaut und geprüft; Vollbuild `336e9275` und GitHub-Transport bestanden; neuer Gasttest folgt. Siehe `component-tests.md`, `../runtime/generations.md` und `../runtime/uid-mapping.md`. |
 | Pakete und Isolation | Noch zu implementieren und mit zwei AOSP-Benutzern praktisch zu prüfen. |
 | Vollständiger Ablauf | Noch kein Nachweis für Login, Wechsel, Logout mit CE-Sperrung und Neustart mit zwei passwortgeschützten Benutzern. |
 

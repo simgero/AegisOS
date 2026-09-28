@@ -1,7 +1,7 @@
 # Kernel für die gemeinsame GNU/Linux-Runtime
 
 Stand 28. September 2026: **Korrigierter Kernel und passende Treiber gebaut;
-vollständige Eingabeprüfung bestanden, noch nicht gebootet.** Der erste Build
+vollständige Eingabeprüfung bestanden, lokaler Android-Boot noch unvollständig.** Der erste Build
 wurde von Androids Kompatibilitätsprüfung abgewiesen. Kein neuer Kernel ist in QEMU
 abgenommen. Der Android-Lauf `aosp-20260928T155300Z-96f9ed6b-c975dba9`
 brach um 16:57 UTC bei `check_vintf_all` ab: FCM 202504 verlangt ausdrücklich
@@ -26,8 +26,15 @@ bytegleiche Kernel-Kopien. Die eingebettete Konfiguration enthält insbesondere
 `CONFIG_SYSVIPC=n`, `IPC_NS=y` und `POSIX_MQUEUE=y`.
 Bundle: `84a41f6a0a47edc2ebefeb83a6bcc56ddff64d9d2eeed37fea0f4dd58b40948e`.
 Kernel-SHA-256: `148d623ac45b177a1728d97d8178e784a2e746500b1416f6831ee688d355ad6a`.
-Prüfstatus `CHECKED_INPUTS_NOT_BOOTED`; neue signierte Android-Images,
-VINTF-Prüfung, Upload und Gaststart stehen aus.
+Prüfstatus `CHECKED_INPUTS_NOT_BOOTED`. Vollbuild
+`aosp-20260928T181511Z-336e9275-4af8ec7d` bestand einschließlich VINTF am
+28. September um 18:26:27 UTC; tatsächliche Kernelbytes in `kernel` und
+`boot.img` wurden verglichen. Der zugehörige GitHub-Release meldet seit
+18:40:13 UTC `UPLOAD_VERIFIED`. Beim lokalen Erststart um 18:51 UTC liefen
+dieser Kernel, Grafik, KeyMint und authentifiziertes ADB mit SELinux Enforcing.
+Androids vollständiger Boot blieb an einer fehlenden Bluetooth-Audio-XML-Datei
+hängen; siehe `docs/qemu-hardware.md`. Vollständiger Boot und die gezielten
+Kernel-/Namespace-Tests bleiben offen.
 14 Hosttests zur Kernelübernahme sowie zehn Tests zur lokalen Imagevorbereitung
 bestehen, einschließlich aktivierter beziehungsweise fehlender SYSVIPC-Konfiguration.
 
