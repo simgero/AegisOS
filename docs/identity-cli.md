@@ -1,7 +1,7 @@
 # Erste AEGIS-Terminalintegration
 
-Stand 28. September 2026: **Quelltext und Produktintegration vorbereitet, nicht
-kompiliert und nicht im Gast installiert.** Die bestehenden Android-Dialogtests aus
+Stand 28. September 2026: **Quelltext und Produktintegration vorbereitet und
+auf dem Builder vollständig kompiliert; noch nicht im neuen Gast installiert.** Die bestehenden Android-Dialogtests aus
 [`identity-platform-test.md`](identity-platform-test.md) testen diesen Code nicht.
 
 ## Vorbereitete Komponenten
@@ -20,8 +20,9 @@ kompiliert und nicht im Gast installiert.** Die bestehenden Android-Dialogtests 
   Ersteinrichtung mit einer simulierten Plattform und acht Tests der
   [vorgeschalteten Speicher-Schnittstelle](../runtime/aosp-storage-lifecycle.md)
   sowie zwölf Tests der [Zugangsserialisierung](../runtime/admission.md);
-  insgesamt 44 vorbereitete Android-Tests. Die Zuordnung startet keinen Linux-Kontext.
-  Noch nicht kompiliert oder ausgeführt.
+  einschließlich der Brokerprotokoll-Tests insgesamt 52 kompilierte Android-Tests. Die Zuordnung startet keinen Linux-Kontext.
+  48 isolierte Java-Gerätetests bestehen; vier Produktkonfigurationstests
+  benötigen das neue Image.
 
 Die erste CLI unterstützt im Quelltext `setup`, `user list`, `user add`,
 `user remove`, `login`, `switch`, `passwd`, `status` und den bestätigten
@@ -90,8 +91,8 @@ oder Adminrolle. Der direkte Provider-Aufruf unterscheidet einen fehlenden
 Eintrag von einer fehlgeschlagenen Abfrage; Schreibvorgänge werden zurückgelesen.
 `reserved`, `created:ID:SERIAL` und `complete:ID:SERIAL` erlauben keine automatische
 Wiederholung einer begonnenen Ersteinrichtung. Der neue Quelltextpfad
-`setup --resume NAME` setzt sie ausdrücklich fort; auch er ist noch nicht
-kompiliert oder in QEMU getestet. Ein Stromausfalltest der AOSP-Persistenz steht aus.
+`setup --resume NAME` setzt sie ausdrücklich fort; auch er ist kompiliert, aber noch nicht als
+echter Kontoablauf in QEMU getestet. Ein Stromausfalltest der AOSP-Persistenz steht aus.
 
 Bei `reserved` ist eine Kontoanlage nur zulässig, wenn weiterhin überhaupt kein
 persönlicher Vollbenutzer existiert. Bei `created:ID:SERIAL` muss der angegebene

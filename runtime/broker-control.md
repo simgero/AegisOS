@@ -1,17 +1,22 @@
 # Privater AOSP-Kanal und Besitzer der Runtime-Kontexte
 
-Stand 28. September 2026: **Native ARM64-Objekte und Java-Klassen auf dem Builder
-kompiliert; noch nicht vollständig gelinkt, als Produkt gebaut oder im Gast ausgeführt.**
-`broker_protocol.c`, `broker_owner.c` und `context.c` wurden aus `b0b3de6e`
-mit den gepinnten Bionic-Headern und `-Wall -Wextra -Werror` übersetzt.
-Die drei Java-Klassen einschließlich des privaten Kanals wurden aus
-`ac699aab` gegen die tatsächlichen AOSP-Systemmodule und `framework.jar`
-übersetzt (zehn Klassendateien). Der erste Java-Versuch fand zwei in
-`OsConstants` nicht exportierte Socket-Flags; der korrigierte Code verwendet
-den bereits nichtblockierenden Deskriptor und Bionics festes `MSG_NOSIGNAL`.
-Diese Einzelprüfungen ersetzen weder Soong/DEX noch Geräteprüfungen.
+Stand 28. September 2026: **Vollständiger Komponentenbuild auf dem Builder
+erfolgreich; Dienst noch nicht im Produkt aktiviert oder im Gast ausgeführt.**
+Commit `878fc970ace1a19a7a6f637e8e7df3763536b649`, Lauf
+`identity-20260928T174855Z-878fc970-sllLJ3`, beendet um 17:56:40 UTC mit
+`IDENTITY_COMPILED_NOT_INSTALLED`. Broker und natives Testprogramm sind gelinkt;
+Java-Dienst, DEX und Test-APK sind ebenfalls erfolgreich gebaut.
+
+Die früheren Einzelprüfungen hatten nur ARM64-Objekte beziehungsweise Java
+gegen vollständige Core-Systemmodule geprüft. Erst Soong zeigte die fehlende
+statische Android-`libcrypto`-Variante, direkte Link-Abhängigkeiten und die
+nicht verfügbare stabile `StructUcred`-API. Der korrigierte Stand nutzt die
+reguläre dynamische `libcrypto`, explizite JsonCpp-/libbase-Abhängigkeiten und
+`LocalSocket.getPeerCredentials()`. Letzteres liest im gepinnten Framework
+weiterhin `SO_PEERCRED`. UID/GID- und SELinux-Prüfungen bleiben erhalten.
+Namespace-Helfer bleiben statisch, das Testprogramm ist dynamisch gelinkt.
 Der Vollbuild `96f9ed6b` endete an einer Kernel-/VINTF-Unvereinbarkeit;
-der korrigierte Kernel läuft separat. Dieser alte Vollbuild enthält
+der korrigierte Kernel ist gebaut und geprüft, aber noch nicht gebootet. Dieser alte Vollbuild enthält
 diese späteren Änderungen nicht. Es gibt noch keinen installierten Broker-Daemon,
 keinen aktiven Socket und keine Registrierung im Identitätsdienst.
 `ro.aegis.runtime.mode=absent` bleibt bestehen.
@@ -119,7 +124,7 @@ keine erfolgreiche Bestätigung für einen CE-Schlüsselentzug.
 
 ## Noch erforderliche Integration
 
-Es fehlen noch vollständiger Soong-/Linknachweis und Gastprüfungen des neuen
+Es fehlen noch Gastprüfungen des neuen
 Diensts, SELinux-/init-Anbindung, Registrierung der Speicherkoordination,
 private Terminalübergabe, Paketbesitz/-abbruch und echte Zwei-Benutzer-Tests.
 Insbesondere muss init dem Socket den richtigen Sicherheitskontext geben;
@@ -128,6 +133,8 @@ ein Dateisystemlabel allein beweist nicht den mit `SO_PEERSEC` geprüften Peer.
 Vorbereitet sind neun native Protokolltests einschließlich Zusatzdaten-/FD-
 Leckprüfungen, fünf Wiederherstellungstests sowie die bisherigen Java-,
 Kontext-, Basisparser- und Ressourcenverwaltungstests. Insgesamt enthält der
-Quellstand **52 Java- und 86 native Tests**. Die neuen Tests sind **noch nicht ausgeführt**. Die
-bisher tatsächlich kompilierten und ausgeführten Stände bleiben in
+Quellstand **52 Java- und 86 native kompilierte Tests**. Im lokalen QEMU bestehen 48 Java- und 22 von 23 ausgewählten nativen Tests,
+darunter alle neuen Protokoll-/Besitz-/Wiederherstellungstests. Der fehlgeschlagene
+Basisparser-Test wird mit `336e9275` korrigiert; alle fünf Parser-Tests bestehen im lokalen Nachtest.
+Die tatsächlich kompilierten und ausgeführten Stände bleiben in
 [`docs/component-tests.md`](../docs/component-tests.md) getrennt dokumentiert.

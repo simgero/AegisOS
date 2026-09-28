@@ -51,8 +51,9 @@ sudo bash export-components.sh --token-stdin EXPORT_COMMIT BUILD_COMMIT RUN_ID
 ```
 
 Der GitHub-Token kommt nur über Standardeingabe aus `gh auth token`; er gehört
-nicht in Argumente, Dateien oder Chatnachrichten. Vor der Pipeline muss die
-interaktive sudo-Anmeldung im Benutzerterminal abgeschlossen sein. Das
+nicht in Argumente, Dateien oder Chatnachrichten. Auf dem aktuellen Builder
+ist `sudo -n` ohne Passworteingabe nutzbar. Falls diese Voraussetzung künftig
+fehlt, muss die sudo-Anmeldung direkt im Benutzerterminal erfolgen. Das
 Startkommando mit konkreten, über GitHub bezogenen Skriptversionen wird erst
 für einen tatsächlich erfolgreichen Lauf vorbereitet.
 

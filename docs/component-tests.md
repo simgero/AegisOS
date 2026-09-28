@@ -116,3 +116,38 @@ Lokale Nachweise: `out/component-tests-481f738/{native-memory.log,guest.txt,clea
 SHA-256 des nativen Rohprotokolls:
 `e657c2d6ecd9ce0fa79d1d893bef3ab63eb7d39d02303075a45cd77ebb8551b6`.
 Das Ergebnis-JSON enthält auch die Hashes der Gast- und Bereinigungsprotokolle.
+
+## Dritter Lauf: Brokerprotokoll, Wiederherstellung und Basisparser
+
+Commit `878fc970ace1a19a7a6f637e8e7df3763536b649` wurde im Lauf
+`identity-20260928T174855Z-878fc970-sllLJ3` vollständig gebaut und über den
+[geprüften Komponenten-Release](https://github.com/simgero/AegisOS/releases/tag/components-20260928T175708Z-878fc970-878fc970-sYlkeV)
+bezogen. Im lokalen QEMU bestehen **48 von 48 ausgewählten Java-Tests**
+(vier Produktkonfigurationstests nicht ausgewählt). Die Auswahl enthält jetzt
+auch `RuntimeBrokerProtocolTest`. Von **23 ausgewählten nativen Tests bestehen
+22; einer schlägt fehl**. 63 weitere native Tests wurden nicht ausgewählt.
+
+Bestanden haben neun Protokolltests, drei Besitztests, fünf echte Cgroup-
+Wiederherstellungstests, ein Fristtest und vier der fünf Basisparser-Tests.
+`RuntimeBaseImage.DuplicateUnknownAndTrailingDataCannotAuthorizeMount` nahm
+eine unzulässige Variante an. Die gepinnte JsonCpp-Version überspringt an
+bestimmten Objektpositionen Kommentare trotz `allowComments=false`. Commit
+`336e9275` weist daher Schrägstriche außerhalb von JSON-Zeichenketten bereits
+in der begrenzten lexikalischen Vorprüfung ab. Er ergänzt mehrere Kommentar-
+positionen und einen zulässigen String mit URL/Kommentarsyntax als Regression.
+Der korrigierte Komponentenlauf
+`identity-20260928T181002Z-336e9275-y2tzSs` endete um 18:10:51 UTC erfolgreich;
+im gesonderten Gast-Nachtest bestehen **alle fünf Parser-Tests**. Der
+[neue Komponenten-Release](https://github.com/simgero/AegisOS/releases/tag/components-20260928T181151Z-336e9275-336e9275-V8Iq0V)
+ist geprüft. 81 weitere native Tests und unveränderte Java-Tests wurden in diesem
+gezielten Nachtest nicht wiederholt. Nachweis: `out/component-tests-336e9275/`,
+einschließlich `native-base.log`, `guest.txt` und Hash-/Ergebnisdatei `result.json`.
+
+Nachweise des fehlgeschlagenen Ausgangslaufs liegen unverändert in
+`out/component-tests-878fc970/{guest.txt,native.log,java.log,cleanup.txt,result.json}`.
+Die eigenen Cgroups wurden entfernt. Nach dem gezielten Parser-Nachtest
+wurden Android und KeyMint-Helfer geordnet beendet: `/data` und `/metadata`
+ausgehängt, Android Power-down und bestätigter sauberer Helper-Abschluss. Authentifiziertes ADB und SELinux Enforcing
+sind bestätigt. Root-Komponententests belegen weiterhin weder Produktions-
+SELinux-Regeln noch den aktivierten Broker, echte Basismounts oder persönliche
+GNU/Linux-Sitzungen. Der neue Kernel ist noch nicht in diesem Gast gestartet.

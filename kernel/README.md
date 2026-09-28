@@ -1,7 +1,8 @@
 # Kernel für die gemeinsame GNU/Linux-Runtime
 
-Stand 28. September 2026: **Erster Kernel- und Treiber-Build beendet, anschließend
-von Androids Kompatibilitätsprüfung abgewiesen.** Kein neuer Kernel ist in QEMU
+Stand 28. September 2026: **Korrigierter Kernel und passende Treiber gebaut;
+vollständige Eingabeprüfung bestanden, noch nicht gebootet.** Der erste Build
+wurde von Androids Kompatibilitätsprüfung abgewiesen. Kein neuer Kernel ist in QEMU
 abgenommen. Der Android-Lauf `aosp-20260928T155300Z-96f9ed6b-c975dba9`
 brach um 16:57 UTC bei `check_vintf_all` ab: FCM 202504 verlangt ausdrücklich
 `CONFIG_SYSVIPC=n`; der erste Kernel enthielt `y`.
@@ -14,11 +15,19 @@ SYSVIPC jetzt schon vor einem Image-Build beziehungsweise Boot ab.
 VINTF-, SELinux- und Bootprüfungen werden nicht abgeschaltet oder abgeschwächt.
 Programme, die zwingend System-V-IPC benötigen, gehören damit nicht zum
 unterstützten Runtime-Umfang; eine Emulation ist nicht implementiert.
-Kernel und passende Treiber werden mit diesem Fragment erneut gebaut:
+Kernel und passende Treiber wurden mit diesem Fragment erneut gebaut:
 Commit `64e66d772f22465682dd2c41fdb486774cc15a31`, Start 17:06:24 UTC,
 Dienst `aegis-kernel.service`, InvocationID `f2437d0948874ea88de7fe2288bc9a74`,
-Lauf `kernel-20260928T170624Z-64e66d77-qW9h9L`. Der Start und der Eintritt in
-Kleafs Kernelkonfiguration sind bestätigt; Abschluss und neue Images stehen aus.
+Lauf `kernel-20260928T170624Z-64e66d77-qW9h9L`. Abschluss um **17:29:42 UTC**:
+beide Kleaf-Befehle und die erneute Prüfung aller 40 Quellprojekte erfolgreich,
+Status `BUILT_UNVERIFIED`. Die anschließende vollständige Eingabeprüfung
+bestätigt 162 Dateien, 105 GKI- und 51 Vendor-Module, gemeinsames Vermagic und
+bytegleiche Kernel-Kopien. Die eingebettete Konfiguration enthält insbesondere
+`CONFIG_SYSVIPC=n`, `IPC_NS=y` und `POSIX_MQUEUE=y`.
+Bundle: `84a41f6a0a47edc2ebefeb83a6bcc56ddff64d9d2eeed37fea0f4dd58b40948e`.
+Kernel-SHA-256: `148d623ac45b177a1728d97d8178e784a2e746500b1416f6831ee688d355ad6a`.
+Prüfstatus `CHECKED_INPUTS_NOT_BOOTED`; neue signierte Android-Images,
+VINTF-Prüfung, Upload und Gaststart stehen aus.
 14 Hosttests zur Kernelübernahme sowie zehn Tests zur lokalen Imagevorbereitung
 bestehen, einschließlich aktivierter beziehungsweise fehlender SYSVIPC-Konfiguration.
 

@@ -1,13 +1,14 @@
 # Gemeinsame Basis aus dem Systemimage
 
 `base_image.cpp` ergänzt die native Vorbereitung für den künftigen Broker.
-**Als ARM64-Objekt kompiliert, noch nicht gelinkt, im Produkt installiert oder
-im Gast ausgeführt.** Commit `64e66d77` wurde mit den gepinnten AOSP-/Bionic-,
-libc++-, JsonCpp- und BoringSSL-Headern sowie `-Wall -Wextra -Werror` übersetzt.
-Auch `base_image_tests.cpp`, `broker_protocol_tests.cpp` und
-`memory_group_tests.cpp` bestehen diese Objektprüfung. Der Nachweis liegt auf
-dem Builder in `/srv/aegis/work/base-arm64-check-64e66d7-NSQQYK/result.json`;
-Status `ARM64_OBJECTS_COMPILED_NOT_LINKED_NOT_EXECUTED`.
+**Mit Soong kompiliert und in Broker sowie Testprogramm gelinkt; noch nicht
+im Produkt aktiviert. Parser im Gast geprüft, Basismount noch nicht ausgeführt.** Commit `878fc970` wurde im
+Lauf `identity-20260928T174855Z-878fc970-sllLJ3` erfolgreich gebaut.
+Der frühere Einzelobjekt-Nachweis aus `64e66d77` bleibt auf dem Builder in
+`/srv/aegis/work/base-arm64-check-64e66d7-NSQQYK/result.json` erhalten.
+Der vollständige Build nutzt AOSPs reguläre dynamische BoringSSL-`libcrypto`;
+deren Schutzregeln wurden nicht verändert. Die statischen Namespace-Helfer
+verwenden diese Bibliothek nicht.
 Es gibt keine
 CLI-Mountfunktion und keinen vom Benutzer wählbaren Pfad.
 
@@ -43,7 +44,10 @@ endet die autoclear-Loop-Zuordnung. Der Code führt kein pfadbasiertes Unmount
 und kein pauschales Löschen alter Ressourcen aus. Jede Fehlerstelle schließt
 ihre eigenen Deskriptoren; bestehende fremde Loop-Geräte bleiben erhalten.
 
-Fünf Gerätetests für das Receipt-Parsing sind vorbereitet. Ausführung erfolgt
-ausschließlich im lokalen Android-QEMU. Positive Mountprüfung, tatsächliche
+Fünf Gerätetests für das Receipt-Parsing sind kompiliert. Im lokalen Android-
+QEMU bestanden zunächst vier; der fünfte zeigte von JsonCpp trotz Konfiguration
+akzeptierte Kommentare. `336e9275` korrigiert dies durch die lexikalische
+Vorprüfung und erweitert die Regression. Der neue Komponentenbau besteht;
+alle fünf Parser-Tests bestehen im gezielten lokalen Gast-Nachtest. Positive Mountprüfung, tatsächliche
 SELinux-Regeln, Verhalten nach Prozessabbruch, Ressourcenrückgewinnung,
 Broker-Start und Zwei-Benutzer-Isolation stehen weiterhin aus.
