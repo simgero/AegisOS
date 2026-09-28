@@ -3,6 +3,7 @@
 #include "memory_group.h"
 #include "context.h"
 #include "broker_owner.h"
+#include "broker_cgroup.h"
 #include "namespace.h"
 #include "namespace_probe.h"
 
@@ -17,6 +18,7 @@
 #include <signal.h>
 #include <string.h>
 #include <string>
+#include <vector>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -159,6 +161,163 @@ class RuntimeMemoryGroup : public ::testing::Test {
 
 class RuntimeContext : public RuntimeMemoryGroup {};
 class RuntimeBrokerOwner : public RuntimeMemoryGroup {};
+
+class RuntimeBrokerCgroup : public RuntimeMemoryGroup {
+ protected:
+    int aggregate = -1;
+    std::vector<std::string> children;
+
+    void prepare() {
+        aggregate = aegis_broker_cgroup_prepare(parent, 5000);
+        ASSERT_GE(aggregate, 0) << strerror(errno);
+    }
+
+    int child(const char* relative) {
+        if (mkdirat(aggregate, relative, 0700) < 0) return -1;
+        children.emplace_back(relative);
+        int fd = openat(aggregate, relative, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+        if (fd >= 0 && fchmod(fd, 0700) < 0) { close(fd); return -1; }
+        return fd;
+    }
+
+    void TearDown() override {
+        // Only this fixture's private hierarchy, never the Android root.
+        if (aggregate < 0 && parent >= 0)
+            aggregate = openat(parent, AEGIS_BROKER_CGROUP,
+                               O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+        if (aggregate >= 0) {
+            EXPECT_EQ(0, put(aggregate, "cgroup.kill", "1\n"));
+            if (pidfds[0] >= 0) {
+                pollfd exited = {pidfds[0], POLLIN, 0};
+                EXPECT_GT(poll(&exited, 1, 5000), 0);
+                // Base TearDown separately reaps our child through its pidfd.
+            }
+            for (auto it = children.rbegin(); it != children.rend(); ++it) {
+                int result = unlinkat(aggregate, it->c_str(), AT_REMOVEDIR);
+                if (result < 0 && errno != ENOENT)
+                    ADD_FAILURE() << "Fixture group cleanup: " << *it << ": " << strerror(errno);
+            }
+            close(aggregate);
+            EXPECT_EQ(0, unlinkat(parent, AEGIS_BROKER_CGROUP, AT_REMOVEDIR));
+        }
+        RuntimeMemoryGroup::TearDown();
+    }
+};
+
+TEST_F(RuntimeBrokerCgroup, AggregateLimitsAndRepeatedStartupDoNotMoveTheBroker) {
+    std::string shared = get(root, "cgroup.subtree_control");
+    int self = open("/proc/self", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    ASSERT_GE(self, 0);
+    std::string membership = get(self, "cgroup");
+    prepare();
+    if (HasFatalFailure()) { close(self); return; }
+    EXPECT_EQ("2147483648\n", get(aggregate, "memory.max"));
+    EXPECT_EQ("1610612736\n", get(aggregate, "memory.high"));
+    EXPECT_EQ("0\n", get(aggregate, "memory.swap.max"));
+    EXPECT_EQ("0\n", get(aggregate, "memory.oom.group"));
+    EXPECT_EQ("1\n", get(aggregate, "cgroup.max.depth"));
+    EXPECT_EQ("16\n", get(aggregate, "cgroup.max.descendants"));
+    EXPECT_EQ("memory\n", get(aggregate, "cgroup.subtree_control"));
+    EXPECT_EQ("", get(aggregate, "cgroup.procs"));
+    int again = aegis_broker_cgroup_prepare(parent, 0);
+    EXPECT_GE(again, 0) << strerror(errno);
+    if (again >= 0) close(again);
+    EXPECT_EQ(shared, get(root, "cgroup.subtree_control"));
+    EXPECT_EQ(membership, get(self, "cgroup"));
+    close(self);
+}
+
+TEST_F(RuntimeBrokerCgroup, StaleMembersAreKilledAndRemovedWithoutTouchingAnotherGroup) {
+    prepare(); ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0, make(1, 11)); ASSERT_EQ(0, spawn(1, 11));
+    int stale = child("u10-s1234");
+    ASSERT_GE(stale, 0);
+    clone_args args = {};
+    args.flags = CLONE_PIDFD | CLONE_INTO_CGROUP;
+    args.pidfd = reinterpret_cast<uintptr_t>(&pidfds[0]);
+    args.cgroup = static_cast<uint64_t>(stale); args.exit_signal = SIGCHLD;
+    pid_t pid = static_cast<pid_t>(syscall(SYS_clone3, &args, sizeof(args)));
+    if (!pid) {
+        timespec lifetime = {.tv_sec = 10, .tv_nsec = 0};
+        syscall(SYS_ppoll, nullptr, 0u, &lifetime, nullptr, sizeof(uint64_t));
+        syscall(SYS_exit_group, 91);
+        __builtin_unreachable();
+    }
+    close(stale);
+    ASSERT_GT(pid, 0);
+    ASSERT_NE(std::string::npos, get(aggregate, "cgroup.events").find("populated 1\n"));
+    int foreign = child("foreign"); ASSERT_GE(foreign, 0); close(foreign);
+    EXPECT_EQ(-1, aegis_broker_cgroup_prepare(parent, 5000)); EXPECT_EQ(EPERM, errno);
+    pollfd still_alive = {pidfds[0], POLLIN, 0};
+    EXPECT_EQ(0, poll(&still_alive, 1, 0));
+    ASSERT_EQ(0, unlinkat(aggregate, "foreign", AT_REMOVEDIR)); children.pop_back();
+    int recovered = aegis_broker_cgroup_prepare(parent, 5000);
+    ASSERT_GE(recovered, 0) << strerror(errno);
+    close(recovered);
+    struct stat st;
+    EXPECT_EQ(-1, fstatat(aggregate, "u10-s1234", &st, AT_SYMLINK_NOFOLLOW));
+    EXPECT_EQ(ENOENT, errno);
+    pollfd ready = {pidfds[0], POLLIN, 0};
+    ASSERT_EQ(1, poll(&ready, 1, 5000));
+    siginfo_t info = {};
+    ASSERT_EQ(0, waitid(P_PIDFD, static_cast<id_t>(pidfds[0]), &info, WEXITED | WNOHANG));
+    EXPECT_EQ(CLD_KILLED, info.si_code); EXPECT_EQ(SIGKILL, info.si_status);
+    close(pidfds[0]); pidfds[0] = -1;
+    pollfd other = {pidfds[1], POLLIN, 0};
+    EXPECT_EQ(0, poll(&other, 1, 0));
+}
+
+TEST_F(RuntimeBrokerCgroup, ForeignOrNonCanonicalNamesArePreservedBeforeAnyMutation) {
+    prepare(); ASSERT_FALSE(HasFatalFailure());
+    for (const char* name : {"foreign", "u9-s1", "u21473-s1", "u010-s1", "u10-s01",
+                             "u10-s2147483648", "u+10-s1", "u4294967306-s1", "u10-s"}) {
+        int foreign = child(name);
+        ASSERT_GE(foreign, 0); close(foreign);
+        // If validation fails, even the aggregate limits remain untouched.
+        ASSERT_EQ(0, put(aggregate, "memory.high", "1073741824\n"));
+        EXPECT_EQ(-1, aegis_broker_cgroup_prepare(parent, 5000)) << name;
+        EXPECT_EQ(EPERM, errno) << name;
+        EXPECT_EQ("1073741824\n", get(aggregate, "memory.high"));
+        struct stat st;
+        EXPECT_EQ(0, fstatat(aggregate, name, &st, AT_SYMLINK_NOFOLLOW));
+        ASSERT_EQ(0, unlinkat(aggregate, name, AT_REMOVEDIR));
+        children.pop_back();
+    }
+}
+
+TEST_F(RuntimeBrokerCgroup, NestedChildrenAndChangedModesAreNotAdopted) {
+    prepare(); ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0, put(aggregate, "cgroup.max.depth", "2\n"));
+    int personal = child("u10-s0"); ASSERT_GE(personal, 0);
+    EXPECT_EQ(0, fchmod(personal, 0750));
+    EXPECT_EQ(-1, aegis_broker_cgroup_prepare(parent, 5000)); EXPECT_EQ(EPERM, errno);
+    EXPECT_EQ(0, fchmod(personal, 0700)); close(personal);
+    int nested = child("u10-s0/nested"); ASSERT_GE(nested, 0); close(nested);
+    EXPECT_EQ(-1, aegis_broker_cgroup_prepare(parent, 5000)); EXPECT_EQ(EPERM, errno);
+    EXPECT_EQ("2\n", get(aggregate, "cgroup.max.depth"));
+    ASSERT_EQ(0, unlinkat(aggregate, "u10-s0/nested", AT_REMOVEDIR)); children.pop_back();
+    ASSERT_EQ(0, fchmod(aggregate, 0750));
+    EXPECT_EQ(-1, aegis_broker_cgroup_prepare(parent, 5000)); EXPECT_EQ(EPERM, errno);
+    struct stat st;
+    ASSERT_EQ(0, fstat(aggregate, &st)); EXPECT_EQ(0750u, st.st_mode & 07777u);
+    ASSERT_EQ(0, fchmod(aggregate, 0700));
+    int recovered = aegis_broker_cgroup_prepare(parent, 0);
+    EXPECT_GE(recovered, 0) << strerror(errno);
+    if (recovered >= 0) close(recovered);
+}
+
+TEST_F(RuntimeBrokerCgroup, InvalidTimeoutAndWrongFilesystemCreateNothing) {
+    for (int timeout : {-1, 10001}) {
+        EXPECT_EQ(-1, aegis_broker_cgroup_prepare(parent, timeout)); EXPECT_EQ(EINVAL, errno);
+    }
+    int wrong = open("/data/local/tmp", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    ASSERT_GE(wrong, 0);
+    EXPECT_EQ(-1, aegis_broker_cgroup_prepare(wrong, 0)); EXPECT_EQ(EPERM, errno);
+    close(wrong);
+    struct stat st;
+    EXPECT_EQ(-1, fstatat(parent, AEGIS_BROKER_CGROUP, &st, AT_SYMLINK_NOFOLLOW));
+    EXPECT_EQ(ENOENT, errno);
+}
 
 uint64_t deadline_ns() {
     timespec now = {};

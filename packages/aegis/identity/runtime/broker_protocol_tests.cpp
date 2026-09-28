@@ -2,6 +2,8 @@
 #include "broker_protocol.h"
 #include <gtest/gtest.h>
 #include <errno.h>
+#include <dirent.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -22,6 +24,14 @@ struct Pair {
     int fd[2] = {-1, -1};
     ~Pair() { for (int value : fd) if (value >= 0) close(value); }
 };
+int open_fds() {
+    DIR* dir = opendir("/proc/self/fd");
+    if (!dir) return -1;
+    int count = 0;
+    while (dirent* entry = readdir(dir)) if (entry->d_name[0] != '.') ++count;
+    closedir(dir);
+    return count;
+}
 }
 
 TEST(RuntimeBrokerProtocol, NativeGoldenFrameMatchesJavaEncoding) {
@@ -104,4 +114,46 @@ TEST(RuntimeBrokerProtocol, DevelopmentRootIsNotSystemServerAndWrongSocketTypeIs
     ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, stream.fd));
     EXPECT_EQ(-1, aegis_broker_check_peer(stream.fd[0])); EXPECT_EQ(EPROTOTYPE, errno);
     EXPECT_EQ(-1, aegis_broker_check_peer(-1));
+}
+
+TEST(RuntimeBrokerProtocol, ReceiveRequiresOneWholePacketAndPreservesOutputOnFailure) {
+    Pair pair;
+    ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, pair.fd));
+    struct aegis_broker_request output = {}, before = {};
+    EXPECT_EQ(-1, aegis_broker_receive(pair.fd[0], 1, 100, &output)); EXPECT_EQ(EAGAIN, errno);
+    unsigned char packet[33]; memcpy(packet, golden, 32); packet[32] = 0;
+    for (size_t size : {31u, 33u}) {
+        ASSERT_EQ(static_cast<ssize_t>(size), send(pair.fd[1], packet, size, MSG_NOSIGNAL));
+        EXPECT_EQ(-1, aegis_broker_receive(pair.fd[0], 1, 100, &output)); EXPECT_EQ(EPROTO, errno);
+        EXPECT_EQ(0, memcmp(&before, &output, sizeof(output)));
+    }
+    ASSERT_EQ(32, send(pair.fd[1], golden, sizeof(golden), MSG_NOSIGNAL));
+    EXPECT_EQ(0, aegis_broker_receive(pair.fd[0], 1, 100, &output));
+    EXPECT_EQ(10u, output.user);
+    close(pair.fd[1]); pair.fd[1] = -1;
+    EXPECT_EQ(-1, aegis_broker_receive(pair.fd[0], 2, 100, &output)); EXPECT_EQ(EPIPE, errno);
+}
+
+TEST(RuntimeBrokerProtocol, RejectedAncillaryDescriptorsIncludingTruncationAreClosed) {
+    Pair pair;
+    ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, pair.fd));
+    int original = open("/dev/null", O_RDONLY | O_CLOEXEC);
+    ASSERT_GE(original, 0);
+    int before = open_fds(); ASSERT_GT(before, 0);
+    for (size_t count : {1u, 12u}) {
+        union { cmsghdr alignment; char bytes[CMSG_SPACE(12 * sizeof(int))]; } control = {};
+        iovec io = {const_cast<unsigned char*>(golden), sizeof(golden)};
+        msghdr message = {};
+        message.msg_iov = &io; message.msg_iovlen = 1;
+        message.msg_control = control.bytes; message.msg_controllen = CMSG_SPACE(count * sizeof(int));
+        cmsghdr* ancillary = CMSG_FIRSTHDR(&message);
+        ancillary->cmsg_level = SOL_SOCKET; ancillary->cmsg_type = SCM_RIGHTS;
+        ancillary->cmsg_len = CMSG_LEN(count * sizeof(int));
+        for (size_t i = 0; i < count; ++i) memcpy(CMSG_DATA(ancillary) + i * sizeof(int), &original, sizeof(int));
+        EXPECT_EQ(32, sendmsg(pair.fd[1], &message, MSG_NOSIGNAL));
+        struct aegis_broker_request output = {};
+        EXPECT_EQ(-1, aegis_broker_receive(pair.fd[0], 1, 100, &output)); EXPECT_EQ(EPROTO, errno);
+        EXPECT_EQ(before, open_fds()); EXPECT_GE(fcntl(original, F_GETFD), 0);
+    }
+    close(original);
 }

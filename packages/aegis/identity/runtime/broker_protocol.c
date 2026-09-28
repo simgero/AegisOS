@@ -2,11 +2,13 @@
 #define _GNU_SOURCE
 #endif
 #include "broker_protocol.h"
+#include "control.h"
 #include <errno.h>
 #include <limits.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <unistd.h>
 
 #if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
 #error The AEGIS ARM64 broker protocol requires little-endian encoding
@@ -60,6 +62,18 @@ int aegis_broker_parse(const void *packet, size_t size, uint64_t previous,
             || (value.operation == AEGIS_BROKER_STOP_USER && value.serial)) return fail(EPROTO);
     *request = value;
     return 0;
+}
+
+int aegis_broker_receive(int fd, uint64_t previous, uint64_t now_ns,
+                         struct aegis_broker_request *request) {
+    unsigned char packet[sizeof(*request)];
+    int received_fd = -1;
+    ssize_t count = aegis_receive(fd, packet, sizeof(packet), &received_fd);
+    int saved = errno;
+    if (received_fd >= 0) { close(received_fd); return fail(EPROTO); }
+    if (count < 0) return fail(saved);
+    if (!count) return fail(EPIPE);
+    return aegis_broker_parse(packet, (size_t)count, previous, now_ns, request);
 }
 
 int aegis_broker_reply(int fd, const struct aegis_broker_request *request,

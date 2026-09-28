@@ -125,6 +125,14 @@ done:;
     return result;
 }
 
+int aegis_namespace_check_broker(void) {
+    int proc = open("/proc", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    if (proc < 0) return -1;
+    int result = check_broker(proc, (pid_t)syscall(SYS_getpid)), saved = errno;
+    close(proc); errno = saved;
+    return result;
+}
+
 static int check_setup(int fd) {
     struct stat st;
     Elf64_Ehdr header;

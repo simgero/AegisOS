@@ -8,6 +8,9 @@
 extern "C" {
 #endif
 
+/* Fixed host-process prerequisites shared with the daemon's startup guard. */
+int aegis_namespace_check_broker(void);
+
 /* INTERNAL trusted launcher primitive, not an AOSP authorization endpoint.
  * Caller: dedicated SINGLE-THREADED Android host-root broker, initial user/PID
  * and mount namespaces, no supplementary groups, exclusive child reaper, no SIGCHLD

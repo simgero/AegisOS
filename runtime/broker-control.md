@@ -10,7 +10,8 @@ Die drei Java-Klassen einschließlich des privaten Kanals wurden aus
 `OsConstants` nicht exportierte Socket-Flags; der korrigierte Code verwendet
 den bereits nichtblockierenden Deskriptor und Bionics festes `MSG_NOSIGNAL`.
 Diese Einzelprüfungen ersetzen weder Soong/DEX noch Geräteprüfungen.
-Der laufende Vollbuild `96f9ed6b` enthält
+Der Vollbuild `96f9ed6b` endete an einer Kernel-/VINTF-Unvereinbarkeit;
+der korrigierte Kernel läuft separat. Dieser alte Vollbuild enthält
 diese späteren Änderungen nicht. Es gibt noch keinen installierten Broker-Daemon,
 keinen aktiven Socket und keine Registrierung im Identitätsdienst.
 `ro.aegis.runtime.mode=absent` bleibt bestehen.
@@ -56,8 +57,9 @@ Kernelaufruf kann trotzdem einen gesondert bestätigten Abbau erfordern.
 Fehlende, überlange, verwechselte oder verspätete Antworten sowie unerwartete
 Deskriptoren vergiften die Verbindung. Empfangene Deskriptoren werden geschlossen;
 es gibt keine automatische Wiederholung einer möglicherweise bereits wirksamen
-Operation und keine stille Wiederverbindung. Der spätere Daemon muss nach
-Peer-Verlust alle Kontexte sperren und abbauen. Das Schließen eines Sockets ist
+Operation und keine stille Wiederverbindung. Der vorbereitete Daemon sperrt nach
+Peer-Verlust alle Kontexte und verlangt ihren bestätigten Abbau, bevor er
+eine neue Verbindung annimmt. Das Schließen eines Sockets ist
 allein **kein** Abbaunachweis und erlaubt keinen CE-Schlüsselentzug.
 
 Ein korrekt gerahmter nativer Operationsfehler erhält dagegen den Kanal,
@@ -79,20 +81,53 @@ der Wartefrist weiterhin alle Plätze, um sämtliche Kontrollkanäle zu sperren
 und Beendigung anzufordern. Freigeben ist erst ohne jeden verbliebenen Kontext
 möglich. AOSP-Schlüsselsperrung bleibt ein zusätzlicher, separater Schritt.
 
+## Vorbereiteter Dienststart und Wiederherstellung
+
+`broker.c` verbindet jetzt Basisprüfung, statische Helfer, Kontextbesitz und
+den privaten Listener. Dieser neue Quelltext ist zunächst ein explizites
+Kompilierziel; er wird noch nicht über init oder `PRODUCT_PACKAGES` aktiviert.
+Vor jeder Wiederherstellung verlangt er eine exklusive Dateisperre in einem
+eigenen, streng geprüften DE-Verzeichnis. Erst nach bestätigtem Abbau von
+Vorgängerresten, geprüftem Basismount und Helfern wird der Socket geöffnet.
+Der Prozess muss Root im ursprünglichen Host-Namespace, im exakten Broker-
+SELinux-Kontext und im konfigurierten Modus `managed` laufen.
+
+`broker_cgroup.c` inventarisiert die private Cgroup `aegis-runtime`, bevor
+es Prozesse beendet. Nur bis zu 16 direkte Kinder mit kanonischem
+`u<userId>-s<serial>`-Namen, Eigentümer Root, Modus 0700 und ohne Nachfahren
+werden als Vorgängerreste behandelt. Fremde Namen oder veränderte Metadaten
+führen zum Abbruch, ohne ihre Prozesse zu beanspruchen. Danach müssen
+`cgroup.kill`, die Beobachtung `populated=0` und die Entfernung derselben
+Verzeichnis-Inodes erfolgreich sein. Der neue Besitzer übernimmt keine alten
+Kontexte oder persönlichen Anmeldungen.
+
+Die private Gesamtgruppe erhält `memory.max=2 GiB`, `memory.high=1,5 GiB`,
+keinen Swap und höchstens eine Ebene mit 16 persönlichen Gruppen. Der Dienst
+verschiebt sich nicht in diesen Bereich und verändert keine Controller am
+gemeinsamen Android-Cgroup-Root. Das ist noch keine vollständige CPU-/Prozess-
+oder Speicherdruckabsicherung. Die vorhandenen persönlichen Limits gelten
+zusätzlich. Aktuelle eigene Kinder werden weiterhin separat über Pidfds
+beendet und abgeholt; eine leere Cgroup ersetzt dieses Warten nicht.
+
+Der Ereignisloop akzeptiert genau eine authentifizierte AOSP-Verbindung,
+verlangt zeitlich begrenztes HELLO und schließt unerwartete Dateideskriptoren
+auch bei abgeschnittenen Zusatzdaten. Ein zweiter Verbindungsversuch verdrängt
+die bestehende Sitzung nicht. SIGCHLD wird als Signal beobachtet; nur der
+Kontextbesitzer verbraucht den eigentlichen Kindstatus. SIGTERM, SIGINT und
+SIGHUP führen zu kontrolliertem Abbau. Ein fehlgeschlagener Abbau erzeugt
+keine erfolgreiche Bestätigung für einen CE-Schlüsselentzug.
+
 ## Noch erforderliche Integration
 
-Der Bootstrap muss die gemeinsame Generation und statischen Helfer aus den
-unveränderlichen Systemimages prüfen, die Basis schreibgeschützt einbinden,
-den privaten Ressourcenbereich vorbereiten und Vorgängerreste eindeutig
-bereinigen. Danach fehlen noch der tatsächliche Listener/Ereignisloop,
-SELinux-/init-Anbindung, Registrierung der Speicherkoordination, private
-Terminalübergabe, Paketbesitz/-abbruch und echte Zwei-Benutzer-Tests.
-Ein leerer neuer In-Memory-Besitzer beweist nicht, dass Reste eines abgestürzten
-Daemons auf dem System verschwunden sind.
+Es fehlen noch vollständiger Soong-/Linknachweis und Gastprüfungen des neuen
+Diensts, SELinux-/init-Anbindung, Registrierung der Speicherkoordination,
+private Terminalübergabe, Paketbesitz/-abbruch und echte Zwei-Benutzer-Tests.
+Insbesondere muss init dem Socket den richtigen Sicherheitskontext geben;
+ein Dateisystemlabel allein beweist nicht den mit `SO_PEERSEC` geprüften Peer.
 
-Vorbereitet sind sieben Java-Protokolltests, ein Test der unveränderten
-Admission-Frist, sieben native Protokolltests, ein Kontext-Fristtest und drei
-Tests der Ressourcenverwaltung. Insgesamt enthält der Quellstand **52 Java-
-und 74 native Tests**. Die neuen Tests sind **noch nicht ausgeführt**. Die
+Vorbereitet sind neun native Protokolltests einschließlich Zusatzdaten-/FD-
+Leckprüfungen, fünf Wiederherstellungstests sowie die bisherigen Java-,
+Kontext-, Basisparser- und Ressourcenverwaltungstests. Insgesamt enthält der
+Quellstand **52 Java- und 86 native Tests**. Die neuen Tests sind **noch nicht ausgeführt**. Die
 bisher tatsächlich kompilierten und ausgeführten Stände bleiben in
 [`docs/component-tests.md`](../docs/component-tests.md) getrennt dokumentiert.

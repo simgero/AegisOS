@@ -67,7 +67,10 @@ jobs=$(nproc)
 state COMPILING
 m -j"$jobs" aegis aegis-identity-service AegisIdentityTests services framework-res selinux_policy \
     passwd_vendor group_vendor passwd_system_ext group_system_ext \
-    aegis-runtime-init aegis-runtime-setup AegisRuntimeNativeTests
+    aegis-runtime-init aegis-runtime-setup aegis-runtime-broker AegisRuntimeNativeTests
+# The broker is compiled/linked here but remains absent from product startup
+# and from this version of the component transport archive.
+test -s "$(get_build_var PRODUCT_OUT)/system_ext/bin/aegis-runtime-broker"
 python3 "$script_dir/register-runtime-storage.py" --aosp "$aosp" \
     --receipt "$run/runtime-storage-source.json" --verify
 product=$(get_build_var PRODUCT_OUT)

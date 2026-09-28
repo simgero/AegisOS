@@ -44,6 +44,11 @@ int aegis_broker_check_peer(int fd);
  */
 int aegis_broker_parse(const void *packet, size_t size, uint64_t previous,
                        uint64_t now_ns, struct aegis_broker_request *request);
+/* One nonblocking recvmsg. All ancillary descriptors are closed/rejected;
+ * oversized/truncated packets and EOF cannot publish a request. Authenticate
+ * the connected peer before calling. EAGAIN means no packet, not disconnect. */
+int aegis_broker_receive(int fd, uint64_t previous, uint64_t now_ns,
+                         struct aegis_broker_request *request);
 /* Send one complete reply; timeout/EOF/failed send never confirms completion.
  * Caller handles deadline and retains cleanup ownership on every failure. */
 int aegis_broker_reply(int fd, const struct aegis_broker_request *request,
