@@ -1,13 +1,15 @@
 #!/bin/bash
 set -eo pipefail
 # Called without GitHub credentials. AOSP envsetup is not nounset-compatible.
+unset GH_TOKEN GITHUB_TOKEN CREDENTIALS_DIRECTORY
 script_dir=$(cd "$(dirname "$0")" && pwd)
 source "$script_dir/config.sh"
-# Bootstrap stores immutable product files beside the worker; a Git checkout
-# stores them at the repository root.
-device_source="$script_dir/device"
-[[ -d "$device_source" ]] || device_source="$script_dir/../../device/aegis/qemu_arm64"
-python3 "$script_dir/link-product.py" "$device_source" /srv/aegis/work/aosp
+# Both the GitHub snapshot and a project checkout preserve the repository layout.
+project=$(cd "$script_dir/../.." && pwd)
+python3 "$script_dir/link-product.py" "$project/device/aegis/qemu_arm64" /srv/aegis/work/aosp
+python3 "$script_dir/register-identity.py" "$project/packages/aegis/identity" /srv/aegis/work/aosp
+cp /srv/aegis/work/aosp/packages/aegis/identity/.aegis-source.json "$1/identity-source-files.json"
+cp /srv/aegis/work/aosp/device/aegis/.aegis-product-link.json "$1/product-source-files.json"
 cd /srv/aegis/work/aosp
 # Trusty's build invokes nsjail even when Soong falls back without sandboxing.
 # Check the actual executable as the build account before expensive compilation.

@@ -35,6 +35,7 @@ printf '%s\n' "$commit" > "$run/project-commit.txt"
 python3 "$script_dir/link-product.py" "$project/device/aegis/qemu_arm64" "$aosp"
 python3 "$script_dir/register-identity.py" "$project/packages/aegis/identity" "$aosp"
 cp "$aosp/packages/aegis/identity/.aegis-source.json" "$run/source-files.json"
+cp "$aosp/device/aegis/.aegis-product-link.json" "$run/product-source-files.json"
 cd "$aosp"
 prebuilts/build-tools/linux-x86/bin/nsjail -Mo \
     --disable_clone_newnet --disable_clone_newcgroup -R / -- /bin/true

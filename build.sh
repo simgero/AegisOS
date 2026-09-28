@@ -55,26 +55,21 @@ main() {
     case "$commit" in *[!0-9a-f]*|'') echo 'Invalid source commit.' >&2; return 1;; esac
     [ ${#commit} -eq 40 ] || return 1
     root=/opt/aegis-builder/$commit
-    install -d -m 755 "$root"
-    for file in worker.sh config.sh compile.sh setup-sandbox.sh; do
-        gh_call api -H 'Accept: application/vnd.github.raw+json' \
-            "repos/simgero/AegisOS/contents/scripts/aosp/$file?ref=$commit" > "$root/$file.tmp"
-        bash -n "$root/$file.tmp"
-        chmod 644 "$root/$file.tmp"
-        mv "$root/$file.tmp" "$root/$file"
-    done
+    install -d -m 755 /opt/aegis-builder
+    # Preserve the repository layout and include all owned package/overlay/policy sources.
+    # The fetcher verifies every selected file against the immutable commit's Git tree.
     gh_call api -H 'Accept: application/vnd.github.raw+json' \
-        "repos/simgero/AegisOS/contents/scripts/aosp/link-product.py?ref=$commit" > "$root/link-product.py"
-    chmod 644 "$root/link-product.py"
-    install -d -m 755 "$root/device"
-    for file in AndroidProducts.mk aegis_qemu_arm64.mk BoardConfig.mk; do
-        gh_call api -H 'Accept: application/vnd.github.raw+json' \
-            "repos/simgero/AegisOS/contents/device/aegis/qemu_arm64/$file?ref=$commit" > "$root/device/$file"
-        chmod 644 "$root/device/$file"
+        "repos/simgero/AegisOS/contents/scripts/aosp/fetch-build-inputs.py?ref=$commit" \
+        > /run/aegis-bootstrap/fetch-build-inputs.py
+    GH_TOKEN=$(cat /run/aegis-bootstrap/github-token) \
+        python3 /run/aegis-bootstrap/fetch-build-inputs.py "$commit" "$root"
+    scripts="$root/scripts/aosp"
+    for file in worker.sh config.sh compile.sh setup-sandbox.sh; do
+        bash -n "$scripts/$file"
     done
     id aegis-build >/dev/null 2>&1 || useradd --system --create-home --home-dir /srv/aegis/home --shell /bin/bash aegis-build
     install -d -o aegis-build -g aegis-build -m 755 /srv/aegis/work /srv/aegis/runs
-    bash "$root/setup-sandbox.sh"
+    bash "$scripts/setup-sandbox.sh"
     systemctl reset-failed aegis-build.service 2>/dev/null || true
     systemd-run --unit=aegis-build --collect \
         --property=User=aegis-build --property=Group=aegis-build \
@@ -83,7 +78,7 @@ main() {
         --property=RuntimeMaxSec=24h --property=TimeoutStopSec=120 \
         --property=KillMode=control-group --property=UMask=0077 \
         --setenv=HOME=/srv/aegis/home --setenv=AEGIS_SCRIPT_COMMIT="$commit" \
-        /bin/bash "$root/worker.sh"
+        /bin/bash "$scripts/worker.sh"
     echo 'Build started. Follow: journalctl -fu aegis-build'
     echo 'Status and logs: /srv/aegis/runs/'
     echo '24-hour runtime limit stops the job. Server, sources and outputs are preserved.'

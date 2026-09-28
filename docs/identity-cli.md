@@ -187,6 +187,9 @@ im zugehörigen Verzeichnis unter `/srv/aegis/runs`. Dieser Check ist noch nicht
 ausgeführt. Er startet keine VM, installiert keinen Dienst und veröffentlicht
 keine Artefakte. Die geprüften Ergebnisse müssen anschließend über GitHub
 transportiert werden; ein Modulbau allein liefert noch kein startbares System.
+Der vollständige Build übernimmt die Identitätsquellen inzwischen ebenfalls
+über den [gepinnten GitHub-Quelltransport](build-inputs.md). Das registriert
+die Module, nimmt sie aber noch nicht in das Produkt oder den Systemstart auf.
 Das Test-APK wird gemäß dem gepinnten Soong-Installationsschema aus
 `testcases/AegisIdentityTests/arm64/AegisIdentityTests.apk` aufgenommen. Nach dem
 Transport ist es ausschließlich in der lokalen QEMU-VM zu installieren und mit

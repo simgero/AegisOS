@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -87,6 +88,44 @@ class ProductTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             product.register(self.source, self.aosp)
         self.assertFalse((self.aosp / "device").exists())
+
+    def test_nested_overlay_and_policy_sources_are_preserved_and_owned(self):
+        product.register(self.source, self.aosp)  # Migrate the existing three-file format.
+        overlay = self.source / "overlay/frameworks/base/core/res/res/values/config.xml"
+        policy = self.source / "sepolicy/private/service_contexts"
+        for path, text in [(overlay, "<resources />"), (policy, "service-label")]:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text)
+        product.register(self.source, self.aosp)
+        target = self.aosp / "device/aegis/qemu_arm64"
+        self.assertEqual((target / overlay.relative_to(self.source)).read_text(), "<resources />")
+        copied_policy = target / policy.relative_to(self.source)
+        self.assertEqual(copied_policy.read_text(), "service-label")
+        copied_policy.write_text("builder's policy change")
+        with self.assertRaises(ValueError): product.register(self.source, self.aosp)
+        self.assertEqual(copied_policy.read_text(), "builder's policy change")
+
+    def test_interrupted_copy_cannot_add_another_discoverable_product(self):
+        product.register(self.source, self.aosp)
+        real_copy = product.shutil.copyfile
+
+        def interrupt(source, destination):
+            real_copy(source, destination)
+            discovered = list((self.aosp / "device").rglob("AndroidProducts.mk"))
+            self.assertEqual(discovered, [self.aosp / "device/aegis/qemu_arm64/AndroidProducts.mk"])
+            raise OSError("simulated interrupted copy")
+
+        with patch.object(product.shutil, "copyfile", side_effect=interrupt):
+            with self.assertRaises(OSError): product.register(self.source, self.aosp)
+        self.assertEqual((self.aosp / "device/aegis/qemu_arm64/AndroidProducts.mk").read_text(), "fixture")
+        self.assertEqual(list((self.aosp / "out/aegis-product-staging").iterdir()), [])
+
+    def test_device_ancestor_link_cannot_redirect_registration(self):
+        outside = self.root / "outside"
+        outside.mkdir()
+        (self.aosp / "device").symlink_to(outside)
+        with self.assertRaises(ValueError): product.register(self.source, self.aosp)
+        self.assertEqual(list(outside.iterdir()), [])
 
 
 class QemuTests(unittest.TestCase):
