@@ -176,11 +176,20 @@ rund 94 GiB, 8 GiB Swap nahezu ausgeschöpft. AOSPs Parser akzeptierte zuvor
 die 1.002 vorbereiteten Runtime-Kennungen; das belegt keine laufenden UID-Maps.
 
 Nach der vom Nutzer vorgenommenen Hyper-V-Anpassung meldet Ubuntu rund 65 GiB
-RAM und 62 GiB verfügbar. Der Ersatzlauf startet um 12:48 UTC mit derselben
-Revision und InvocationID `5b747d59dd5947a4b8b0ca30ddf703c3`. Er wurde aktiv
-beobachtet; **noch kein bestätigter Komponentenabschluss**. Er enthält die
+RAM und 62 GiB verfügbar. Der Ersatzlauf startete um 12:48 UTC mit derselben
+Revision und InvocationID `5b747d59dd5947a4b8b0ca30ddf703c3`. Soong schloss
+seine Analyse ab; der Speicherhöchststand lag bei rund 37,8 GiB. Um 12:54:52 UTC
+brach Kati nach 5:42 Minuten an der Artefaktgrenze von `generic_system.mk` ab:
+CLI, Dienst-JAR und zugehörige Dex-Artefakte wurden vom Geräteprodukt
+fälschlich in `system` installiert. Das Journal belegt den Fehler, auch wenn
+der inzwischen eingesammelte Dienst `inactive` und `ExecMainStatus=0` meldet.
+Der Lauf `identity-20260928T124851Z-5447a968-1zAsj2` enthält die
 32 Java-Tests dieser Revision und die 50 nativen Tests; die später vorbereitete
 Zugangsserialisierung ist darin noch nicht enthalten. Kein Gasttest läuft auf
 dem Server. Die neue RAM-Vorprüfung und bereinigte Skript-Fehlerbehandlung sind
-für einen folgenden Quellstand vorbereitet; der laufende Checkout wird nicht
-verändert. Sudo verlangt weiterhin interaktive Anmeldung.
+für einen folgenden Quellstand vorbereitet. Die Partitionskorrektur setzt CLI
+und Dienst auf `system_ext` und ergänzt den nötigen expliziten CLI-Klassenpfad;
+Details in [Identitätsintegration](identity-cli.md#vorbereitete-produktintegration).
+**Weiterhin kein bestätigter Komponentenabschluss oder Gasttest.** Der
+fehlgeschlagene Checkout bleibt erhalten. Sudo verlangt weiterhin interaktive
+Anmeldung für einen neuen Komponentenlauf.

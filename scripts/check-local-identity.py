@@ -42,7 +42,7 @@ def check(serial):
             "Identity-only product mode is missing or different")
     require(command("shell", "service", "check", "aegis_identity"),
             "Service aegis_identity: found", "AEGIS Binder service is not registered")
-    state = command("shell", "/system/bin/aegis", "status")
+    state = command("shell", "/system_ext/bin/aegis", "status")
     tokens = state.split()
     fields = dict(field.split("=", 1) for field in tokens if "=" in field)
     if (len(tokens) != 3 or set(fields) != {"terminal", "runtime", "setup"}

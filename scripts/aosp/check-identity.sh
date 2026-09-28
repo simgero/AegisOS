@@ -72,13 +72,15 @@ python3 "$script_dir/register-runtime-storage.py" --aosp "$aosp" \
     --receipt "$run/runtime-storage-source.json" --verify
 product=$(get_build_var PRODUCT_OUT)
 [[ $(get_build_var TARGET_ARCH) == arm64 ]]
+# A custom wrapper is necessary: pinned Soong's default hardcodes /system.
+cmp "$project/packages/aegis/identity/cli/aegis" "$product/system_ext/bin/aegis"
 mkdir "$run/modules"
 # The pinned android_test uses testcases/<module>/<arch>; cc_test and its
 # data_bins use data/nativetest64/<module>. These are collected, never executed.
 artifacts=(
-    system/bin/aegis
-    system/framework/aegis.jar
-    system/framework/aegis-identity-service.jar
+    system_ext/bin/aegis
+    system_ext/framework/aegis.jar
+    system_ext/framework/aegis-identity-service.jar
     system/framework/services.jar
     system/framework/framework-res.apk
     vendor/etc/passwd
@@ -97,7 +99,7 @@ for relative in "${artifacts[@]}"; do
     test -s "$product/$relative"
     install -D -m 644 "$product/$relative" "$run/modules/$relative"
 done
-chmod 755 "$run/modules/system/bin/aegis"
+chmod 755 "$run/modules/system_ext/bin/aegis"
 chmod 755 "$run/modules/system/bin/aegis-runtime-init" \
     "$run/modules/system/bin/aegis-runtime-setup" \
     "$run/modules/data/nativetest64/AegisRuntimeNativeTests/AegisRuntimeNativeTests" \

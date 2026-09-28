@@ -1,0 +1,4 @@
+#!/system/bin/sh
+# Keep the classpath on the same partition as this product extension.
+export CLASSPATH=/system_ext/framework/aegis.jar
+exec /system/bin/app_process /system_ext/bin org.aegisos.identity.Aegis "$@"

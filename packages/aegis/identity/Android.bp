@@ -16,6 +16,7 @@ java_library {
 
 java_library {
     name: "aegis-identity-service",
+    system_ext_specific: true,
     srcs: ["service/**/*.java"],
     static_libs: ["aegis-identity-core", "aegis-identity-protocol"],
     libs: ["framework", "services.core"],
@@ -24,6 +25,9 @@ java_library {
 
 java_binary {
     name: "aegis",
+    system_ext_specific: true,
+    // The pinned Soong default wrapper hardcodes /system/framework.
+    wrapper: "cli/aegis",
     srcs: ["cli/**/*.java"],
     static_libs: ["aegis-identity-protocol"],
     libs: ["framework"],

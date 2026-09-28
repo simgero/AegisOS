@@ -57,6 +57,8 @@ python3 "$script_dir/register-runtime-storage.py" --aosp /srv/aegis/work/aosp \
 # Host-side readers for the actual delivered logical partition, built only here.
 m -j"$jobs" simg2img lpunpack fsck.erofs
 get_build_var PRODUCT_OUT > "$1/product-out.txt"
+cmp "$project/packages/aegis/identity/cli/aegis" \
+    "$(cat "$1/product-out.txt")/system_ext/bin/aegis"
 if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
     python3 "$project/scripts/kernel/integrate.py" verify-image --receipt "$1/kernel-inputs.json" \
         --image "$(cat "$1/product-out.txt")/kernel" --boot-image "$(cat "$1/product-out.txt")/boot.img"

@@ -239,8 +239,9 @@ noch AOSP-Berechtigungen.
 Erst erfolgreicher Komponentenbau und vorhandene JAR-/Startdateien samt
 Framework-Ressourcen, Test-APK und nativen ARM64-Artefakten setzen
 `IDENTITY_COMPILED_NOT_INSTALLED`. Logs, Quellinventar und Modulprüfsummen liegen
-im zugehörigen Verzeichnis unter `/srv/aegis/runs`. Dieser Check ist noch nicht
-ausgeführt. Er startet keine VM, installiert keinen Dienst und veröffentlicht
+im zugehörigen Verzeichnis unter `/srv/aegis/runs`. Die bisherigen Läufe endeten
+vor erfolgreicher Kompilierung; siehe [Fortschritt](phase-1-progress.md).
+Er startet keine VM, installiert keinen Dienst und veröffentlicht
 keine Artefakte. Die geprüften Ergebnisse müssen anschließend über GitHub
 transportiert werden; ein Modulbau allein liefert noch kein startbares System.
 
@@ -255,6 +256,18 @@ auf dem Builder ausgeführt. Zwölf Stunden begrenzen den Dienst, Quellen und
 Ergebnisse bleiben erhalten. Das Journal zeigt auch Fehler vor Anlage eines
 Identitäts-Laufverzeichnisses. Die Meldung des Startskripts bestätigt nur die
 Übergabe an systemd; erst Status, Buildlog und Artefakte belegen Kompiliererfolg.
+
+Die Ausgabe des Komponentenbaus lässt sich in einem weiteren Terminal auf dem
+Mac live verfolgen:
+
+```sh
+ssh aegis-build 'journalctl -fu aegis-components'
+```
+
+`Strg+C` beendet nur diese Anzeige. Der Serverdienst läuft unabhängig davon
+weiter. Prozentwerte gehören zur gerade angezeigten Teilphase und messen
+nicht den Gesamtfortschritt. Der vollständige Imagebau verwendet stattdessen
+den Dienst `aegis-build`.
 
 Der vollständige Build übernimmt die Identitätsquellen und Produktkonfiguration
 über den [gepinnten GitHub-Quelltransport](build-inputs.md). Die Einbindung in
@@ -285,9 +298,28 @@ Vor der tatsächlichen Nutzung fehlen:
 
 ## Vorbereitete Produktintegration
 
-`aegis_qemu_arm64.mk` installiert CLI und Dienst-JAR und ergänzt
+`aegis_qemu_arm64.mk` installiert CLI und Dienst-JAR unter `system_ext` und ergänzt
 `PRODUCT_SYSTEM_SERVER_JARS_EXTRA`, damit das JAR nach den gemeinsamen
-Framework-Diensten einsortiert wird. Ein gezieltes Build-Overlay trägt
+Framework-Diensten einsortiert wird. Die AEGIS-Module nutzen private
+Framework-Schnittstellen und deklarieren deshalb `system_ext_specific: true`;
+siehe [AOSP: System-Erweiterungen](https://source.android.com/docs/core/architecture/partitions/shared-system-image#system_ext-partition).
+Die geerbte `generic_system.mk` behält ihre geprüfte Artefaktgrenze, ohne
+Ausnahmen für die AEGIS-Dateien. Die Änderungen an `services` und
+`framework-res` verbleiben als Änderungen vorhandener Plattformmodule in
+`system`.
+
+Der CLI-Starter liegt unter `/system_ext/bin/aegis`, seine JAR-Datei und das
+Dienst-JAR unter `/system_ext/framework/`. Ein eigener Wrapper setzt den
+CLI-Klassenpfad und startet den absoluten `/system/bin/app_process`-Pfad mit
+unveränderter Argumentübergabe. Das ist nötig, weil der
+[gepinnten Soong-Implementierung](https://android.googlesource.com/platform/build/soong/+/refs/tags/android-16.0.0_r1/java/java.go)
+zufolge der Standardwrapper `/system/framework` fest einträgt, auch wenn das
+Modul auf `system_ext` installiert wird. Komponentencheck und Imagebau gleichen
+den tatsächlich installierten Wrapper mit der Quelle ab; der Gastcheck nutzt
+den neuen absoluten Pfad. Diese Korrektur ist noch im Serverbuild und Gast zu
+bestätigen.
+
+Ein gezieltes Build-Overlay trägt
 `org.aegisos.identity.AegisIdentityService` in die Framework-Ressource
 `config_deviceSpecificSystemServices` ein. Nur dieses eigene Overlay ist von
 der automatischen RRO-Umwandlung ausgenommen, damit die private Bootkonfiguration

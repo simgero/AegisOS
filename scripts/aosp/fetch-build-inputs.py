@@ -25,6 +25,7 @@ REQUIRED = {
     "device/aegis/qemu_arm64/AndroidProducts.mk",
     "device/aegis/qemu_arm64/aegis_qemu_arm64.mk",
     "device/aegis/qemu_arm64/BoardConfig.mk", "packages/aegis/identity/Android.bp",
+    "packages/aegis/identity/cli/aegis",
     "scripts/runtime/base.py", "runtime/debian-arm64.json",
     "scripts/runtime/generation.py", "scripts/runtime/build-base.sh", "runtime/filesystem-tools.json",
     "scripts/runtime/integrate.py", "scripts/runtime/verify_product_image.py",
