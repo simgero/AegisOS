@@ -1,7 +1,14 @@
 # Gemeinsame Basis aus dem Systemimage
 
 `base_image.cpp` ergänzt die native Vorbereitung für den künftigen Broker.
-**Noch nicht im Produkt installiert oder im Gast ausgeführt.** Es gibt keine
+**Als ARM64-Objekt kompiliert, noch nicht gelinkt, im Produkt installiert oder
+im Gast ausgeführt.** Commit `64e66d77` wurde mit den gepinnten AOSP-/Bionic-,
+libc++-, JsonCpp- und BoringSSL-Headern sowie `-Wall -Wextra -Werror` übersetzt.
+Auch `base_image_tests.cpp`, `broker_protocol_tests.cpp` und
+`memory_group_tests.cpp` bestehen diese Objektprüfung. Der Nachweis liegt auf
+dem Builder in `/srv/aegis/work/base-arm64-check-64e66d7-NSQQYK/result.json`;
+Status `ARM64_OBJECTS_COMPILED_NOT_LINKED_NOT_EXECUTED`.
+Es gibt keine
 CLI-Mountfunktion und keinen vom Benutzer wählbaren Pfad.
 
 Die Eingaben sind ausschließlich `/system_ext/etc/aegis/runtime/base.ext4`

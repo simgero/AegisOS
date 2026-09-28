@@ -31,6 +31,9 @@ Das korrigierte Fragment behält IPC-Namespaces über POSIX-Nachrichtenqueues;
 ein erneuter Kernel-/Treiberbau ist erforderlich. Die Kompatibilitätsprüfung
 bleibt aktiv. Paketierung, Prüfung der tatsächlich ausgelieferten Partitionen,
 GitHub-Upload und Boot im lokalen QEMU stehen noch aus.
+Der korrigierte Kernel-Lauf `kernel-20260928T170624Z-64e66d77-qW9h9L`
+ist gestartet und wird überwacht. Die zugehörigen 14 Kernelübernahme- und zehn
+Imagevorbereitungs-Hosttests bestehen; das ersetzt keinen neuen Kernelabschluss.
 
 Die F2FS-Korrektur für das tatsächliche Android-CE-Dateisystem ist kompiliert.
 Der [Kontextbesitzer](../runtime/context-owner.md) verbindet Speichergruppe,
@@ -51,6 +54,9 @@ Linken/DEX, Ausführung und Produktaktivierung stehen weiterhin aus.** Der
 inzwischen gescheiterte Image-Build wurde währenddessen nicht verändert.
 Zusätzlich liegt die [readonly-Basisvorbereitung](../runtime/base-bootstrap.md)
 mit fünf neuen nativen Tests vor; damit sind insgesamt 79 native Tests vorbereitet.
+Die Basis-Implementierung sowie Basis-, Brokerprotokoll- und Speichergruppen-
+Testdateien sind aus `64e66d77` separat als ARM64-Objekte erfolgreich kompiliert.
+Vollständiges Linken und Ausführen dieser neuen Tests stehen aus.
 
 | Anforderung | Nachweis / verbleibende Arbeit |
 | --- | --- |

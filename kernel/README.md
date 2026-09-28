@@ -14,7 +14,13 @@ SYSVIPC jetzt schon vor einem Image-Build beziehungsweise Boot ab.
 VINTF-, SELinux- und Bootprüfungen werden nicht abgeschaltet oder abgeschwächt.
 Programme, die zwingend System-V-IPC benötigen, gehören damit nicht zum
 unterstützten Runtime-Umfang; eine Emulation ist nicht implementiert.
-Kernel und passende Treiber müssen mit diesem Fragment erneut gebaut werden.
+Kernel und passende Treiber werden mit diesem Fragment erneut gebaut:
+Commit `64e66d772f22465682dd2c41fdb486774cc15a31`, Start 17:06:24 UTC,
+Dienst `aegis-kernel.service`, InvocationID `f2437d0948874ea88de7fe2288bc9a74`,
+Lauf `kernel-20260928T170624Z-64e66d77-qW9h9L`. Der Start und der Eintritt in
+Kleafs Kernelkonfiguration sind bestätigt; Abschluss und neue Images stehen aus.
+14 Hosttests zur Kernelübernahme sowie zehn Tests zur lokalen Imagevorbereitung
+bestehen, einschließlich aktivierter beziehungsweise fehlender SYSVIPC-Konfiguration.
 
 Die folgenden Angaben betreffen den ersten, inzwischen abgewiesenen Kernel:
 
