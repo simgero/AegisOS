@@ -29,6 +29,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/statfs.h>
+#include <sys/statvfs.h>
 #include <sys/syscall.h>
 #include <sys/un.h>
 #include <sys/wait.h>
