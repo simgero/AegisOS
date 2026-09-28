@@ -13,7 +13,8 @@ import subprocess
 import tempfile
 
 REPOSITORY = "repos/simgero/AegisOS"
-PREFIXES = ("scripts/aosp/", "device/aegis/qemu_arm64/", "packages/aegis/identity/")
+PREFIXES = ("scripts/aosp/", "device/aegis/qemu_arm64/", "packages/aegis/identity/",
+            "scripts/runtime/", "runtime/")
 REQUIRED = {
     "scripts/aosp/worker.sh", "scripts/aosp/config.sh", "scripts/aosp/compile.sh",
     "scripts/aosp/setup-sandbox.sh", "scripts/aosp/link-product.py",
@@ -21,6 +22,7 @@ REQUIRED = {
     "device/aegis/qemu_arm64/AndroidProducts.mk",
     "device/aegis/qemu_arm64/aegis_qemu_arm64.mk",
     "device/aegis/qemu_arm64/BoardConfig.mk", "packages/aegis/identity/Android.bp",
+    "scripts/runtime/base.py", "runtime/debian-arm64.json",
 }
 MARKER = ".aegis-build-inputs.json"
 MAX_FILE_BYTES = 8 * 1024 * 1024

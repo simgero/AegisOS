@@ -6,14 +6,18 @@ steht noch aus.
 
 Der Bootstrap `build.sh` löst den angeforderten Projektstand einmal auf einen
 vollständigen Git-Commit auf. Der neue Downloader übernimmt daraus alle Dateien
-unter diesen drei Verzeichnissen:
+unter diesen Verzeichnissen:
 
 - `scripts/aosp/`
 - `device/aegis/qemu_arm64/`
 - `packages/aegis/identity/`
+- `scripts/runtime/`
+- `runtime/`
 
 Damit reisen neben den bisherigen Produktdateien auch Java-/AIDL-Quellen,
-Tests sowie künftige verschachtelte Overlays und SELinux-Regeln über GitHub.
+Tests, verschachtelte Overlays und SELinux-Regeln sowie der Debian-Basis-Pin
+und sein Importer über GitHub. Der Rootfs-Download selbst wird nicht in Git
+abgelegt und noch nicht automatisch durch den AOSP-Worker ausgeführt.
 Der bisherige Download nur dreier Make-Dateien konnte diese Erweiterungen
 nicht transportieren. Nicht ausgewählte Repository-Verzeichnisse werden
 nicht auf dem Server abgelegt.

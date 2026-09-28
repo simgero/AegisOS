@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "repository": "debuerreotype/docker-debian-artifacts",
+  "commit": "ca011a8b1c3b259e4cbbf83bf6841f1fd5f497c1",
+  "directory": "trixie/slim/oci/blobs",
+  "debian_version": "13.7",
+  "official_images_commit": "f20899753df292334e40a1b35d76dc0b976841b3",
+  "official_images_tag": "trixie-20260918-slim",
+  "manifest": {
+    "sha256": "da496358bd6934d2bd6a563a33176a2e50eff5490c54b4ac6fb051b69fef4071",
+    "size": 1041
+  }
+}
