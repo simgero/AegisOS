@@ -193,3 +193,13 @@ Details in [Identitätsintegration](identity-cli.md#vorbereitete-produktintegrat
 **Weiterhin kein bestätigter Komponentenabschluss oder Gasttest.** Der
 fehlgeschlagene Checkout bleibt erhalten. Sudo verlangt weiterhin interaktive
 Anmeldung für einen neuen Komponentenlauf.
+
+Der [Komponenten-Transport](component-transport.md) ist jetzt ebenfalls
+vorbereitet: erfolgreicher Buildstatus und vollständige Modulprüfsummen als
+Voraussetzung, getrennte Build-/Export-Commits, GitHub-Entwurf, Rückdownload
+aller Assets und geprüfte lokale Extraktion. Die Transportfixtures führen
+keinen neuen Android-/Runtime-Code aus. **Noch kein echter Komponentenexport:**
+Der zuletzt überprüfte Serverdienst ist inaktiv und es liegt weiterhin kein
+erfolgreicher Lauf mit dem korrigierten System-Ext-Profil vor. Das bereits
+bereitgestellte Startskript für `283452a` bleibt dafür gültig; die späteren
+Exportwerkzeuge verändern dessen zu kompilierende Komponenten nicht.

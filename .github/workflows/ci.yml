@@ -42,6 +42,7 @@ jobs:
           bash -n scripts/aosp/compile.sh
           bash -n scripts/aosp/check-identity.sh
           bash -n scripts/start-components.sh
+          bash -n scripts/export-components.sh
           sh -n packages/aegis/identity/cli/aegis
           bash -n scripts/aosp/setup-sandbox.sh
           bash -n scripts/aosp/config.sh

@@ -281,6 +281,9 @@ Die nativen Tests und deren Aufseher-Binary werden zusammen aus
 `data/nativetest64/AegisRuntimeNativeTests/` gesammelt. Sie dürfen ebenfalls
 ausschließlich im lokalen Android-QEMU ausgeführt werden; weder Server-Build
 noch Host-CI führen den neuen Runtime-Code aus.
+Der [Komponentenexport](component-transport.md) über GitHub mit geprüftem
+Download und Entpacken ist vorbereitet. Er verlangt einen tatsächlich
+erfolgreichen Komponentenlauf und erhält dessen ursprünglichen Status.
 
 Vor der tatsächlichen Nutzung fehlen:
 

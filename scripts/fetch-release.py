@@ -11,8 +11,18 @@ import sys
 REPOSITORY = "simgero/AegisOS"
 
 
-def verify(directory):
+def verify(directory, kind="images", build_commit=None):
     directory = Path(directory)
+    if kind == "components":
+        if not isinstance(build_commit, str) or not re.fullmatch(r"[0-9a-f]{40}", build_commit):
+            raise ValueError("An explicit full component build commit is required")
+        subprocess.run([
+            sys.executable, str(Path(__file__).resolve().parent / "aosp/components.py"),
+            "verify", str(directory), "--build-commit", build_commit,
+        ], check=True)
+        return 2
+    if kind != "images":
+        raise ValueError("Unsupported release kind")
     manifest = directory / "SHA256SUMS"
     if not manifest.is_file() or manifest.is_symlink():
         raise ValueError("Missing regular SHA256SUMS file")
@@ -48,7 +58,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("tag", help="Explicit published GitHub release tag")
     parser.add_argument("directory", type=Path, help="New destination directory")
+    parser.add_argument("--kind", choices=("images", "components"), default="images")
+    parser.add_argument("--build-commit", help="Required full source commit for component releases")
     args = parser.parse_args()
+    if args.kind == "components" and not re.fullmatch(r"[0-9a-f]{40}", args.build_commit or ""):
+        parser.error("Component releases require --build-commit with the exact full build commit")
     if args.tag.startswith("-"):
         parser.error("Release tag must not start with '-'")
     if args.directory.exists():
@@ -64,7 +78,7 @@ def main():
         "gh", "release", "download", args.tag, "--repo", REPOSITORY,
         "--dir", str(args.directory.resolve()),
     ], check=True)
-    count = verify(args.directory)
+    count = verify(args.directory, args.kind, args.build_commit)
     print(f"Verified {count} assets from {release['url']}")
     print(f"Downloaded to {args.directory.resolve()}; archive has not been extracted.")
     print("Checksums confirm integrity, not QEMU compatibility or a successful boot.")
