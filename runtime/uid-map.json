@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "per_user_range": 100000,
+  "ranges": [
+    {"inside": 0, "app_id": 5000, "count": 1000, "aid": "VENDOR_AEGIS_LINUX"},
+    {"inside": 1000, "app_id": 7500, "count": 1, "aid": "SYSTEM_EXT_AEGIS_RUNTIME_USER"},
+    {"inside": 65534, "app_id": 7501, "count": 1, "aid": "SYSTEM_EXT_AEGIS_RUNTIME_NOBODY"}
+  ]
+}

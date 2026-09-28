@@ -44,10 +44,14 @@ set +u
 source build/envsetup.sh
 lunch "$AOSP_LUNCH"
 [[ $(get_build_var TARGET_PRODUCT) == aegis_qemu_arm64 ]]
+read -r -a fs_configs <<< "$(get_build_var TARGET_FS_CONFIG_GEN)"
+python3 "$project/scripts/runtime/uid_layout.py" check --aosp "$aosp" \
+    --fs-config "${fs_configs[@]}"
 jobs=$(nproc)
 (( jobs <= 12 )) || jobs=12
 state COMPILING
-m -j"$jobs" aegis aegis-identity-service AegisIdentityTests framework-res selinux_policy
+m -j"$jobs" aegis aegis-identity-service AegisIdentityTests framework-res selinux_policy \
+    passwd_vendor group_vendor passwd_system_ext group_system_ext
 product=$(get_build_var PRODUCT_OUT)
 [[ $(get_build_var TARGET_ARCH) == arm64 ]]
 mkdir "$run/modules"
@@ -57,6 +61,10 @@ artifacts=(
     system/framework/aegis.jar
     system/framework/aegis-identity-service.jar
     system/framework/framework-res.apk
+    vendor/etc/passwd
+    vendor/etc/group
+    system_ext/etc/passwd
+    system_ext/etc/group
     testcases/AegisIdentityTests/arm64/AegisIdentityTests.apk
 )
 for relative in "${artifacts[@]}"; do

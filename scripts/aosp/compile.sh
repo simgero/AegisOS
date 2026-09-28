@@ -23,6 +23,9 @@ lunch "$AOSP_LUNCH"
 [[ $(get_build_var TARGET_PRODUCT) == aegis_qemu_arm64 ]] || {
     echo 'Unexpected AOSP product; refusing to compile.' >&2; exit 1;
 }
+read -r -a fs_configs <<< "$(get_build_var TARGET_FS_CONFIG_GEN)"
+python3 "$project/scripts/runtime/uid_layout.py" check --aosp /srv/aegis/work/aosp \
+    --fs-config "${fs_configs[@]}"
 # Conservative parallelism for the initial 64 GB host.
 jobs=$(nproc)
 (( jobs <= 16 )) || jobs=16

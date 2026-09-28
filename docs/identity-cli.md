@@ -15,6 +15,8 @@ kompiliert und nicht im Gast installiert.** Die bestehenden Android-Dialogtests 
 - `AegisIdentityTests`: Android-Tests für die Eigentümerschaft von
   Credential-Kopien bei lokalen Binder-Aufrufen sowie die tatsächlich wirksame
   Framework-Dienstliste, Mehrbenutzervorgaben und die fehlenden QEMU-Funkgeräte.
+  Hinzu kommen die Runtime-UID/GID-Zuordnung und installierte Ressourcenkennungen;
+  insgesamt zwölf vorbereitete Tests. Die Zuordnung startet keinen Linux-Kontext.
   Noch nicht kompiliert oder ausgeführt.
 
 Die erste CLI unterstützt im Quelltext `setup`, `user list`, `user add`,
@@ -174,7 +176,10 @@ sauber sein und exakt dem zuvor über GitHub bezogenen Commit entsprechen.
 Der Check verwendet die gemeinsame Buildsperre, prüft den Manifest-Pin,
 registriert die verwalteten Produkt- und Paketquellen und baut `aegis`,
 `aegis-identity-service`, `AegisIdentityTests`, `framework-res` und
-`selinux_policy` mit maximal zwölf Jobs. Damit werden auch Ressourcen und
+`selinux_policy` sowie die generierten Vendor-/System-Ext-Kennungsregister mit
+maximal zwölf Jobs. Zuvor prüft AOSPs hashgeprüfter Originalparser die vollständige
+Produktliste der Kennungsdefinitionen auf Konflikte; siehe
+[`runtime/uid-mapping.md`](../runtime/uid-mapping.md). Damit werden auch Ressourcen und
 SELinux-Regeln des neuen Produktstands kompiliert; es wird weiterhin kein
 fertiges Boot-Image erzeugt.
 

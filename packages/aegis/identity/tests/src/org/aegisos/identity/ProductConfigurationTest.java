@@ -2,6 +2,7 @@ package org.aegisos.identity;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
@@ -9,11 +10,14 @@ import android.content.pm.FeatureInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.UserManager;
+import android.system.Os;
+import android.system.StructPasswd;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import java.util.Arrays;
+import java.util.Locale;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -21,6 +25,28 @@ import org.junit.runner.RunWith;
 /** Reads the installed product's effective resources; creates no users and changes no state. */
 @RunWith(AndroidJUnit4.class)
 public final class ProductConfigurationTest {
+    @Test public void installedRuntimeResourceNamesResolveToTheirReservedIds() throws Exception {
+        // Check actual installed partition registries through bionic. A generic
+        // OEM fallback must not make missing generated names look successful.
+        for (int inside = 0; inside < 1000; inside++) {
+            checkResourceName(String.format(Locale.ROOT, "vendor_aegis_linux_%04d", inside),
+                    5000 + inside);
+        }
+        checkResourceName("system_ext_aegis_runtime_user", 7500);
+        checkResourceName("system_ext_aegis_runtime_nobody", 7501);
+    }
+
+    private static void checkResourceName(String name, int appId) throws Exception {
+        StructPasswd entry = Os.getpwnam(name);
+        assertNotNull("Missing generated resource name " + name, entry);
+        assertEquals(name, entry.pw_name);
+        assertEquals(appId, entry.pw_uid);
+        assertEquals(appId, entry.pw_gid);
+        StructPasswd reverse = Os.getpwuid(appId);
+        assertNotNull("Missing reverse resource lookup " + appId, reverse);
+        assertEquals(name, reverse.pw_name);
+    }
+
     @Test public void frameworkStartsExactlyOneAegisIdentityService() throws Exception {
         Context target = InstrumentationRegistry.getInstrumentation().getTargetContext();
         Resources framework = target.createPackageContext("android", 0).getResources();

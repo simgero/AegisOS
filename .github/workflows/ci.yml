@@ -49,6 +49,7 @@ jobs:
           bash -n scripts/export-secure-env.sh
           bash -n tools/qemu/adb-bridge.sh
           python3 scripts/kernel/source_manifest.py kernel/manifest.xml
+          python3 scripts/runtime/uid_layout.py check
 
       - name: Validate helper init source
         run: clang -target aarch64-linux-gnu -ffreestanding -fno-builtin -fsyntax-only -Wall -Wextra -Werror tools/secure-env/init.c

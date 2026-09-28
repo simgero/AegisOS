@@ -75,12 +75,14 @@ Diese Tests starten kein Betriebssystem und prüfen keine Namespace-Isolation.
 
 ## Vor dem ersten Runtime-Start noch erforderlich
 
-1. UID/GID-Zuordnung gegen AOSPs reservierte Bereiche festlegen. Die 18 technischen
-   Debian-Konten sind keine AEGIS-Benutzer. Ihre Quell-IDs und Archiv-Eigentümer
-   dürfen nicht unverändert als Hostberechtigungen verwendet werden. Der normale
-   Runtime-Prozess soll intern UID/GID 1000 sehen; dessen Host-ID muss pro
-   persönlichem AOSP-Benutzer getrennt sein. Ein generischer NSS-Eintrag für
-   diese UID ist in der Originalbasis noch nicht vorhanden.
+1. Die [vorbereitete UID/GID-Zuordnung](uid-mapping.md) auf dem Builder gegen
+   sämtliche Produktkennungen prüfen und im Gast einrichten. Alle 38 Kennungen
+   der echten Basis sind abgedeckt; es gibt noch keinen Namespace oder Broker.
+   Die 18 technischen Debian-Konten sind keine AEGIS-Benutzer. Ihre Quell-IDs und
+   Archiv-Eigentümer dürfen nicht unverändert als Hostberechtigungen verwendet
+   werden. Der normale Prozess soll intern UID/GID 1000 sehen, mit einer eigenen
+   Hostkennung je AOSP-Benutzer. Ein generischer NSS-Eintrag für diese UID ist in
+   der Originalbasis noch nicht vorhanden.
 2. Auf dem Builder eine verwaltete, für normale Runtime-Prozesse schreibgeschützte
    Generation erzeugen. Die Basis enthält normale Debian-Set-ID-Dateien; diese
    erteilen keine AOSP-Adminberechtigung. `nosuid`, `no_new_privs`, Capability- und

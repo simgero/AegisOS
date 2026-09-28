@@ -23,6 +23,8 @@ REQUIRED = {
     "device/aegis/qemu_arm64/aegis_qemu_arm64.mk",
     "device/aegis/qemu_arm64/BoardConfig.mk", "packages/aegis/identity/Android.bp",
     "scripts/runtime/base.py", "runtime/debian-arm64.json",
+    "scripts/runtime/uid_layout.py", "runtime/uid-map.json", "runtime/aosp-id-reference.json",
+    "device/aegis/qemu_arm64/runtime-ids.fs",
 }
 MARKER = ".aegis-build-inputs.json"
 MAX_FILE_BYTES = 8 * 1024 * 1024

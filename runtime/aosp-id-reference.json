@@ -1,0 +1,7 @@
+{
+  "aosp_tag": "android-16.0.0_r1",
+  "sha256": {
+    "system/core/libcutils/include/private/android_filesystem_config.h": "ef3a353440f0a1d215d84030577b0a9f6357fa528e9a5495cd4057e7e64b5ea9",
+    "build/make/tools/fs_config/fs_config_generator.py": "3792818203f97909b190d457997fdc63f0fd6a4a9d550d728585728752da86f3"
+  }
+}
