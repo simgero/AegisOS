@@ -237,9 +237,9 @@ Worker-Tests verhindern Erfolg bei fehlendem oder beschädigt zurückgelesenem
 Image-Bericht. Der tatsächliche Lauf mit den AOSP-Werkzeugen und dem neuen echten
 Systemimage ist oben separat dokumentiert; die Fixtures ersetzen ihn nicht.
 
-Das echte AOSP-Dateisystemrezept und dessen wiederholter Build sind weiterhin
-unausgeführt. Erst nach Server-Build und GitHub-Transport müssen im lokalen
-QEMU der schreibgeschützte gemeinsame Bestand, korrekte ID-Zuordnung, private
+Das echte AOSP-Dateisystemrezept und sein wiederholter Build sind oben
+nachgewiesen. Nach dem erfolgreichen Server-Build und GitHub-Transport müssen
+im lokalen QEMU der schreibgeschützte gemeinsame Bestand, korrekte ID-Zuordnung, private
 CE-Mounts, Linux-Programme und zwei getrennte Benutzer getestet werden.
 Gemeinsame/private Pakettransaktionen samt frischer AOSP-Adminprüfung sind
 ein weiterer, noch nicht implementierter Schritt.

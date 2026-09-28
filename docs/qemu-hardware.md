@@ -18,7 +18,17 @@ Kernel und authentifiziertes ADB funktionieren mit SELinux Enforcing. Logs:
 Die Korrektur nutzt `LOCAL_AUDIO_PRODUCT_COPY_FILES` vor der Produktvererbung.
 Die eigene Audiopolicy lässt ausschließlich den Bluetooth-Include weg; primäre
 Audio-/Submix-Konfiguration, Effekte und Lautstärketabellen bleiben erhalten.
-Ein Neubau mit anschließendem QEMU-Boot muss die Korrektur noch bestätigen.
+Der Korrekturbuild `be1ad9ad` (Lauf `aosp-20260928T190055Z-be1ad9ad-ba90a514`)
+hat die Image-Erzeugung und den tatsächlichen Basisnachweis innerhalb von
+`super.img` bestanden; Paketierung/GitHub-Verifikation und Gastboot stehen noch
+aus. Die installierte Audiopolicy stimmt byteweise mit der Korrektur überein.
+
+Zusätzlich löst der Build künftig vor dem Paketieren sämtliche XIncludes mit
+`xmllint --nonet --xinclude --noout` in der installierten Policy auf. Diese
+Prüfung wurde auf dem Builder mit echten XML-Kopien ausgeführt: Die korrigierte
+Policy besteht, die ursprüngliche Policy wird wegen des fehlenden Bluetooth-
+Includes abgewiesen. Der zusätzliche Build-Schritt liegt nach dem laufenden
+Image-Commit; dort wurde er gesondert manuell geprüft. Er ersetzt keinen Gastboot.
 Der Fehler wird nicht durch Abschalten von Audioserver, SELinux oder AVB umgangen.
 
 Der Launcher `scripts/qemu-with-secure-env.py` verbindet die kryptografischen

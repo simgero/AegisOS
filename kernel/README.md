@@ -188,24 +188,25 @@ den Transport des Kernel-Nachweises und den Abbruch bei fehlendem Nachweis.
 Als reale Formatprüfung wurden das vorhandene Kernel-Image und 19 Module seines
 Vendor-Ramdisks gelesen, ohne sie zu verändern, zu laden oder auszuführen. Dabei
 bestätigte die Prüfroutine die fehlenden Namespace-Optionen des bisherigen Kernels.
-**Der neue Kernel ist inzwischen gebaut, aber noch nicht in Android integriert
-oder lokal gestartet.** Der erste reale Kleaf-Lauf liefert die Metadaten als
+**Der korrigierte Kernel ist gebaut, in Android integriert und lokal gestartet;
+der vollständige Android-Boot und die Isolationstests sind noch offen.**
+Der erste reale Kleaf-Lauf liefert die Metadaten als
 `kernel_aarch64_dot_config` und `kernel_aarch64_Module.symvers`; die Übernahme
 verwendet diese festen Namen und vergleicht die Konfiguration weiterhin mit
 dem tatsächlich ausführbaren Kernel.
 
-## Noch notwendige Integration und Abnahme
+## Integrations- und Abnahmeschritte
 
-1. Das Rezept auf dem erreichbaren Builder ausführen. Im Ergebnis die tatsächlich
-   wirksame Konfiguration sowie Herkunft und Versionsdaten aller Module prüfen.
-2. Den fertigen Lauf ausdrücklich über `AEGIS_KERNEL_RUN` auswählen und die
-   vorbereitete Übernahme erstmals mit echten neuen Ausgaben ausführen.
-   Boot-, Vendor-Boot-, DLKM- und VBMeta-Images konsistent neu erzeugen und deren
-   tatsächlichen Inhalt kontrollieren. Der Quelltext der Übergabe ersetzt diesen Lauf nicht.
-3. Geprüfte Images und Prüfsummen über GitHub veröffentlichen und auf dem Mac
-   beziehen. Das bisherige QEMU-Profil behalten; eine Profilmigration ist noch
-   nicht implementiert.
-4. In lokalem QEMU Boot, Modulladen, Grafik, Eingaben, ADB, SELinux und
+1. **Erledigt:** Rezept auf dem Builder ausgeführt; wirksame Konfiguration,
+   Herkunft und Versionsdaten der Module geprüft.
+2. **Erledigt:** fertigen Lauf über `AEGIS_KERNEL_RUN` ausgewählt;
+   Boot-, Vendor-Boot-, DLKM- und VBMeta-Images im Vollbuild `336e9275`
+   konsistent neu erzeugt und deren tatsächlichen Inhalt kontrolliert.
+3. **Erledigt:** geprüfte Images über GitHub veröffentlicht und auf dem Mac
+   bezogen; neues gepaartes Testprofil angelegt. Das bisherige QEMU-Profil
+   bleibt erhalten; eine Profilmigration ist noch nicht implementiert.
+4. **Offen:** nach Korrektur der Audiopolicy in lokalem QEMU vollständigen Boot,
+   Modulladen, Grafik, Eingaben, ADB, SELinux und
    Verschlüsselung prüfen. User-/PID-/Mount-/IPC-Isolation praktisch ausführen,
    einschließlich UID-Mappings und negativer Zugriffsversuche.
 
