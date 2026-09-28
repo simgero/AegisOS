@@ -65,6 +65,15 @@ Fünf weitere native Negativtests sind vorbereitet, insgesamt jetzt 40.
 **Unkompiliert und nicht im Gast geprüft.** AOSP-Lebenszyklus-Sperre, echter
 Mount-Helfer, SELinux, private Paketbestände und Zwei-Benutzer-Nachweis fehlen.
 
+Das [private Geräteverzeichnis](../runtime/private-devices.md) ist ebenfalls
+im Quelltext vorbereitet: begrenztes frisches Tmpfs, sechs festgelegte
+Zeichengeräte, leere Terminal-/IPC-Mountpunkte, feste Links und geprüfte
+schreibgeschützte Metadaten mit persönlicher ID-Zuordnung. Der Namespace-Start
+trennt zusätzlich Terminalsitzung und Prozessgruppe vom Broker. Zwei weitere
+native Tests sind vorbereitet, insgesamt 42. **Unkompiliert und nicht im Gast
+ausgeführt.** Die echte Mountübergabe, private Prozess-/Terminal-Dateisysteme,
+Rootwechsel und durchgesetzte SELinux-Regeln bleiben offen.
+
 Auch die [gemeinsame Softwaregeneration](../runtime/generations.md) besitzt nun
 ein Buildrezept: technischer NSS-Benutzer, explizite Datei-Eigentümer, Entfernen
 der Set-ID-Bits, wiederholte ext4-Erzeugung und Lesen des tatsächlichen

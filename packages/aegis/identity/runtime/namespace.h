@@ -10,7 +10,7 @@ extern "C" {
 
 /* INTERNAL trusted launcher primitive, not an AOSP authorization endpoint.
  * Caller: dedicated SINGLE-THREADED Android host-root broker, initial user/PID
- * namespaces, no supplementary groups, exclusive child reaper, no SIGCHLD
+ * and mount namespaces, no supplementary groups, exclusive child reaper, no SIGCHLD
  * auto-reaping. Drop groups during broker initialization, NOT after NEWUSER.
  * The broker must bind every handle to a fresh authorized AOSP id+serial and
  * CE state; user_id alone grants no authority and must not come from a client.
@@ -79,6 +79,16 @@ int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_sou
  * attached storage nor runtime readiness. The original child deadline applies.
  */
 int aegis_namespace_home_mount(struct aegis_namespace *context, int create);
+
+/* After prepare(), before resume(): create a fresh detached, readonly tmpfs
+ * with exactly six standard character devices and fixed private /dev layout.
+ * Returns a CLOEXEC mount fd mapped to this child's UID namespace; caller owns
+ * it and closes it on cancellation/teardown. No host device tree is copied or
+ * mounted. The setup helper must still supply private devpts/shm/mqueue and
+ * procfs before using the links. SELinux and device-cgroup denials are fatal.
+ * No runtime readiness or authorization is implied. Original deadline applies.
+ */
+int aegis_namespace_devices_mount(struct aegis_namespace *context);
 
 /* Stable pidfd termination/observation, with the same semantics as child.h.
  * stop also closes the gate. wait confirms ONLY this child's actual exit.

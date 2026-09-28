@@ -14,11 +14,14 @@
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
+#include <set>
 #include <stdlib.h>
+#include <string.h>
 #include <string>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <sys/sysmacros.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -102,6 +105,7 @@ class RuntimeNamespace : public ::testing::Test {
         EXPECT_EQ(user, result.user_id);
         EXPECT_EQ(1234u, result.serial);
         EXPECT_EQ(1u, result.pid); EXPECT_EQ(0u, result.ppid);
+        EXPECT_EQ(1u, result.session_id); EXPECT_EQ(1u, result.process_group);
         EXPECT_EQ(0u, result.uid); EXPECT_EQ(0u, result.gid);
         EXPECT_EQ(0u, result.groups); EXPECT_EQ(static_cast<uint32_t>(SIGKILL), result.death_signal);
         EXPECT_EQ(0u, result.extra_fds); EXPECT_EQ(1u, result.fixed_environment);
@@ -292,6 +296,7 @@ TEST_F(RuntimeNamespace, InheritedObserverCannotReleaseOrSignalAnotherContext) {
         ok &= aegis_namespace_prepare(contexts[0]) == -1 && errno == EPERM;
         ok &= aegis_namespace_base_mount(contexts[0], -1) == -1 && errno == EPERM;
         ok &= aegis_namespace_home_mount(contexts[0], 0) == -1 && errno == EPERM;
+        ok &= aegis_namespace_devices_mount(contexts[0]) == -1 && errno == EPERM;
         ok &= aegis_namespace_stop(contexts[0]) == -1 && errno == EPERM;
         aegis_child_exit result = {};
         ok &= aegis_namespace_wait(contexts[0], 0, &result) == -1 && errno == EPERM;
@@ -435,6 +440,7 @@ TEST_F(RuntimeNamespace, MissingMappingsAndStoppedChildrenCannotProvideBaseViews
     ASSERT_EQ(0, create(0, 10));
     EXPECT_EQ(-1, aegis_namespace_base_mount(contexts[0], source)); EXPECT_EQ(EAGAIN, errno);
     EXPECT_EQ(-1, aegis_namespace_home_mount(contexts[0], 0)); EXPECT_EQ(EAGAIN, errno);
+    EXPECT_EQ(-1, aegis_namespace_devices_mount(contexts[0])); EXPECT_EQ(EAGAIN, errno);
     ASSERT_EQ(0, aegis_namespace_prepare(contexts[0]));
     ASSERT_EQ(0, aegis_namespace_stop(contexts[0]));
     aegis_child_exit result = {};
@@ -442,7 +448,108 @@ TEST_F(RuntimeNamespace, MissingMappingsAndStoppedChildrenCannotProvideBaseViews
     int before = descriptors();
     EXPECT_EQ(-1, aegis_namespace_base_mount(contexts[0], source)); EXPECT_EQ(EALREADY, errno);
     EXPECT_EQ(-1, aegis_namespace_home_mount(contexts[0], 0)); EXPECT_EQ(EALREADY, errno);
+    EXPECT_EQ(-1, aegis_namespace_devices_mount(contexts[0])); EXPECT_EQ(EALREADY, errno);
     EXPECT_EQ(before, descriptors());
+}
+
+TEST_F(RuntimeNamespace, PrivateDevicesAreWhitelistedMappedAndMetadataIsReadonly) {
+    ASSERT_EQ(0, create(0, 10));
+    ASSERT_EQ(0, aegis_namespace_prepare(contexts[0]));
+    mounts[0] = aegis_namespace_devices_mount(contexts[0]);
+    ASSERT_GE(mounts[0], 0) << strerror(errno);
+    struct stat root;
+    ASSERT_EQ(0, fstat(mounts[0], &root));
+    EXPECT_EQ(1005000u, root.st_uid); EXPECT_EQ(1005000u, root.st_gid);
+    EXPECT_EQ(static_cast<mode_t>(S_IFDIR | 0755), root.st_mode);
+    struct statvfs flags;
+    ASSERT_EQ(0, fstatvfs(mounts[0], &flags));
+    EXPECT_EQ(static_cast<unsigned long>(ST_RDONLY | ST_NOSUID | ST_NOEXEC),
+              flags.f_flag & (ST_RDONLY | ST_NOSUID | ST_NOEXEC));
+    EXPECT_EQ(0u, flags.f_flag & ST_NODEV);
+    EXPECT_NE(0, fcntl(mounts[0], F_GETFD) & FD_CLOEXEC);
+
+    int readable = openat(mounts[0], ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    ASSERT_GE(readable, 0);
+    DIR* directory = fdopendir(readable);
+    if (!directory) close(readable);
+    ASSERT_NE(nullptr, directory);
+    std::set<std::string> names;
+    errno = 0;
+    while (dirent* entry = readdir(directory)) {
+        if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")) names.insert(entry->d_name);
+    }
+    EXPECT_EQ(0, errno);
+    closedir(directory);
+    const std::set<std::string> expected = {
+        "null", "zero", "full", "random", "urandom", "tty", "pts", "shm", "mqueue",
+        "ptmx", "fd", "stdin", "stdout", "stderr",
+    };
+    EXPECT_EQ(expected, names);
+    const struct { const char* name; unsigned major, minor; } devices[] = {
+        {"null", 1, 3}, {"zero", 1, 5}, {"full", 1, 7},
+        {"random", 1, 8}, {"urandom", 1, 9}, {"tty", 5, 0},
+    };
+    for (const auto& device : devices) {
+        struct stat st;
+        ASSERT_EQ(0, fstatat(mounts[0], device.name, &st, AT_SYMLINK_NOFOLLOW));
+        EXPECT_EQ(static_cast<mode_t>(S_IFCHR | 0666), st.st_mode);
+        EXPECT_EQ(1005000u, st.st_uid); EXPECT_EQ(1005000u, st.st_gid);
+        EXPECT_EQ(makedev(device.major, device.minor), st.st_rdev);
+    }
+    const struct { const char* name; const char* target; } links[] = {
+        {"ptmx", "pts/ptmx"}, {"fd", "/proc/self/fd"}, {"stdin", "/proc/self/fd/0"},
+        {"stdout", "/proc/self/fd/1"}, {"stderr", "/proc/self/fd/2"},
+    };
+    for (const auto& link : links) {
+        char target[64];
+        ssize_t n = readlinkat(mounts[0], link.name, target, sizeof(target));
+        ASSERT_GT(n, 0);
+        EXPECT_EQ(std::string(link.target), std::string(target, static_cast<size_t>(n)));
+    }
+    int file = openat(mounts[0], "unexpected", O_CREAT | O_EXCL | O_WRONLY | O_CLOEXEC, 0600);
+    EXPECT_EQ(-1, file); EXPECT_EQ(EROFS, errno);
+    if (file >= 0) close(file);
+    EXPECT_EQ(-1, unlinkat(mounts[0], "null", 0)); EXPECT_EQ(EROFS, errno);
+    EXPECT_EQ(-1, fchmodat(mounts[0], "null", 0600, 0)); EXPECT_EQ(EROFS, errno);
+    file = openat(mounts[0], "null", O_WRONLY | O_CLOEXEC | O_NOFOLLOW);
+    ASSERT_GE(file, 0);
+    EXPECT_EQ(7, write(file, "fixture", 7));
+    close(file);
+    file = openat(mounts[0], "zero", O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    ASSERT_GE(file, 0);
+    char zero[4] = {1, 1, 1, 1};
+    EXPECT_EQ(4, read(file, zero, sizeof(zero)));
+    EXPECT_EQ(std::string(4, '\0'), std::string(zero, sizeof(zero)));
+    close(file);
+    // No probe or user code has executed while mounts were prepared.
+    pollfd ready = {peers[0], POLLIN, 0};
+    EXPECT_EQ(0, poll(&ready, 1, 20));
+}
+
+TEST_F(RuntimeNamespace, EachContextGetsIndependentDeviceStorageAndReferences) {
+    ASSERT_EQ(0, create(0, 10)); ASSERT_EQ(0, create(1, 11));
+    ASSERT_EQ(0, aegis_namespace_prepare(contexts[0]));
+    ASSERT_EQ(0, aegis_namespace_prepare(contexts[1]));
+    int before = descriptors();
+    mounts[0] = aegis_namespace_devices_mount(contexts[0]);
+    mounts[1] = aegis_namespace_devices_mount(contexts[1]);
+    ASSERT_GE(mounts[0], 0); ASSERT_GE(mounts[1], 0);
+    EXPECT_EQ(before + 2, descriptors());
+    struct stat a, b;
+    ASSERT_EQ(0, fstat(mounts[0], &a)); ASSERT_EQ(0, fstat(mounts[1], &b));
+    EXPECT_EQ(1005000u, a.st_uid); EXPECT_EQ(1105000u, b.st_uid);
+    EXPECT_TRUE(a.st_dev != b.st_dev || a.st_ino != b.st_ino);
+    ASSERT_EQ(0, aegis_namespace_stop(contexts[0]));
+    aegis_child_exit result = {};
+    ASSERT_EQ(0, aegis_namespace_wait(contexts[0], 5000, &result));
+    int after_stop = descriptors();
+    close(mounts[0]); mounts[0] = -1;
+    int file = openat(mounts[1], "null", O_WRONLY | O_CLOEXEC | O_NOFOLLOW);
+    ASSERT_GE(file, 0);
+    EXPECT_EQ(7, write(file, "fixture", 7));
+    close(file);
+    close(mounts[1]); mounts[1] = -1;
+    EXPECT_EQ(after_stop - 2, descriptors());
 }
 
 }  // namespace

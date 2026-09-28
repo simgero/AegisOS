@@ -1,6 +1,6 @@
 # Erzeugen persönlicher Namespaces
 
-Stand: **Quelltext und dreizehn Gerätetests vorbereitet, noch nicht kompiliert oder
+Stand: **Quelltext und fünfzehn Gerätetests vorbereitet, noch nicht kompiliert oder
 ausgeführt.** `libaegis-runtime-namespace` ist ein interner Baustein des noch
 fehlenden Brokers. Sie aktiviert keine Runtime und hat keinen öffentlichen
 Endpunkt. AOSP-Anmeldung, Seriennummer, CE-Zustand, Mounts, SELinux-Übergänge und
@@ -107,3 +107,9 @@ Die [persönliche CE-Speicheranbindung](personal-storage.md) nutzt inzwischen
 dieselbe unveränderliche ID-/Seriennummernbindung für die Prüfung von AOSPs
 Speicherwurzeln und die vorbereitete HOME-Sicht. Auch sie ist noch unkompiliert;
 die tatsächliche AOSP-Autorisierung und Lifecycle-Sperre bleiben Brokeraufgaben.
+
+Zusätzlich kann der Broker jetzt ein [privates Geräteverzeichnis](private-devices.md)
+mit festen Standardgeräten und Platzhaltern für eigene Terminal-/IPC-Mounts
+vorbereiten. Der Namespace-Start trennt mit `setsid` auch Terminalsitzung und
+Prozessgruppe vom Broker. Zwei weitere Gerätetests sind vorbereitet; tatsächliche
+Kompilierung, Mountübergabe und Runtime-Start stehen weiterhin aus.

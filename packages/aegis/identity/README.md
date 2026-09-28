@@ -39,6 +39,13 @@ Mount-Sicht. Namespace-Handles tragen ID und Seriennummer unveränderlich.
 Fünf zusätzliche Negativtests sind vorbereitet. Alles ist noch unkompiliert;
 erfolgreiche CE-Anlage, Lebenszyklus-Koordination und Gastnachweise fehlen.
 
+Ein [privates Geräteverzeichnis](../../../runtime/private-devices.md) ergänzt
+jetzt sechs feste Zeichengeräte und Platzhalter für persönliche Terminal-/IPC-
+Mounts. Es wird nur detached im Broker vorbereitet; kein Host-Gerätebaum wird
+eingehängt. Sitzung und Prozessgruppe werden vor dem Setup-Exec getrennt.
+Zwei weitere native Tests sind vorbereitet. Kompilierung, SELinux, Mount-Helfer
+und der vollständige Runtime-Start fehlen weiterhin.
+
 `AospIdentityBackend` ist für den späteren AEGIS-Systemdienst vorgesehen.
 Der Konstruktor verlangt den Android-Systemprozess-UID. Die Klasse besitzt
 keinen Binder-Endpunkt und keine eigene Benutzer-, Passwort- oder Schlüsseldatenbank.

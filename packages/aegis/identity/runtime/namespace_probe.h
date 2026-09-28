@@ -7,6 +7,7 @@
 struct aegis_namespace_probe {
     uint32_t magic, user_id, serial, pid, ppid, uid, gid, groups, death_signal;
     uint32_t extra_fds, setgroups_denied, private_mounts, fixed_environment;
+    uint32_t session_id, process_group;
     uint32_t uid_rows[3][3], gid_rows[3][3];
     uint64_t namespace_inodes[6]; /* user, pid, mnt, ipc, uts, net */
 };

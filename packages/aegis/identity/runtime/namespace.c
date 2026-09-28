@@ -197,6 +197,7 @@ static _Noreturn void child_exec(int setup, int control, int gate, int parent,
     if (syscall(SYS_recvfrom, 5, token, sizeof(token), MSG_DONTWAIT, NULL, NULL) != 1
             || token[0] != 'G' || syscall(SYS_getpid) != 1 || syscall(SYS_getppid) != 0
             || syscall(SYS_getgroups, 0, NULL) != 0
+            || syscall(SYS_setsid) < 0
             || syscall(SYS_setresgid, 0u, 0u, 0u) < 0
             || syscall(SYS_setresuid, 0u, 0u, 0u) < 0) child_failed();
     /* Credential changes can clear PDEATHSIG. Arm it AFTER both ID changes,
@@ -397,6 +398,20 @@ int aegis_namespace_home_mount(struct aegis_namespace *context, int create) {
      * view for a child which already exited during preparation. */
     if (still_waiting(context) < 0) {
         saved = errno;
+        close(tree);
+        errno = saved;
+        return -1;
+    }
+    return tree;
+}
+
+int aegis_namespace_devices_mount(struct aegis_namespace *context) {
+    if (still_waiting(context) < 0) return -1;
+    if (context->mapped != 1 || context->userns < 0) { errno = EAGAIN; return -1; }
+    int tree = aegis_create_devices_mount(context->userns, context->user_id);
+    if (tree < 0) return -1;
+    if (still_waiting(context) < 0) {
+        int saved = errno;
         close(tree);
         errno = saved;
         return -1;

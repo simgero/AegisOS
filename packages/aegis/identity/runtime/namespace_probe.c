@@ -45,6 +45,7 @@ int main(int argc, char **argv) {
     if (*end || serial > INT32_MAX) return 92;
     report.serial = (uint32_t)serial;
     report.pid = getpid(); report.ppid = getppid();
+    report.session_id = getsid(0); report.process_group = getpgrp();
     uid_t r, e, s;
     gid_t gr, ge, gs;
     if (getresuid(&r, &e, &s) < 0 || getresgid(&gr, &ge, &gs) < 0
