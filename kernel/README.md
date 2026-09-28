@@ -1,6 +1,6 @@
 # Kernel für die gemeinsame GNU/Linux-Runtime
 
-Stand 28. September 2026: **Buildrezept vorbereitet, noch nicht ausgeführt.**
+Stand 28. September 2026: **Buildrezept und AOSP-Übernahme vorbereitet, noch nicht ausgeführt.**
 Kein neuer Kernel ist in die Android-Images integriert oder in QEMU abgenommen.
 
 ## Festgelegte Grundlage
@@ -52,22 +52,78 @@ Der gemeinsame Build-Lock verhindert parallele AOSP-/Helper-/Kernel-Builds.
 Der Prozess muss für den langen Lauf auf dem Server verwaltet gestartet werden;
 das Rezept selbst richtet keinen Dienst ein.
 
-Vor dem Compilerstart prüft das Rezept alle 40 tatsächlichen Git-Checkouts auf
+Vor und nach dem Compilerlauf prüft das Rezept alle 40 tatsächlichen Git-Checkouts auf
 den erwarteten Commit und lokale Änderungen. Es speichert Quellmanifest,
 Projektcommit, Fragment, Sync- und Buildlogs. Ergebnisse landen getrennt in
 `gki/` und `virtual-device/` eines neuen Laufverzeichnisses.
 `BUILT_UNVERIFIED` bedeutet ausschließlich, dass beide Buildbefehle erfolgreich
 waren. Das Rezept lädt nichts hoch und installiert oder startet keine Images.
 
+## Übergabe an den vollständigen Android-Build
+
+Der Bootstrap unterstützt die optionale Umgebungsvariable
+`AEGIS_KERNEL_RUN=/srv/aegis/runs/kernel-KONKRETER_LAUF`. Sie muss in der Umgebung
+des privilegierten Bootstrap-Prozesses gesetzt sein; dessen systemd-Dienst
+übernimmt sie ausdrücklich. Ein normaler Build ohne diese Auswahl verwendet
+weiter die gepinnten AOSP-Prebuilts und übernimmt keine frühere Auswahl stillschweigend.
+Der Pfad darf nur einen konkreten Lauf direkt unter `/srv/aegis/runs` bezeichnen.
+Die Quellskripte müssen zuvor über GitHub auf dem gewünschten Commit angekommen sein.
+
+`scripts/kernel/integrate.py` läuft im vorhandenen AOSP-Build-Lock vor dem
+Compiler. Es prüft unter anderem:
+
+- abgeschlossenen Kernel-Lauf, Projektcommit, Quellmanifest und unverändertes
+  Konfigurationsfragment; aufgelöste und gepinnte Quellrevisionen müssen übereinstimmen;
+- identische ARM64-`Image`-Dateien aus GKI- und Virtual-Device-Ausgabe;
+- die komprimierte Konfiguration **innerhalb der ausführbaren Kernel-Datei**,
+  Übereinstimmung mit `.config`, Namespace-Funktionen sowie wesentliche Android-
+  Voraussetzungen wie SELinux, Seccomp, Modulsignaturunterstützung, Dateiverschlüsselung
+  und dm-verity;
+- echte ELF-Metadaten aller übernommenen ARM64-Module, passende Kernelversion und
+  identisches `vermagic`; doppelt gelieferte GKI-Module müssen bytegleich sein;
+- die festgelegten frühen Boot-Treiber, Dateigrößen und reguläre Dateien ohne Symlinks.
+
+Geprüfte Dateien werden unter
+`device/aegis/runtime-kernels/INHALTSHASH/` im Server-AOSP-Checkout abgelegt.
+Unvollständige Kopien liegen außerhalb der Produktsuche unter `out/`. Veränderte
+vorhandene Eingaben werden erhalten und abgewiesen. Die Produktregistrierung
+ergänzt eine erzeugte Make-Datei, die **vor** der geerbten Board-Konfiguration
+`TARGET_KERNEL_PATH`, `SYSTEM_DLKM_SRC` und `KERNEL_MODULES_PATH` zusammen festlegt.
+Nach `lunch` wird kontrolliert, dass AOSP tatsächlich alle drei Pfade übernommen hat.
+Die normalen verwalteten Produktquellen und deren Vorgänger bleiben nachvollziehbar.
+
+Anschließend erzeugt der bestehende vollständige AOSP-Build seine Boot-, Vendor-
+Boot-, DLKM-, Super- und VBMeta-Images mit den normalen Sicherheitsregeln. Der
+ausgelieferte Kernel und die Kernel-Nutzdaten in `boot.img` werden nochmals über
+ihre SHA-256-Werte zugeordnet; ein stehen gebliebenes altes Boot-Image wird abgewiesen.
+`kernel-inputs.json` hält Quellrevisionen, Kernelversion, Modul- und Eingabehashes
+fest. Der Worker nimmt diesen Nachweis in Prüfsummen, GitHub-Upload und erneuten
+Bytevergleich auf. Bei ausdrücklich ausgewähltem Kernel verhindert ein fehlender
+Nachweis die Erfolgsmeldung. Binärdateien erreichen den Mac weiterhin über GitHub.
+
+`CHECKED_INPUTS_NOT_BOOTED` besagt nur, dass diese Eingabeprüfungen bestanden sind.
+Gleiche Versionsstrings sind kein vollständiger ABI- oder Signaturnachweis.
+Insbesondere müssen die tatsächlich erzeugten Images, geladene Module und deren
+Fehlerprotokolle noch geprüft werden. Es werden keine Kernel-Signaturprüfungen,
+AVB-Regeln oder SELinux-Regeln abgeschaltet und keine alten Images einzeln gepatcht.
+
+Die Hosttests verwenden nicht ausführbare ELF-/Image-Metadatenfixtures. Sie prüfen
+defekte und vermischte Eingaben, Konfigurationsabweichungen, abgebrochene Kopien,
+Erhalt alter Quellen sowie Auswahl und Ergebniszuordnung. Linux-CI prüft zusätzlich
+den Transport des Kernel-Nachweises und den Abbruch bei fehlendem Nachweis.
+Als reale Formatprüfung wurden das vorhandene Kernel-Image und 19 Module seines
+Vendor-Ramdisks gelesen, ohne sie zu verändern, zu laden oder auszuführen. Dabei
+bestätigte die Prüfroutine die fehlenden Namespace-Optionen des bisherigen Kernels.
+**Der neue Kernel selbst wurde noch nicht gebaut oder gestartet.**
+
 ## Noch notwendige Integration und Abnahme
 
 1. Das Rezept auf dem erreichbaren Builder ausführen. Im Ergebnis die tatsächlich
    wirksame Konfiguration sowie Herkunft und Versionsdaten aller Module prüfen.
-2. Kernel, GKI-Module und Virtual-Device-Module gemeinsam in den AOSP-Build
-   übernehmen. Die gepinnte Cuttlefish-Boardkonfiguration verwendet dafür
-   `TARGET_KERNEL_PATH`, `SYSTEM_DLKM_SRC` und `KERNEL_MODULES_PATH`. Boot-,
-   Vendor-Boot-, DLKM- und VBMeta-Images konsistent neu erzeugen; keine einzelnen
-   Dateien in das alte, signierte Image austauschen.
+2. Den fertigen Lauf ausdrücklich über `AEGIS_KERNEL_RUN` auswählen und die
+   vorbereitete Übernahme erstmals mit echten neuen Ausgaben ausführen.
+   Boot-, Vendor-Boot-, DLKM- und VBMeta-Images konsistent neu erzeugen und deren
+   tatsächlichen Inhalt kontrollieren. Der Quelltext der Übergabe ersetzt diesen Lauf nicht.
 3. Geprüfte Images und Prüfsummen über GitHub veröffentlichen und auf dem Mac
    beziehen. Das bisherige QEMU-Profil behalten; eine Profilmigration ist noch
    nicht implementiert.

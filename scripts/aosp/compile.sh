@@ -6,7 +6,12 @@ script_dir=$(cd "$(dirname "$0")" && pwd)
 source "$script_dir/config.sh"
 # Both the GitHub snapshot and a project checkout preserve the repository layout.
 project=$(cd "$script_dir/../.." && pwd)
-python3 "$script_dir/link-product.py" "$project/device/aegis/qemu_arm64" /srv/aegis/work/aosp
+if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
+    python3 "$project/scripts/kernel/integrate.py" prepare --run "$AEGIS_KERNEL_RUN" \
+        --project "$project" --aosp /srv/aegis/work/aosp --receipt "$1/kernel-inputs.json"
+else
+    python3 "$script_dir/link-product.py" "$project/device/aegis/qemu_arm64" /srv/aegis/work/aosp
+fi
 python3 "$script_dir/register-identity.py" "$project/packages/aegis/identity" /srv/aegis/work/aosp
 cp /srv/aegis/work/aosp/packages/aegis/identity/.aegis-source.json "$1/identity-source-files.json"
 cp /srv/aegis/work/aosp/device/aegis/.aegis-product-link.json "$1/product-source-files.json"
@@ -23,6 +28,11 @@ lunch "$AOSP_LUNCH"
 [[ $(get_build_var TARGET_PRODUCT) == aegis_qemu_arm64 ]] || {
     echo 'Unexpected AOSP product; refusing to compile.' >&2; exit 1;
 }
+if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
+    python3 "$project/scripts/kernel/integrate.py" verify-selection --receipt "$1/kernel-inputs.json" \
+        --kernel "$(get_build_var TARGET_KERNEL_PATH)" --system "$(get_build_var SYSTEM_DLKM_SRC)" \
+        --vendor "$(get_build_var KERNEL_MODULES_PATH)"
+fi
 read -r -a fs_configs <<< "$(get_build_var TARGET_FS_CONFIG_GEN)"
 python3 "$project/scripts/runtime/uid_layout.py" check --aosp /srv/aegis/work/aosp \
     --fs-config "${fs_configs[@]}"
@@ -31,4 +41,8 @@ jobs=$(nproc)
 (( jobs <= 16 )) || jobs=16
 m -j"$jobs"
 get_build_var PRODUCT_OUT > "$1/product-out.txt"
+if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
+    python3 "$project/scripts/kernel/integrate.py" verify-image --receipt "$1/kernel-inputs.json" \
+        --image "$(cat "$1/product-out.txt")/kernel" --boot-image "$(cat "$1/product-out.txt")/boot.img"
+fi
 printf '%s\n' "$AOSP_LUNCH" > "$1/product-target.txt"

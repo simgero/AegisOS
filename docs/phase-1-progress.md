@@ -46,8 +46,12 @@ Build abzugleichen; das bloße Hinzufügen von Konfigurationszeilen reicht nicht
 Die passenden 40 Kernel-Quellprojekte sind inzwischen aus dem offiziellen
 Manifest des laufenden Builds `13257114` festgelegt. Ein Buildrezept mit
 gemeinsamem Namespace-Fragment für Kernel und Module liegt unter
-[`kernel/`](../kernel/README.md). Es ist noch nicht auf dem Builder ausgeführt;
-die Integration der Ergebnisse in neue AOSP-Images und Gasttests fehlen.
+[`kernel/`](../kernel/README.md). Die Übernahme eines ausdrücklich gewählten
+Laufs in den vollständigen AOSP-Build ist inzwischen im Quelltext vorbereitet:
+eingebettete Kernelkonfiguration, Modulversionen, Boot-Treiber, gemeinsame
+Pfadauswahl und der resultierende Kernel werden geprüft, der Eingabenachweis
+über GitHub mitgeliefert. Das Rezept und die Übernahme sind noch nicht mit einem
+neuen Kernel auf dem Builder ausgeführt; tatsächliche Images und Gasttests fehlen.
 
 ## Reihenfolge
 

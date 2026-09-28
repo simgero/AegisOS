@@ -70,6 +70,7 @@ cat > "$run/notes.md" <<NOTES
 AOSP baseline: $AOSP_TAG
 Target: $AOSP_LUNCH
 Builder commit: $commit
+Kernel input run: ${AEGIS_KERNEL_RUN:-pinned AOSP prebuilts}
 
 Development userdebug build with AOSP test keys. Not a production security release.
 Local boot on Apple Silicon has not yet been verified.
@@ -123,6 +124,9 @@ for required in kernel boot.img init_boot.img vendor_boot.img super.img userdata
     [[ -s "$product/$required" ]] || { echo "Missing QEMU bring-up artifact: $required"; exit 1; }
 done
 cp "$run/product-target.txt" "$run/artifacts/product-target.txt"
+if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
+    cp "$run/kernel-inputs.json" "$run/artifacts/kernel-inputs.json"
+fi
 # Only deliver top-level runtime files, not large obj/ intermediates or unpacked trees.
 (cd "$product"; find -L . -maxdepth 1 -type f -print0 | sort -z | tar -h --null -T - -cf -) \
     | xz -T2 -1 | split -b 1900M -d -a 4 - "$run/artifacts/images.tar.xz.part-"

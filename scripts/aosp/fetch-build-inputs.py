@@ -14,7 +14,7 @@ import tempfile
 
 REPOSITORY = "repos/simgero/AegisOS"
 PREFIXES = ("scripts/aosp/", "device/aegis/qemu_arm64/", "packages/aegis/identity/",
-            "scripts/runtime/", "runtime/")
+            "scripts/runtime/", "runtime/", "scripts/kernel/", "kernel/")
 REQUIRED = {
     "scripts/aosp/worker.sh", "scripts/aosp/config.sh", "scripts/aosp/compile.sh",
     "scripts/aosp/setup-sandbox.sh", "scripts/aosp/link-product.py",
@@ -25,6 +25,8 @@ REQUIRED = {
     "scripts/runtime/base.py", "runtime/debian-arm64.json",
     "scripts/runtime/uid_layout.py", "runtime/uid-map.json", "runtime/aosp-id-reference.json",
     "device/aegis/qemu_arm64/runtime-ids.fs",
+    "scripts/kernel/integrate.py", "scripts/kernel/source_manifest.py",
+    "kernel/manifest.xml", "kernel/aegis_runtime_defconfig",
 }
 MARKER = ".aegis-build-inputs.json"
 MAX_FILE_BYTES = 8 * 1024 * 1024

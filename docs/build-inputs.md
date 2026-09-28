@@ -13,11 +13,15 @@ unter diesen Verzeichnissen:
 - `packages/aegis/identity/`
 - `scripts/runtime/`
 - `runtime/`
+- `scripts/kernel/`
+- `kernel/`
 
 Damit reisen neben den bisherigen Produktdateien auch Java-/AIDL-Quellen,
 Tests, verschachtelte Overlays und SELinux-Regeln sowie der Debian-Basis-Pin
 und sein Importer über GitHub. Der Rootfs-Download selbst wird nicht in Git
 abgelegt und noch nicht automatisch durch den AOSP-Worker ausgeführt.
+Auch die Kernel-Pins und die Prüfung/Übernahme eines ausdrücklich ausgewählten
+Kernel-Laufs sind enthalten; siehe [`kernel/README.md`](../kernel/README.md).
 Der bisherige Download nur dreier Make-Dateien konnte diese Erweiterungen
 nicht transportieren. Nicht ausgewählte Repository-Verzeichnisse werden
 nicht auf dem Server abgelegt.

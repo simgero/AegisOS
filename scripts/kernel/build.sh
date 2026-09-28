@@ -85,7 +85,9 @@ env -u GH_TOKEN -u GITHUB_TOKEN -u CREDENTIALS_DIRECTORY \
 env -u GH_TOKEN -u GITHUB_TOKEN -u CREDENTIALS_DIRECTORY \
     tools/bazel run --jobs="$jobs" "$fragment" \
     //common-modules/virtual-device:virtual_device_aarch64_dist -- --destdir="$run/virtual-device"
+python3 "$project/scripts/kernel/source_manifest.py" "$project/kernel/manifest.xml" --workspace "$workspace"
 state BUILT_UNVERIFIED
 trap - EXIT TERM INT
 echo "Kernel outputs: $run"
-echo 'Not ready for QEMU: validate configs/modules, integrate into signed AOSP images, then publish through GitHub.'
+echo 'Select this run with AEGIS_KERNEL_RUN for the AOSP build; inputs are checked before compilation.'
+echo 'Not ready for QEMU: rebuild signed Android images, publish through GitHub, then test locally.'

@@ -38,6 +38,8 @@ elif name == 'env':
             (product/name).write_bytes(b'fixture image')
     pathlib.Path(args[-1], 'product-out.txt').write_text(str(product))
     pathlib.Path(args[-1], 'product-target.txt').write_text('aegis_qemu_arm64-bp2a-userdebug\n')
+    if os.environ.get('AEGIS_KERNEL_RUN') and mode != 'missing_kernel_receipt':
+        pathlib.Path(args[-1], 'kernel-inputs.json').write_text('{"fixture":"kernel input transport only"}\n')
 elif name == 'gh':
     if os.environ.get('AEGIS_SYNC_ONLY') == '1': sys.exit('sync-only must not call GitHub API')
     store = root/'remote'
@@ -67,7 +69,7 @@ elif name == 'timeout':
 @unittest.skipUnless(sys.platform.startswith('linux'),
                      'Worker needs Linux tools and a case-sensitive filesystem; covered by Linux CI')
 class WorkerTests(unittest.TestCase):
-    def exercise(self, mode='', sync_only=False):
+    def exercise(self, mode='', sync_only=False, runtime_kernel=False):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             scripts = root/'scripts'
@@ -87,6 +89,10 @@ class WorkerTests(unittest.TestCase):
             env = dict(os.environ, PATH=str(binaries)+':'+os.environ['PATH'],
                        FIXTURE_ROOT=str(root), FAIL_MODE=mode,
                        CREDENTIALS_DIRECTORY=str(credentials), AEGIS_SCRIPT_COMMIT='a'*40)
+            env.pop('AEGIS_KERNEL_RUN', None)
+            env.pop('AEGIS_SYNC_ONLY', None)
+            if runtime_kernel:
+                env['AEGIS_KERNEL_RUN'] = str(root/'server/runs/kernel-public-fixture')
             if sync_only:
                 env['AEGIS_SYNC_ONLY'] = '1'
                 env.pop('CREDENTIALS_DIRECTORY')
@@ -117,8 +123,14 @@ class WorkerTests(unittest.TestCase):
                 self.assertTrue((root/'remote/published').exists())
                 self.assertTrue((root/'remote/manifest.xml').exists())
                 self.assertTrue(list((root/'remote').glob('images.tar.xz.part-*')))
+                if runtime_kernel:
+                    self.assertEqual((root/'remote/kernel-inputs.json').read_bytes(),
+                                     (runs[0]/'artifacts/kernel-inputs.json').read_bytes())
+                    self.assertIn('kernel-inputs.json', (root/'remote/SHA256SUMS').read_text())
 
     def test_verified_success(self): self.exercise()
+    def test_selected_kernel_receipt_is_published_and_verified(self): self.exercise(runtime_kernel=True)
+    def test_missing_kernel_receipt_prevents_success(self): self.exercise('missing_kernel_receipt', runtime_kernel=True)
     def test_sources_only_without_credentials(self): self.exercise(sync_only=True)
     def test_sources_only_rate_limit(self): self.exercise('rate_limit', sync_only=True)
     def test_rate_limit_stops_before_build(self): self.exercise('rate_limit')
@@ -130,6 +142,16 @@ class WorkerTests(unittest.TestCase):
 
 
 class BootstrapTests(unittest.TestCase):
+    def test_kernel_run_path_cannot_select_arbitrary_or_escaping_locations(self):
+        for path in ('/tmp/kernel-any', '/srv/aegis/runs/kernel-one/../other',
+                     '/srv/aegis/runs/kernel-space here', '/srv/aegis/runs/kernel-$(command)'):
+            with self.subTest(path=path):
+                result = subprocess.run(['sh', str(REPO/'build.sh')],
+                                        env=dict(os.environ, AEGIS_KERNEL_RUN=path),
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn('ernel run', result.stderr)
+
     def test_pipe_help(self):
         result = subprocess.run(['sh', '-s', '--', '--help'], input=(REPO/'build.sh').read_text(),
                                 capture_output=True, text=True)
