@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="firmware_version">System version</string>
+    <string name="android_version_summary">Updated to system %1$s</string>
+</resources>

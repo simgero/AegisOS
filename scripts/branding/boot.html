@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; width: 720px; height: 720px; background: #f6f7f9;
+    color: #171c23; font-family: Arial, sans-serif; }
+  main { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; }
+  img { width: 164px; height: 164px; object-fit: contain; margin-bottom: 22px; }
+  .name { font-size: 58px; font-weight: 700; letter-spacing: -2px; line-height: 1; }
+  .os { font-size: 21px; font-weight: 400; color: #616770; letter-spacing: 0; }
+  .activity { display: flex; gap: 8px; margin-top: 48px; height: 6px; }
+  i { width: 6px; height: 6px; border-radius: 50%; background: #61762d; }
+</style>
+<main>
+  <img src="../../device/aegis/qemu_arm64/branding/logo.png" alt="">
+  <div class="name">ægis<span class="os">.os</span></div>
+  <div class="activity"><i></i><i></i><i></i></div>
+</main>
+<script>
+  // A periodic activity indicator, never a fabricated progress percentage.
+  window.frame = n => document.querySelectorAll('i').forEach((dot, i) => {
+    dot.style.opacity = String(.25 + .75 * (1 + Math.cos(2 * Math.PI * (n / 36 - i / 3))) / 2);
+  });
+  window.frame(0);
+</script>

@@ -51,6 +51,8 @@ PRODUCT_SYSTEM_SERVER_JARS_EXTRA += system_ext:aegis-identity-service
 DEVICE_PACKAGE_OVERLAYS += device/aegis/qemu_arm64/overlay
 PRODUCT_ENFORCE_RRO_EXCLUDED_OVERLAYS += device/aegis/qemu_arm64/overlay
 
+include device/aegis/qemu_arm64/branding/branding.mk
+
 # Present only for an explicitly selected, checked shared-base generation.
 # Installing immutable assets does not activate the missing runtime coordinator.
 -include device/aegis/qemu_arm64/aegis-runtime-base.mk
