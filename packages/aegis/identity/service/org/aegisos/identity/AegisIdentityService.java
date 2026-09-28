@@ -248,6 +248,14 @@ public final class AegisIdentityService extends SystemService {
         }
 
         @Override public String setupFirstAdmin(String name, byte[] password) {
+            return initialAdmin(name, password, false);
+        }
+
+        @Override public String resumeFirstAdmin(String name, byte[] password) {
+            return initialAdmin(name, password, true);
+        }
+
+        private String initialAdmin(String name, byte[] password, boolean resume) {
             try {
                 return checked(() -> {
                     if (Binder.getCallingUid() != Process.ROOT_UID || selected != null) {
@@ -255,9 +263,11 @@ public final class AegisIdentityService extends SystemService {
                     }
                     requireRuntimeAbsent();
                     try (LockscreenCredential initial = credential(password)) {
-                        AospIdentityBackend.State state = backend.bootstrapFirstAdmin(name, initial,
-                                mutationGuard(null));
-                        return "First AOSP administrator created; log in separately\n" + describe(state);
+                        AospIdentityBackend.State state = resume
+                                ? backend.resumeFirstAdmin(name, initial, mutationGuard(null))
+                                : backend.bootstrapFirstAdmin(name, initial, mutationGuard(null));
+                        return "First AOSP administrator ready; CE storage locked; log in separately\n"
+                                + describe(state);
                     }
                 });
             } finally {

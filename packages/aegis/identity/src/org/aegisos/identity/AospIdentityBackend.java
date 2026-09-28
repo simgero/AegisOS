@@ -239,13 +239,17 @@ public final class AospIdentityBackend {
         }
         // No exported CE keys, escrow token, cached challenge or password-handle request.
         VerifyCredentialResponse response = locks.verifyCredential(credential, key.id, 0);
+        checkCredentialResponse(response);
+        await(key, () -> users.isUserUnlocked(key.id) && storage.isCeStorageUnlocked(key.id),
+                "AOSP authenticated but user/storage unlock was not confirmed");
+    }
+
+    private static void checkCredentialResponse(VerifyCredentialResponse response) {
         if (response == null) throw new IllegalStateException("No AOSP credential response");
         if (response.getResponseCode() != VerifyCredentialResponse.RESPONSE_OK) {
             throw new AuthenticationFailure(response.getResponseCode()
                     == VerifyCredentialResponse.RESPONSE_RETRY ? response.getTimeout() : 0);
         }
-        await(key, () -> users.isUserUnlocked(key.id) && storage.isCeStorageUnlocked(key.id),
-                "AOSP authenticated but user/storage unlock was not confirmed");
     }
 
     /** Verifies even an already-unlocked target. Foreground state grants no authority. */
@@ -403,8 +407,15 @@ public final class AospIdentityBackend {
                 }
                 return "available";
             }
-            if (value.matches("complete:[0-9]+:[0-9]+")) return "complete";
-            if ("reserved".equals(value) || value.matches("created:[0-9]+:[0-9]+")) {
+            InitialAdminRecovery.Record record;
+            try {
+                record = InitialAdminRecovery.Record.parse(value);
+            } catch (IllegalStateException invalid) {
+                return "invalid";
+            }
+            if (record.phase == InitialAdminRecovery.Phase.COMPLETE) return "complete";
+            if (record.phase == InitialAdminRecovery.Phase.RESERVED
+                    || record.phase == InitialAdminRecovery.Phase.CREATED) {
                 return "incomplete";
             }
             return "invalid";
@@ -429,20 +440,109 @@ public final class AospIdentityBackend {
                 throw new SecurityException("First-admin setup has already been reserved or completed");
             }
             setup.write("reserved"); // never automatically cleared, including after failure
-            State created = createProtectedUser(name, owned, true, pending -> {
+            return finishFirstAdminCreation(name, owned, guard);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    private State finishFirstAdminCreation(String name, LockscreenCredential owned,
+            OperationGuard guard) throws RemoteException {
+        State created = createProtectedUser(name, owned, true, pending -> {
+            guard.check();
+            onlyBootstrapUser(pending);
+            bootstrapRestrictions();
+            String expected = pending == null ? "reserved"
+                    : "created:" + pending.id + ":" + pending.serial;
+            String recorded = setup.read();
+            if (pending != null && "reserved".equals(recorded)) setup.write(expected);
+            else if (!expected.equals(recorded)) {
+                throw new SecurityException("Provisioning reservation changed");
+            }
+        });
+        guard.check();
+        onlyBootstrapUser(created.user);
+        bootstrapRestrictions();
+        if (!("created:" + created.user.id + ":" + created.user.serial).equals(setup.read())) {
+            throw new SecurityException("Provisioning reservation changed before completion");
+        }
+        setup.write("complete:" + created.user.id + ":" + created.user.serial);
+        return created;
+    }
+
+    /** Explicit continuation, not a reset or an adoption of an unrecorded user. */
+    public synchronized State resumeFirstAdmin(String name, LockscreenCredential credential,
+            OperationGuard guard) throws RemoteException {
+        long identity = Binder.clearCallingIdentity();
+        try (LockscreenCredential owned = credential) {
+            workerThread();
+            userName(name);
+            password(owned);
+            guard.check();
+            bootstrapRestrictions();
+            InitialAdminRecovery.Record record = InitialAdminRecovery.Record.parse(setup.read());
+            if (record.phase == InitialAdminRecovery.Phase.RESERVED) {
+                // If creation happened before its id/serial could be recorded, do not guess
+                // ownership from a matching name. Any secondary user blocks this path.
+                onlyBootstrapUser(null);
+                return finishFirstAdminCreation(name, owned, guard);
+            }
+            if (record.phase != InitialAdminRecovery.Phase.CREATED) {
+                throw new SecurityException("No recorded incomplete first-admin enrollment");
+            }
+            UserKey key = record.user;
+            try {
+                InitialAdminRecovery.resume(record, name, new InitialAdminRecovery.Platform() {
+                    @Override public void guard() {
+                        guard.check();
+                        bootstrapRestrictions();
+                        onlyBootstrapUser(key);
+                    }
+                    @Override public String readRecord() { return setup.read(); }
+                    @Override public InitialAdminRecovery.Snapshot inspect() throws RemoteException {
+                        State s = state(key);
+                        int type = locks.getCredentialType(key.id);
+                        requireExisting(key);
+                        return new InitialAdminRecovery.Snapshot(s.user, s.name, s.enabled, s.admin,
+                                s.partial, s.running, s.foreground, s.ceUnlocked,
+                                type == LockPatternUtils.CREDENTIAL_TYPE_NONE
+                                        ? InitialAdminRecovery.Credential.NONE
+                                        : type == LockPatternUtils.CREDENTIAL_TYPE_PASSWORD
+                                                ? InitialAdminRecovery.Credential.PASSWORD
+                                                : InitialAdminRecovery.Credential.OTHER);
+                    }
+                    @Override public void enrollPassword() throws RemoteException {
+                        enrollInitialPassword(key, owned);
+                    }
+                    @Override public void verifyPassword() throws RemoteException {
+                        if (requireExisting(key).isEnabled()) {
+                            verify(key, owned);
+                        } else {
+                            requireUnstartedDisabled(key);
+                            if (locks.getCredentialType(key.id) != LockPatternUtils.CREDENTIAL_TYPE_PASSWORD) {
+                                throw new SecurityException("Recorded password credential changed");
+                            }
+                            // LSS verifies without enabling the account, but also unlocks CE.
+                            // The coordinator must therefore confirm a subsequent stop/lock.
+                            checkCredentialResponse(locks.verifyCredential(owned, key.id, 0));
+                        }
+                    }
+                    @Override public void stopAndLock() throws RemoteException { stopAndroidUserAndLock(key); }
+                    @Override public void grantAdmin() { users.setUserAdmin(key.id); }
+                    @Override public void enable() { users.setUserEnabled(key.id); }
+                    @Override public void writeComplete(String value) { setup.write(value); }
+                });
                 guard.check();
-                onlyBootstrapUser(pending);
-                bootstrapRestrictions();
-                String expected = pending == null ? "reserved"
-                        : "created:" + pending.id + ":" + pending.serial;
-                String recorded = setup.read();
-                if (pending != null && "reserved".equals(recorded)) setup.write(expected);
-                else if (!expected.equals(recorded)) {
-                    throw new SecurityException("Provisioning reservation changed");
+                State result = state(key);
+                if (!result.enabled || !result.admin || result.partial || result.running
+                        || result.foreground || result.ceUnlocked || !name.equals(result.name)) {
+                    throw new IllegalStateException("Recovered administrator changed before return");
                 }
-            });
-            setup.write("complete:" + created.user.id + ":" + created.user.serial);
-            return created;
+                return result;
+            } catch (RemoteException | RuntimeException failure) {
+                relockIncomplete(key);
+                throw failure;
+            }
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -473,19 +573,7 @@ public final class AospIdentityBackend {
         try {
             requireUnstartedDisabled(key);
             authority.check(key);
-            validateNewPassword(key.id, initialPassword);
-            if (locks.getCredentialType(key.id) != LockPatternUtils.CREDENTIAL_TYPE_NONE) {
-                throw new IllegalStateException("New AOSP user already has a credential");
-            }
-            try (LockscreenCredential empty = LockscreenCredential.createNone()) {
-                if (!locks.setLockCredential(initialPassword, empty, key.id)) {
-                    throw new IllegalStateException("AOSP rejected initial credential enrollment");
-                }
-            }
-            requireUnstartedDisabled(key);
-            if (locks.getCredentialType(key.id) != LockPatternUtils.CREDENTIAL_TYPE_PASSWORD) {
-                throw new IllegalStateException("Initial AOSP password was not confirmed");
-            }
+            enrollInitialPassword(key, initialPassword);
             // AOSP initially unlocks a freshly created CE key even while the user is stopped.
             // lockCeStorage can log a vold failure and return, so its result must be re-read.
             storage.lockCeStorage(key.id);
@@ -507,14 +595,35 @@ public final class AospIdentityBackend {
         } catch (RemoteException | RuntimeException failure) {
             // Preserve incomplete accounts for explicit admin inspection/removal. Never enable
             // or reset a failed account, nor silently delete an account that became usable.
-            try {
-                UserInfo current = requireExisting(key);
-                if (!current.isEnabled() && !current.partial) {
-                    stopAndroidUserAndLock(key);
-                }
-            } catch (RemoteException | RuntimeException ignored) { }
+            relockIncomplete(key);
             throw failure;
         }
+    }
+
+    private void enrollInitialPassword(UserKey key, LockscreenCredential credential) throws RemoteException {
+        requireUnstartedDisabled(key);
+        validateNewPassword(key.id, credential);
+        if (locks.getCredentialType(key.id) != LockPatternUtils.CREDENTIAL_TYPE_NONE) {
+            throw new IllegalStateException("AOSP enrollment already has a credential");
+        }
+        try (LockscreenCredential empty = LockscreenCredential.createNone()) {
+            if (!locks.setLockCredential(credential, empty, key.id)) {
+                throw new IllegalStateException("AOSP rejected initial credential enrollment");
+            }
+        }
+        requireUnstartedDisabled(key);
+        if (locks.getCredentialType(key.id) != LockPatternUtils.CREDENTIAL_TYPE_PASSWORD) {
+            throw new IllegalStateException("Initial AOSP password was not confirmed");
+        }
+    }
+
+    private void relockIncomplete(UserKey key) {
+        // Finish the accepted enrollment's protective cleanup even if its client died.
+        // Never delete data, alter credentials or stop a now-enabled user's session here.
+        try {
+            UserInfo current = requireExisting(key);
+            if (!current.isEnabled() && !current.partial) stopAndroidUserAndLock(key);
+        } catch (RemoteException | RuntimeException ignored) { }
     }
 
     private void requireUnstartedDisabled(UserKey key) {

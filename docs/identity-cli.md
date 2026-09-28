@@ -16,7 +16,9 @@ kompiliert und nicht im Gast installiert.** Die bestehenden Android-Dialogtests 
   Credential-Kopien bei lokalen Binder-Aufrufen sowie die tatsächlich wirksame
   Framework-Dienstliste, Mehrbenutzervorgaben und die fehlenden QEMU-Funkgeräte.
   Hinzu kommen die Runtime-UID/GID-Zuordnung und installierte Ressourcenkennungen;
-  insgesamt zwölf vorbereitete Tests. Die Zuordnung startet keinen Linux-Kontext.
+  Zusätzlich zwölf Tests zur ausdrücklichen Fortsetzung einer unterbrochenen
+  Ersteinrichtung mit einer simulierten Plattform; insgesamt 24 vorbereitete
+  Android-Tests. Die Zuordnung startet keinen Linux-Kontext.
   Noch nicht kompiliert oder ausgeführt.
 
 Die erste CLI unterstützt im Quelltext `setup`, `user list`, `user add`,
@@ -85,9 +87,47 @@ Der Reservierungszustand liegt als technische Metainformation in AOSPs
 oder Adminrolle. Der direkte Provider-Aufruf unterscheidet einen fehlenden
 Eintrag von einer fehlgeschlagenen Abfrage; Schreibvorgänge werden zurückgelesen.
 `reserved`, `created:ID:SERIAL` und `complete:ID:SERIAL` erlauben keine automatische
-Wiederholung einer begonnenen Ersteinrichtung. Ein Abbruch kann deshalb eine
-explizite Wiederherstellung erfordern, für die noch kein Befehl existiert.
-Ein Stromausfalltest der AOSP-Persistenz steht ebenfalls aus.
+Wiederholung einer begonnenen Ersteinrichtung. Der neue Quelltextpfad
+`setup --resume NAME` setzt sie ausdrücklich fort; auch er ist noch nicht
+kompiliert oder in QEMU getestet. Ein Stromausfalltest der AOSP-Persistenz steht aus.
+
+Bei `reserved` ist eine Kontoanlage nur zulässig, wenn weiterhin überhaupt kein
+persönlicher Vollbenutzer existiert. Bei `created:ID:SERIAL` muss der angegebene
+Name zum exakt protokollierten AOSP-Benutzer samt Seriennummer gehören; andere
+persönliche Vollbenutzer blockieren die Fortsetzung. Gelöschte oder ersetzte
+Kennungen, Teilkonten, fremde Credential-Typen und beschädigte Protokolle werden
+abgewiesen. `complete` wird nicht wieder geöffnet. Weder Benutzer noch Daten
+werden zur Wiederherstellung gelöscht.
+
+Hat das deaktivierte Konto noch kein Passwort und noch keine Adminrolle, erfolgt
+die initiale Passwortsetzung über AOSP. Ein bereits vorhandenes Passwort muss
+dagegen frisch über AOSP verifiziert werden; es wird nicht ersetzt oder
+zurückgesetzt. Das gilt auch, wenn die Anlage schon bis zur Aktivierung gelangt
+ist, aber noch keinen Abschluss protokolliert hat. Ein bereits aktivierter
+Nicht-Admin darf über diesen Weg keine Adminrolle erhalten.
+
+Der gepinnte [LockSettingsService](https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-16.0.0_r1/services/core/java/com/android/server/locksettings/LockSettingsService.java)
+entsperrt bei erfolgreicher Passwortprüfung auch CE-Speicher; die Prüfung ist
+keine nebenwirkungsfreie Passwortabfrage. Die Fortsetzung bestätigt deshalb
+anschließend den tatsächlichen Benutzerstopp und die CE-Sperre, bevor sie fehlende
+Admin-/Aktivierungsflags setzt und den Abschluss protokolliert. Danach muss sich
+der Benutzer getrennt anmelden. Caller-Bindung, AOSP-Beschränkungen, Kontozuordnung
+und Reservierung werden zwischen den Schritten erneut geprüft. Abbruch oder
+Timeout melden keinen Erfolg; ein weiterhin deaktiviertes Konto wird nach
+Möglichkeit über AOSP erneut gestoppt und gesperrt, ohne Daten oder Passwort zu ändern.
+
+Die Lücke zwischen AOSP-Kontoanlage und dem Schreiben von `created:ID:SERIAL`
+bleibt ausdrücklich sichtbar: Existiert bereits ein Konto, aber nur `reserved`,
+wird es nicht anhand des Namens übernommen. Dieser unklare Zustand sowie
+Teilkonten verlangen eine gesonderte AOSP-Diagnose. Der Befehl behauptet keine
+vollständige Wiederherstellung beliebiger beschädigter Plattformzustände.
+
+Die zwölf neuen Gerätetests verwenden eine simulierte Plattform und prüfen
+unter anderem Abbrüche nach jedem Mutationsschritt, wiederverwendete IDs,
+falsche Passwörter, widerrufene Clientbindung, geänderte Reservierung und eine
+nicht bestätigte CE-Sperre. Sie führen selbst keine realen Kontooperationen aus.
+Zusätzlich sind nach dem Server-Build echte QEMU-Tests mit unterbrochener
+Ersteinrichtung und Neustarts erforderlich.
 
 Nach Anmeldung in demselben interaktiven Client legt `user add NAME [--admin]`
 einen weiteren persönlichen AOSP-Benutzer an. Die aktuelle Adminrolle, die
@@ -224,7 +264,7 @@ Vor der tatsächlichen Nutzung fehlen:
    fremde Binder-Aufrufer, zwei parallele Clients, Clienttod, Benutzerstopp und
    Rennen zwischen diesen Operationen. Verdeckt-Eingabe, EOF und Abbruch samt
    Terminalzustand sind ebenfalls praktisch zu prüfen.
-5. Gasttests der Ersteinrichtung, Benutzeranlage/-löschung, gesperrten neuen
+5. Gasttests der Ersteinrichtung einschließlich `setup --resume`, Benutzeranlage/-löschung, gesperrten neuen
    Konten, verweigerten Adminaktionen, Löschfehlern, Abbrüchen und ID-Wiederverwendung.
 6. Integration des vollständigen Runtime-/Paketlebenszyklus.
 

@@ -109,13 +109,18 @@ public final class Aegis {
                     System.out.println(session.status());
                     return 0;
                 case "setup": {
-                    exact(args, 2);
+                    boolean resume = args.length == 3 && "--resume".equals(args[1]);
+                    if (!resume) exact(args, 2);
                     if (Process.myUid() != Process.ROOT_UID) {
                         System.err.println("Die einmalige Ersteinrichtung benötigt die autorisierte Entwicklungs-Rootkonsole.");
                         return 1;
                     }
-                    byte[] initial = confirmedPassword("Passwort des ersten Administrators: ");
-                    try { System.out.println(session.setupFirstAdmin(args[1], initial)); }
+                    byte[] initial = confirmedPassword(resume
+                            ? "Passwort der begonnenen Ersteinrichtung (falls gesetzt: bisheriges Passwort): "
+                            : "Passwort des ersten Administrators: ");
+                    String name = args[resume ? 2 : 1];
+                    try { System.out.println(resume ? session.resumeFirstAdmin(name, initial)
+                            : session.setupFirstAdmin(name, initial)); }
                     finally { wipe(initial); }
                     return 0;
                 }
@@ -279,6 +284,7 @@ public final class Aegis {
                 + "  aegis [login NAME]     Terminal öffnen, optional sofort anmelden\n"
                 + "Im selben Terminal:\n"
                 + "  setup NAME            einmalig den ersten Admin einrichten (Entwicklungs-Root)\n"
+                + "  setup --resume NAME   protokollierte Ersteinrichtung fortsetzen; kein Passwortreset\n"
                 + "  user list             persönliche AOSP-Benutzer auflisten\n"
                 + "  user add NAME [--admin] Benutzer mit Passwort anlegen; frische Adminprüfung\n"
                 + "  user remove NAME      anderen Benutzer löschen; frische Adminprüfung\n"

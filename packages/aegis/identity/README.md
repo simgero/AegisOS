@@ -75,9 +75,15 @@ blockierende Adapteroperationen warten, sondern müssen Arbeit einreihen.
 
 Die Produktkonfiguration bindet die Module nun in den Systemserver-Classpath,
 die Framework-Startliste und eine eigene SELinux-Service-Zuordnung ein. Diese
-Integration ist noch nicht gebaut oder im Gast geprüft. Ebenfalls offen sind
-die Wiederherstellung einer unterbrochenen Ersteinrichtung, Runtime-Koordination
-sowie Build und Gasttests des Adapters, Dienstes, der CLI und der neuen
+Integration ist noch nicht gebaut oder im Gast geprüft. Die ausdrückliche
+Fortsetzung einer protokollierten Ersteinrichtung über `setup --resume NAME`
+ist jetzt im Quelltext vorbereitet: vorhandene Passwörter werden über AOSP
+verifiziert, niemals zurückgesetzt; Benutzerstopp und CE-Sperre müssen vor dem
+Abschluss bestätigt sein. Zwölf weitere Gerätetests sind vorbereitet, aber noch
+unkompiliert und unausgeführt. Unklar zugeordnete oder partielle Konten werden
+nicht automatisch übernommen oder gelöscht.
+Offen sind weiterhin Runtime-Koordination sowie Build und Gasttests des Adapters,
+Dienstes, der CLI und der neuen
 Verwaltungsfunktionen. Das laufende Image enthält sie weiterhin nicht.
 
 ## Abgeglichene AOSP-Schnittstellen

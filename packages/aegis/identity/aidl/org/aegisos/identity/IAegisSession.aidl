@@ -12,4 +12,5 @@ interface IAegisSession {
     String removeUser(String name, in byte[] adminPassword);
     String logout();
     void close();
+    String resumeFirstAdmin(String name, in byte[] password);
 }
