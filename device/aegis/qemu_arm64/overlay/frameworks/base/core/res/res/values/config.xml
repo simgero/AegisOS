@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Product has no cellular modem; do not bypass PhoneGlobals' feature gate. -->
+    <bool name="config_force_phone_globals_creation">false</bool>
+    <bool name="config_voice_capable">false</bool>
+    <bool name="config_sms_capable">false</bool>
     <!-- The android-16.0.0_r1 default is empty; retain any future upstream services here. -->
     <string-array name="config_deviceSpecificSystemServices" translatable="false">
         <item>org.aegisos.identity.AegisIdentityService</item>

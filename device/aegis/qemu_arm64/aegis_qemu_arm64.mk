@@ -3,6 +3,11 @@
 # android.hardware.bluetooth unavailable instead of starting a crashing HAL.
 BOARD_HAVE_BLUETOOTH := false
 
+# No modem peer exists in the standalone launcher. Cuttlefish otherwise starts
+# a radio HAL with no backend while PhoneGlobals waits for IRadioModem/slot1.
+# Use upstream's vendor switch plus the effective feature exclusions below.
+TARGET_NO_TELEPHONY := true
+
 # The inherited audio APEX still declares IModule/bluetooth. Keep the complete
 # upstream audio policy and copy its Bluetooth audio configuration explicitly:
 # disabling the HCI controller otherwise omits that file. The software audio

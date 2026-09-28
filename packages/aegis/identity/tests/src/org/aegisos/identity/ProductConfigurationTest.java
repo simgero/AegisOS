@@ -76,8 +76,21 @@ public final class ProductConfigurationTest {
                     || name.startsWith("android.hardware.bluetooth.")
                     || name.equals("android.hardware.bluetooth_le")
                     || name.equals("android.hardware.uwb")
-                    || name.equals("android.hardware.thread_network");
+                    || name.equals("android.hardware.thread_network")
+                    || name.equals("android.hardware.telephony")
+                    || name.startsWith("android.hardware.telephony.");
             assertFalse("Standalone QEMU has no controller for " + name, unsupported);
+        }
+    }
+
+    @Test public void productDoesNotForceCellularInitializationWithoutAModem() throws Exception {
+        Context target = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        Resources framework = target.createPackageContext("android", 0).getResources();
+        for (String name : new String[] {"config_force_phone_globals_creation",
+                "config_voice_capable", "config_sms_capable"}) {
+            int id = framework.getIdentifier(name, "bool", "android");
+            assertTrue("Missing effective telephony configuration " + name, id != 0);
+            assertFalse("Standalone QEMU has no modem: " + name, framework.getBoolean(id));
         }
     }
 }

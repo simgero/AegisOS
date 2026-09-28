@@ -16,6 +16,17 @@ fehlenden `IRadioModem/slot1`, endet in einem Start-ANR und wird neu gestartet.
 Das trat in beiden Testboots auf. Die leere Crash-Puffer-Momentaufnahme oben
 erfasst diese ANR-Schleife nicht; dauerhafte Gerätestabilität ist noch nicht erreicht.
 
+Die nächste Quellkorrektur setzt vor der Cuttlefish-Vererbung
+`TARGET_NO_TELEPHONY=true` und schließt geerbte Mobilfunkfeatures einschließlich
+Telefonie, Daten, IMS und Satellit aus. Der aktuelle Gast meldet elf solche
+Features, obwohl kein Modem verbunden ist. `PhoneGlobals.onCreate()` prüft
+`FEATURE_TELEPHONY`, sofern `config_force_phone_globals_creation=false`; dieser
+effektive Wert wurde im Gast bestätigt. Die Produkt-Overlay legt ihn sowie
+Sprach-/SMS-Fähigkeit ausdrücklich auf false fest. Der Produkt-Gerätetest
+prüft anschließend die effektiven Ressourcen und alle Telephony-Featurepräfixe.
+Diese Korrektur ist noch nicht in einem neuen Image gebootet; insbesondere
+ist das Ende der ANR-Schleife damit noch nicht nachgewiesen.
+
 Die sichtbare Instanz bleibt für den Nutzer geöffnet, Profil
 `out/qemu-profiles/foundation-25fde995`, ADB `127.0.0.1:15755`.
 Android und der tatsächliche QEMU-Framebuffer wurden geprüft. Der neue
