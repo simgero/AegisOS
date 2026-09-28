@@ -6,10 +6,15 @@ QEMU auf dem Mac. SSH ist Steuerungs- und Diagnosekanal, kein Dateitransport.
 
 ## Verifizierter Stand vom 27. September 2026
 
-Update 28. September: Vollbuild und `UPLOAD_VERIFIED` sind erfolgreich.
-Der [lokale QEMU-Bootversuch](qemu-first-boot.md) erreicht Androids zweite
-init-Phase mit dm-verity, bleibt jedoch an der fehlenden KeyMint-Hostanbindung
-stehen. Ein vollständiger Android-Boot ist noch nicht nachgewiesen.
+Update 28. September: Vollbuild, `UPLOAD_VERIFIED` und lokaler Android-Boot
+sind erfolgreich. Im QEMU-Lauf `secure-env-7` wurden `sys.boot_completed=1`,
+beendete Bootanimation, sichtbarer Sperrbildschirm, SELinux `Enforcing` und
+dateibasierte Verschlüsselung bestätigt. KeyMint läuft im separaten lokalen
+ARM64-Hilfsgast. Start: `bash scripts/run-local-qemu.sh`.
+Der Test bleibt flüchtig; noch keine Bestätigung für persistente Daten,
+vollständige Hardwarefunktionen oder Produktionssicherheit.
+
+Die folgende Bestandsaufnahme dokumentiert die frühere Servereinrichtung:
 
 - Mac: ARM64; QEMU 11.1.1 und GitHub CLI vorhanden; GitHub-Anmeldung funktioniert.
 - Builder: x86-64, Ubuntu 26.04.1, 93 GiB RAM, 12 CPU-Threads.

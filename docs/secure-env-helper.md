@@ -81,3 +81,35 @@ weist andere Interpreter und beschädigte ELF-Header aber weiterhin zurück.
 Quellen: [AOSP-Linkerflags](https://android.googlesource.com/platform/build/soong/+/android-16.0.0_r1/cc/binary.go),
 [AOSP-musl-Startcode](https://android.googlesource.com/platform/external/musl/+/android-16.0.0_r1/android/relinterp.c).
 Die Formatprüfung ersetzt keinen erfolgreichen Lauf des Hilfssystems in QEMU.
+
+### Lokaler Lauf mit dem exportierten Helper
+
+Der aktualisierte Helper ist als
+`secure-env-1a9e6e3f6087d572ed5d025d78f3b34d8a90c4f2` auf GitHub verfügbar.
+Die 35 AOSP-ELF-Dateien bleiben unverändert. Sein kleines Init wurde auf
+`aegis-build` mit Ubuntu Clang 21 kompiliert. Weitere Init-Builds können ohne
+sudo mit `package.py --host-tree <exportiertes-root/host> --clang <compiler>`
+erfolgen; der Compiler liegt unter `~/aegis-tools/llvm/usr/bin/clang-21`.
+
+Der Android-GKI-Kernel besitzt kein devtmpfs. Der Helper erstellt deshalb seine
+privaten Geräte in tmpfs und liest die hvc-Gerätenummern aus sysfs.
+Der lokale Launcher entpackt den Legacy-LZ4-Vendor-Ramdisk vor dem Anhängen
+seines cpio-Overlays. Das verhindert, dass der Kernel den Overlay als einen
+weiteren LZ4-Block verwirft.
+
+Für das veröffentlichte userdata-Image wird `cf.f2fs.hctr2` verwendet.
+`tools/qemu/local.bootconfig` konfiguriert Guest-SwiftShader, den Lichtdienst-Port
+und die lokale Diagnosekonsole. Der Android-Gast erhält vier virtuelle CPUs
+und 4 GiB RAM, der Helper zwei CPUs und 1 GiB RAM. Die Konsole ist nur über
+einen Unix-Socket im privaten temporären Launcher-Verzeichnis erreichbar.
+
+Nach dem einmaligen Download und Erstellen der lokalen Testdisk:
+
+```sh
+bash scripts/run-local-qemu.sh
+```
+
+Das Fenster bleibt offen, bis QEMU geschlossen wird. Dann beendet der Launcher
+auch den Helper. **Dieser Entwicklungsstart ist weiterhin flüchtig:** Änderungen
+an der Android-Testdisk und die TPM-Schlüssel werden gemeinsam verworfen.
+Er ist kein produktionsgeeigneter persistenter oder hardwaregesicherter Start.

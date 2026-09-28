@@ -67,3 +67,37 @@ Ein leerer Serial-Port alleine implementiert das KeyMint-Protokoll nicht.
 Referenzen: [AOSP QEMU-Manager](https://android.googlesource.com/device/google/cuttlefish/+/android-16.0.0_r1/host/libs/vm_manager/qemu_manager.cpp),
 [Cuttlefish-Bootparameter](https://android.googlesource.com/device/google/cuttlefish/+/android-16.0.0_r1/host/commands/assemble_cvd/bootconfig_args.cpp),
 [AVB-Werkzeug](https://android.googlesource.com/platform/external/avb/+/android-16.0.0_r1/avbtool.py).
+
+## Verifizierter Android-Start am 28. September 2026
+
+Lauf `out/qemu-first-boot/secure-env-7`:
+
+- `sys.boot_completed=1`, `init.svc.bootanim=stopped`.
+- Sichtbarer Android-Sperrbildschirm (`screen.png` im Laufverzeichnis).
+- Produkt: `AegisOS QEMU ARM64 Development`.
+- SELinux: `Enforcing`; `ro.crypto.state=encrypted`, `ro.crypto.type=file`.
+- Originaler Rust-KeyMint-TA läuft im zweiten lokalen QEMU-Gast.
+- Kernel erkennt QEMU Virtio Keyboard und Tablet.
+
+Die korrigierte Testdisk `out/qemu-frp/android.raw` enthält zusätzlich eine
+leere 1-MiB-FRP-Partition. Die vorherige Disk ohne FRP verursachte
+`PersistentDataBlockService init timeout` und Systemserver-Neustarts.
+Die neue Partition erhält regulär das Label `frp_block_device`.
+`make-qemu-disk.py` erwartet dafür auch eine `frp.img` im Eingabeverzeichnis.
+
+Die veröffentlichte userdata-Datei ist F2FS. Der Launcher nutzt deshalb die
+mitgelieferte `cf.f2fs.hctr2`-fstab, einschließlich Verschlüsselung. Der
+Lichtdienst benötigt `androidboot.vsock_lights_port=6900`; ohne Parameter
+versuchte er Port 0 und stürzte vor seiner Binder-Registrierung ab.
+Grafik läuft über Guest-SwiftShader/ANGLE und virtio-gpu.
+
+```sh
+bash scripts/run-local-qemu.sh
+```
+
+Dieser Start lässt das QEMU-Fenster geöffnet. Schließen beendet auch den
+Helper. Android-Diskänderungen und TPM-Schlüssel sind flüchtig. Der gemessene
+Bootabschluss ist noch kein Test aller virtuellen Hardwaredienste, von ADB,
+Netzwerk oder einer produktionsgeeigneten Vertrauenskette. Die programmatische
+Eingabe über `input keyevent` lieferte im Diagnoseversuch einen Binder-Fehler;
+die interaktive Bedienung über das QEMU-Fenster ist noch separat zu prüfen.

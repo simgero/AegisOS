@@ -53,6 +53,8 @@ def main():
     p.add_argument("--disk", type=Path, help="Optional GPT test disk; used in snapshot mode")
     p.add_argument("--bootconfig", type=Path, help="Additional bootloader parameters computed from the images")
     p.add_argument("--prepare-only", action="store_true", help="Write ramdisk and command without starting QEMU")
+    p.add_argument("--userdata-fs", choices=["f2fs", "ext4"], default="f2fs",
+                   help="Filesystem of the userdata image (AOSP release uses f2fs)")
     args = p.parse_args()
     if platform.system() != "Darwin" or platform.machine() != "arm64":
         p.error("Run on the Apple Silicon Mac")
@@ -69,12 +71,12 @@ def main():
     output = args.output.resolve()
     (output / "initrd.img").write_bytes(ramdisk)
     command = ["qemu-system-aarch64", "-machine", "virt-11.1,gic-version=3",
-               "-accel", "hvf", "-cpu", "host", "-smp", "2", "-m", "2048",
+               "-accel", "hvf", "-cpu", "host", "-smp", "4", "-m", "4096",
                "-nodefaults", "-display", "none", "-net", "none", "-no-reboot",
                "-serial", "stdio", "-monitor", "none", "-kernel", str(images / "kernel"),
                "-initrd", str(output / "initrd.img"), "-append",
                "console=ttyAMA0 earlycon=pl011,0x09000000 panic=1 bootconfig printk.devkmsg=on loglevel=7 "
-               "androidboot.fstab_suffix=cf.ext4.hctr2 "
+               f"androidboot.fstab_suffix=cf.{args.userdata_fs}.hctr2 "
                "androidboot.slot_suffix=_a androidboot.boot_devices=3f000000.pcie "
                "androidboot.force_normal_boot=1"]
     if args.disk:

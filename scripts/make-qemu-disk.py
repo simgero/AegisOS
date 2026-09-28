@@ -9,7 +9,7 @@ from pathlib import Path
 
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('directory', type=Path, help='Contains images/, metadata.img and misc.img; android.raw must not exist')
+parser.add_argument('directory', type=Path, help='Contains images/, metadata.img, misc.img and frp.img; android.raw must not exist')
 args = parser.parse_args()
 root = args.directory.resolve()
 images = root / 'images'
@@ -70,7 +70,7 @@ def copy_image(path, dest, start):
 parts = [(n+'_a', images/(n+'.img')) for n in
          ['boot','init_boot','vendor_boot','vbmeta','vbmeta_system','vbmeta_system_dlkm','vbmeta_vendor_dlkm']]
 parts += [('super',images/'super.img'),('userdata',images/'userdata.img'),
-          ('metadata',root/'metadata.img'),('misc',root/'misc.img')]
+          ('metadata',root/'metadata.img'),('misc',root/'misc.img'),('frp',root/'frp.img')]
 cursor = MiB//512
 layout = []
 for name, path in parts:

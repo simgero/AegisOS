@@ -60,5 +60,19 @@ class HelperArchiveTests(unittest.TestCase):
             self.assertIn(b'host/bin/secure_env',result.stdout)
             self.assertIn(b'state/instances/cvd-1/logs',result.stdout)
 
+    @unittest.skipUnless(shutil.which('lz4') and shutil.which('cpio'), 'LZ4 and cpio required')
+    def test_legacy_lz4_vendor_stream_does_not_consume_overlay(self):
+        with tempfile.TemporaryDirectory() as d:
+            root,images=self.fixture(d)
+            compressed=subprocess.run(['lz4','-l','-c'],input=b'BASE',
+                                      capture_output=True,check=True).stdout
+            header=bytearray((images/'vendor_boot.img').read_bytes()[:4096])
+            struct.pack_into('<I',header,24,len(compressed))
+            (images/'vendor_boot.img').write_bytes(header+compressed)
+            data=helper.helper_initrd(root,images)
+            self.assertEqual(data[:4],b'BASE')
+            result=subprocess.run(['cpio','-it'],input=data[4:],capture_output=True,check=True)
+            self.assertIn(b'host/bin/secure_env',result.stdout)
+
 
 if __name__=='__main__':unittest.main()

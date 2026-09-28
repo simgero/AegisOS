@@ -1,0 +1,14 @@
+# Cuttlefish guest SwiftShader with QEMU virtio-gpu. Local userdebug console.
+androidboot.cpuvulkan.version=4202496
+androidboot.hardware.gralloc=minigbm
+androidboot.hardware.hwcomposer=ranchu
+androidboot.hardware.hwcomposer.display_finder_mode=drm
+androidboot.hardware.hwcomposer.display_framebuffer_format=rgba
+androidboot.hardware.egl=angle
+androidboot.hardware.vulkan=pastel
+androidboot.opengles.version=196609
+androidboot.console=hvc1
+androidboot.serialconsole=1
+androidboot.lcd_density=320
+androidboot.vsock_lights_port=6900
+androidboot.openthread_node_id=1

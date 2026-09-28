@@ -88,20 +88,23 @@ def main():
     p.add_argument('disk',type=Path)
     p.add_argument('bootconfig',type=Path)
     p.add_argument('output',type=Path)
-    p.add_argument('--seconds',type=int,default=180)
+    p.add_argument('--seconds',type=int,default=180,help='0 keeps the VMs running until the QEMU window is closed')
     p.add_argument('--display',choices=['none','cocoa'],default='none')
     args=p.parse_args()
-    if not 1<=args.seconds<=600: p.error('Duration must be 1–600 seconds')
+    if not 0<=args.seconds<=600: p.error('Duration must be 0–600 seconds')
     images=args.images.resolve();output=args.output.resolve()
     initrd=helper_initrd(args.helper_assets.resolve(),images)
     output.mkdir(parents=True,exist_ok=False)
     (output/'helper-initrd.img').write_bytes(initrd)
+    local_config=Path(__file__).resolve().parents[1]/'tools/qemu/local.bootconfig'
+    (output/'bootconfig').write_text(args.bootconfig.read_text().rstrip()+'\n'+local_config.read_text())
     subprocess.run([sys.executable,str(Path(__file__).with_name('qemu-init.py')),
                     str(images),str(output/'android'),'--disk',str(args.disk.resolve()),
-                    '--bootconfig',str(args.bootconfig.resolve()),'--prepare-only'],check=True)
+                    '--bootconfig',str(output/'bootconfig'),'--prepare-only'],check=True)
     android=shlex.split((output/'android/command.txt').read_text())
     android[android.index('-display')+1]=args.display
-    android += ['-device','virtio-gpu-pci','-device','virtio-serial-pci,id=serial,max_ports=31']
+    android += ['-device','virtio-gpu-pci','-device','virtio-keyboard-pci',
+                '-device','virtio-tablet-pci','-device','virtio-serial-pci,id=serial,max_ports=31']
     helper=['qemu-system-aarch64','-machine','virt-11.1,gic-version=3','-accel','hvf',
             '-cpu','host','-smp','2','-m','1024','-nodefaults','-display','none','-net','none',
             '-no-reboot','-serial','stdio','-monitor','none','-kernel',str(images/'kernel'),
@@ -110,6 +113,8 @@ def main():
             '-device','virtio-serial-pci,id=serial,max_ports=4']
     processes=[]
     with tempfile.TemporaryDirectory(prefix='aegis-tee-',dir='/tmp') as folder:
+        console=Path(folder)/'console.sock'
+        (output/'console-path.txt').write_text(str(console)+'\n')
         sockets={name:Path(folder)/(name+'.sock') for name in ['keymint','gatekeeper','keymaster','oemlock']}
         for index,(name,path) in enumerate(sockets.items()):
             helper += ['-chardev',f'socket,id=h{index},path={path},server=on,wait=off',
@@ -118,6 +123,8 @@ def main():
         for index in range(17):
             if index in mapping:
                 backend=f'socket,id=h{index},path={sockets[mapping[index]]}'
+            elif index==1:
+                backend=f'socket,id=h{index},path={console},server=on,wait=off'
             elif index==2:
                 backend=f'file,id=h{index},path={output / "logcat.log"}'
             else:
@@ -134,8 +141,8 @@ def main():
                         raise RuntimeError('Helper failed before opening channels; inspect helper.log')
                     time.sleep(.1)
                 guest=subprocess.Popen(android,stdout=guestlog,stderr=subprocess.STDOUT);processes.append(guest)
-                deadline=time.monotonic()+args.seconds
-                while time.monotonic()<deadline:
+                deadline=time.monotonic()+args.seconds if args.seconds else None
+                while deadline is None or time.monotonic()<deadline:
                     if host.poll() is not None or guest.poll() is not None: break
                     time.sleep(.5)
             finally:
