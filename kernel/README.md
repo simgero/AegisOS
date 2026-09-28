@@ -98,7 +98,9 @@ Compiler. Es prüft unter anderem:
 - die komprimierte Konfiguration **innerhalb der ausführbaren Kernel-Datei**,
   Übereinstimmung mit `.config`, Namespace-Funktionen sowie wesentliche Android-
   Voraussetzungen wie SELinux, Seccomp, Modulsignaturunterstützung, Dateiverschlüsselung
-  und dm-verity;
+  und dm-verity, außerdem die bereits im bisherigen GKI vorhandenen Cgroup-/
+  Speichercontroller sowie F2FS einschließlich Xattrs und SELinux-Dateiattributen
+  für Androids tatsächliche Datenpartition;
 - echte ELF-Metadaten aller übernommenen ARM64-Module, passende Kernelversion und
   identisches `vermagic`; doppelt gelieferte GKI-Module müssen bytegleich sein;
 - die festgelegten frühen Boot-Treiber, Dateigrößen und reguläre Dateien ohne Symlinks.

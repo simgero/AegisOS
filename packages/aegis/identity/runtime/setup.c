@@ -265,13 +265,13 @@ done:;
     return result;
 }
 
-static int readback(void) {
+static int readback(uint64_t home_type) {
     const unsigned long restricted = ST_NOSUID | ST_NODEV | ST_NOEXEC;
     const struct {
         const char *name; uint64_t type; unsigned long required, forbidden;
     } views[] = {
         {"/", EXT4_SUPER_MAGIC, ST_RDONLY | ST_NOSUID | ST_NODEV, ST_NOEXEC},
-        {"/home/user", EXT4_SUPER_MAGIC, ST_NOSUID | ST_NODEV, ST_RDONLY | ST_NOEXEC},
+        {"/home/user", home_type, ST_NOSUID | ST_NODEV, ST_RDONLY | ST_NOEXEC},
         {"/dev", TMPFS_MAGIC, ST_RDONLY | ST_NOSUID | ST_NOEXEC, ST_NODEV},
         {"/proc", PROC_SUPER_MAGIC, restricted, ST_RDONLY},
         {"/dev/pts", DEVPTS_SUPER_MAGIC, ST_NOSUID | ST_NOEXEC, ST_RDONLY | ST_NODEV},
@@ -328,8 +328,18 @@ int main(int argc, char **argv) {
         int flags = fcntl(fds[i], F_GETFL);
         if (flags < 0 || !(flags & O_PATH)) { errno = EBADF; failed(user, serial); }
     }
+    /* AOSP's current /data is F2FS. Shared-base format stays ext4; the
+     * broker-verified CE view may be F2FS or ext4, and must retain that exact
+     * type across attach/pivot. Identity, fscrypt policy/key checks belong to
+     * ce.c before the trusted descriptor is sent; a type alone grants none. */
+    struct statfs home_fs;
+    if (fstatfs(fds[1], &home_fs) < 0) failed(user, serial);
+    if (home_fs.f_type != EXT4_SUPER_MAGIC && home_fs.f_type != F2FS_SUPER_MAGIC) {
+        errno = EPERM;
+        failed(user, serial);
+    }
     if (directory(fds[0], EXT4_SUPER_MAGIC, 0, 0755, ST_RDONLY | ST_NOSUID | ST_NODEV, ST_NOEXEC) < 0
-            || directory(fds[1], EXT4_SUPER_MAGIC, 1000, 0700, ST_NOSUID | ST_NODEV, ST_RDONLY | ST_NOEXEC) < 0
+            || directory(fds[1], home_fs.f_type, 1000, 0700, ST_NOSUID | ST_NODEV, ST_RDONLY | ST_NOEXEC) < 0
             || directory(fds[2], TMPFS_MAGIC, 0, 0755, ST_RDONLY | ST_NOSUID | ST_NOEXEC, ST_NODEV) < 0
             || supervisor(fds[3]) < 0 || construct(fds) < 0) failed(user, serial);
     for (unsigned i = 0; i < 3; i++) close(fds[i]);
@@ -338,7 +348,7 @@ int main(int argc, char **argv) {
             || fcntl(4, F_SETFD, FD_CLOEXEC) < 0
             || syscall(SYS_pivot_root, ".", ".") < 0
             || umount2(".", MNT_DETACH) < 0 || chdir("/") < 0
-            || readback() < 0) failed(user, serial);
+            || readback(home_fs.f_type) < 0) failed(user, serial);
     /* No directory, mount, cwd or root reference to the inherited Android tree
      * remains. FD4 is only the authenticated readonly static code file and
      * closes on exec. The init entrypoint rechecks its own SELinux domain and

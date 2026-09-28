@@ -1,7 +1,9 @@
 # Aufbau der persönlichen Dateisystemsicht
 
-Stand: **Quelltext und acht zusätzliche Gerätetests vorbereitet, nicht
-kompiliert, nicht im Gast ausgeführt und nicht im Produkt aktiviert.**
+Stand: **Helfer kompiliert und acht Protokoll-/Aufruftests im lokalen QEMU
+bestanden; erfolgreiche Mounts und Produktaktivierung stehen aus.** Siehe
+[erster Komponentenlauf](../docs/component-tests.md). Die danach ergänzte
+F2FS-HOME-Korrektur muss noch auf dem Builder kompiliert und im Gast geprüft werden.
 `aegis-runtime-setup` ergänzt den Namespace-Launcher und den Prozessaufseher.
 Der AOSP-Broker, dessen Lebenszyklus-Sperre, Ressourcen-Cgroups, die konkreten
 SELinux-Typen/Übergänge und ein ausführbarer Zwei-Benutzer-Ablauf fehlen weiter.
@@ -50,6 +52,12 @@ User-Namespace gehören. Er benötigt dafür keinen Ptrace-Zugriff auf Androids
 Init-Prozess. Ein direkter Aufruf im Android-Host endet mit Status 78.
 
 Der Helfer prüft Typ, Rechte, Eigentümer und Flags der drei Mountreferenzen.
+Die gemeinsame Basis ist fest ext4. Für das bereits durch den Broker auf
+Identität und fscrypt geprüfte CE-HOME sind ext4 und F2FS zulässig: Der reale
+QEMU-Gast verwendet F2FS für `/data`. Der Helfer merkt sich den Typ der
+übergebenen Referenz und verlangt exakt denselben Typ nach dem Rootwechsel.
+Andere Dateisystemtypen werden abgewiesen; eine Typprüfung ersetzt keine
+Passwortprüfung oder CE-Autorisierung.
 Die Identität/Herkunft der Basis und des CE-HOME bleiben Aufgaben des Brokers.
 Der Aufseher muss ein schreibgeschütztes ausführbares ARM64-ELF ohne Interpreter,
 Set-ID-Bits oder File-Capabilities mit dem exakten SELinux-Dateityp
@@ -62,7 +70,7 @@ Mount-Namespace. Darin wird die Basis eingehängt und folgende Sicht aufgebaut:
 | Ziel | Herkunft / Grenze |
 | --- | --- |
 | `/` | Geprüfte gemeinsame ext4-Basis, readonly/nosuid/nodev |
-| `/home/user` | Zugeordnetes CE-HOME, UID/GID 1000, 0700, nosuid/nodev |
+| `/home/user` | Zugeordnetes ext4-/F2FS-CE-HOME, UID/GID 1000, 0700, nosuid/nodev |
 | `/dev` | Vorbereitetes privates Geräte-Tmpfs, readonly/nosuid/noexec |
 | `/proc` | Aus diesem PID-Namespace erzeugt, `hidepid=2,subset=pid`, nosuid/nodev/noexec |
 | `/dev/pts` | Neue Instanz, höchstens 128 PTYs, Slave-Modus 0600, nosuid/noexec |
@@ -116,8 +124,8 @@ UID-0-Wert einer späteren Mountoperation hergeleitet werden.
 Acht neue native Tests prüfen die echte FD-Übertragung, Eigentumserhalt,
 falsche ID/Seriennummer, beschädigte Reihenfolge/Frames/Ancillary-Daten,
 unvollständige Übertragung, Peer-Verlust, ungültige Parameter und den direkten
-Host-Aufruf. Insgesamt sind **50 native Tests** vorbereitet. Sie sind noch
-nicht kompiliert oder ausgeführt. Diese Protokolltests allein beweisen weder
+Host-Aufruf. Diese acht Tests bestehen im ersten Komponentenlauf; insgesamt
+sind inzwischen **51 native Tests** kompiliert. Diese Protokolltests allein beweisen weder
 erfolgreiche Mounts noch Isolation oder Verschlüsselung.
 
 Der Komponenten-Build erzeugt und sammelt den Helfer zusätzlich, aktiviert ihn
