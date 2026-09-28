@@ -29,6 +29,14 @@ allow {
   domain
   -init
 } shell_exec:file execute;
+neverallow {
+    domain
+    -appdomain # for oemfs
+} { fs_type -rootfs }:file execute;
+allow { domain -appdomain -rs } cgroup:dir w_dir_perms;
+allow { domain -appdomain -rs } cgroup:file w_file_perms;
+allow { domain -appdomain -rs } cgroup_v2:dir w_dir_perms;
+allow { domain -appdomain -rs } cgroup_v2:file w_file_perms;
 '''
 
 class PolicySources(unittest.TestCase):

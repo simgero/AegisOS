@@ -30,6 +30,8 @@ attribute aegis_runtime_mount_domain;
 expandattribute aegis_runtime_mount_domain false;
 attribute aegis_runtime_broker_domain;
 expandattribute aegis_runtime_broker_domain false;
+attribute aegis_runtime_exec_domain;
+expandattribute aegis_runtime_exec_domain false;
 '''
 
 def digest(data):
@@ -48,9 +50,18 @@ def patch_domain(data):
          'neverallow {\n    domain\n    -aegis_runtime_mount_domain\n    -apexd\n    -dexopt_chroot_setup\n'),
         ('# Allow calls to system(3), popen(3), ...\nallow {\n  domain\n',
          '# Allow calls to system(3), popen(3), ...\nallow {\n  domain\n  -aegis_runtime_domain\n'),
+        ('neverallow {\n    domain\n    -appdomain # for oemfs\n',
+         'neverallow {\n    domain\n    -aegis_runtime_exec_domain\n    -appdomain # for oemfs\n'),
     )
     for old, new in replacements:
         text = source_io.replace_once(text, old, new)
+    # Android's general process-group helpers may write the host hierarchy.
+    # Runtime code gets only its explicit private subtree permissions instead.
+    for target in ('cgroup', 'cgroup_v2'):
+        for kind, perms in (('dir', 'w_dir_perms'), ('file', 'w_file_perms')):
+            old = f'allow {{ domain -appdomain -rs }} {target}:{kind} {perms};'
+            new = f'allow {{ domain -appdomain -rs -aegis_runtime_domain }} {target}:{kind} {perms};'
+            text = source_io.replace_once(text, old, new)
     return text.encode()
 
 def prepare(project, aosp, originals=None, pins=None):

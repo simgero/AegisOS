@@ -3,18 +3,22 @@ type aegis_runtime_broker, domain, coredomain, aegis_runtime_domain,
     aegis_runtime_mount_domain, aegis_runtime_broker_domain;
 type aegis_runtime_setup, domain, coredomain, aegis_runtime_domain,
     aegis_runtime_mount_domain;
-type aegis_runtime_init, domain, coredomain, aegis_runtime_domain;
-type aegis_runtime_program, domain, coredomain, aegis_runtime_domain;
+type aegis_runtime_init, domain, coredomain, aegis_runtime_domain,
+    aegis_runtime_exec_domain;
+type aegis_runtime_program, domain, coredomain, aegis_runtime_domain,
+    aegis_runtime_exec_domain;
 type aegis_runtime_broker_exec, exec_type, file_type, system_file_type;
 type aegis_runtime_setup_exec, exec_type, file_type, system_file_type;
 type aegis_runtime_init_exec, exec_type, file_type, system_file_type;
 
 type aegis_runtime_image_file, file_type, system_file_type;
-type aegis_runtime_base_file, file_type, fs_type, contextmount_type;
+# A context-mounted filesystem is an fs_type, never also a file_type.
+# Its contents stay protected by AOSP's immutable contextmount neverallows.
+type aegis_runtime_base_file, fs_type, contextmount_type;
 type aegis_runtime_state_file, file_type, data_file_type, core_data_file_type;
 type aegis_runtime_home_file, file_type, data_file_type, core_data_file_type;
 type aegis_runtime_devices_file, file_type;
-type aegis_runtime_scratch_file, file_type;
+type aegis_runtime_scratch_file, file_type, coredomain_socket;
 type aegis_runtime_cgroup, fs_type;
 type aegis_runtime_socket, file_type, coredomain_socket;
 
@@ -22,6 +26,7 @@ type aegis_runtime_socket, file_type, coredomain_socket;
 # All domains receive self:fork from AOSP; these guards close membership.
 neverallow { aegis_runtime_broker_domain -aegis_runtime_broker } self:process fork;
 neverallow { aegis_runtime_mount_domain -aegis_runtime_broker -aegis_runtime_setup } self:process fork;
+neverallow { aegis_runtime_exec_domain -aegis_runtime_init -aegis_runtime_program } self:process fork;
 neverallow { aegis_runtime_domain -aegis_runtime_broker -aegis_runtime_setup
     -aegis_runtime_init -aegis_runtime_program } self:process fork;
 
@@ -39,6 +44,9 @@ neverallow { domain -aegis_runtime_broker } aegis_runtime_setup:process transiti
 neverallow { domain -aegis_runtime_setup } aegis_runtime_init:process transition;
 neverallow { domain -aegis_runtime_init } aegis_runtime_program:process transition;
 neverallow aegis_runtime_domain { shell_exec toolbox_exec }:file execute;
+neverallow aegis_runtime_exec_domain { fs_type -aegis_runtime_base_file }:file execute;
+# Ordinary programs and setup must not inherit Android's broad cgroup access.
+neverallow aegis_runtime_domain { cgroup cgroup_v2 }:file { write append };
 
 # The sole externally reachable endpoint is init-owned, system:system 0600.
 # Native code additionally requires exact system_server SO_PEERCRED/SO_PEERSEC.
@@ -48,7 +56,9 @@ allow system_server aegis_runtime_socket:sock_file { getattr write };
 allow system_server aegis_runtime_broker:unix_stream_socket connectto;
 allow system_server aegis_runtime_broker:fd use;
 allow aegis_runtime_broker system_server:fd use;
-neverallow { domain -system_server } aegis_runtime_broker:unix_stream_socket connectto;
+# The owner's internal socketpairs share its domain; external peers are only
+# system_server, also checked by credentials and context in the native code.
+neverallow { domain -system_server -aegis_runtime_broker } aegis_runtime_broker:unix_stream_socket connectto;
 get_prop(aegis_runtime_broker, aegis_runtime_mode_prop)
 
 # Fixed broker-owned lock, no client-selected paths.

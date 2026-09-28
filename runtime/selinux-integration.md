@@ -12,12 +12,19 @@ Dateirechte und native Peer-/Protokollprüfung gelten zusätzlich. Es wird kein
 
 Die gepinnte Plattformpolicy verbietet neuen Domänen Mounts, Mknod und DAC-
 Ausnahmen. `register-runtime-policy.py` ergänzt deshalb ausdrücklich benannte
-Attribute für genau diese neuen vertrauenswürdigen Komponenten. Es entfernt
+Attribute für genau diese neuen vertrauenswürdigen Komponenten. Eine weitere,
+geschlossene Zuordnung erlaubt nur dem Aufseher und normalen GNU-Programmen
+die Ausführung aus dem unveränderlichen Basis-Dateisystem. Dieses trägt nach
+AOSP-Vorgabe `fs_type` und niemals zugleich `file_type`; die bestehenden
+Schreibverbote für `contextmount_type` gelten unverändert. Es entfernt
 keine Neverallow-Regel und nimmt keine bestehende Android-Domäne neu aus.
 Zusätzliche Neverallows schließen die Attributmitgliedschaft auf die genannten
 AEGIS-Typen. Normale GNU-Programme erhalten keine Capability, Mountberechtigung
 oder Schreibberechtigung auf die gemeinsame Softwarebasis. Die normale
 Android-Shell-Ausführungsfreigabe wird für sämtliche Runtime-Domänen entfernt.
+Ebenso entfällt deren allgemeiner Android-Schreibzugriff auf Host-Cgroups;
+der Broker erhält ausdrücklich nur seinen eigenen Unterbaum. Ein zusätzliches
+Neverallow verbietet Runtime-Schreibzugriffe auf die übrige Cgroup-Hierarchie.
 SD-Card-/FUSE-Attribute und permissive Domänen werden nicht verwendet.
 
 Die AOSP-Revision und beide ursprünglichen Policydateien sind gehasht gepinnt.
