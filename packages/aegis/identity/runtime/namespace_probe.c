@@ -35,12 +35,15 @@ static int read_map(const char *name, uint32_t rows[3][3]) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 2 || strcmp(argv[0], "aegis-runtime-setup") || getpid() != 1) return 91;
+    if (argc != 3 || strcmp(argv[0], "aegis-runtime-setup") || getpid() != 1) return 91;
     struct aegis_namespace_probe report = {.magic = 0x41454e53};
     char *end;
     unsigned long user = strtoul(argv[1], &end, 10);
     if (*end || user < 10 || user >= 21473) return 92;
     report.user_id = (uint32_t)user;
+    unsigned long serial = strtoul(argv[2], &end, 10);
+    if (*end || serial > INT32_MAX) return 92;
+    report.serial = (uint32_t)serial;
     report.pid = getpid(); report.ppid = getppid();
     uid_t r, e, s;
     gid_t gr, ge, gs;

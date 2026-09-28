@@ -8,7 +8,8 @@ Paketkoordination sind weiterhin gesondert zu integrieren.
 
 ## Zweistufiger Start
 
-`aegis_namespace_create` erhält die zuvor autorisierte AOSP-Benutzerkennung,
+`aegis_namespace_create` erhält die zuvor autorisierte AOSP-Benutzerkennung und
+Seriennummer (0 bis INT32_MAX),
 einen vorab geöffneten vertrauenswürdigen statischen ARM64-Setup-Helfer und
 einen privaten, namenlosen Unix-SEQPACKET-Kanal. Alle Eltern-Deskriptoren und
 Verwaltungsobjekte werden vor `clone3` angelegt. Kind und Pidfd entstehen
@@ -19,7 +20,8 @@ User-, PID-, Mount-, IPC-, UTS- und Netzwerk-Namespace entstehen zusammen.
 Das Kind wartet höchstens zehn Sekunden auf die Freigabe. Die Bibliothek ist
 für einen eigenen, einzelnen Broker-Thread im Android-Host vorgesehen. Sie
 prüft Rootkennungen, Procfs, Übereinstimmung mit den User-/PID-Namespaces von
-Androids Init, vollständige Host-ID-Maps und die tatsächliche Threadzahl.
+Androids Init, zusätzlich denselben Mount-Namespace, vollständige Host-ID-Maps
+und die tatsächliche Threadzahl.
 SIGCHLD-Autoreaping und zusätzliche Gruppen werden abgewiesen. Der Aufrufer
 muss die echte Android-Procfs-Sicht erhalten; diese internen Checks sind kein
 Schutz gegen einen bereits kompromittierten Host-Rootprozess.
@@ -44,7 +46,8 @@ die zugeordnete Namespace-UID/GID 0 und setzt die Mountweitergabe rekursiv auf
 privat. Nach den ID-Wechseln setzt es ein Eltern-Todessignal und prüft einen
 stabilen Pidfd des Brokers. Bis zum `execveat` verwendet der rohe Clone-Pfad
 nur Syscalls; der Exec initialisiert Bionic neu. Nur der Kontrollkanal als FD 3,
-die numerische Benutzerkennung und eine feste Umgebung werden übergeben.
+die numerische Benutzerkennung, die bei Erzeugung gespeicherte Seriennummer
+und eine feste Umgebung werden übergeben.
 
 Eine erfolgreiche Freigabe beweist **keinen erfolgreichen Exec oder Runtime-
 Start**. Ein Fehler im Kind endet mit Status 125; der Broker muss tatsächliche
@@ -99,3 +102,8 @@ im lokalen Android-QEMU als Root-eigene Dateien mit Modus 0755 installiert.
 Nur der dedizierte Testprozess leert seine eigenen Zusatzgruppen. Fehlende
 Kernel-/SELinux-Voraussetzungen sind Testfehler, keine übersprungenen Erfolge.
 Hosttests führen diesen neuen nativen Code nicht aus.
+
+Die [persönliche CE-Speicheranbindung](personal-storage.md) nutzt inzwischen
+dieselbe unveränderliche ID-/Seriennummernbindung für die Prüfung von AOSPs
+Speicherwurzeln und die vorbereitete HOME-Sicht. Auch sie ist noch unkompiliert;
+die tatsächliche AOSP-Autorisierung und Lifecycle-Sperre bleiben Brokeraufgaben.

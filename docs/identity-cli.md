@@ -241,6 +241,19 @@ im zugehörigen Verzeichnis unter `/srv/aegis/runs`. Dieser Check ist noch nicht
 ausgeführt. Er startet keine VM, installiert keinen Dienst und veröffentlicht
 keine Artefakte. Die geprüften Ergebnisse müssen anschließend über GitHub
 transportiert werden; ein Modulbau allein liefert noch kein startbares System.
+
+Für den bereits eingerichteten Builder gibt es jetzt
+`scripts/start-components.sh FULL_COMMIT` (dort als Root starten). Es erzeugt
+einen neuen Checkout und startet `aegis-components.service` als vorhandenes
+unprivilegiertes Buildkonto. Der Dienst bezieht exakt den vollständigen Commit
+vom öffentlichen GitHub-Repository und ruft den Komponenten-Check auf. Die
+vorhandene AOSP-Arbeitskopie wird unter ihrer exklusiven Buildsperre verwendet.
+Es werden keine Pakete installiert, Servereinstellungen geändert oder Tests
+auf dem Builder ausgeführt. Zwölf Stunden begrenzen den Dienst, Quellen und
+Ergebnisse bleiben erhalten. Das Journal zeigt auch Fehler vor Anlage eines
+Identitäts-Laufverzeichnisses. Die Meldung des Startskripts bestätigt nur die
+Übergabe an systemd; erst Status, Buildlog und Artefakte belegen Kompiliererfolg.
+
 Der vollständige Build übernimmt die Identitätsquellen und Produktkonfiguration
 über den [gepinnten GitHub-Quelltransport](build-inputs.md). Die Einbindung in
 das Produkt und den Systemstart ist jetzt ebenfalls im Quelltext vorhanden,

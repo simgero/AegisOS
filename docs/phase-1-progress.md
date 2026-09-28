@@ -57,6 +57,14 @@ umzuschreiben. Vier weitere native Tests sind vorbereitet, insgesamt jetzt 35.
 verwenden ein inertes Tmpfs; echter ext4-Basis-Mount, CE-Einbindung, Rootwechsel
 und ausführbarer Runtime-Kontext bleiben gesondert offen.
 
+Die [persönliche Speicheranbindung](../runtime/personal-storage.md) ist jetzt
+ebenfalls im Quelltext vorbereitet: unveränderliche ID-/Seriennummernbindung,
+AOSP-Seriennummer und gleiche CE-Richtlinie, kontrollierte HOME-Erstanlage,
+strikte Wiederöffnung und detached Mount ohne doppelte ID-Zuordnung.
+Fünf weitere native Negativtests sind vorbereitet, insgesamt jetzt 40.
+**Unkompiliert und nicht im Gast geprüft.** AOSP-Lebenszyklus-Sperre, echter
+Mount-Helfer, SELinux, private Paketbestände und Zwei-Benutzer-Nachweis fehlen.
+
 Auch die [gemeinsame Softwaregeneration](../runtime/generations.md) besitzt nun
 ein Buildrezept: technischer NSS-Benutzer, explizite Datei-Eigentümer, Entfernen
 der Set-ID-Bits, wiederholte ext4-Erzeugung und Lesen des tatsächlichen
@@ -129,8 +137,11 @@ neuen Kernel auf dem Builder ausgeführt; tatsächliche Images und Gasttests feh
 5. Alle Anmelde-, Daten-, Prozess- und Logout-Anforderungen mit zwei Benutzern
    einschließlich Fehlerfällen prüfen.
 
-Bei der letzten Verbindungsprüfung war `aegis-build` per SSH nicht erreichbar
-(Verbindungs-Timeout). Eine frühere Tailscale-Abfrage meldete den Peer als offline
-(zuletzt gesehen 2026-09-28 00:20 UTC).
-Es wurde kein Ersatzbuild auf dem Mac gestartet und keine Serverkonfiguration
-geändert. Diese Erreichbarkeit muss vor dem nächsten Build erneut geprüft werden.
+Nach dem Hinweis des Nutzers war eine SSH-Abfrage wieder erfolgreich: Dienst
+`aegis-build` inaktiv, rund 536 GiB frei. Sudo verlangt interaktive Anmeldung.
+Weitere SSH-Abfragen liefen erneut in einen Timeout bzw. lieferten keine Antwort;
+die Verbindung ist noch nicht als stabil bestätigt. Kein neuer Build wurde gestartet.
+`scripts/start-components.sh` bereitet einen gezielten, per systemd beobachtbaren
+Komponenten-Check aus einem unveränderlichen GitHub-Commit vor. Er benötigt die
+vorhandene Einrichtung und interaktive sudo-Freigabe; keine Serverkonfiguration
+wurde geändert und kein Ersatzbuild auf dem Mac gestartet.

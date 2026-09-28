@@ -82,7 +82,7 @@ class RuntimeNamespace : public ::testing::Test {
     int create(unsigned slot, uint32_t user) {
         int pair[2];
         if (socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, pair) < 0) return -1;
-        int result = aegis_namespace_create(user, setup, pair[1], &contexts[slot]);
+        int result = aegis_namespace_create(user, 1234, setup, pair[1], &contexts[slot]);
         int saved = errno;
         close(pair[1]);
         if (result < 0) close(pair[0]);
@@ -100,6 +100,7 @@ class RuntimeNamespace : public ::testing::Test {
     void check(const aegis_namespace_probe& result, uint32_t user) {
         EXPECT_EQ(0x41454e53u, result.magic);
         EXPECT_EQ(user, result.user_id);
+        EXPECT_EQ(1234u, result.serial);
         EXPECT_EQ(1u, result.pid); EXPECT_EQ(0u, result.ppid);
         EXPECT_EQ(0u, result.uid); EXPECT_EQ(0u, result.gid);
         EXPECT_EQ(0u, result.groups); EXPECT_EQ(static_cast<uint32_t>(SIGKILL), result.death_signal);
@@ -206,7 +207,7 @@ TEST_F(RuntimeNamespace, GatePrecedesExecAndKernelMapsMatchTheSelectedUser) {
     ASSERT_EQ(0, setenv("AEGIS_NAMESPACE_TEST_ONLY", "must-not-reach-helper", 1));
     ASSERT_EQ(0, create(0, 10)) << strerror(errno);
     aegis_namespace* original = contexts[0];
-    EXPECT_EQ(-1, aegis_namespace_create(10, setup, peers[0], &contexts[0]));
+    EXPECT_EQ(-1, aegis_namespace_create(10, 1234, setup, peers[0], &contexts[0]));
     EXPECT_EQ(EINVAL, errno); EXPECT_EQ(original, contexts[0]);
     pollfd ready = {peers[0], POLLIN, 0};
     EXPECT_EQ(0, poll(&ready, 1, 20));
@@ -268,13 +269,15 @@ TEST_F(RuntimeNamespace, InvalidInputsLeaveNoChildOrLeakedDescriptors) {
     for (int i = 0; i < 16; i++) {
         aegis_namespace* bad = nullptr;
         for (uint32_t user : {0u, 9u, 21473u, UINT32_MAX}) {
-            EXPECT_EQ(-1, aegis_namespace_create(user, setup, seq[1], &bad));
+            EXPECT_EQ(-1, aegis_namespace_create(user, 1234, setup, seq[1], &bad));
             EXPECT_EQ(EINVAL, errno); EXPECT_EQ(nullptr, bad);
         }
-        EXPECT_EQ(-1, aegis_namespace_create(10, file, seq[1], &bad)); EXPECT_EQ(nullptr, bad);
-        EXPECT_EQ(-1, aegis_namespace_create(10, setup, stream[1], &bad));
+        EXPECT_EQ(-1, aegis_namespace_create(10, UINT32_MAX, setup, seq[1], &bad));
+        EXPECT_EQ(EINVAL, errno); EXPECT_EQ(nullptr, bad);
+        EXPECT_EQ(-1, aegis_namespace_create(10, 1234, file, seq[1], &bad)); EXPECT_EQ(nullptr, bad);
+        EXPECT_EQ(-1, aegis_namespace_create(10, 1234, setup, stream[1], &bad));
         EXPECT_EQ(EPROTOTYPE, errno); EXPECT_EQ(nullptr, bad);
-        EXPECT_EQ(-1, aegis_namespace_create(10, -1, seq[1], &bad)); EXPECT_EQ(nullptr, bad);
+        EXPECT_EQ(-1, aegis_namespace_create(10, 1234, -1, seq[1], &bad)); EXPECT_EQ(nullptr, bad);
     }
     EXPECT_EQ(before, descriptors());
     close(file); close(seq[0]); close(seq[1]); close(stream[0]); close(stream[1]);
@@ -288,6 +291,7 @@ TEST_F(RuntimeNamespace, InheritedObserverCannotReleaseOrSignalAnotherContext) {
         bool ok = aegis_namespace_resume(contexts[0]) == -1 && errno == EPERM;
         ok &= aegis_namespace_prepare(contexts[0]) == -1 && errno == EPERM;
         ok &= aegis_namespace_base_mount(contexts[0], -1) == -1 && errno == EPERM;
+        ok &= aegis_namespace_home_mount(contexts[0], 0) == -1 && errno == EPERM;
         ok &= aegis_namespace_stop(contexts[0]) == -1 && errno == EPERM;
         aegis_child_exit result = {};
         ok &= aegis_namespace_wait(contexts[0], 0, &result) == -1 && errno == EPERM;
@@ -309,7 +313,7 @@ TEST_F(RuntimeNamespace, SupplementaryGroupsAreRejectedWithoutChangingTheCaller)
         gid_t group = 0;
         if (setgroups(1, &group) < 0) _exit(2);
         aegis_namespace* bad = nullptr;
-        bool ok = aegis_namespace_create(10, setup, -1, &bad) == -1 && errno == EPERM;
+        bool ok = aegis_namespace_create(10, 1234, setup, -1, &bad) == -1 && errno == EPERM;
         ok &= bad == nullptr && getgroups(0, nullptr) == 1;
         _exit(ok ? 0 : 1);
     }
@@ -329,7 +333,7 @@ TEST_F(RuntimeNamespace, AutoReapingIsRejectedBeforeAnyChildIsCreated) {
             action.sa_flags = option ? SA_NOCLDWAIT : 0;
             if (sigaction(SIGCHLD, &action, nullptr) < 0) _exit(2);
             aegis_namespace* bad = nullptr;
-            bool ok = aegis_namespace_create(10, setup, -1, &bad) == -1 && errno == EPERM;
+            bool ok = aegis_namespace_create(10, 1234, setup, -1, &bad) == -1 && errno == EPERM;
             _exit(ok && !bad ? 0 : 1);
         }
         int status;
@@ -349,7 +353,7 @@ TEST_F(RuntimeNamespace, MultithreadedCallersAreRejectedBeforeCloning) {
     };
     ASSERT_EQ(0, pthread_create(&thread, nullptr, wait_for_end, &pipe_fds[0]));
     aegis_namespace* bad = nullptr;
-    EXPECT_EQ(-1, aegis_namespace_create(10, setup, -1, &bad));
+    EXPECT_EQ(-1, aegis_namespace_create(10, 1234, setup, -1, &bad));
     EXPECT_EQ(EPERM, errno); EXPECT_EQ(nullptr, bad);
     EXPECT_EQ(1, write(pipe_fds[1], "Q", 1));
     EXPECT_EQ(0, pthread_join(thread, nullptr));
@@ -430,12 +434,14 @@ TEST_F(RuntimeNamespace, MissingMappingsAndStoppedChildrenCannotProvideBaseViews
     ASSERT_EQ(0, fixture(true));
     ASSERT_EQ(0, create(0, 10));
     EXPECT_EQ(-1, aegis_namespace_base_mount(contexts[0], source)); EXPECT_EQ(EAGAIN, errno);
+    EXPECT_EQ(-1, aegis_namespace_home_mount(contexts[0], 0)); EXPECT_EQ(EAGAIN, errno);
     ASSERT_EQ(0, aegis_namespace_prepare(contexts[0]));
     ASSERT_EQ(0, aegis_namespace_stop(contexts[0]));
     aegis_child_exit result = {};
     ASSERT_EQ(0, aegis_namespace_wait(contexts[0], 5000, &result));
     int before = descriptors();
     EXPECT_EQ(-1, aegis_namespace_base_mount(contexts[0], source)); EXPECT_EQ(EALREADY, errno);
+    EXPECT_EQ(-1, aegis_namespace_home_mount(contexts[0], 0)); EXPECT_EQ(EALREADY, errno);
     EXPECT_EQ(before, descriptors());
 }
 

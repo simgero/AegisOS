@@ -20,7 +20,7 @@ struct aegis_namespace;
 /* setup_fd: already authenticated, preopened static ARM64 ELF from trusted
  * system code (NOT a user's executable). control_fd: one end of a private,
  * unnamed connected Unix SEQPACKET socket pair. Neither caller fd is consumed.
- * The setup helper gets only FD 3, argv [aegis-runtime-setup, USER_ID], and a
+ * The setup helper gets only FD 3, argv [aegis-runtime-setup, USER_ID, SERIAL], and a
  * fixed environment. It still sees the inherited Android root until it sets
  * up trusted mounts: it MUST NOT execute user code before pivot/detach, resource
  * limits and SELinux setup. aegis-runtime-init is NOT yet a usable setup helper.
@@ -31,7 +31,7 @@ struct aegis_namespace;
  * clone; *output must initially be NULL. Failure owns no new child and leaves
  * that output unchanged (including rejection of an already populated output).
  */
-int aegis_namespace_create(uint32_t user_id, int setup_fd, int control_fd,
+int aegis_namespace_create(uint32_t user_id, uint32_t serial, int setup_fd, int control_fd,
                            struct aegis_namespace **output);
 
 /* One attempt: anchor the child's proc directory, deny setgroups, write and
@@ -64,6 +64,21 @@ int aegis_namespace_prepare(struct aegis_namespace *context);
  * Does not provide mount/exec readiness, AOSP authorization or cleanup proof.
  */
 int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_source_fd);
+
+/* After prepare(), before resume(): resolve this context's immutable id+serial
+ * against AOSP's existing internal-volume CE roots, optionally provision its
+ * private home, and return a detached writable/nosuid/nodev/private mount fd.
+ * No second ID map: files already carry the mapped ordinary host UID/GID.
+ * No caller paths, repair of AOSP metadata, or key mutation/export. create is
+ * strictly 0/1; existing mismatches and interrupted provisioning are errors.
+ *
+ * Requires fresh AOSP authentication, CE-unlocked confirmation and a lifecycle
+ * lock spanning preparation and resume; those remain BROKER obligations.
+ * Kernel key presence alone is NOT authorization. Caller owns the returned fd
+ * and must close ALL CE mounts/fds before AOSP key removal. Success is neither
+ * attached storage nor runtime readiness. The original child deadline applies.
+ */
+int aegis_namespace_home_mount(struct aegis_namespace *context, int create);
 
 /* Stable pidfd termination/observation, with the same semantics as child.h.
  * stop also closes the gate. wait confirms ONLY this child's actual exit.

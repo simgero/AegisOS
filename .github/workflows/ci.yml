@@ -41,6 +41,7 @@ jobs:
           bash -n scripts/aosp/worker.sh
           bash -n scripts/aosp/compile.sh
           bash -n scripts/aosp/check-identity.sh
+          bash -n scripts/start-components.sh
           bash -n scripts/aosp/setup-sandbox.sh
           bash -n scripts/aosp/config.sh
           bash -n scripts/kernel/build.sh

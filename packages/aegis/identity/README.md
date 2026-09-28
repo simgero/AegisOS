@@ -32,6 +32,13 @@ Vier weitere native Tests sind vorbereitet. Auch diese Mount-Erweiterung ist
 noch nicht kompiliert oder im Gast ausgeführt; CE-Einbindung und Rootwechsel
 fehlen weiterhin.
 
+Die [persönliche CE-Speicheranbindung](../../../runtime/personal-storage.md)
+prüft jetzt im Quelltext AOSPs Seriennummer und Verschlüsselungsrichtlinie,
+bereitet einen privaten HOME-Bestand vor und erzeugt eine passende detached
+Mount-Sicht. Namespace-Handles tragen ID und Seriennummer unveränderlich.
+Fünf zusätzliche Negativtests sind vorbereitet. Alles ist noch unkompiliert;
+erfolgreiche CE-Anlage, Lebenszyklus-Koordination und Gastnachweise fehlen.
+
 `AospIdentityBackend` ist für den späteren AEGIS-Systemdienst vorgesehen.
 Der Konstruktor verlangt den Android-Systemprozess-UID. Die Klasse besitzt
 keinen Binder-Endpunkt und keine eigene Benutzer-, Passwort- oder Schlüsseldatenbank.

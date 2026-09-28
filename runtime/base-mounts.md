@@ -39,7 +39,9 @@ entfernen. Erst danach dürfen Benutzerprogramme starten. Diese Übergabe, der
 Helfer und die SELinux-Integration fehlen noch. Persönliche CE-Verzeichnisse
 haben bereits benutzerspezifische AOSP-Hostkennungen und dürfen nicht nochmals
 als gemeinsame Basis ID-gemappt werden. Ihre Herkunfts-, Seriennummern-, CE-
-und Rechteprüfung sowie Einbindung bleiben gesondert zu implementieren.
+und Rechteprüfung sind inzwischen als [CE-Baustein](personal-storage.md) im
+Quelltext vorbereitet. Echte Einbindung, AOSP-Koordination und Gastnachweise
+stehen weiterhin aus.
 
 Grundlagen sind die [Kernel-ID-Mappings](https://docs.kernel.org/filesystems/idmappings.html),
 [open_tree](https://man7.org/linux/man-pages/man2/open_tree.2.html) für den detached

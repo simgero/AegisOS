@@ -2,6 +2,7 @@
 #define _GNU_SOURCE
 #endif
 #include "namespace.h"
+#include "ce_private.h"
 #include "child_private.h"
 #include "uid_layout.h"
 #include "mounts_private.h"
@@ -41,7 +42,7 @@ struct aegis_namespace {
     struct aegis_child *child;
     int proc_root, gate, attempted, mapped, userns;
     pid_t pid; /* Used once for proc anchoring; NEVER for kill/wait/reopening. */
-    uint32_t user_id;
+    uint32_t user_id, serial;
 };
 
 static int denied(void) { errno = EPERM; return -1; }
@@ -100,6 +101,7 @@ static int check_broker(int proc, pid_t pid) {
     if (init < 0) goto done;
     if (same_namespace(self, init, "ns/user") < 0
             || same_namespace(self, init, "ns/pid") < 0
+            || same_namespace(self, init, "ns/mnt") < 0
             || initial_map(self, "uid_map") < 0 || initial_map(self, "gid_map") < 0) goto done;
     int task = openat(self, "task", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (task < 0) goto done;
@@ -170,7 +172,7 @@ static _Noreturn void child_failed(void) {
  * ONLY raw syscalls and stack values: no malloc, stdio, cached getpid or libc
  * set*id wrappers. The helper exec starts a fresh libc instance. */
 static _Noreturn void child_exec(int setup, int control, int gate, int parent,
-                                  char *user) {
+                                  char *user, char *serial) {
     if (syscall(SYS_dup3, control, 3, 0) < 0
             || syscall(SYS_dup3, setup, 4, O_CLOEXEC) < 0
             || syscall(SYS_dup3, gate, 5, O_CLOEXEC) < 0
@@ -209,14 +211,16 @@ static _Noreturn void child_exec(int setup, int control, int gate, int parent,
     syscall(SYS_close, 5);
     syscall(SYS_close, 6);
     char label[] = "aegis-runtime-setup", path[] = "PATH=/system/bin", locale[] = "LANG=C";
-    char *argv[] = {label, user, NULL}, *envp[] = {path, locale, NULL};
+    char *argv[] = {label, user, serial, NULL}, *envp[] = {path, locale, NULL};
     syscall(SYS_execveat, 4, "", argv, envp, AT_EMPTY_PATH);
     child_failed();
 }
 
-int aegis_namespace_create(uint32_t user_id, int setup_fd, int control_fd,
+int aegis_namespace_create(uint32_t user_id, uint32_t serial, int setup_fd, int control_fd,
                            struct aegis_namespace **output) {
-    if (!output || *output || user_id < 10 || user_id >= 21473) { errno = EINVAL; return -1; }
+    if (!output || *output || user_id < 10 || user_id >= 21473 || serial > INT32_MAX) {
+        errno = EINVAL; return -1;
+    }
     struct aegis_namespace *context = calloc(1, sizeof(*context));
     struct aegis_child *child = calloc(1, sizeof(*child));
     int setup = -1, control = -1, parent = -1, pair[2] = {-1, -1}, child_gate = -1;
@@ -224,6 +228,7 @@ int aegis_namespace_create(uint32_t user_id, int setup_fd, int control_fd,
     context->child = child;
     context->gate = context->proc_root = context->userns = child->pidfd = -1;
     context->user_id = user_id;
+    context->serial = serial;
     child->owner = (pid_t)syscall(SYS_getpid);
     context->proc_root = open("/proc", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (context->proc_root < 0 || check_broker(context->proc_root, child->owner) < 0) goto fail;
@@ -243,8 +248,9 @@ int aegis_namespace_create(uint32_t user_id, int setup_fd, int control_fd,
     child_gate = fcntl(pair[1], F_DUPFD_CLOEXEC, 7);
     if (context->gate < 0 || child_gate < 0) goto fail;
     close(pair[0]); close(pair[1]); pair[0] = pair[1] = -1;
-    char user[16];
+    char user[16], generation[16];
     snprintf(user, sizeof(user), "%u", user_id);
+    snprintf(generation, sizeof(generation), "%u", serial);
     struct clone_args args = {
         .flags = CLONE_PIDFD | CLONE_NEWUSER | CLONE_NEWPID | CLONE_NEWNS
             | CLONE_NEWIPC | CLONE_NEWUTS | CLONE_NEWNET,
@@ -254,7 +260,7 @@ int aegis_namespace_create(uint32_t user_id, int setup_fd, int control_fd,
     uint64_t all = UINT64_MAX, previous;
     if (syscall(SYS_rt_sigprocmask, SIG_SETMASK, &all, &previous, sizeof(all)) < 0) goto fail;
     pid_t pid = (pid_t)syscall(SYS_clone3, &args, sizeof(args));
-    if (pid == 0) child_exec(setup, control, child_gate, parent, user);
+    if (pid == 0) child_exec(setup, control, child_gate, parent, user, generation);
     saved = errno;
     /* Valid fixed arguments; restoring the mask cannot lose ownership even if
      * the kernel were to reject it. Output ownership is assigned before return. */
@@ -370,6 +376,32 @@ int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_sou
     if (still_waiting(context) < 0) return -1;
     if (context->mapped != 1 || context->userns < 0) { errno = EAGAIN; return -1; }
     return aegis_clone_base_mount(verified_source_fd, context->userns, context->user_id);
+}
+
+int aegis_namespace_home_mount(struct aegis_namespace *context, int create) {
+    if (still_waiting(context) < 0) return -1;
+    if (context->mapped != 1 || context->userns < 0) { errno = EAGAIN; return -1; }
+    /* check_broker includes Android init's actual mount namespace. This path
+     * and the identity are NOT chosen by the client or setup helper. */
+    int data = open("/data", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (data < 0) return -1;
+    int home = aegis_ce_open_home(data, context->user_id, context->serial, create);
+    int saved = errno;
+    close(data);
+    if (home < 0) { errno = saved; return -1; }
+    int tree = aegis_ce_clone_home(home, context->user_id);
+    saved = errno;
+    close(home);
+    if (tree < 0) { errno = saved; return -1; }
+    /* Filesystem I/O may have outlasted the 10s gate. Do not return a storage
+     * view for a child which already exited during preparation. */
+    if (still_waiting(context) < 0) {
+        saved = errno;
+        close(tree);
+        errno = saved;
+        return -1;
+    }
+    return tree;
 }
 
 int aegis_namespace_resume(struct aegis_namespace *context) {
