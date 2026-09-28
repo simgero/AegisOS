@@ -1,8 +1,10 @@
 # AOSP-Anbindung für AEGIS-Identität
 
-Stand 28. September 2026: **Interne Bibliothek in Entwicklung. Noch nicht auf
-`aegis-build` kompiliert, nicht installiert und keine fertige `aegis`-CLI.**
-Die laufende QEMU-VM enthält diesen Code noch nicht.
+Stand 28. September 2026: **Bibliothek, Systemdienst und erste interaktive CLI
+im Quelltext. Noch nicht auf `aegis-build` kompiliert, nicht installiert und
+keine fertige `aegis`-CLI.** Die laufende QEMU-VM enthält diesen Code noch nicht.
+Sitzungsmodell, Kompilierprüfung und offene Integrationsschritte stehen in
+[`docs/identity-cli.md`](../../../docs/identity-cli.md).
 
 `AospIdentityBackend` ist für den späteren AEGIS-Systemdienst vorgesehen.
 Der Konstruktor verlangt den Android-Systemprozess-UID. Die Klasse besitzt
@@ -27,9 +29,10 @@ Implementiert im Quelltext:
 
 ## Verpflichtender Rahmen vor der Verwendung
 
-Die Bibliothek ist noch kein sicherer Aufrufdienst. Der zu implementierende
-Dienst muss vor jedem Aufruf den tatsächlichen Client prüfen und dessen Sitzung
-an den ursprünglichen Aufrufer binden. AOSPs Vordergrundbenutzer ist keine
+Die Bibliothek allein ist kein Aufrufdienst. Der neue Dienstentwurf prüft vor
+jedem Aufruf UID, PID, Kernel-Prozessstartzeit und Binder-Lebenszeichen des
+ursprünglichen Clients. Diese Durchsetzung ist noch im Gast zu testen.
+AOSPs Vordergrundbenutzer ist keine
 Autorisierung für einen Hintergrundprozess. Status- und Benutzerlisten müssen
 entsprechend eingeschränkt werden. Administrative Aktionen brauchen eine frische
 AOSP-Authentifizierung und eine aktuelle AOSP-Adminprüfung für genau diese Aktion.
@@ -48,9 +51,9 @@ erneut ermittelt werden. Die Systemdienst-Lifecycle-Callbacks dürfen nicht auf
 blockierende Adapteroperationen warten, sondern müssen Arbeit einreihen.
 
 Noch offen sind insbesondere Benutzereinrichtung/-löschung mit Adminfreigabe,
-einmalige abgesicherte Ersteinrichtung, Client-/Sitzungsbindung, CLI, Binder-/
-SELinux-Integration, Runtime-Koordination sowie Build und Gasttests dieser Klasse.
-Das Modul wird absichtlich noch nicht in ein Produkt aufgenommen.
+einmalige abgesicherte Ersteinrichtung, Produkt-/SELinux-Integration,
+Runtime-Koordination sowie Build und Gasttests des Adapters, Dienstes und der CLI.
+Die Module werden absichtlich noch nicht in ein Produkt aufgenommen.
 
 ## Abgeglichene AOSP-Schnittstellen
 

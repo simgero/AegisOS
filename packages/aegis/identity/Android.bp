@@ -5,3 +5,27 @@ java_library {
     libs: ["framework"],
     installable: false,
 }
+
+java_library {
+    name: "aegis-identity-protocol",
+    srcs: ["aidl/**/*.aidl"],
+    aidl: { local_include_dirs: ["aidl"] },
+    libs: ["framework"],
+    installable: false,
+}
+
+java_library {
+    name: "aegis-identity-service",
+    srcs: ["service/**/*.java"],
+    static_libs: ["aegis-identity-core", "aegis-identity-protocol"],
+    libs: ["framework", "services.core"],
+    installable: true,
+}
+
+java_binary {
+    name: "aegis",
+    srcs: ["cli/**/*.java"],
+    static_libs: ["aegis-identity-protocol"],
+    libs: ["framework"],
+    main_class: "org.aegisos.identity.Aegis",
+}
