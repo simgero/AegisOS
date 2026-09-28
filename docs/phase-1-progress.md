@@ -1,92 +1,66 @@
 # Phase 1: Implementierungsstand
 
-Stand: 28. September 2026. Keine Abnahme des Gesamtziels.
+Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.**
+Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
+Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-**Aktueller Komponentenstand:** `336e927526df91b00c1dac06611c73e5b3cd4180`
-wurde auf `aegis-build` vollständig kompiliert und gelinkt. Lauf
-`identity-20260928T181002Z-336e9275-y2tzSs`, Abschluss 18:10:51 UTC,
-`IDENTITY_COMPILED_NOT_INSTALLED`; GitHub-Transport ebenfalls verifiziert.
-Er enthält Identitätsdienst, den noch nicht aktivierten Runtime-Broker,
-52 Java- und 86 native Tests. Runtime-Modus bleibt `absent`.
+## Bestätigte Nachweise
 
-**Aktuelle Gastnachweise:** Image `25fde995` ist im lokalen Mac-QEMU vollständig
-gebootet, mit authentifiziertem ADB, SELinux Enforcing, FBE und tatsächlichen
-verity-Tabellen für `system`/`system_ext`. Der sichtbare Startbildschirm ist bei
-640 × 480 und 160 dpi lesbar; ein QMP-Mausklick öffnet Gallery. Der AEGIS-Dienst
-läuft; installierte CLI-Statusbefehle funktionieren. Alle 52 Java-Tests und 83
-von 86 nativen Tests bestehen. Drei gemeinsame Basis-Mount-Tests scheitern mit
-`EINVAL`: Die aktuelle detached Quelle lässt sich im gepinnten Kernel nicht
-über `open_tree` klonen. Persönliche Anmeldung und Linux-Sitzungen sind noch
-nicht nachgewiesen. Siehe [Komponententests](component-tests.md).
+Das vollständige Image `25fde995` bootet mit SELinux Enforcing,
+authentifiziertem ADB, FBE und tatsächlichen dm-verity-Tabellen für `system`
+und `system_ext`. Im getrennten persistenten Profil wurden zwei persönliche
+Benutzer über die installierte AEGIS-CLI angelegt und angemeldet. Falsche
+Passwörter werden abgewiesen; Benutzerwechsel, Passwortwechsel, bestätigte
+CE-Sperre nach Logout und unveränderte Testdateien nach geordnetem Neustart
+wurden beobachtet. AOSP bleibt die Identitäts- und Passwortautorität.
+Die Dateiproben stammen von Entwicklungs-root, nicht von isolierten
+Linux-Benutzern. Siehe [CLI-Test und Grenzen](identity-cli-qemu-test.md).
 
-**Kernel:** Der Vollbuild `aosp-20260928T155300Z-96f9ed6b-c975dba9`
-scheiterte um 16:57 UTC an `check_vintf_all`: FCM 202504 verlangt
-`CONFIG_SYSVIPC=n`. Die Kompatibilitätsprüfung wurde nicht gelockert.
-Ersatzlauf `kernel-20260928T170624Z-64e66d77-qW9h9L` endete um 17:29:42 UTC
-erfolgreich. Die vollständige Eingabeprüfung bestätigt 162 Dateien, 105 GKI-
-und 51 Vendor-Module sowie bytegleiche Kernel-Kopien. `CONFIG_SYSVIPC=n`,
-IPC-Namespaces über POSIX-Nachrichtenqueues, USER_NS und TMPFS_XATTR bleiben
-aktiv. Bundle `84a41f6a0a47edc2ebefeb83a6bcc56ddff64d9d2eeed37fea0f4dd58b40948e`,
-Status `CHECKED_INPUTS_NOT_BOOTED`. 14 Kernelübernahme- und zehn Imagevorbereitungs-
-Hosttests bestehen; das ersetzt keine Android- oder Bootprüfung.
+Der korrigierte Komponentenstand `bfe90925` besteht auf diesem Image
+**88 von 88 nativen Tests** ohne Abwahl. Die drei früheren Mountfehler sind
+behoben: Der Broker bindet die unveränderte Basis zuerst in seinen eigenen
+Mount-Namespace ein und erzeugt daraus die persönlichen Ansichten. Auf dem
+älteren Komponentenstand bestehen außerdem **52 von 52 Java-Tests** im
+vollständig gebooteten Produkt. Diese Ergebnisse betreffen unterschiedliche
+Quellstände, keine gemeinsam abgenommene Runtime. Nachweise und Rohlogs:
+[Komponententests](component-tests.md).
 
-**Gemeinsame Debian-Basis:** Lauf
-`runtime-base-20260928T145204Z-87ab3f54-WclcLl` meldet
-`BUILT_VERIFIED_NOT_MOUNTED`. Debian 13.7 ARM64, 78 Pakete, 256-MiB-ext4-Image;
-zwei Builds sind bytegleich, alle Inhalte und Eigentümer wurden zurückgelesen.
-Noch keine Gast-Einbindung oder Ausführung.
+Die gemeinsame Debian-13.7-ARM64-Basis enthält 78 Pakete in einem 256-MiB-
+ext4-Image. Zwei Builds waren bytegleich; Metadaten und Dateibytes sowie die
+Kopie innerhalb von `super.img` wurden geprüft. **Eine echte Debian-Sitzung
+wurde noch nicht gestartet.** Kernel, Namespace-/UID-, Mount- und
+Speichergruppenbausteine sind Voraussetzungen, kein Ersatz dafür.
 
-**Android-Folgebuild:** Ein Bootstrap mit `878fc970` und dem korrigierten
-Kernel scheiterte beim GitHub-Abruf seiner unveränderlichen Quellen, bevor ein
-Build-Dienst gestartet wurde. Der erneute Abruf mit `336e9275` gelang.
-Vollbuild `aosp-20260928T181511Z-336e9275-4af8ec7d`, InvocationID
-`99c0ee3011674ca9819b4d5adc8cb093`, bestand um 18:26:27 UTC einschließlich
-VINTF. Die tatsächliche Basis innerhalb von `super.img` wurde um 18:27:09 UTC
-bytegenau bestätigt. Um 18:40:13 UTC meldete der Lauf `UPLOAD_VERIFIED`:
-alle 20 Assets wurden erneut heruntergeladen und verglichen. Der
-[veröffentlichte Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260928T181511Z-336e9275-4af8ec7d)
-bindet genau die oben genannten Kernel- und Basisläufe. Die abgeschlossene
-Buildüberwachung wurde beendet. Der lokale Erststart am 28. September um
-18:51 UTC erreichte Kernel, KeyMint, SELinux Enforcing und authentifiziertes ADB,
-aber keinen Android-Bootabschluss: Die geerbte Audiokonfiguration referenziert
-eine durch `BOARD_HAVE_BLUETOOTH=false` entfernte Datei. Der Audio-HAL meldet
-eine ungültige XML-Konfiguration; `IModule/default` fehlt und SystemServer wartet
-in `StartAudioService`. Android und sein gepaarter Helper wurden sauber beendet.
-Die erste Audiokorrektur wurde als `be1ad9ad` gebaut und um 19:19:52 UTC
-mit `UPLOAD_VERIFIED` ausgeliefert. Im lokalen QEMU registriert sie nun primäres
-Audio und Submix, aber Audioserver wartet auf den weiterhin im APEX deklarierten
-Bluetooth-Audio-Endpunkt. Android bleibt erneut vor dem Bootabschluss stehen.
-Der gepaarte Gast wurde sauber beendet. Die zweite Korrektur liefert die
-vollständige ursprüngliche Audiopolicy einschließlich des benötigten
-Software-Moduls bei weiterhin abgeschaltetem HCI-Controller. Vier XML-
-Regressionen bestehen. Ersatzbuild `25fde995`, Lauf
-`aosp-20260928T193617Z-25fde995-aecfe99a`, wurde um 19:36 UTC gestartet;
-GitHub-Verifikation (`UPLOAD_VERIFIED`) und Gastboot sind inzwischen bestanden.
-Dieser aktuelle Stand bleibt für die Nutzeransicht geöffnet; störende weitere
-Tests müssen ein gesondertes Profil und einen anderen ADB-Port verwenden.
-Siehe [QEMU-Hardware](qemu-hardware.md).
+## Aktuelle Builds und nächste Prüfung
 
-Der private AOSP-/Broker-Kanal, Ressourcenbesitz, begrenzte Cgroup-Wiederherstellung
-und readonly-Basisvorbereitung sind kompiliert. Frühere Soong-Probleme mit
-statischer libcrypto, direkten JsonCpp-Link-Abhängigkeiten und der stabilen
-Credential-API wurden mit der regulären dynamischen libcrypto, vollständigen
-Link-Abhängigkeiten und `LocalSocket.getPeerCredentials()` behoben. Persönliche
-Kontexte, SELinux-/init-Anbindung und koordinierter CE-Schlüsselentzug sind noch
-nicht als integrierter Gastablauf nachgewiesen. Paketverwaltung und der
-vollständige Zwei-Benutzer-Ablauf bleiben umzusetzen.
+Vollbuild `aosp-20260928T210223Z-bfe90925-32d1cb4b` ist kompiliert, paketiert
+und mit `UPLOAD_VERIFIED` über
+[GitHub veröffentlicht](https://github.com/simgero/AegisOS/releases/tag/aosp-20260928T210223Z-bfe90925-32d1cb4b).
+Er enthält die Korrektur geerbter Telefoniefunktionen und den bis dahin
+committeten AEGIS-Auftritt. Die lokale Imagevorbereitung läuft; Boot und Ende
+der zuvor beobachteten Telefonie-ANR-Schleife sind noch nicht bestätigt.
+Bisherige Android-/KeyMint-Profilpaare bleiben erhalten.
 
-| Anforderung | Nachweis / verbleibende Arbeit |
+Commit `ac87df1fc333893d08db0ceb9c67b13c59eed758` erweitert den internen
+Brokerkanal um begrenzte Linux-Befehle, persönliche PTY-Übergabe und getrennte
+laufende/beendete Ergebnisse. Alle acht ARM64-Syntaxprüfungen bestehen im
+Builderlauf `runtime-syntax-20260928T215856Z-ac87df1f-rOLeXi`.
+Der Quellstand enthält **110 native und 59 Java-Tests**, deren vollständige
+Kompilierung und Ausführung noch ausstehen. Der Komponentenstart wurde vor
+Dienststart durch eine belegte Bootstrap-Sperre abgewiesen. Nun wartet er auf
+den separat laufenden Bootanimations-Vollbuild
+`aosp-20260928T220423Z-561c1efd-ace54029`; kein paralleler AOSP-Schreibzugriff.
+Details: [Terminalübergabe](../runtime/terminal-handoff.md).
+
+## Erfüllung der fünf Ziele
+
+| Ziel | Tatsächlicher Stand und fehlender Nachweis |
 | --- | --- |
-| Lokaler Android-Start | Bootabschluss und sichtbare Oberfläche bestätigt, siehe `qemu-first-boot.md`. |
-| ADB und Bildschirm | Authentifizierte Verbindung, Dateiübertragung und Bildschirmaufnahme geprüft; siehe `local-adb.md`. |
-| Bedienung | Virtuelle Tastatur schreibt den vollständigen Testtext; relative Maus öffnet mit linkem Klick eine Einstellungsseite. Native Mac-Fensterbedienung noch prüfen; Mac beim Versuch gesperrt. |
-| Dauerhafte Daten und Schlüssel | Neuer Helper auf dem Server gebaut und über GitHub geprüft bezogen. Vollständiger QEMU-Neustart mit persönlichem Passwort: falsches Passwort abgewiesen, CE gesperrt, richtiges Passwort liefert dieselben 4096 Bytes. Doppelstart, fehlende/fremde Disk und verlorener TPM-Zustand auf einer Kopie abgewiesen. Stromausfall- und Migrationsnachweis offen; siehe `persistent-qemu.md`. |
-| Gerätedienste | Bluetooth-Abstürze und NFC-Controller-Timeouts im bisherigen Image dokumentiert; zuletzt keine laufende Absturzschleife aller HALs belegt. Bluetooth-Schalter sowie fehlende NFC-/UWB-/Thread-Funktionen im nächsten Produktstand konfiguriert. Im neuen Vollbuild ausgewählt; Framework-Start, verbliebene native HALs und weitere geerbte Geräte im neuen Gast prüfen. Siehe `qemu-hardware.md`. |
-| AEGIS-Identität/CLI | AOSP-Adapter, Binder-Dienst, CLI, Ressourcen/Policy, Kennungsregister, betroffene Framework-Dienste und 52 Android-Tests erfolgreich kompiliert. 48 isolierte Java-Gerätetests bestehen; Produktintegration und reale Anmeldung über AEGIS im neuen Image stehen aus. Runtime-Koordination fehlt. Siehe `component-tests.md` und `identity-cli.md`. |
-| AOSP-Passwortgrundlage | Ein persönlicher Testbenutzer: falsches Passwort abgewiesen, CE-Sperre nach Benutzerstopp bestätigt, richtiges Passwort stellt Dateizugriff wieder her. Nach Passwortwechsel wird das alte Passwort abgewiesen; das neue erhält dieselben Daten. Anschließend Plattformlöschung und Abwesenheit von acht Schlüssel-/Datenpfaden bestätigt. Tests über AOSP-Dialoge und Plattformbefehle, noch nicht über AEGIS; siehe `identity-platform-test.md`. |
-| GNU/Linux-Runtime | Gepinnte Debian-13.7-ARM64-Basis mit 78 Paketen zu einem 256-MiB-ext4-Image gebaut; Bytegleichheit zweier Builds und sämtliche Inhalte/Eigentümer geprüft. Noch keine Gast-Einbindung oder Ausführung. Native Module einschließlich 86 Tests kompiliert; zuletzt 22 von 23 ausgewählten nativen Tests bestanden, die fünf Parser-Tests bestehen nach der Korrektur. Laufende Maps, Laufzeitverwaltung, AOSP-Autorisierung, Mounts und SELinux-Integration fehlen. Neuer kompatibler Kernel gebaut und geprüft; Vollbuild `336e9275` und GitHub-Transport bestanden; neuer Gasttest folgt. Siehe `component-tests.md`, `../runtime/generations.md` und `../runtime/uid-mapping.md`. |
-| Pakete und Isolation | Noch zu implementieren und mit zwei AOSP-Benutzern praktisch zu prüfen. |
-| Vollständiger Ablauf | Noch kein Nachweis für Login, Wechsel, Logout mit CE-Sperrung und Neustart mit zwei passwortgeschützten Benutzern. |
+| Stabiles, dauerhaftes QEMU | Gepaarte Android-/KeyMint-Persistenz und geordnete Neustarts nachgewiesen. Lesbares Bild und QMP-Mausklick bestätigt; physische Mac-Eingabe, Stromausfall und Image-Migration offen. Telefonie-ANR muss im neuen Image geprüft werden. |
+| AEGIS-Benutzer und Anmeldung | Zwei-Benutzer-CLI-Test mit AOSP-Passwörtern, Wechsel, Passwortwechsel und Logout bestanden. Unterbrochene Ersteinrichtung, vollständige Admin-Negativtests, CLI-Löschung und ID-Wiederverwendung offen. Die bisherige Nachbereinigung nach Freigabe einer gelöschten AOSP-ID muss vor Löschungsfreigabe in den reservierten Plattform-Lebenszyklus verlegt werden. |
+| Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft; 88 native Bausteintests bestanden. Neue Terminalübergabe syntaxgeprüft. Produktive SELinux-/Init-Anbindung, AOSP-Speicherkoordination, CLI-Sitzungsbindung und wirkliche Linux-Ausführung fehlen; Modus bleibt ausdrücklich `absent`. |
+| Pakete und Isolation | Pakettransaktionen und konsistente Aktivierung fehlen. Sowohl gemeinsame als auch private Pakete erfordern frische AOSP-Adminautorisierung. Persönliche Linux-Datei-/Prozessisolation muss mit zwei angemeldeten Benutzern geprüft werden. |
+| Gesamtablauf | Identitäts-/CE-Teil mit zwei Passwortbenutzern und Neustart nachgewiesen. Linux-Programme, Paketaktionen, Abbau aller Runtime-Ressourcen vor CE-Sperre und der vollständige integrierte Ablauf bleiben offen. |
 
 ## Frühere Vorbereitungsschritte
 

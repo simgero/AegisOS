@@ -52,6 +52,14 @@ Mit ihnen enthielt die Suite 100 Tests; dieser neue Gesamtstand ist noch ungepr�
 
 ## Interne Broker-/AOSP-Verbindung, noch nicht ausgeführt
 
+Commit `ac87df1fc333893d08db0ceb9c67b13c59eed758` besteht außerdem alle acht
+ARM64-Syntaxprüfungen im Builderlauf
+`runtime-syntax-20260928T215856Z-ac87df1f-rOLeXi`, einschließlich Broker,
+Protokoll und der ergänzten nativen Tests. Java-Kompilierung, Verlinkung und
+Gasttests stehen noch aus. Der nachfolgende Komponentenauftrag wartet auf
+den bereits separat gestarteten Bootanimations-Vollbuild; der gemeinsame
+AOSP-Baum wird nicht parallel neu registriert.
+
 Die vorbereitete Version 2 ergänzt den weiterhin nur für `system_server`
 zugelassenen SEQPACKET-Kanal um `EXEC` und `RESULT`. Persönliche Kennung,
 AOSP-Seriennummer, Verbindungssequenz und unveränderte absolute Frist bleiben
