@@ -93,7 +93,7 @@ type_transition aegis_runtime_setup tmpfs:file aegis_runtime_scratch_file;
 allow aegis_runtime_mount_domain tmpfs:filesystem { mount remount unmount };
 allow aegis_runtime_broker aegis_runtime_devices_file:dir create_dir_perms;
 allow aegis_runtime_broker aegis_runtime_devices_file:chr_file { create setattr getattr };
-allow aegis_runtime_broker aegis_runtime_devices_file:lnk_file create_lnk_perms;
+allow aegis_runtime_broker aegis_runtime_devices_file:lnk_file { create getattr read setattr unlink rename };
 allow aegis_runtime_devices_file tmpfs:filesystem associate;
 allow aegis_runtime_scratch_file tmpfs:filesystem associate;
 allow aegis_runtime_setup aegis_runtime_scratch_file:dir create_dir_perms;
@@ -153,7 +153,7 @@ r_dir_file(aegis_runtime_program, aegis_runtime_base_file)
 allow aegis_runtime_program aegis_runtime_base_file:file { rx_file_perms execute_no_trans };
 allow aegis_runtime_program { aegis_runtime_home_file aegis_runtime_scratch_file }:dir create_dir_perms;
 allow aegis_runtime_program { aegis_runtime_home_file aegis_runtime_scratch_file }:file create_file_perms;
-allow aegis_runtime_program { aegis_runtime_home_file aegis_runtime_scratch_file }:lnk_file create_lnk_perms;
+allow aegis_runtime_program { aegis_runtime_home_file aegis_runtime_scratch_file }:lnk_file { create getattr read setattr unlink rename };
 allow aegis_runtime_program { aegis_runtime_home_file aegis_runtime_scratch_file }:fifo_file create_file_perms;
 allow aegis_runtime_program { aegis_runtime_home_file aegis_runtime_scratch_file }:sock_file create_file_perms;
 allow aegis_runtime_program aegis_runtime_devices_file:dir r_dir_perms;
