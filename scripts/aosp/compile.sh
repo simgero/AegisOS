@@ -12,6 +12,15 @@ if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
 else
     python3 "$script_dir/link-product.py" "$project/device/aegis/qemu_arm64" /srv/aegis/work/aosp
 fi
+if [[ -n ${AEGIS_RUNTIME_RUN:-} ]]; then
+    runtime_args=()
+    if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
+        runtime_args+=(--kernel-receipt "$1/kernel-inputs.json")
+    fi
+    python3 "$project/scripts/runtime/integrate.py" prepare --run "$AEGIS_RUNTIME_RUN" \
+        --project "$project" --aosp /srv/aegis/work/aosp --receipt "$1/runtime-base-inputs.json" \
+        "${runtime_args[@]}"
+fi
 python3 "$script_dir/register-identity.py" "$project/packages/aegis/identity" /srv/aegis/work/aosp
 cp /srv/aegis/work/aosp/packages/aegis/identity/.aegis-source.json "$1/identity-source-files.json"
 cp /srv/aegis/work/aosp/device/aegis/.aegis-product-link.json "$1/product-source-files.json"
@@ -44,5 +53,13 @@ get_build_var PRODUCT_OUT > "$1/product-out.txt"
 if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
     python3 "$project/scripts/kernel/integrate.py" verify-image --receipt "$1/kernel-inputs.json" \
         --image "$(cat "$1/product-out.txt")/kernel" --boot-image "$(cat "$1/product-out.txt")/boot.img"
+fi
+if [[ -n ${AEGIS_RUNTIME_RUN:-} ]]; then
+    python3 "$project/scripts/runtime/integrate.py" verify-installed \
+        --receipt "$1/runtime-base-inputs.json" --product-out "$(cat "$1/product-out.txt")" \
+        --system-ext "$(get_build_var TARGET_COPY_OUT_SYSTEM_EXT)"
+else
+    python3 "$project/scripts/runtime/integrate.py" verify-absent \
+        --product-out "$(cat "$1/product-out.txt")" --system-ext "$(get_build_var TARGET_COPY_OUT_SYSTEM_EXT)"
 fi
 printf '%s\n' "$AOSP_LUNCH" > "$1/product-target.txt"

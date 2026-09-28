@@ -239,6 +239,13 @@ def inventory(root):
     return result
 
 
+def selection_text(selection):
+    return ("# Generated from checked kernel inputs; never edit this installed file.\n"
+            + "TARGET_KERNEL_USE := 6.12\n"
+            + "".join(f"{name} := {selection[name]}\n" for name in
+                      ("TARGET_KERNEL_PATH", "SYSTEM_DLKM_SRC", "KERNEL_MODULES_PATH")))
+
+
 def prepare(run, project, aosp, receipt):
     project, aosp = ordinary(project), ordinary(aosp)
     receipt = Path(receipt)
@@ -287,10 +294,7 @@ def prepare(run, project, aosp, receipt):
             shutil.copyfile(source / name, target)
         if product_tool.inventory(product) != expected:
             raise ValueError("Product sources changed during staging")
-        text = "# Generated from checked kernel inputs; never edit this installed file.\n"
-        text += "TARGET_KERNEL_USE := 6.12\n"
-        text += "".join(f"{name} := {value}\n" for name, value in selection.items())
-        (product / INCLUDE).write_text(text)
+        (product / INCLUDE).write_text(selection_text(selection))
         product_tool.register(product, aosp)
     finally:
         shutil.rmtree(product)

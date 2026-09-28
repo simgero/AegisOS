@@ -71,6 +71,7 @@ AOSP baseline: $AOSP_TAG
 Target: $AOSP_LUNCH
 Builder commit: $commit
 Kernel input run: ${AEGIS_KERNEL_RUN:-pinned AOSP prebuilts}
+Shared-base input run: ${AEGIS_RUNTIME_RUN:-none selected}
 
 Development userdebug build with AOSP test keys. Not a production security release.
 Local boot on Apple Silicon has not yet been verified.
@@ -126,6 +127,11 @@ done
 cp "$run/product-target.txt" "$run/artifacts/product-target.txt"
 if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
     cp "$run/kernel-inputs.json" "$run/artifacts/kernel-inputs.json"
+fi
+if [[ -n ${AEGIS_RUNTIME_RUN:-} ]]; then
+    for name in runtime-base-inputs.json runtime-base-plan.json runtime-base-generation.json runtime-base-fs_config.txt; do
+        cp "$run/$name" "$run/artifacts/$name"
+    done
 fi
 # Only deliver top-level runtime files, not large obj/ intermediates or unpacked trees.
 (cd "$product"; find -L . -maxdepth 1 -type f -print0 | sort -z | tar -h --null -T - -cf -) \

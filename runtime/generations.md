@@ -105,9 +105,53 @@ Ein abgeschlossener Lauf unter `/srv/aegis/runs/runtime-base-*` enthält:
 den wiederholten Build. Es bedeutet weder Upload noch Start, Anmeldung,
 Schreibschutz im Gast oder nachgewiesene Benutzerisolation. Ein einfacher
 Dateihash ist keine zusätzliche Signatur oder eigenständige Vertrauensbasis.
-GitHub-Veröffentlichung, geschützte Ablage/Aktivierung in Android und die
-autorisierte Mount-Anbindung fehlen noch. Die Produktkonfiguration installiert
-das Image nicht automatisch. Ein existierendes QEMU-Profil wird nicht verändert.
+Die folgende Auswahl bindet Basisdateien in einen ausdrücklich gewählten
+AOSP-Build ein. Ein solcher Build wurde noch nicht ausgeführt. Die autorisierte
+Mount-Anbindung und Aktivierung fehlen weiterhin; ein existierendes QEMU-Profil
+wird nicht verändert.
+
+## Auswahl für einen vollständigen Systembuild
+
+Der Bootstrap akzeptiert zusätzlich
+`AEGIS_RUNTIME_RUN=/srv/aegis/runs/runtime-base-RUN`: `RUN` ist durch den konkreten
+abgeschlossenen Lauf zu ersetzen. Es gibt keine automatische Auswahl des
+neuesten Verzeichnisses. Quellen kommen über GitHub; die bereits auf demselben
+Builder erzeugten Dateien bleiben beim Übergang zum Systembuild auf dem Server.
+
+`scripts/runtime/integrate.py prepare` verlangt den erfolgreichen Basisstatus
+und einen vollständigen Projektcommit. Es rekonstruiert den Plan aus dem
+gepinnten Originalimport und dem aktuellen Rezept, prüft Besitzerkonfiguration,
+Image-Hash, UUID und Werkzeughashes und liest erneut alle geplanten Inodes und
+Dateiinhalte mit dem geprüften AOSP-`debugfs`. Ein selbstkonsistenter
+Prüfsummenbericht genügt nicht. Geänderte Eingaben oder Werkzeuge verhindern
+die Auswahl. Die Prüfung startet keine Debian-Programme und mountet nichts.
+
+Die vier Eingabedateien werden unter `device/aegis/runtime-bases/` in einem
+inhaltlich bestimmten Verzeichnis abgelegt. Eine generierte Produktauswahl
+nimmt `base.ext4` und `generation.json` unter
+`$(TARGET_COPY_OUT_SYSTEM_EXT)/etc/aegis/runtime/` in `PRODUCT_COPY_FILES` auf.
+Eine gleichzeitig über `AEGIS_KERNEL_RUN` gewählte Kernelkonfiguration bleibt
+erhalten und muss ihrem konkreten Nachweis entsprechen. Fremde oder veränderte
+Produktdateien werden nicht überschrieben; vorherige verwaltete Fassungen
+bleiben in den vorhandenen Backups erhalten.
+
+Nach dem AOSP-Build müssen die tatsächlichen Bytes im Produkt-Staging der
+ausgewählten Generation entsprechen. Ein späterer Build ohne Basiswahl bricht
+ab, falls dort alte Runtime-Dateien liegen bleiben. Die normale Registrierung
+entfernt die Produktauswahl, erhält aber vorherige Basisartefakte.
+
+Der Release enthält zusätzlich `runtime-base-inputs.json`,
+`runtime-base-plan.json`, `runtime-base-generation.json` und
+`runtime-base-fs_config.txt`. Sie werden wie die Image-Archive mit Prüfsummen
+hochgeladen, erneut heruntergeladen und byteweise verglichen. Fehlende oder
+beim Rücklesen veränderte Nachweise verhindern `UPLOAD_VERIFIED`.
+
+**Das ist bislang Quelltextintegration mit Hosttests.** Ein erfolgreicher
+Staging-Vergleich prüft noch nicht die fertigen Partitions-/Super-Images oder
+ihre Sicht im gebooteten QEMU. Diese Prüfungen und die erste tatsächliche
+Image-Erzeugung stehen aus. Das Installieren der Basisdateien startet keine
+Runtime: `ro.aegis.runtime.mode=absent` bleibt gesetzt, bis Broker, Namespaces,
+CE-Mounts und AOSP-Lebenszyklus integriert sind.
 
 ## Bisherige Prüfungen
 
@@ -119,6 +163,14 @@ Set-ID-Bits, private Ausgangsdaten, Pfad-/Linkgrenzen, Abbrüche, Quelländerung
 sowie tatsächlich gelesene Dateiinhalte und Inode-Metadaten. Kein solches
 Dateisystem wird gemountet oder als Betriebssystem verwendet. Der Image-Befehl
 weist den Mac und andere Accounts bereits vor dem Aufruf eines Werkzeugs ab.
+
+Elf weitere Integrationstests verwenden ausschließlich inerte Metadaten und
+simulieren die bereits separat geprüfte Inode-Lesegrenze. Sie prüfen gefälschte
+Pläne, geänderte Image-/Werkzeugbytes, Herkunft, Symlinks, Kopierabbrüche,
+Erhalt einer Kernelwahl und alte Staging-Dateien. Vier zusätzliche Linux-
+Worker-Tests prüfen den Release-Ablauf mit kleinen lokalen Transportfixtures;
+sie bauen oder starten kein Android. Eine Bootstrap-Prüfung weist manipulierte
+Laufpfade ab.
 
 Das echte AOSP-Dateisystemrezept und dessen wiederholter Build sind weiterhin
 unausgeführt. Erst nach Server-Build und GitHub-Transport müssen im lokalen

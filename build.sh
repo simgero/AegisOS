@@ -12,7 +12,7 @@ check_storage() {
 }
 main() {
     case ${1:-} in
-        --help) printf '%s\n' 'AegisOS AOSP builder (Ubuntu 24.04/26.04 x86-64, root).' 'Required: GH_TOKEN (Contents: read/write for simgero/AegisOS), or --token-stdin.' 'Optional: AEGIS_REF (Git commit, tag or branch; default main).' 'Optional: AEGIS_KERNEL_RUN=/srv/aegis/runs/kernel-RUN (completed matched kernel build).' 'Use --token-stdin COMMIT to read a token from a pipe, never command arguments.' 'Use --check-storage to check disk space without starting a build.' 'Starts a systemd service; preserves the server and source checkout.'; return ;;
+        --help) printf '%s\n' 'AegisOS AOSP builder (Ubuntu 24.04/26.04 x86-64, root).' 'Required: GH_TOKEN (Contents: read/write for simgero/AegisOS), or --token-stdin.' 'Optional: AEGIS_REF (Git commit, tag or branch; default main).' 'Optional: AEGIS_KERNEL_RUN=/srv/aegis/runs/kernel-RUN (completed matched kernel build).' 'Optional: AEGIS_RUNTIME_RUN=/srv/aegis/runs/runtime-base-RUN (completed shared-base image build).' 'Use --token-stdin COMMIT to read a token from a pipe, never command arguments.' 'Use --check-storage to check disk space without starting a build.' 'Starts a systemd service; preserves the server and source checkout.'; return ;;
         --check-storage) check_storage; return ;;
         --token-stdin)
             [ "$#" -eq 2 ] || { echo 'Usage: build.sh --token-stdin FULL_COMMIT' >&2; return 2; }
@@ -25,6 +25,19 @@ main() {
         *) echo 'Unknown argument; use --help.' >&2; return 2 ;;
     esac
     kernel_run=${AEGIS_KERNEL_RUN:-}
+    runtime_run=${AEGIS_RUNTIME_RUN:-}
+    if [ -n "$runtime_run" ]; then
+        case "$runtime_run" in
+            /srv/aegis/runs/runtime-base-*) ;;
+            *) echo 'Runtime run must be under /srv/aegis/runs/runtime-base-RUN.' >&2; return 2 ;;
+        esac
+        case "${runtime_run#/srv/aegis/runs/}" in
+            *[!A-Za-z0-9_-]*) echo 'Invalid runtime run name.' >&2; return 2 ;;
+        esac
+        [ -d "$runtime_run" ] && [ ! -L "$runtime_run" ] || {
+            echo 'Runtime run is missing or is a symlink.' >&2; return 2;
+        }
+    fi
     if [ -n "$kernel_run" ]; then
         case "$kernel_run" in
             /srv/aegis/runs/kernel-*) ;;
@@ -92,6 +105,7 @@ main() {
         --property=KillMode=control-group --property=UMask=0077 \
         --setenv=HOME=/srv/aegis/home --setenv=AEGIS_SCRIPT_COMMIT="$commit" \
         --setenv=AEGIS_KERNEL_RUN="$kernel_run" \
+        --setenv=AEGIS_RUNTIME_RUN="$runtime_run" \
         /bin/bash "$scripts/worker.sh"
     echo 'Build started. Follow: journalctl -fu aegis-build'
     echo 'Status and logs: /srv/aegis/runs/'

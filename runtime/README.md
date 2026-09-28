@@ -113,6 +113,9 @@ ext4-Image wurde daraus bisher nicht erzeugt, veröffentlicht oder eingebunden.
 6. Erzeugte Artefakte mit Prüfsummen über AegisOS-GitHub-Releases transportieren
    und den vollständigen Ablauf mit zwei Benutzern in QEMU nachweisen.
 
-Der AOSP-Quellsnapshot transportiert inzwischen Pin, Importer und Generationsrezept,
-führt diesen Import aber noch nicht im Vollbuild aus und integriert keine Runtime-Dateien
-ins Android-Produkt. `ro.aegis.runtime.mode=absent` bleibt deshalb zutreffend.
+Der AOSP-Quellsnapshot transportiert Pin, Importer, Generationsrezept und die
+explizite Auswahl eines abgeschlossenen Basislaufs. Der Vollbuild kann die
+geprüften Basisdateien dadurch in das Produkt aufnehmen und deren Nachweise
+über GitHub transportieren. Dieser Ablauf ist noch nicht auf dem Server
+ausgeführt und aktiviert keine Runtime. `ro.aegis.runtime.mode=absent` bleibt
+bis zur echten Broker-/Mount-/Lebenszyklus-Integration zutreffend.

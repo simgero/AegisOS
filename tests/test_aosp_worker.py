@@ -40,6 +40,11 @@ elif name == 'env':
     pathlib.Path(args[-1], 'product-target.txt').write_text('aegis_qemu_arm64-bp2a-userdebug\n')
     if os.environ.get('AEGIS_KERNEL_RUN') and mode != 'missing_kernel_receipt':
         pathlib.Path(args[-1], 'kernel-inputs.json').write_text('{"fixture":"kernel input transport only"}\n')
+    if os.environ.get('AEGIS_RUNTIME_RUN'):
+        for name in ('runtime-base-inputs.json', 'runtime-base-plan.json',
+                     'runtime-base-generation.json', 'runtime-base-fs_config.txt'):
+            if mode != 'missing_runtime_receipt' or name != 'runtime-base-plan.json':
+                pathlib.Path(args[-1], name).write_text('public runtime receipt transport fixture\n')
 elif name == 'gh':
     if os.environ.get('AEGIS_SYNC_ONLY') == '1': sys.exit('sync-only must not call GitHub API')
     store = root/'remote'
@@ -55,6 +60,8 @@ elif name == 'gh':
         target = pathlib.Path(args[args.index('--dir')+1])/filename
         shutil.copyfile(store/filename, target)
         if mode == 'corrupt': target.write_bytes(b'corrupted')
+        if mode == 'corrupt_runtime_receipt' and filename == 'runtime-base-plan.json':
+            target.write_bytes(b'corrupted runtime receipt')
     elif action == 'edit':
         if mode == 'publish': sys.exit(9)
         (store/'published').touch()
@@ -69,7 +76,7 @@ elif name == 'timeout':
 @unittest.skipUnless(sys.platform.startswith('linux'),
                      'Worker needs Linux tools and a case-sensitive filesystem; covered by Linux CI')
 class WorkerTests(unittest.TestCase):
-    def exercise(self, mode='', sync_only=False, runtime_kernel=False):
+    def exercise(self, mode='', sync_only=False, runtime_kernel=False, runtime_base=False):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             scripts = root/'scripts'
@@ -90,9 +97,12 @@ class WorkerTests(unittest.TestCase):
                        FIXTURE_ROOT=str(root), FAIL_MODE=mode,
                        CREDENTIALS_DIRECTORY=str(credentials), AEGIS_SCRIPT_COMMIT='a'*40)
             env.pop('AEGIS_KERNEL_RUN', None)
+            env.pop('AEGIS_RUNTIME_RUN', None)
             env.pop('AEGIS_SYNC_ONLY', None)
             if runtime_kernel:
                 env['AEGIS_KERNEL_RUN'] = str(root/'server/runs/kernel-public-fixture')
+            if runtime_base:
+                env['AEGIS_RUNTIME_RUN'] = str(root/'server/runs/runtime-base-public-fixture')
             if sync_only:
                 env['AEGIS_SYNC_ONLY'] = '1'
                 env.pop('CREDENTIALS_DIRECTORY')
@@ -127,10 +137,19 @@ class WorkerTests(unittest.TestCase):
                     self.assertEqual((root/'remote/kernel-inputs.json').read_bytes(),
                                      (runs[0]/'artifacts/kernel-inputs.json').read_bytes())
                     self.assertIn('kernel-inputs.json', (root/'remote/SHA256SUMS').read_text())
+                if runtime_base:
+                    for name in ('runtime-base-inputs.json', 'runtime-base-plan.json',
+                                 'runtime-base-generation.json', 'runtime-base-fs_config.txt'):
+                        self.assertEqual((root/'remote'/name).read_bytes(), (runs[0]/'artifacts'/name).read_bytes())
+                        self.assertIn(name, (root/'remote/SHA256SUMS').read_text())
 
     def test_verified_success(self): self.exercise()
     def test_selected_kernel_receipt_is_published_and_verified(self): self.exercise(runtime_kernel=True)
     def test_missing_kernel_receipt_prevents_success(self): self.exercise('missing_kernel_receipt', runtime_kernel=True)
+    def test_selected_base_receipts_are_published_and_verified(self): self.exercise(runtime_base=True)
+    def test_kernel_and_base_receipts_survive_together(self): self.exercise(runtime_base=True, runtime_kernel=True)
+    def test_missing_base_receipt_prevents_success(self): self.exercise('missing_runtime_receipt', runtime_base=True)
+    def test_corrupt_base_receipt_prevents_success(self): self.exercise('corrupt_runtime_receipt', runtime_base=True)
     def test_sources_only_without_credentials(self): self.exercise(sync_only=True)
     def test_sources_only_rate_limit(self): self.exercise('rate_limit', sync_only=True)
     def test_rate_limit_stops_before_build(self): self.exercise('rate_limit')
@@ -142,6 +161,16 @@ class WorkerTests(unittest.TestCase):
 
 
 class BootstrapTests(unittest.TestCase):
+    def test_runtime_run_path_cannot_escape_or_inject_shell_text(self):
+        for path in ('/tmp/runtime-base-any', '/srv/aegis/runs/runtime-base-one/../other',
+                     '/srv/aegis/runs/runtime-base-space here', '/srv/aegis/runs/runtime-base-$(command)'):
+            with self.subTest(path=path):
+                result = subprocess.run(['sh', str(REPO/'build.sh')],
+                                        env=dict(os.environ, AEGIS_RUNTIME_RUN=path),
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn('untime run', result.stderr)
+
     def test_kernel_run_path_cannot_select_arbitrary_or_escaping_locations(self):
         for path in ('/tmp/kernel-any', '/srv/aegis/runs/kernel-one/../other',
                      '/srv/aegis/runs/kernel-space here', '/srv/aegis/runs/kernel-$(command)'):

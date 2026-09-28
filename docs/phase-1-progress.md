@@ -40,6 +40,14 @@ Einträge. Vierzehn Hosttests mit inerten Archiv-/Dateisystemfixtures prüfen
 Metadaten und Fehlerpfade. **Das echte Image wurde noch nicht auf dem Server
 gebaut, hochgeladen oder in QEMU eingebunden.**
 
+Die explizite Übernahme eines abgeschlossenen Basislaufs in den vollständigen
+Systembuild ist ebenfalls im Quelltext angebunden: Rekonstruktion des Plans
+aus dem Originalimport, erneute Inhaltsprüfung, Erhalt einer ausgewählten
+Kernelkonfiguration, Produktdateien und Release-Nachweise. Elf Metadatentests,
+vier Worker-Transporttests und eine Pfadprüfung wurden ergänzt. **Server-Build,
+Prüfung der tatsächlichen Partitionsimages, Gast-Mounts und Runtime-Start stehen
+weiterhin aus.** Die Ablage von Basisdateien aktiviert keinen Runtime-Modus.
+
 ## Bestätigte Kernel-Lücke
 
 Der laufende Kernel 6.12.18 meldet in `/proc/config.gz`:

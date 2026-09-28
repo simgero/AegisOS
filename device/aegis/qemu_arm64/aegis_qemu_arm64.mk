@@ -39,3 +39,7 @@ PRODUCT_SYSTEM_SERVER_JARS_EXTRA += aegis-identity-service
 # RROs remain enabled; the pinned core/phone overlays do not replace this resource.
 DEVICE_PACKAGE_OVERLAYS += device/aegis/qemu_arm64/overlay
 PRODUCT_ENFORCE_RRO_EXCLUDED_OVERLAYS += device/aegis/qemu_arm64/overlay
+
+# Present only for an explicitly selected, checked shared-base generation.
+# Installing immutable assets does not activate the missing runtime coordinator.
+-include device/aegis/qemu_arm64/aegis-runtime-base.mk

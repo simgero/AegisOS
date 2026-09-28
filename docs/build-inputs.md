@@ -22,6 +22,11 @@ und sein Importer über GitHub. Der Rootfs-Download selbst wird nicht in Git
 abgelegt und noch nicht automatisch durch den AOSP-Worker ausgeführt.
 Auch die Kernel-Pins und die Prüfung/Übernahme eines ausdrücklich ausgewählten
 Kernel-Laufs sind enthalten; siehe [`kernel/README.md`](../kernel/README.md).
+`AEGIS_RUNTIME_RUN` kann zusätzlich einen auf demselben Server abgeschlossenen
+[Basislauf](../runtime/generations.md#auswahl-für-einen-vollständigen-systembuild)
+auswählen. Er wird erneut geprüft und als Basisdateien im Produkt hinterlegt;
+Plan und Herkunft werden mit dem Release transportiert. Diese Integration ist
+noch nicht im tatsächlichen Server-Build oder Gast ausgeführt.
 Der bisherige Download nur dreier Make-Dateien konnte diese Erweiterungen
 nicht transportieren. Nicht ausgewählte Repository-Verzeichnisse werden
 nicht auf dem Server abgelegt.
