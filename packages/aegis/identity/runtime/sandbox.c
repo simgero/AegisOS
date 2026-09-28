@@ -11,6 +11,7 @@
 #include <linux/capability.h>
 #include <linux/filter.h>
 #include <linux/magic.h>
+#include <linux/nsfs.h>
 #include <linux/sched.h>
 #include <linux/seccomp.h>
 #include <linux/securebits.h>
@@ -18,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/prctl.h>
+#include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/statfs.h>
@@ -77,6 +79,54 @@ static int private_directory(const char *path) {
     if (lstat(path, &st) < 0) return -1;
     if (!S_ISDIR(st.st_mode) || st.st_uid != 1000 || st.st_gid != 1000
             || (st.st_mode & 07777) != 0700) return invalid();
+    return 0;
+}
+
+int aegis_check_setup_context(uint32_t user_id) {
+    uid_t r, e, s;
+    gid_t gr, ge, gs;
+    if (user_id < 10 || user_id >= 21473 || getpid() != 1 || getppid() != 0
+            || getsid(0) != 1 || getpgrp() != 1 || syscall(SYS_gettid) != 1)
+        return invalid();
+    if (getresuid(&r, &e, &s) < 0 || getresgid(&gr, &ge, &gs) < 0) return -1;
+    if (r || e || s || gr || ge || gs || getgroups(0, NULL) != 0) return invalid();
+    if (check_fs("/proc", PROC_SUPER_MAGIC, 0) < 0
+            || check_map("/proc/self/uid_map", user_id) < 0
+            || check_map("/proc/self/gid_map", user_id) < 0) return -1;
+    char text[128];
+    if (read_text("/proc/self/setgroups", text, sizeof(text)) < 0) return -1;
+    if (strcmp(text, "deny\n")) return invalid();
+    if (read_text("/proc/self/attr/current", text, sizeof(text)) < 0) return -1;
+    if (strcmp(text, "u:r:aegis_runtime_setup:s0")
+            && strcmp(text, "u:r:aegis_runtime_setup:s0\n")) return invalid();
+    if (read_text("/sys/fs/selinux/enforce", text, sizeof(text)) < 0) return -1;
+    if (strcmp(text, "1") && strcmp(text, "1\n")) return invalid();
+    struct stat user;
+    if (stat("/proc/self/ns/user", &user) < 0) return -1;
+    const struct { const char *name; int type; } namespaces[] = {
+        {"pid", CLONE_NEWPID}, {"mnt", CLONE_NEWNS}, {"ipc", CLONE_NEWIPC},
+        {"uts", CLONE_NEWUTS}, {"net", CLONE_NEWNET},
+    };
+    for (unsigned i = 0; i < sizeof(namespaces) / sizeof(namespaces[0]); i++) {
+        char self[64];
+        snprintf(self, sizeof(self), "/proc/self/ns/%s", namespaces[i].name);
+        /* Follow our own kernel magic links; do not try to inspect Android
+         * PID1, which the mapped credentials intentionally cannot ptrace. */
+        int ns = open(self, O_RDONLY | O_CLOEXEC);
+        if (ns < 0) return -1;
+        int type = ioctl(ns, NS_GET_NSTYPE);
+        int owner = ioctl(ns, NS_GET_USERNS);
+        int saved = errno;
+        close(ns);
+        if (owner < 0) { errno = saved; return -1; }
+        struct stat st;
+        int result = fstat(owner, &st);
+        saved = errno;
+        close(owner);
+        if (result < 0) { errno = saved; return -1; }
+        if (type != namespaces[i].type || user.st_dev != st.st_dev || user.st_ino != st.st_ino)
+            return invalid();
+    }
     return 0;
 }
 

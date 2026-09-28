@@ -91,8 +91,9 @@ Tmpfs-Textfixtures. Sie prüfen strikte Seriennummern, Nummernwiederverwendung,
 Symlink-/Pfadabweisung, fehlende Verschlüsselung, ungültige Identitäten und
 Deskriptorlecks. Vorhandene Namespace-Tests prüfen zusätzlich Seriennummern-
 Übergabe und die Verweigerung vor Maps, nach Prozessende und bei fremdem Besitzer.
-Zusammen mit der [Gerätevorbereitung](private-devices.md) sind inzwischen
-42 native Gerätetests vorbereitet, **keiner davon hier neu kompiliert
+Zusammen mit [Gerätevorbereitung](private-devices.md) und
+[Startprotokoll](namespace-setup.md) sind inzwischen
+50 native Gerätetests vorbereitet, **keiner davon hier neu kompiliert
 oder ausgeführt**. Hosttests führen diesen nativen Code nicht aus.
 
 Erfolgreiche Anlage und Wiederöffnung auf echtem AOSP-CE, zwei getrennte Nutzer,

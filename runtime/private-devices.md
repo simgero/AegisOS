@@ -60,9 +60,10 @@ eigene oder detached Quelle. Ein vertrauenswürdiger Helfer kann daher prinzipie
 die vom Broker übertragenen detached Mounts übernehmen; SELinux prüft den
 Übergang zusätzlich. Das ist ein Quellabgleich, kein gelungener Mountversuch.
 
-Der echte Setup-Helfer muss noch eigene Devpts-, Shm- und Mqueue-Dateisysteme
-einrichten, die Basis und HOME anbinden, die alte Android-Wurzel vollständig
-entfernen und erst dann den Aufseher ausführen. Eigenes Procfs muss aus dem
+Der [Setup-Helfer](namespace-setup.md) ist inzwischen ebenfalls im Quelltext
+vorbereitet: eigene Devpts-, Shm- und Mqueue-Dateisysteme, Basis und HOME,
+Entfernung der Android-Wurzel vor dem Aufseher-Exec. Kompilierung und echte
+Ausführung stehen weiterhin aus. Eigenes Procfs muss aus dem
 richtigen Prozesskontext entstehen: Der
 [`proc_init_fs_context`](https://android.googlesource.com/kernel/common/+/50eb8d5d443b43f38d6e72f005f1b8601ac88a05/fs/proc/root.c)
 verwendet den aktiven PID-Namespace des Aufrufers. Das Procfs des Host-Brokers
@@ -82,7 +83,8 @@ Bestehende Tests prüfen zusätzlich Ablehnung vor Maps, nach Kindende und durch
 einen fremden Prozess sowie die neue Sitzung/Prozessgruppe beim Exec.
 Es werden dabei keine persönlichen AOSP-Benutzer oder CE-Daten geändert.
 
-Insgesamt sind jetzt **42 native Gerätetests vorbereitet**. Sie sind weder auf
+Mit dem [Startprotokoll](namespace-setup.md) sind jetzt **50 native Gerätetests
+vorbereitet**. Sie sind weder auf
 dem Mac kompiliert noch außerhalb des lokalen Android-QEMU auszuführen.
 Kompilierung auf `aegis-build`, echte Mountübergabe, SELinux-Regeln, Rootwechsel,
 PTY-Isolation und vollständiger Runtime-/Logout-Ablauf stehen weiterhin aus.

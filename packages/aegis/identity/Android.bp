@@ -59,6 +59,16 @@ cc_binary {
     stl: "none",
 }
 
+// Trusted namespace PID1 mount helper. Still an explicit component target:
+// broker authorization, resource groups and SELinux policy are not wired yet.
+cc_binary {
+    name: "aegis-runtime-setup",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/setup.c", "runtime/setup_control.c", "runtime/control.c", "runtime/sandbox.c"],
+    static_executable: true,
+    stl: "none",
+}
+
 // Internal primitive for the forthcoming broker/launcher. No public process
 // control endpoint; not linked into the namespace init or installed as a daemon.
 cc_library_static {
@@ -92,10 +102,10 @@ cc_binary {
 cc_test {
     name: "AegisRuntimeNativeTests",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/ce_tests.cpp", "runtime/control.c", "runtime/sandbox.c"],
+    srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/ce_tests.cpp", "runtime/setup_tests.cpp", "runtime/setup_control.c", "runtime/control.c", "runtime/sandbox.c"],
     header_libs: ["libcutils_headers"],
     static_libs: ["libaegis-runtime-child", "libaegis-runtime-namespace"],
     static_executable: true,
-    data_bins: ["aegis-runtime-init", "aegis-runtime-namespace-probe"],
+    data_bins: ["aegis-runtime-init", "aegis-runtime-namespace-probe", "aegis-runtime-setup"],
     test_suites: ["device-tests"],
 }

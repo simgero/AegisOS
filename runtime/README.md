@@ -76,8 +76,10 @@ Diese Tests starten kein Betriebssystem und prüfen keine Namespace-Isolation.
 Der erste [persönliche Prozessaufseher](process-supervisor.md) liegt inzwischen
 als nativer Quelltext vor: eigene PTYs, UID/GID-Wechsel, Einsammeln beendeter
 Prozesse und Kontextende bei Verlust des Kontrollkanals. Er ist noch nicht
-kompiliert oder aktiviert. AOSP-Broker, Mounts und SELinux-Anbindung fehlen
-weiterhin; daraus folgt noch keine ausführbare Runtime.
+kompiliert oder aktiviert. Der [statische Mount-Helfer](namespace-setup.md)
+ist ebenfalls als ungeprüfter nativer Quelltext vorbereitet. AOSP-Broker,
+praktischer Mount-/Rootwechsel-Nachweis und SELinux-Anbindung fehlen weiterhin;
+daraus folgt noch keine ausführbare Runtime.
 
 ## Vor dem ersten Runtime-Start noch erforderlich
 

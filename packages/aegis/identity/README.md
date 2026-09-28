@@ -23,7 +23,8 @@ fehlt weiterhin.
 zunächst pausiertes Kind mit Pidfd, danach geprüfte UID/GID-Maps und Freigabe
 eines vertrauenswürdigen Setup-Helfers. Neun weitere Gerätetests sind vorbereitet.
 Bibliothek und Probe-Helfer sind unkompiliert und nicht im Produkt aktiviert;
-der echte Mount-Helfer, Broker und dessen AOSP-Autorisierung fehlen weiterhin.
+Broker und dessen AOSP-Autorisierung fehlen weiterhin. Der inzwischen ebenfalls
+vorbereitete Mount-Helfer ist unten beschrieben.
 
 Zusätzlich ist eine [persönliche Basis-Sicht](../../../runtime/base-mounts.md)
 als detached ID-mapped Mount vorbereitet. Die Maps lassen sich dafür ohne
@@ -43,8 +44,16 @@ Ein [privates Geräteverzeichnis](../../../runtime/private-devices.md) ergänzt
 jetzt sechs feste Zeichengeräte und Platzhalter für persönliche Terminal-/IPC-
 Mounts. Es wird nur detached im Broker vorbereitet; kein Host-Gerätebaum wird
 eingehängt. Sitzung und Prozessgruppe werden vor dem Setup-Exec getrennt.
-Zwei weitere native Tests sind vorbereitet. Kompilierung, SELinux, Mount-Helfer
-und der vollständige Runtime-Start fehlen weiterhin.
+Zwei weitere native Tests sind vorbereitet. Kompilierung, SELinux und der
+vollständige Runtime-Start fehlen weiterhin.
+
+Der [statische Starthelfer](../../../runtime/namespace-setup.md) übernimmt nun
+im Quelltext die vorbereiteten Mounts, richtet private Prozess-/Terminal-/IPC-
+und temporäre Dateisysteme ein und entfernt vor dem Aufseher-Exec die alte
+Android-Wurzel. Ein festes privates Protokoll bindet alle Referenzen an ID und
+Seriennummer. Acht zusätzliche Gerätetests sind vorbereitet. **Unkompiliert,
+nicht aktiviert und nicht im Gast ausgeführt.** Der reale Broker, Ressourcen-
+und SELinux-Anbindung sowie vollständige Runtime-/Logout-Nachweise fehlen.
 
 `AospIdentityBackend` ist für den späteren AEGIS-Systemdienst vorgesehen.
 Der Konstruktor verlangt den Android-Systemprozess-UID. Die Klasse besitzt

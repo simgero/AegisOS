@@ -74,6 +74,14 @@ native Tests sind vorbereitet, insgesamt 42. **Unkompiliert und nicht im Gast
 ausgeführt.** Die echte Mountübergabe, private Prozess-/Terminal-Dateisysteme,
 Rootwechsel und durchgesetzte SELinux-Regeln bleiben offen.
 
+Der [statische Mount- und Starthelfer](../runtime/namespace-setup.md) ist jetzt
+ebenfalls im Quelltext vorhanden: feste, an ID und Seriennummer gebundene
+FD-Übergabe, eigene Procfs-/Devpts-/IPC-/Tmpfs-Sichten, Rootwechsel mit Abtrennen
+der Android-Wurzel und anschließendes Rücklesen der Mounts. Acht weitere native
+Tests sind vorbereitet, insgesamt 50. **Noch nicht kompiliert oder im Gast
+ausgeführt.** Broker, Lebenszyklus-Sperre, Ressourcen-Cgroups, SELinux-Typen und
+Übergänge sowie der praktische Rootwechsel-/Isolationsnachweis fehlen weiterhin.
+
 Auch die [gemeinsame Softwaregeneration](../runtime/generations.md) besitzt nun
 ein Buildrezept: technischer NSS-Benutzer, explizite Datei-Eigentümer, Entfernen
 der Set-ID-Bits, wiederholte ext4-Erzeugung und Lesen des tatsächlichen

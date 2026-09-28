@@ -113,3 +113,8 @@ mit festen Standardgeräten und Platzhaltern für eigene Terminal-/IPC-Mounts
 vorbereiten. Der Namespace-Start trennt mit `setsid` auch Terminalsitzung und
 Prozessgruppe vom Broker. Zwei weitere Gerätetests sind vorbereitet; tatsächliche
 Kompilierung, Mountübergabe und Runtime-Start stehen weiterhin aus.
+
+Der [eigentliche Setup-Helfer](namespace-setup.md) ist nun ebenfalls als
+ungeprüfter nativer Quelltext vorhanden. Seine feste FD-Übergabe, privaten
+Dateisysteme und der Rootwechsel brauchen weiterhin Kompilierung, passende
+SELinux-Regeln und echte Gasttests; der Broker bleibt zu implementieren.

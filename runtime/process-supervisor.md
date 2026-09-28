@@ -49,6 +49,12 @@ Die C-Kennungsdefinition wird gemeinsam mit Java und AOSPs Kontenregister aus
 `runtime/uid-map.json` erzeugt. Abweichende erzeugte Quellen verhindern den
 vorbereiteten Komponenten-Build.
 
+Der [statische Starthelfer](namespace-setup.md) bereitet inzwischen im Quelltext
+die private Mountsicht, den Rootwechsel und den kontrollierten Exec dieses
+Aufsehers vor. Seine private FD-Übergabe ist an Benutzer-ID und Seriennummer
+gebunden. Helfer und acht zusätzliche Tests sind noch unkompiliert; Broker,
+Ressourcen-Cgroups, SELinux-Übergänge und Gastnachweise bleiben offen.
+
 ## Shells und Prozessende
 
 Nach der Vorbereitung entfernt PID 1 die geerbte Umgebung und alle zusätzlichen

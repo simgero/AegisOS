@@ -52,7 +52,7 @@ jobs=$(nproc)
 state COMPILING
 m -j"$jobs" aegis aegis-identity-service AegisIdentityTests framework-res selinux_policy \
     passwd_vendor group_vendor passwd_system_ext group_system_ext \
-    aegis-runtime-init AegisRuntimeNativeTests
+    aegis-runtime-init aegis-runtime-setup AegisRuntimeNativeTests
 product=$(get_build_var PRODUCT_OUT)
 [[ $(get_build_var TARGET_ARCH) == arm64 ]]
 mkdir "$run/modules"
@@ -69,9 +69,11 @@ artifacts=(
     system_ext/etc/group
     testcases/AegisIdentityTests/arm64/AegisIdentityTests.apk
     system/bin/aegis-runtime-init
+    system/bin/aegis-runtime-setup
     data/nativetest64/AegisRuntimeNativeTests/AegisRuntimeNativeTests
     data/nativetest64/AegisRuntimeNativeTests/aegis-runtime-init
     data/nativetest64/AegisRuntimeNativeTests/aegis-runtime-namespace-probe
+    data/nativetest64/AegisRuntimeNativeTests/aegis-runtime-setup
 )
 for relative in "${artifacts[@]}"; do
     test -s "$product/$relative"
@@ -79,9 +81,11 @@ for relative in "${artifacts[@]}"; do
 done
 chmod 755 "$run/modules/system/bin/aegis"
 chmod 755 "$run/modules/system/bin/aegis-runtime-init" \
+    "$run/modules/system/bin/aegis-runtime-setup" \
     "$run/modules/data/nativetest64/AegisRuntimeNativeTests/AegisRuntimeNativeTests" \
     "$run/modules/data/nativetest64/AegisRuntimeNativeTests/aegis-runtime-init" \
-    "$run/modules/data/nativetest64/AegisRuntimeNativeTests/aegis-runtime-namespace-probe"
+    "$run/modules/data/nativetest64/AegisRuntimeNativeTests/aegis-runtime-namespace-probe" \
+    "$run/modules/data/nativetest64/AegisRuntimeNativeTests/aegis-runtime-setup"
 (cd "$run/modules" && sha256sum "${artifacts[@]}") > "$run/SHA256SUMS"
 state IDENTITY_COMPILED_NOT_INSTALLED
 echo "Identity modules compiled: $run"

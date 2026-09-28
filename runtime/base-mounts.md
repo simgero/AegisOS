@@ -57,8 +57,9 @@ sowie Abweisung unpassender Quellen und beendeter Kinder. Die Fixtures nutzen
 [fsopen/fsmount](https://man7.org/linux/man-pages/man2/fsopen.2.html), werden an
 keinen Gastpfad angehängt und erzeugen keine AOSP-Benutzer oder CE-Verzeichnisse.
 
-Mit CE- und [Gerätevorbereitung](private-devices.md) sind inzwischen
-**42 native Gerätetests** vorbereitet. Kompilierung findet auf
+Mit CE-, [Gerätevorbereitung](private-devices.md) und
+[Startprotokoll](namespace-setup.md) sind inzwischen **50 native Gerätetests**
+vorbereitet. Kompilierung findet auf
 `aegis-build` statt, Ausführung ausschließlich im lokalen Android-QEMU mit den
 nötigen Kernel- und SELinux-Voraussetzungen. Auch nach Bestehen dieser Tmpfs-
 Tests bleiben der konkrete ext4-Basis-Mount, Benutzerprogramme, CE-Isolation,
