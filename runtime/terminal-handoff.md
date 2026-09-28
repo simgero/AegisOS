@@ -31,8 +31,9 @@ Geprüft werden CLOEXEC, Les-/Schreibzugriff, Devpts-Dateisystem, PTY-Mastertyp
 und die vom Kernel geöffnete Slave-Gegenstelle mit der vorgesehenen persönlichen
 Host-UID/GID. Diese Zuordnung ersetzt weder die Herkunft des privaten Sockets
 noch AOSP-Authentifizierung oder die Produktions-SELinux-Regeln. Der Aufrufer
-übernimmt den Master; Übergabe an den angemeldeten CLI-Prozess und dessen
-Widerruf müssen noch im Broker und Java-Dienst integriert werden.
+übernimmt den Master. Die zusätzliche interne Broker-/Java-Verbindung ist unten
+beschrieben; Bindung an den angemeldeten CLI-Prozess und Widerruf durch dessen
+Sitzungsverwaltung müssen noch integriert werden.
 
 Bestätigte Programmfehler wie ein fehlendes Programm lassen den Kanal nutzbar.
 Fehlende/unerwartete Deskriptoren, falsche Befehlskennungen, doppelte Exitmeldungen,
@@ -47,4 +48,37 @@ ausschließlich selbst erzeugte PTYs im lokalen Android-Testgast. Sie prüfen
 Deskriptorfreigabe sowie Abweisung eines fremden Benutzerterminals und eines
 geerbten Prozessbesitzes. Sie starten selbst keine Debian-Programme und ersetzen
 keine persönliche Linux-Sitzung oder deren vollständigen Logout-Nachweis.
-Mit ihnen enthält die Suite 100 Tests; dieser neue Gesamtstand ist noch ungeprüft.
+Mit ihnen enthielt die Suite 100 Tests; dieser neue Gesamtstand ist noch ungeprüft.
+
+## Interne Broker-/AOSP-Verbindung, noch nicht ausgeführt
+
+Die vorbereitete Version 2 ergänzt den weiterhin nur für `system_server`
+zugelassenen SEQPACKET-Kanal um `EXEC` und `RESULT`. Persönliche Kennung,
+AOSP-Seriennummer, Verbindungssequenz und unveränderte absolute Frist bleiben
+in jedem Auftrag enthalten. Ein Befehl darf nur einen bereits gestarteten,
+lebenden Kontext verwenden. Der Broker nimmt niemals Deskriptoren oder
+Hostpfade vom Absender entgegen. Argumente sind bis zu 32 einzeln terminierte
+Werte in höchstens 8192 Paketbytes, ohne implizite Shell-Auswertung.
+
+Der Kontextbesitzer vergibt pro Brokerprozess einmalige, nicht wiederverwendete
+Befehlsnummern und ordnet sie den internen Supervisor-Nummern zu. Ein Stopp mit
+späterem Neustart desselben AOSP-Benutzers kann dadurch keine alte Anfrage einem
+neuen Befehl zuordnen. Diese Nummern sind keine Autorisierungsbelege. Ihre
+Verwendung setzt weiterhin AOSP-Sitzungsbindung und aktuelle Freigabe voraus.
+
+Erfolgreiches `EXEC` übergibt genau einen geprüften PTY-Master via `SCM_RIGHTS`.
+Der Broker schließt seine Übergabekopie nach dem Sendeversuch, auch bei Fehlern.
+Java prüft zusätzlich Mastertyp und Zugriffsmodus, setzt CLOEXEC und übernimmt
+eine eigene `ParcelFileDescriptor`-Kopie. Unerwartete oder abgewiesene Deskriptoren
+werden geschlossen. `RESULT` übergibt niemals Deskriptoren und unterscheidet
+einen laufenden Befehl ausdrücklich von einem bestätigten Exitstatus 0.
+Fehler oder unklare Übertragung behaupten weder Start noch Ausführungserfolg.
+
+Zehn zusätzliche native Tests prüfen diese Paketgrenzen, Deskriptorübergabe,
+Ablehnung fremder Eingaben sowie fehlender, teilweise gestarteter und veralteter
+Kontexte. Sechs Java-Gerätetests prüfen gemeinsame Literal-Testpakete,
+Unicode-/Größenbegrenzung und widersprüchliche Antworten. Der Quellstand enthält
+damit 110 native und 59 Java-Tests; die neuen Tests sind noch nicht ausgeführt.
+Die Produktionsregistrierung, SELinux-/Init-Integration, echte persönliche
+Debian-Sitzungen und CLI-seitiger Widerruf bleiben offen. `runtime.mode=absent`
+und das bisherige CLI-Verhalten bleiben deshalb bestehen.

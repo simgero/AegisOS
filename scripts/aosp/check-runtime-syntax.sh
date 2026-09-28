@@ -26,13 +26,14 @@ aosp = Path('/srv/aegis/work/aosp')
 base = 'out/soong/.intermediates/packages/aegis/identity/'
 c = base + 'libaegis-runtime-context/android_arm64_armv8-a_cortex-a53_static_lto-none/obj/packages/aegis/identity/runtime/context.o'
 cpp = base + 'AegisRuntimeNativeTests/android_arm64_armv8-a_cortex-a53/obj/packages/aegis/identity/runtime/setup_tests.o'
+broker = base + 'aegis-runtime-broker/android_arm64_armv8-a_cortex-a53/obj/packages/aegis/identity/runtime/broker.o'
 result = subprocess.run(['prebuilts/build-tools/linux-x86/bin/ninja', '-f',
-        'out/combined-aegis_qemu_arm64.ninja', '-t', 'commands', c, cpp],
+        'out/combined-aegis_qemu_arm64.ninja', '-t', 'commands', c, cpp, broker],
         cwd=aosp, check=True, capture_output=True, text=True, timeout=90)
 rules = {}
 for line in result.stdout.splitlines():
     args = shlex.split(line)
-    for source in ('context.c', 'setup_tests.cpp'):
+    for source in ('context.c', 'setup_tests.cpp', 'broker.c'):
         if args and args[-1] == 'packages/aegis/identity/runtime/' + source:
             if source in rules:
                 raise ValueError('Ambiguous compiler rule')
@@ -63,11 +64,14 @@ for line in result.stdout.splitlines():
                 index += 1
             selected += ['-fsyntax-only', '-Werror']
             rules[source] = selected
-if set(rules) != {'context.c', 'setup_tests.cpp'}:
-    raise ValueError('Expected both existing ARM64 compiler rules')
+if set(rules) != {'context.c', 'setup_tests.cpp', 'broker.c'}:
+    raise ValueError('Expected all three existing ARM64 compiler rules')
 commands = {}
 for source, template in (('exec.c', 'context.c'), ('context.c', 'context.c'),
-                         ('exec_tests.cpp', 'setup_tests.cpp')):
+                         ('exec_tests.cpp', 'setup_tests.cpp'), ('broker.c', 'broker.c'),
+                         ('broker_owner.c', 'context.c'), ('broker_protocol.c', 'context.c'),
+                         ('broker_protocol_tests.cpp', 'setup_tests.cpp'),
+                         ('memory_group_tests.cpp', 'setup_tests.cpp')):
     commands[source] = rules[template] + [str(project / 'packages/aegis/identity/runtime' / source)]
 (run / 'commands.json').write_text(json.dumps(commands, indent=2) + '\n')
 for source, args in commands.items():

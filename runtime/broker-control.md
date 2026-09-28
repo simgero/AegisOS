@@ -1,7 +1,8 @@
 # Privater AOSP-Kanal und Besitzer der Runtime-Kontexte
 
-Stand 28. September 2026: **Vollständiger Komponentenbuild auf dem Builder
-erfolgreich; Dienst noch nicht im Produkt aktiviert oder im Gast ausgeführt.**
+Stand 28. September 2026: **Die neu ergänzte Terminalübergabe der Protokollversion
+2 wartet auf Build und Gerätetests. Der Dienst ist noch nicht im Produkt aktiviert.**
+Die folgende erfolgreiche Kompilierung betrifft den früheren Lebenszykluskanal:
 Commit `878fc970ace1a19a7a6f637e8e7df3763536b649`, Lauf
 `identity-20260928T174855Z-878fc970-sllLJ3`, beendet um 17:56:40 UTC mit
 `IDENTITY_COMPILED_NOT_INSTALLED`. Broker und natives Testprogramm sind gelinkt;
@@ -34,14 +35,16 @@ keine gültigen persönlichen Authentifizierungsstellen.
 Der Identitätsdienst muss vor jedem Start AOSPs Benutzer, Seriennummer,
 Passwort-/Sitzungsautorisierung und tatsächlichen CE-Status prüfen sowie die
 `RuntimeAdmission`-Sperre halten. Das Protokoll ersetzt keine dieser Prüfungen.
-Es überträgt weder Passwörter noch Schlüssel, freie Pfade, Prozesskennungen oder
-vom CLI übernommene Dateideskriptoren. Shell-Übergaben und Paketaktionen sind
-noch nicht implementiert.
+Es überträgt weder Passwörter noch Schlüssel, Hostpfade, Prozesskennungen oder
+vom CLI übernommene Dateideskriptoren. Die ergänzte interne
+[Terminalübergabe](terminal-handoff.md) erlaubt begrenzte Programmpfade und
+Argumente innerhalb des persönlichen Runtime-Kontexts. CLI-Sitzungsbindung,
+Widerruf und Paketaktionen sind noch nicht implementiert.
 
 ## Nachrichten und begrenzte Wartezeit
 
-Die Verbindung ist AF_UNIX/SOCK_SEQPACKET. Jede Anfrage und Antwort hat exakt
-32 Bytes in Little-Endian-Reihenfolge. Anfragen tragen Version, Operation,
+Die Verbindung ist AF_UNIX/SOCK_SEQPACKET. Lebenszyklus-Anfragen und -Antworten
+haben exakt 32 Bytes in Little-Endian-Reihenfolge. Anfragen tragen Version, Operation,
 streng steigende Sequenznummer, absolute CLOCK_MONOTONIC-Frist, AOSP-ID und
 Seriennummer. Antworten spiegeln Anfrage und Identität und melden einen
 Fehlercode sowie `ABSENT`, `READY` oder `SEALED`.
@@ -52,6 +55,14 @@ Fehlercode sowie `ABSENT`, `READY` oder `SEALED`.
 | `START` | Exakte ID/Seriennummer; tatsächlich bestätigte READY-Antwort des Namespace-Aufsehers. Ein bereits gültiger Kontext derselben Identität kann weiterverwendet werden. |
 | `STOP_USER` | Alle besessenen Seriennummern dieser numerischen AOSP-ID sind beendet und ihre Referenzen freigegeben. Seriennummer im Auftrag ist fest 0 als Operationskonvention. |
 | `STATUS` | Fehlender, lebender oder gesperrter Kontext für exakt diese Identität; eine fremde Seriennummer wird nicht übernommen. |
+| `EXEC` | Bereits lebender Kontext; bestätigter Programmstart mit genau einem geprüften persönlichen PTY-Master. Kein impliziter Kontextstart. |
+| `RESULT` | Genau dieser Kontext und eine dort vergebene, noch nicht abgeholte Befehlskennung. „Läuft“ ist getrennt von beendetem Exitstatus 0. |
+
+`EXEC` ergänzt den 32-Byte-Kopf um Argumentzahl, Bytelänge und einzeln
+NUL-terminierte Argumente, zusammen höchstens 8192 Bytes. `RESULT` ergänzt
+eine positive 64-Bit-Befehlskennung und hat exakt 40 Bytes. Beide Antworten
+sind exakt 48 Bytes; nur erfolgreiches `EXEC` enthält einen Deskriptor.
+Version 1 wird nicht stillschweigend als Version 2 interpretiert.
 
 Socket und Verbindung sind von Anfang an nicht blockierend. Polling, Senden,
 Lesen und interne Serialisierung verwenden dieselbe Frist von höchstens zehn

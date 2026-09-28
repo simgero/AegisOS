@@ -122,11 +122,15 @@ error:;
     close(fd); return fail(saved);
 }
 static int reply_until(int socket, int signals, const struct aegis_broker_request *request,
-                        int error, enum aegis_broker_state state) {
+                        int error, enum aegis_broker_state state, uint64_t command,
+                        int wait_status, int exited, int master) {
     for (;;) {
         uint64_t now = now_ns();
         if (!now || now >= request->deadline_ns) return fail(ETIMEDOUT);
-        if (aegis_broker_reply(socket, request, error, state) == 0) return 0;
+        int sent = request->operation >= AEGIS_BROKER_EXEC
+                ? aegis_broker_reply_terminal(socket, request, error, command, wait_status, exited, master)
+                : aegis_broker_reply(socket, request, error, state);
+        if (sent == 0) return 0;
         if (errno == EINTR) continue;
         if (errno != EAGAIN && errno != EWOULDBLOCK) return -1;
         struct pollfd wait[] = {{socket, POLLOUT | POLLRDHUP, 0}, {signals, POLLIN, 0}};
@@ -168,18 +172,34 @@ static int serve(int listener, int signals, struct aegis_broker_owner *owner) {
         if (peer >= 0 && ((events[1].revents & (POLLHUP | POLLRDHUP | POLLERR | POLLNVAL))
                 || (!sequence && now >= hello_deadline))) goto disconnect;
         if (peer >= 0 && (events[1].revents & POLLIN)) {
-            struct aegis_broker_request request;
-            if (aegis_broker_receive(peer, sequence, now, &request) < 0) {
+            struct aegis_broker_call call;
+            if (aegis_broker_receive_call(peer, sequence, now, &call) < 0) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
                 goto disconnect;
             }
-            sequence = request.sequence;
+            const struct aegis_broker_request *request = &call.request;
+            sequence = request->sequence;
             enum aegis_broker_state state = AEGIS_BROKER_SEALED;
-            int error = aegis_broker_owner_apply(owner, &request, &state) < 0 ? errno : 0;
-            if (error <= 0 && state == AEGIS_BROKER_SEALED && request.operation != AEGIS_BROKER_STATUS)
+            uint64_t command = 0;
+            int master = -1, wait_status = 0, exited = 0, error = 0;
+            if (request->operation == AEGIS_BROKER_EXEC) {
+                if (aegis_broker_owner_exec(owner, &call, &command, &master) < 0) error = errno;
+                else state = AEGIS_BROKER_READY;
+            } else if (request->operation == AEGIS_BROKER_RESULT) {
+                if (aegis_broker_owner_result(owner, request, call.command, &wait_status, &exited) < 0)
+                    error = errno;
+                else { command = call.command; state = AEGIS_BROKER_READY; }
+            } else if (aegis_broker_owner_apply(owner, request, &state) < 0) error = errno;
+            if (error <= 0 && state == AEGIS_BROKER_SEALED && request->operation != AEGIS_BROKER_STATUS)
                 error = EIO;
             if (error < 0 || error > 4095) error = EIO;
-            if (reply_until(peer, signals, &request, error, state) < 0) {
+            int replied = reply_until(peer, signals, request, error, state, command, wait_status, exited, master);
+            int saved = errno;
+            // SCM_RIGHTS copies the reference. Never retain a second host PTY
+            // after publication, or after an uncertain/failed send.
+            if (master >= 0) close(master);
+            errno = saved;
+            if (replied < 0) {
                 if (errno == ECANCELED) { result = 0; break; }
                 goto disconnect;
             }

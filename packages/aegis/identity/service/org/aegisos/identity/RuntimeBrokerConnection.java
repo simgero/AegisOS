@@ -3,11 +3,13 @@ package org.aegisos.identity;
 import android.net.LocalSocket;
 import android.net.Credentials;
 import android.os.Process;
+import android.os.ParcelFileDescriptor;
 import android.os.SELinux;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
 import android.system.StructPollfd;
+import android.system.StructStat;
 import android.system.UnixSocketAddress;
 
 import java.io.FileDescriptor;
@@ -43,18 +45,50 @@ final class RuntimeBrokerConnection {
     }
 
     void start(int user, int serial, long deadlineNanos) {
-        success(call(RuntimeBrokerProtocol.START, user, serial, deadlineNanos));
+        success(call(RuntimeBrokerProtocol.START, user, serial, deadlineNanos, null, 0).reply);
     }
 
     /** All serials; success means native cleanup proof, NOT AOSP CE-key eviction. */
     void stopAndReleaseAll(int user, long deadlineNanos) {
-        success(call(RuntimeBrokerProtocol.STOP_USER, user, 0, deadlineNanos));
+        success(call(RuntimeBrokerProtocol.STOP_USER, user, 0, deadlineNanos, null, 0).reply);
     }
 
     int state(int user, int serial, long deadlineNanos) {
-        RuntimeBrokerProtocol.Reply reply = call(RuntimeBrokerProtocol.STATUS, user, serial, deadlineNanos);
+        RuntimeBrokerProtocol.Reply reply = call(RuntimeBrokerProtocol.STATUS, user, serial, deadlineNanos, null, 0).reply;
         success(reply);
         return reply.state;
+    }
+
+    /** Caller must bind this owned PTY and command to the admitted personal CLI session. */
+    static final class Terminal implements AutoCloseable {
+        final long command;
+        final ParcelFileDescriptor master;
+        Terminal(long command, ParcelFileDescriptor master) { this.command = command; this.master = master; }
+        @Override public void close() throws IOException { master.close(); }
+    }
+
+    Terminal execute(int user, int serial, String[] arguments, long deadlineNanos) {
+        // Snapshot and validate BEFORE touching the connection. A malformed CLI
+        // argument must not tear down other admitted contexts on this channel.
+        byte[] tail = RuntimeBrokerProtocol.arguments(arguments == null ? null : arguments.clone());
+        Exchange result = call(RuntimeBrokerProtocol.EXEC, user, serial, deadlineNanos, tail, 0);
+        success(result.reply);
+        return new Terminal(result.reply.command, result.master);
+    }
+
+    RuntimeBrokerProtocol.Reply result(int user, int serial, long command, long deadlineNanos) {
+        if (command <= 0) throw new IllegalArgumentException("Invalid runtime command identity");
+        Exchange result = call(RuntimeBrokerProtocol.RESULT, user, serial, deadlineNanos, null, command);
+        success(result.reply);
+        return result.reply;
+    }
+
+    private static final class Exchange {
+        final RuntimeBrokerProtocol.Reply reply;
+        final ParcelFileDescriptor master;
+        Exchange(RuntimeBrokerProtocol.Reply reply, ParcelFileDescriptor master) {
+            this.reply = reply; this.master = master;
+        }
     }
 
     private static void success(RuntimeBrokerProtocol.Reply reply) {
@@ -65,7 +99,7 @@ final class RuntimeBrokerConnection {
         }
     }
 
-    private RuntimeBrokerProtocol.Reply call(int operation, int user, int serial, long deadline) {
+    private Exchange call(int operation, int user, int serial, long deadline, byte[] arguments, long command) {
         RuntimeBrokerProtocol.identity(operation, user, serial);
         long wait = remaining(deadline);
         boolean acquired = false;
@@ -76,7 +110,7 @@ final class RuntimeBrokerConnection {
             if (failed) throw new IllegalStateException("Runtime connection requires explicit recovery");
             try {
                 if (socket == null) connect(deadline);
-                return exchange(operation, user, serial, deadline);
+                return exchange(operation, user, serial, deadline, arguments, command);
             } catch (IOException | ErrnoException | RuntimeException failure) {
                 poison();
                 // No paths, received bytes or provider exception text cross the public service.
@@ -114,16 +148,22 @@ final class RuntimeBrokerConnection {
             throw new SecurityException("Unexpected native runtime peer");
         }
         // LocalSocket's recvmsg wrapper lets us reject and close ancillary FDs.
-        RuntimeBrokerProtocol.Reply reply = exchange(RuntimeBrokerProtocol.HELLO, 0, 0, deadline);
-        success(reply); // A new owner connection must first confirm predecessor cleanup.
+        Exchange reply = exchange(RuntimeBrokerProtocol.HELLO, 0, 0, deadline, null, 0);
+        success(reply.reply); // A new owner connection must first confirm predecessor cleanup.
     }
 
-    private RuntimeBrokerProtocol.Reply exchange(int operation, int user, int serial, long deadline)
+    private Exchange exchange(int operation, int user, int serial, long deadline, byte[] arguments, long command)
             throws ErrnoException, IOException {
         if (sequence == Long.MAX_VALUE) throw new IOException("Runtime sequence exhausted");
         long current = ++sequence;
-        byte[] request = RuntimeBrokerProtocol.request(operation, current, deadline, user, serial,
-                System.nanoTime());
+        byte[] request;
+        if (operation == RuntimeBrokerProtocol.EXEC) {
+            request = RuntimeBrokerProtocol.execRequest(current, deadline, user, serial, System.nanoTime(), arguments);
+        } else if (operation == RuntimeBrokerProtocol.RESULT) {
+            request = RuntimeBrokerProtocol.resultRequest(current, deadline, user, serial, System.nanoTime(), command);
+        } else {
+            request = RuntimeBrokerProtocol.request(operation, current, deadline, user, serial, System.nanoTime());
+        }
         for (;;) {
             await(OsConstants.POLLOUT, deadline);
             try {
@@ -136,23 +176,54 @@ final class RuntimeBrokerConnection {
             }
         }
         await(OsConstants.POLLIN, deadline);
-        byte[] bytes = new byte[RuntimeBrokerProtocol.SIZE + 1];
-        int length;
-        boolean hadDescriptors = false;
+        boolean terminal = operation == RuntimeBrokerProtocol.EXEC || operation == RuntimeBrokerProtocol.RESULT;
+        int expected = terminal ? RuntimeBrokerProtocol.TERMINAL_REPLY_SIZE : RuntimeBrokerProtocol.SIZE;
+        byte[] bytes = new byte[expected + 1];
+        FileDescriptor[] received = null;
+        ParcelFileDescriptor master = null;
         try {
             // One SEQPACKET read. SIZE+1 detects oversized replies; never assemble
             // partial messages from separate packets or accept a valid prefix.
-            length = socket.getInputStream().read(bytes);
-        } finally {
-            FileDescriptor[] received = socket.getAncillaryFileDescriptors();
-            if (received != null) {
-                hadDescriptors = received.length != 0;
-                for (FileDescriptor fd : received) close(fd);
+            int length = socket.getInputStream().read(bytes);
+            received = socket.getAncillaryFileDescriptors();
+            int descriptors = received == null ? 0 : received.length;
+            remaining(deadline);
+            RuntimeBrokerProtocol.Reply reply;
+            if (terminal) {
+                reply = RuntimeBrokerProtocol.terminalReply(bytes, length, operation, current, user, serial,
+                        command, descriptors);
+            } else {
+                if (descriptors != 0) throw new IOException("Unexpected runtime descriptors");
+                reply = RuntimeBrokerProtocol.reply(bytes, length, operation, current, user, serial);
             }
+            if (descriptors == 1) {
+                FileDescriptor fd = received[0];
+                if (fd == null) throw new IOException("Missing runtime terminal");
+                StructStat stat = Os.fstat(fd);
+                // Linux dev_t encoding for the /dev/pts/ptmx master (5,2).
+                // Private devpts + mapped slave UID/GID were checked by the
+                // authenticated native owner before this handoff.
+                if (!OsConstants.S_ISCHR(stat.st_mode) || stat.st_rdev != 0x502L || !Os.isatty(fd)
+                        || (Os.fcntlInt(fd, OsConstants.F_GETFL, 0) & OsConstants.O_ACCMODE) != OsConstants.O_RDWR) {
+                    throw new IOException("Unexpected runtime terminal descriptor");
+                }
+                Os.fcntlInt(fd, OsConstants.F_SETFD, OsConstants.FD_CLOEXEC);
+                master = ParcelFileDescriptor.dup(fd);
+                Os.fcntlInt(master.getFileDescriptor(), OsConstants.F_SETFD, OsConstants.FD_CLOEXEC);
+            }
+            remaining(deadline);
+            Exchange result = new Exchange(reply, master);
+            master = null; // The successful result now owns the duplicate.
+            return result;
+        } finally {
+            if (master != null) try { master.close(); } catch (IOException ignored) { }
+            if (received != null) for (FileDescriptor fd : received) close(fd);
+            // A read failure can still leave ancillary descriptors in the wrapper.
+            try {
+                FileDescriptor[] pending = socket.getAncillaryFileDescriptors();
+                if (pending != null) for (FileDescriptor fd : pending) close(fd);
+            } catch (IOException ignored) { /* poison() retries after a failed read. */ }
         }
-        remaining(deadline);
-        if (hadDescriptors) throw new IOException("Unexpected runtime descriptors");
-        return RuntimeBrokerProtocol.reply(bytes, length, operation, current, user, serial);
     }
 
     private void await(int event, long deadline) throws ErrnoException, IOException {

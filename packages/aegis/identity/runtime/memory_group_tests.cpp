@@ -421,6 +421,50 @@ TEST_F(RuntimeBrokerOwner, PartialStartsAreBoundedAndGlobalCleanupVisitsEverySlo
     }
 }
 
+TEST_F(RuntimeBrokerOwner, TerminalCannotImplicitlyCreateAMissingContext) {
+    ASSERT_EQ(0, aegis_broker_owner_create(parent, parent, parent, parent, &broker));
+    int before = descriptors();
+    aegis_broker_call call = {};
+    call.request = broker_request(AEGIS_BROKER_EXEC, 10, 1234);
+    call.argc = 1; call.payload_bytes = sizeof("/bin/true");
+    memcpy(call.payload, "/bin/true", call.payload_bytes);
+    uint64_t command = 0; int master = -1;
+    EXPECT_EQ(-1, aegis_broker_owner_exec(broker, &call, &command, &master)); EXPECT_EQ(ENOENT, errno);
+    EXPECT_EQ(0u, command); EXPECT_EQ(-1, master);
+    auto request = broker_request(AEGIS_BROKER_RESULT, 10, 1234);
+    int status = 77, exited = 77;
+    EXPECT_EQ(-1, aegis_broker_owner_result(broker, &request, 1, &status, &exited)); EXPECT_EQ(ENOENT, errno);
+    EXPECT_EQ(77, status); EXPECT_EQ(77, exited); EXPECT_EQ(before, descriptors());
+    struct stat st;
+    EXPECT_EQ(-1, fstatat(parent, "u10-s1234", &st, AT_SYMLINK_NOFOLLOW)); EXPECT_EQ(ENOENT, errno);
+}
+
+TEST_F(RuntimeBrokerOwner, TerminalCannotReusePartialOrWrongSerialContexts) {
+    ASSERT_EQ(0, aegis_broker_owner_create(parent, parent, parent, parent, &broker));
+    auto request = broker_request(AEGIS_BROKER_START, 10, 1234);
+    aegis_broker_state state;
+    ASSERT_EQ(-1, aegis_broker_owner_apply(broker, &request, &state));
+    aegis_broker_call call = {};
+    call.argc = 1; call.payload_bytes = sizeof("/bin/true");
+    memcpy(call.payload, "/bin/true", call.payload_bytes);
+    for (uint32_t serial : {1234u, 1235u}) {
+        call.request = broker_request(AEGIS_BROKER_EXEC, 10, serial);
+        uint64_t command = 0; int master = -1;
+        EXPECT_EQ(-1, aegis_broker_owner_exec(broker, &call, &command, &master));
+        if (serial == 1235) EXPECT_EQ(ESTALE, errno);
+        EXPECT_EQ(0u, command); EXPECT_EQ(-1, master);
+        request = broker_request(AEGIS_BROKER_RESULT, 10, serial);
+        int status = 77, exited = 77;
+        EXPECT_EQ(-1, aegis_broker_owner_result(broker, &request, 1, &status, &exited));
+        if (serial == 1235) EXPECT_EQ(ESTALE, errno);
+        EXPECT_EQ(77, status); EXPECT_EQ(77, exited);
+    }
+    // Neither denied request releases the partially owned context.
+    EXPECT_EQ(-1, aegis_broker_owner_release(&broker)); EXPECT_EQ(EBUSY, errno);
+    ASSERT_EQ(0, aegis_broker_owner_stop_all(broker, deadline_ns()));
+    EXPECT_EQ(0, aegis_broker_owner_release(&broker));
+}
+
 TEST_F(RuntimeBrokerOwner, RawCloneCannotUseTheParentsResourceRegistry) {
     ASSERT_EQ(0, aegis_broker_owner_create(parent, parent, parent, parent, &broker));
     auto request = broker_request(AEGIS_BROKER_STATUS, 10, 1234);
@@ -431,6 +475,14 @@ TEST_F(RuntimeBrokerOwner, RawCloneCannotUseTheParentsResourceRegistry) {
     if (!child) {
         aegis_broker_state state;
         bool denied = aegis_broker_owner_apply(broker, &request, &state) == -1 && errno == EPERM;
+        aegis_broker_call call = {};
+        call.request = broker_request(AEGIS_BROKER_EXEC, 10, 1234);
+        uint64_t command = 0; int master = -1;
+        denied = denied && aegis_broker_owner_exec(broker, &call, &command, &master) == -1 && errno == EPERM;
+        auto result_request = broker_request(AEGIS_BROKER_RESULT, 10, 1234);
+        int status, finished;
+        denied = denied && aegis_broker_owner_result(broker, &result_request, 1, &status, &finished) == -1
+                && errno == EPERM;
         denied = denied && aegis_broker_owner_stop_all(broker, 0) == -1 && errno == EPERM;
         denied = denied && aegis_broker_owner_release(&broker) == -1 && errno == EPERM;
         syscall(SYS_exit_group, denied ? 0 : 92);

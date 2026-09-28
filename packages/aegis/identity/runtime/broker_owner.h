@@ -7,7 +7,7 @@ extern "C" {
 
 /* Single-threaded host-root owner behind the authenticated AOSP connection.
  * Owns up to 16 personal context slots and duplicates its trusted input FDs.
- * Not a daemon, auth endpoint or a package/PTY owner. Bootstrap MUST verify the
+ * Not an auth endpoint or package owner. Bootstrap MUST verify the
  * immutable generation/helpers and recover stale cgroups before construction.
  * No API accepts a CLI path, password or caller-supplied process identifier.
  */
@@ -25,6 +25,21 @@ int aegis_broker_owner_create(int parent_fd, int base_fd, int setup_fd, int init
 int aegis_broker_owner_apply(struct aegis_broker_owner *owner,
                              const struct aegis_broker_request *request,
                              enum aegis_broker_state *state);
+
+/* The same fresh AOSP user+serial/session/CE admission is required here.
+ * EXEC never implicitly starts a missing/sealed context. Returns an owned PTY
+ * and a process-lifetime unique command ID, NOT an authentication capability.
+ * START/STOP cannot recycle a command ID into a later context of the same user.
+ * Outputs begin 0/-1. RESULT consumes one finished status; exited=0 is running.
+ * The AOSP caller must separately bind every PTY/command to its admitted CLI
+ * session and revoke access on session loss. No personal auth happens here.
+ */
+int aegis_broker_owner_exec(struct aegis_broker_owner *owner,
+                            const struct aegis_broker_call *call,
+                            uint64_t *command, int *master);
+int aegis_broker_owner_result(struct aegis_broker_owner *owner,
+                              const struct aegis_broker_request *request,
+                              uint64_t command, int *wait_status, int *exited);
 
 /* On disconnect/shutdown: visit EVERY context, including after a timeout, so
  * all channels seal and termination is requested. One total wait deadline;

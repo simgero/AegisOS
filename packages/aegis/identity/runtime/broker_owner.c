@@ -3,6 +3,7 @@
 #endif
 #include "broker_owner.h"
 #include "context.h"
+#include "control.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -15,11 +16,13 @@
 struct slot {
     uint32_t user, serial;
     struct aegis_context *context;
+    struct { uint64_t public_id, local_id; } commands[AEGIS_RUNTIME_MAX_SHELLS];
 };
 struct aegis_broker_owner {
     pid_t process;
     int inputs[4];
     struct slot slots[MAX_CONTEXTS];
+    uint64_t next_command;
 };
 
 static int fail(int error) { errno = error; return -1; }
@@ -165,4 +168,77 @@ int aegis_broker_owner_release(struct aegis_broker_owner **output) {
     for (unsigned i = 0; i < 4; i++) close(owner->inputs[i]);
     free(owner); *output = NULL;
     return 0;
+}
+
+static struct slot *terminal_slot(struct aegis_broker_owner *owner,
+                                  const struct aegis_broker_request *request, uint16_t operation) {
+    if (owned(owner) < 0) return NULL;
+    if (!request || request->operation != operation) { errno = EINVAL; return NULL; }
+    uint64_t now;
+    if (now_ns(&now) < 0) return NULL;
+    // Recheck the existing lifecycle envelope without accepting a terminal
+    // operation as a 32-byte wire request. Actual sequencing stays in serve().
+    struct aegis_broker_request header = *request, checked;
+    header.operation = AEGIS_BROKER_START;
+    uint64_t previous = header.sequence > 1 ? header.sequence - 1 : 0;
+    if (aegis_broker_parse(&header, sizeof(header), previous, now, &checked) < 0) return NULL;
+    for (unsigned i = 0; i < MAX_CONTEXTS; i++) {
+        struct slot *slot = &owner->slots[i];
+        if (!slot->context || slot->user != request->user) continue;
+        if (slot->serial != request->serial) { errno = ESTALE; return NULL; }
+        if (aegis_context_channel(slot->context) < 0) return NULL;
+        return slot;
+    }
+    errno = ENOENT;
+    return NULL;
+}
+
+int aegis_broker_owner_exec(struct aegis_broker_owner *owner,
+                            const struct aegis_broker_call *call,
+                            uint64_t *command, int *master) {
+    if (!call || !command || *command || !master || *master != -1) return fail(EINVAL);
+    struct slot *slot = terminal_slot(owner, &call->request, AEGIS_BROKER_EXEC);
+    if (!slot) return -1;
+    const char *argv[AEGIS_BROKER_MAX_ARGS + 1];
+    if (aegis_broker_arguments(call, argv) < 0) return -1;
+    unsigned position;
+    for (position = 0; position < AEGIS_RUNTIME_MAX_SHELLS; position++)
+        if (!slot->commands[position].public_id) break;
+    if (position == AEGIS_RUNTIME_MAX_SHELLS) return fail(ENOSPC);
+    if (owner->next_command == INT64_MAX) return fail(EOVERFLOW);
+    // Burn IDs even on uncertain execution: never reassign them on this owner.
+    uint64_t public_id = ++owner->next_command, local_id = 0;
+    int descriptor = -1;
+    if (aegis_context_exec(slot->context, call->argc, argv, call->request.deadline_ns,
+            &local_id, &descriptor) < 0) return -1;
+    slot->commands[position].public_id = public_id;
+    slot->commands[position].local_id = local_id;
+    if (remaining_ms(call->request.deadline_ns) <= 0) {
+        close(descriptor);
+        (void)stop(owner, call->request.user, 0);
+        return fail(ETIMEDOUT);
+    }
+    *command = public_id; *master = descriptor;
+    return 0;
+}
+
+int aegis_broker_owner_result(struct aegis_broker_owner *owner,
+                              const struct aegis_broker_request *request,
+                              uint64_t command, int *wait_status, int *exited) {
+    if (!command || command > INT64_MAX || !wait_status || !exited) return fail(EINVAL);
+    struct slot *slot = terminal_slot(owner, request, AEGIS_BROKER_RESULT);
+    if (!slot) return -1;
+    for (unsigned i = 0; i < AEGIS_RUNTIME_MAX_SHELLS; i++) {
+        if (slot->commands[i].public_id != command) continue;
+        int status;
+        if (aegis_context_result(slot->context, slot->commands[i].local_id, &status) < 0) {
+            if (errno != EAGAIN) return -1;
+            *wait_status = 0; *exited = 0;
+            return 0;
+        }
+        memset(&slot->commands[i], 0, sizeof(slot->commands[i]));
+        *wait_status = status; *exited = 1;
+        return 0;
+    }
+    return fail(ENOENT);
 }
