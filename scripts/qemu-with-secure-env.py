@@ -112,6 +112,8 @@ def main():
     p.add_argument('output',type=Path)
     p.add_argument('--seconds',type=int,default=180,help='0 keeps the VMs running until the QEMU window is closed')
     p.add_argument('--display',choices=['none','cocoa'],default='none')
+    p.add_argument('--pointer',choices=['mouse','tablet'],default='mouse',
+                   help='Relative mouse for Android cursor input; tablet retained for diagnostics')
     p.add_argument('--adb-port',type=int,default=0,
                    help='Optional 127.0.0.1 TCP endpoint for a guest hvc17-to-adbd bridge')
     p.add_argument('--profile',type=Path,help='Paired persistent Android and TPM profile')
@@ -154,7 +156,7 @@ def run(args,manifest=None):
         (output/'profile-path.txt').write_text(str(args.profile)+'\n')
     android[android.index('-display')+1]='cocoa,zoom-to-fit=on' if args.display=='cocoa' else args.display
     android += ['-device','virtio-gpu-pci,xres=720,yres=1280','-device','virtio-keyboard-pci',
-                '-device','virtio-tablet-pci','-device','virtio-serial-pci,id=serial,max_ports=31']
+                '-device',f'virtio-{args.pointer}-pci','-device','virtio-serial-pci,id=serial,max_ports=31']
     helper=['qemu-system-aarch64','-machine','virt-11.1,gic-version=3','-accel','hvf',
             '-cpu','host','-smp','2','-m','1024','-nodefaults','-display','none','-net','none',
             '-no-reboot','-serial','stdio','-monitor','none','-kernel',str(images/'kernel'),

@@ -42,10 +42,12 @@ jobs:
           bash -n scripts/aosp/compile.sh
           bash -n scripts/aosp/setup-sandbox.sh
           bash -n scripts/aosp/config.sh
+          bash -n scripts/kernel/build.sh
           bash -n scripts/check-environment.sh
           bash -n scripts/prepare-builder.sh
           bash -n scripts/export-secure-env.sh
           bash -n tools/qemu/adb-bridge.sh
+          python3 scripts/kernel/source_manifest.py kernel/manifest.xml
 
       - name: Validate helper init source
         run: clang -target aarch64-linux-gnu -ffreestanding -fno-builtin -fsyntax-only -Wall -Wextra -Werror tools/secure-env/init.c

@@ -1,5 +1,9 @@
-# Initial device integration; boot on standalone QEMU is not yet validated.
-# Keep upstream partitions, HALs and security policy while bringing up hardware.
+# Standalone QEMU has no RootCanal / Bluetooth HCI peer on hvc5.
+# Set before inheritance: upstream then omits com.google.cf.bt and declares
+# android.hardware.bluetooth unavailable instead of starting a crashing HAL.
+BOARD_HAVE_BLUETOOTH := false
+
+# Keep upstream partitions and security policy while adapting virtual hardware.
 $(call inherit-product, device/google/cuttlefish/vsoc_arm64_only/phone/aosp_cf.mk)
 
 PRODUCT_NAME := aegis_qemu_arm64

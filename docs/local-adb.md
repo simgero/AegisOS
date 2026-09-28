@@ -1,8 +1,8 @@
 # Lokales ADB für das QEMU-Entwicklungsimage
 
-Der aktuelle Kernel besitzt keinen VirtIO-Netzwerktreiber. Ein zusätzlicher
-VirtIO-Serial-Port (`hvc17`) verbindet deshalb den lokalen QEMU-Port mit dem
-ADB-Dienst innerhalb des Gastes. Der Host-Port bindet ausschließlich an
+Der diagnostische QEMU-Start richtet keine Gast-Netzwerkkarte ein. Ein
+zusätzlicher VirtIO-Serial-Port (`hvc17`) verbindet den lokalen QEMU-Port mit
+dem ADB-Dienst innerhalb des Gastes. Der Host-Port bindet ausschließlich an
 `127.0.0.1`. Es gibt keine Gast-Netzwerkkarte und keine Hostverzeichnisfreigabe.
 
 `scripts/run-local-qemu.sh` richtet den lokalen Port ein. Bei direktem Aufruf
@@ -54,3 +54,27 @@ Die neue Einrichtung wurde danach im frischen Lauf `adb-3` ohne manuelle
 Gastbefehle über `connect-local-adb.py --authorize-this-mac` wiederholt.
 Nach einer frischen Authentifizierungswiederholung waren ADB, Bootabschluss,
 SELinux `Enforcing`, Display-Abfrage, Eingabe und PNG-Aufnahme bestätigt.
+
+## Virtuelle Maus und Tastatur
+
+Der Launcher verwendet jetzt standardmäßig `virtio-mouse-pci`. Android erkennt
+dieses Gerät als Cursor mit den Bildschirmgrenzen 720 × 1280. Das bisherige
+Tablet wurde als Touchpad mit Gestenübersetzung eingeordnet. Es bleibt mit
+`--pointer tablet` für Diagnosezwecke verfügbar.
+
+Im Lauf `out/qemu-first-boot/mouse-1` wurde geprüft:
+
+- QMP-Tastaturereignisse schreiben `aegis` vollständig in das Suchfeld;
+  `keyboard-ui.xml` bestätigt den Text im Android-EditText.
+- Relative QMP-Mausbewegung und linke Maustaste öffnen aus der Startseite der
+  Einstellungen die Seite „Apps“. `settings-before.xml`, `settings-after.xml`
+  und `mouse-after.png` halten den tatsächlichen UI-Wechsel fest.
+- Android meldet MOUSE-Ereignisse einschließlich DOWN, BUTTON_PRESS,
+  BUTTON_RELEASE und UP. Mausbeschleunigung wirkt auf relative Bewegungen;
+  deren Delta ist deshalb keine absolute Pixelposition.
+
+Diese Tests laufen über QEMUs virtuelle Eingabegeräte. Die direkte Weitergabe
+physischer Mac-Eingaben durch das Cocoa-Fenster ist noch separat zu prüfen:
+Der Mac war beim versuchten Computer-Use-Test gesperrt. UI-Abfragen während
+eines Seitenwechsels können vorübergehend keinen Root-Knoten liefern; vor
+weiteren Eingaben den tatsächlichen Fokus und die fertig geladene Seite prüfen.

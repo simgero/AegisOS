@@ -6,9 +6,9 @@ Stand: 28. September 2026. Keine Abnahme des Gesamtziels.
 | --- | --- |
 | Lokaler Android-Start | Bootabschluss und sichtbare Oberfläche bestätigt, siehe `qemu-first-boot.md`. |
 | ADB und Bildschirm | Authentifizierte Verbindung, Dateiübertragung und Bildschirmaufnahme geprüft; siehe `local-adb.md`. |
-| Bedienung | Virtuelle Eingaben erreichen den Kernel, ADB-Eingabe funktioniert. Native Fensterbedienung noch vollständig testen. |
+| Bedienung | Virtuelle Tastatur schreibt den vollständigen Testtext; relative Maus öffnet mit linkem Klick eine Einstellungsseite. Native Mac-Fensterbedienung noch prüfen; Mac beim Versuch gesperrt. |
 | Dauerhafte Daten und Schlüssel | Gekoppelte Profile implementiert und mit echten Diskdateien getestet. Neuer Helper-Build und echter Passwort-/Neustarttest fehlen; siehe `persistent-qemu.md`. |
-| Gerätedienste | Bluetooth stürzt wegen fehlender HCI-Gegenstelle ab. Thread/UWB/NFC und weitere vom Cuttlefish-Produkt geerbte Geräte müssen zur tatsächlich vorhandenen QEMU-Hardware passen. |
+| Gerätedienste | Bluetooth stürzt im bisherigen Image wegen fehlender HCI-Gegenstelle ab. Der nächste Produktbuild schaltet Bluetooth über den vorhandenen AOSP-Schalter ab; noch kein Gastnachweis. Thread/UWB/NFC und weitere geerbte Geräte bleiben zu bereinigen. |
 | AEGIS-Identität/CLI | Noch zu implementieren; AOSP bleibt alleinige Passwort-, Benutzer- und Schlüsselautorität. |
 | GNU/Linux-Runtime | Noch zu implementieren. Der aktuelle Kernel erfüllt die notwendigen Namespace-Anforderungen nicht. |
 | Pakete und Isolation | Noch zu implementieren und mit zwei AOSP-Benutzern praktisch zu prüfen. |
@@ -29,12 +29,24 @@ CONFIG_EXT4_FS=y
 CONFIG_OVERLAY_FS=y
 ```
 
-Für die beauftragte gemeinsame GNU/Linux-Runtime ist deshalb ein gezielter
+Die Zeile zu `CONFIG_VIRTIO_NET` beschreibt nur die GKI-Konfiguration: Im
+laufenden Gast ist `virtio_net` als separates, passendes Virtual-Device-Modul
+bereits geladen (`/proc/modules`, Lauf `mouse-1`). Daraus folgt kein fehlender
+Netzwerktreiber. Der Launcher richtet bislang keine Gast-Netzwerkkarte ein.
+
+Wegen der fehlenden User-/PID-Namespaces und System-V-IPC ist für die
+beauftragte gemeinsame GNU/Linux-Runtime ein gezielter
 Kernel-Build einschließlich passender Module erforderlich. User-, PID-, Mount-
 und IPC-Isolation müssen anschließend tatsächlich funktionieren. Ein chroot
 allein oder eine zusätzliche Linux-VM erfüllt den Auftrag nicht. Der genaue
 Kernel-Quellstand, Konfiguration, Module und Android-Integration sind vor dem
 Build abzugleichen; das bloße Hinzufügen von Konfigurationszeilen reicht nicht.
+
+Die passenden 40 Kernel-Quellprojekte sind inzwischen aus dem offiziellen
+Manifest des laufenden Builds `13257114` festgelegt. Ein Buildrezept mit
+gemeinsamem Namespace-Fragment für Kernel und Module liegt unter
+[`kernel/`](../kernel/README.md). Es ist noch nicht auf dem Builder ausgeführt;
+die Integration der Ergebnisse in neue AOSP-Images und Gasttests fehlen.
 
 ## Reihenfolge
 
