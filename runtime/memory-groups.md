@@ -43,10 +43,12 @@ Gruppe erfordert explizite Wiederherstellung durch den Broker.
 
 Die Tests prüfen tatsächliche Cgroup-Dateien, fehlende Controller, unveränderte
 vorhandene Gruppen, Grenzwertänderung, falsche Identitäten, einmalige Freigabe,
-Prozessbesitz über Fork hinweg und Stopp eines Kindes bei weiterlaufendem Kind
+Prozessbesitz über einen direkten `clone3` hinweg und Stopp eines Kindes bei weiterlaufendem Kind
 einer anderen Gruppe. Ein kombinierter Namespace-Test prüft Mitgliedschaft
 vor Exec und das Entfernen geerbter OOM-Privilegierung. Sie verwenden ausschließlich
 eigene leere Testgruppen und inerte Kinder im lokalen Android-QEMU.
+Die Besitzprüfung liest die Kernel-PID direkt, damit Bionics nach einem direkten
+Klon geerbter PID-Cache keine Berechtigung für den elterlichen Handle erhält.
 
 Offen bleiben insbesondere Kompilierung und Ausführung dieser Tests, ein
 Speicherdrucktest der tatsächlichen Grenze, CPU-Budget, Broker-Neustart/Recovery,

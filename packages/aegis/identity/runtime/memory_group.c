@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/statfs.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
@@ -35,7 +36,9 @@ static int private_directory(int fd) {
 
 static int owned(struct aegis_memory_group *group) {
     if (!group) return reject(EINVAL);
-    if (group->owner != getpid() || getuid() || geteuid() || getgid() || getegid())
+    /* Bionic getpid() caches the parent's value across a raw clone3. */
+    if (group->owner != (pid_t)syscall(SYS_getpid)
+            || getuid() || geteuid() || getgid() || getegid())
         return reject(EPERM);
     if (private_directory(group->parent) < 0) return -1;
     struct stat held, named;
@@ -123,7 +126,7 @@ int aegis_memory_group_create(int parent_fd, uint32_t user, uint32_t serial,
             || equals(parent_fd, "cgroup.procs", "") < 0) return -1;
     struct aegis_memory_group *group = calloc(1, sizeof(*group));
     if (!group) return -1;
-    group->owner = getpid();
+    group->owner = (pid_t)syscall(SYS_getpid);
     group->user = user;
     group->serial = serial;
     group->directory = -1;

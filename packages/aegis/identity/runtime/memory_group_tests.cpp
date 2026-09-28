@@ -222,19 +222,28 @@ TEST_F(RuntimeMemoryGroup, KillEmptyObservationIsSeparateFromChildReapingAndAnot
     ASSERT_EQ(0, aegis_memory_group_remove(&groups[0]));
 }
 
-TEST_F(RuntimeMemoryGroup, ForkCannotUseOrDestroyTheParentsGroupHandle) {
+TEST_F(RuntimeMemoryGroup, RawCloneCannotUseOrDestroyTheParentsGroupHandle) {
     ASSERT_EQ(0, make(0));
-    pid_t child = fork();
-    ASSERT_GE(child, 0);
+    clone_args args = {};
+    args.flags = CLONE_PIDFD;
+    args.pidfd = reinterpret_cast<uintptr_t>(&pidfds[0]);
+    args.exit_signal = SIGCHLD;
+    pid_t child = static_cast<pid_t>(syscall(SYS_clone3, &args, sizeof(args)));
     if (!child) {
+        // Bionic's cached PID is inherited here; only a kernel PID check can
+        // reject this child. Exercise only the immediate owner-error paths.
         bool denied = aegis_memory_group_claim(groups[0], 10, 1234) == -1 && errno == EPERM;
         denied = denied && aegis_memory_group_kill_and_wait(groups[0], 0) == -1 && errno == EPERM;
         denied = denied && aegis_memory_group_remove(&groups[0]) == -1 && errno == EPERM;
-        _exit(denied ? 0 : 92);
+        syscall(SYS_exit_group, denied ? 0 : 92);
+        __builtin_unreachable();
     }
-    int status;
-    ASSERT_EQ(child, waitpid(child, &status, 0));
-    ASSERT_TRUE(WIFEXITED(status)); EXPECT_EQ(0, WEXITSTATUS(status));
+    ASSERT_GT(child, 0);
+    pollfd exited = {pidfds[0], POLLIN, 0};
+    ASSERT_EQ(1, poll(&exited, 1, 5000));
+    siginfo_t info = {};
+    ASSERT_EQ(0, waitid(P_PIDFD, static_cast<id_t>(pidfds[0]), &info, WEXITED | WNOHANG));
+    EXPECT_EQ(CLD_EXITED, info.si_code); EXPECT_EQ(0, info.si_status);
     EXPECT_GE(aegis_memory_group_claim(groups[0], 10, 1234), 0);
 }
 
