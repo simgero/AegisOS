@@ -135,9 +135,14 @@ if [[ -n ${AEGIS_RUNTIME_RUN:-} ]]; then
         cp "$run/$name" "$run/artifacts/$name"
     done
 fi
+# Compilation has finished; use available CPUs for this separate phase, capped
+# at eight. XZ level 1 has modest per-thread memory needs on the >=64 GB builder.
+compression_jobs=$(nproc)
+(( compression_jobs <= 8 )) || compression_jobs=8
+echo "Packaging images with $compression_jobs compression threads."
 # Only deliver top-level runtime files, not large obj/ intermediates or unpacked trees.
 (cd "$product"; find -L . -maxdepth 1 -type f -print0 | sort -z | tar -h --null -T - -cf -) \
-    | xz -T2 -1 | split -b 1900M -d -a 4 - "$run/artifacts/images.tar.xz.part-"
+    | xz -T"$compression_jobs" -1 | split -b 1900M -d -a 4 - "$run/artifacts/images.tar.xz.part-"
 cp "$run/build.log" "$run/artifacts/build.log"
 cp "$run/notes.md" "$run/artifacts/README.md"
 (cd "$run/artifacts"; sha256sum ./* > SHA256SUMS)
