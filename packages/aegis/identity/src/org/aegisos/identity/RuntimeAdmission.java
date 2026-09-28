@@ -211,6 +211,11 @@ public final class RuntimeAdmission {
             requireEpoch(slot, admittedEpoch);
             requireTime(deadline);
         }
+        /** Carry this same deadline into native I/O; never restart the wait budget. */
+        public long deadlineNanos() {
+            checkCurrent();
+            return deadline;
+        }
         @Override void beforeClose() { /* Closing a handle never admits anyone. */ }
     }
 

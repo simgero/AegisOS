@@ -113,6 +113,25 @@ cc_library_static {
     stl: "none",
 }
 
+// Private system-server/native-owner protocol. No daemon or socket is installed
+// until resource recovery, image mounts and SELinux integration are complete.
+cc_library_static {
+    name: "libaegis-runtime-broker-protocol",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/broker_protocol.c"],
+    export_include_dirs: ["runtime"],
+    stl: "none",
+}
+
+cc_library_static {
+    name: "libaegis-runtime-broker-owner",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/broker_owner.c"],
+    static_libs: ["libaegis-runtime-context", "libaegis-runtime-broker-protocol"],
+    export_include_dirs: ["runtime"],
+    stl: "none",
+}
+
 // Inert trusted probe for device tests; never a production setup helper.
 cc_binary {
     name: "aegis-runtime-namespace-probe",
@@ -126,9 +145,9 @@ cc_binary {
 cc_test {
     name: "AegisRuntimeNativeTests",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/memory_group_tests.cpp", "runtime/ce_tests.cpp", "runtime/setup_tests.cpp", "runtime/setup_control.c", "runtime/control.c", "runtime/sandbox.c"],
+    srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/memory_group_tests.cpp", "runtime/broker_protocol_tests.cpp", "runtime/ce_tests.cpp", "runtime/setup_tests.cpp", "runtime/setup_control.c", "runtime/control.c", "runtime/sandbox.c"],
     header_libs: ["libcutils_headers"],
-    static_libs: ["libaegis-runtime-child", "libaegis-runtime-namespace", "libaegis-runtime-context"],
+    static_libs: ["libaegis-runtime-child", "libaegis-runtime-namespace", "libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-runtime-broker-owner"],
     static_executable: true,
     data_bins: ["aegis-runtime-init", "aegis-runtime-namespace-probe", "aegis-runtime-setup"],
     test_suites: ["device-tests"],

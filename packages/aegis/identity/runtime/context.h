@@ -29,6 +29,14 @@ int aegis_context_start(uint32_t user, uint32_t serial, int parent_fd, int base_
                         int setup_fd, int init_fd, int create_home,
                         struct aegis_context **output);
 
+/* Same ownership contract, but carry the AOSP caller's absolute CLOCK_MONOTONIC
+ * deadline through startup. Must be future and at most ten seconds away. Does
+ * not restart the caller's budget after queueing/lock acquisition. Kernel I/O
+ * may still need external cleanup if it cannot immediately be interrupted. */
+int aegis_context_start_until(uint32_t user, uint32_t serial, int parent_fd, int base_fd,
+                              int setup_fd, int init_fd, int create_home,
+                              uint64_t deadline_ns, struct aegis_context **output);
+
 /* Borrowed private control fd, usable only by the owner after READY. Never
  * give it to a CLI client or close it. Caller owns protocol sequence numbers,
  * reply/PTY handling and fresh AOSP/session checks for every operation.

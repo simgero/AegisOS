@@ -82,13 +82,29 @@ static int await_ready(struct aegis_context *context, int64_t deadline) {
 int aegis_context_start(uint32_t user, uint32_t serial, int parent_fd, int base_fd,
                         int setup_fd, int init_fd, int create_home,
                         struct aegis_context **output) {
+    struct timespec now;
+    if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) return -1;
+    uint64_t deadline = (uint64_t)now.tv_sec * UINT64_C(1000000000)
+            + (uint64_t)now.tv_nsec + UINT64_C(10000000000);
+    return aegis_context_start_until(user, serial, parent_fd, base_fd, setup_fd, init_fd,
+                                     create_home, deadline, output);
+}
+
+int aegis_context_start_until(uint32_t user, uint32_t serial, int parent_fd, int base_fd,
+                              int setup_fd, int init_fd, int create_home,
+                              uint64_t deadline_ns, struct aegis_context **output) {
     if (!output || *output || user < 10 || user >= 21473 || serial > INT32_MAX
             || (create_home != 0 && create_home != 1)) return reject(EINVAL);
     if (getuid() || geteuid() || getgid() || getegid()) return reject(EPERM);
     if (fcntl(parent_fd, F_GETFD) < 0 || fcntl(base_fd, F_GETFD) < 0
             || fcntl(setup_fd, F_GETFD) < 0 || fcntl(init_fd, F_GETFD) < 0) return -1;
-    int64_t start = now_ms();
-    if (start < 0) return -1;
+    struct timespec now;
+    if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) return -1;
+    uint64_t start_ns = (uint64_t)now.tv_sec * UINT64_C(1000000000) + (uint64_t)now.tv_nsec;
+    if (deadline_ns > INT64_MAX || deadline_ns <= start_ns
+            || deadline_ns - start_ns > UINT64_C(10000000000)) return reject(EINVAL);
+    int64_t deadline = (int64_t)(deadline_ns / 1000000); // Round DOWN, never extend the budget.
+    if (remaining(deadline) <= 0) return reject(ETIMEDOUT);
     struct aegis_context *context = calloc(1, sizeof(*context));
     if (!context) return -1;
     context->owner = (pid_t)syscall(SYS_getpid);
@@ -118,8 +134,9 @@ int aegis_context_start(uint32_t user, uint32_t serial, int parent_fd, int base_
     // No CE, detached-mount or code descriptors persist in the host context.
     // The queued copies belong to the helper endpoint until consumed/closed.
     for (unsigned i = 0; i < AEGIS_SETUP_FDS; i++) { close(mounts[i]); mounts[i] = -1; }
+    if (remaining(deadline) <= 0) { errno = ETIMEDOUT; goto fail; }
     if (aegis_namespace_resume(context->namespace) < 0
-            || await_ready(context, start + 10000) < 0) goto fail;
+            || await_ready(context, deadline) < 0) goto fail;
     context->ready = 1;
     if (aegis_context_channel(context) < 0) goto fail;
     return 0;

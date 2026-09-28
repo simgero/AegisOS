@@ -34,6 +34,16 @@ public final class RuntimeAdmissionTest {
         check(gate.afterAuthentication(gate.beforeAuthentication(user, serial)));
     }
 
+    @Test public void nativeDeadlineIsTheSameOwnedAdmissionBudget() {
+        RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> {});
+        RuntimeAdmission.Access access = gate.afterAuthentication(gate.beforeAuthentication(10, 100));
+        long deadline = access.deadlineNanos();
+        assertTrue(deadline > System.nanoTime());
+        assertEquals(deadline, access.deadlineNanos());
+        access.close();
+        fails(IllegalStateException.class, access::deadlineNanos);
+    }
+
     @Test public void initialAdmissionAndDestructiveStorageRequireQuiescence() {
         List<Integer> stopped = new ArrayList<>();
         RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> stopped.add(user));

@@ -36,6 +36,14 @@ Die elf neuen Tests bestätigen Fehlerbehandlung, Eigentumsgrenzen und
 Gruppenstopp; **erfolgreicher Runtime-Start mit CE-HOME, Runtime-Broker,
 SELinux-Anbindung und vollständiger Logout sind weiterhin nicht nachgewiesen.**
 
+Nach dem Start dieses Vollbuilds wurden der
+[private AOSP-/Broker-Kanal und die native Kontextverwaltung](../runtime/broker-control.md)
+ergänzt: geprüfte Gegenstellen, Anfrage-/Identitätsbindung, gemeinsame Fristen,
+begrenzte Kontextzahl und erhaltener Besitz nach Start-/Abbaufehlern. Der neue
+Quellstand umfasst 52 Java- und 74 native Tests. **Diese zusätzlichen Änderungen
+sind noch nicht kompiliert, ausgeführt oder im Produkt aktiviert.** Der laufende
+Build wird dafür nicht abgebrochen oder während seiner Ausführung verändert.
+
 | Anforderung | Nachweis / verbleibende Arbeit |
 | --- | --- |
 | Lokaler Android-Start | Bootabschluss und sichtbare Oberfläche bestätigt, siehe `qemu-first-boot.md`. |

@@ -2,6 +2,7 @@
 // fixtures own empty, exclusive cgroups and inert children, never AOSP users.
 #include "memory_group.h"
 #include "context.h"
+#include "broker_owner.h"
 #include "namespace.h"
 #include "namespace_probe.h"
 
@@ -53,6 +54,7 @@ class RuntimeMemoryGroup : public ::testing::Test {
     aegis_memory_group* groups[2] = {nullptr, nullptr};
     aegis_namespace* context = nullptr;
     aegis_context* runtime = nullptr;
+    aegis_broker_owner* broker = nullptr;
     int peers[2] = {-1, -1}, setup = -1;
 
     void SetUp() override {
@@ -78,6 +80,13 @@ class RuntimeMemoryGroup : public ::testing::Test {
     }
 
     void TearDown() override {
+        if (broker) {
+            timespec now = {};
+            ASSERT_EQ(0, clock_gettime(CLOCK_MONOTONIC, &now));
+            uint64_t deadline = static_cast<uint64_t>(now.tv_sec) * 1000000000 + now.tv_nsec + 5000000000;
+            EXPECT_EQ(0, aegis_broker_owner_stop_all(broker, deadline));
+            EXPECT_EQ(0, aegis_broker_owner_release(&broker));
+        }
         if (runtime) EXPECT_EQ(0, aegis_context_stop(&runtime, 5000));
         if (context) {
             EXPECT_EQ(0, aegis_namespace_stop(context));
@@ -149,6 +158,21 @@ class RuntimeMemoryGroup : public ::testing::Test {
 };
 
 class RuntimeContext : public RuntimeMemoryGroup {};
+class RuntimeBrokerOwner : public RuntimeMemoryGroup {};
+
+uint64_t deadline_ns() {
+    timespec now = {};
+    if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) return 0;
+    return static_cast<uint64_t>(now.tv_sec) * 1000000000 + now.tv_nsec + 5000000000;
+}
+
+struct aegis_broker_request broker_request(uint16_t operation, uint32_t user, uint32_t serial) {
+    struct aegis_broker_request request = {};
+    request.magic = AEGIS_BROKER_MAGIC; request.version = AEGIS_BROKER_VERSION;
+    request.operation = operation; request.sequence = 2; request.deadline_ns = deadline_ns();
+    request.user = user; request.serial = serial;
+    return request;
+}
 
 int descriptors() {
     DIR* directory = opendir("/proc/self/fd");
@@ -178,6 +202,88 @@ TEST_F(RuntimeContext, RejectedHelperRetainsCleanupAndPreservesCallerDescriptors
     EXPECT_EQ(-1, fstatat(parent, "u10-s1234", &st, AT_SYMLINK_NOFOLLOW)); EXPECT_EQ(ENOENT, errno);
     EXPECT_EQ(before, descriptors());
     close(file);
+}
+
+TEST_F(RuntimeContext, ExpiredOrUnboundedDeadlineCannotAllocateResources) {
+    for (uint64_t deadline : {UINT64_C(0), UINT64_MAX, deadline_ns() + UINT64_C(10000000000)}) {
+        EXPECT_EQ(-1, aegis_context_start_until(10, 1234, parent, parent, parent, parent,
+                                               0, deadline, &runtime));
+        EXPECT_EQ(EINVAL, errno); EXPECT_EQ(nullptr, runtime);
+        struct stat st;
+        EXPECT_EQ(-1, fstatat(parent, "u10-s1234", &st, AT_SYMLINK_NOFOLLOW));
+        EXPECT_EQ(ENOENT, errno);
+    }
+}
+
+TEST_F(RuntimeBrokerOwner, FailedStartRemainsOwnedAndOnlyItsUserStopConfirmsRemoval) {
+    int before = descriptors();
+    ASSERT_EQ(0, aegis_broker_owner_create(parent, parent, parent, parent, &broker));
+    EXPECT_EQ(before + 4, descriptors());
+    auto request = broker_request(AEGIS_BROKER_START, 10, 1234);
+    aegis_broker_state state = AEGIS_BROKER_READY;
+    EXPECT_EQ(-1, aegis_broker_owner_apply(broker, &request, &state));
+    EXPECT_EQ(AEGIS_BROKER_SEALED, state);
+    EXPECT_EQ(-1, aegis_broker_owner_release(&broker)); EXPECT_EQ(EBUSY, errno);
+    request = broker_request(AEGIS_BROKER_STOP_USER, 11, 0);
+    ASSERT_EQ(0, aegis_broker_owner_apply(broker, &request, &state));
+    EXPECT_EQ(AEGIS_BROKER_ABSENT, state);
+    EXPECT_EQ(-1, aegis_broker_owner_release(&broker)); EXPECT_EQ(EBUSY, errno);
+    request = broker_request(AEGIS_BROKER_STATUS, 10, 1235);
+    EXPECT_EQ(-1, aegis_broker_owner_apply(broker, &request, &state)); EXPECT_EQ(ESTALE, errno);
+    request = broker_request(AEGIS_BROKER_STOP_USER, 10, 0);
+    ASSERT_EQ(0, aegis_broker_owner_apply(broker, &request, &state));
+    EXPECT_EQ(AEGIS_BROKER_ABSENT, state);
+    ASSERT_EQ(0, aegis_broker_owner_release(&broker)); EXPECT_EQ(nullptr, broker);
+    EXPECT_EQ(before, descriptors());
+    EXPECT_GE(fcntl(parent, F_GETFD), 0);
+}
+
+TEST_F(RuntimeBrokerOwner, PartialStartsAreBoundedAndGlobalCleanupVisitsEverySlot) {
+    ASSERT_EQ(0, aegis_broker_owner_create(parent, parent, parent, parent, &broker));
+    aegis_broker_state state = AEGIS_BROKER_ABSENT;
+    for (uint32_t user = 10; user < 26; user++) {
+        auto request = broker_request(AEGIS_BROKER_START, user, 1234);
+        EXPECT_EQ(-1, aegis_broker_owner_apply(broker, &request, &state));
+        EXPECT_EQ(AEGIS_BROKER_SEALED, state);
+        std::string group = "u" + std::to_string(user) + "-s1234";
+        struct stat st;
+        EXPECT_EQ(0, fstatat(parent, group.c_str(), &st, AT_SYMLINK_NOFOLLOW));
+    }
+    auto request = broker_request(AEGIS_BROKER_START, 26, 1234);
+    EXPECT_EQ(-1, aegis_broker_owner_apply(broker, &request, &state)); EXPECT_EQ(ENOSPC, errno);
+    // Every partial fixture is already empty; no waiting is needed, but every
+    // context/group still needs its explicit ownership-based cleanup.
+    ASSERT_EQ(0, aegis_broker_owner_stop_all(broker, 0));
+    ASSERT_EQ(0, aegis_broker_owner_release(&broker));
+    for (uint32_t user = 10; user < 26; user++) {
+        std::string group = "u" + std::to_string(user) + "-s1234";
+        struct stat st;
+        EXPECT_EQ(-1, fstatat(parent, group.c_str(), &st, AT_SYMLINK_NOFOLLOW)); EXPECT_EQ(ENOENT, errno);
+    }
+}
+
+TEST_F(RuntimeBrokerOwner, RawCloneCannotUseTheParentsResourceRegistry) {
+    ASSERT_EQ(0, aegis_broker_owner_create(parent, parent, parent, parent, &broker));
+    auto request = broker_request(AEGIS_BROKER_STATUS, 10, 1234);
+    clone_args args = {};
+    args.flags = CLONE_PIDFD; args.pidfd = reinterpret_cast<uintptr_t>(&pidfds[0]);
+    args.exit_signal = SIGCHLD;
+    pid_t child = static_cast<pid_t>(syscall(SYS_clone3, &args, sizeof(args)));
+    if (!child) {
+        aegis_broker_state state;
+        bool denied = aegis_broker_owner_apply(broker, &request, &state) == -1 && errno == EPERM;
+        denied = denied && aegis_broker_owner_stop_all(broker, 0) == -1 && errno == EPERM;
+        denied = denied && aegis_broker_owner_release(&broker) == -1 && errno == EPERM;
+        syscall(SYS_exit_group, denied ? 0 : 92);
+        __builtin_unreachable();
+    }
+    ASSERT_GT(child, 0);
+    pollfd exited = {pidfds[0], POLLIN, 0};
+    ASSERT_EQ(1, poll(&exited, 1, 5000));
+    siginfo_t info = {};
+    ASSERT_EQ(0, waitid(P_PIDFD, static_cast<id_t>(pidfds[0]), &info, WEXITED | WNOHANG));
+    EXPECT_EQ(CLD_EXITED, info.si_code); EXPECT_EQ(0, info.si_status);
+    ASSERT_EQ(0, aegis_broker_owner_release(&broker));
 }
 
 TEST_F(RuntimeContext, RejectedStartNeverRemovesAnAlreadyOwnedGroup) {
