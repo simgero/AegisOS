@@ -1,18 +1,32 @@
-"""Package pre-rendered boot frames in Android's uncompressed ZIP format."""
+"""Validate and package the approved intro + loop in Android's stored-ZIP format."""
 from pathlib import Path
 from zipfile import ZipFile, ZipInfo, ZIP_STORED
-
-ROOT = Path(__file__).resolve().parents[2]
-frames = sorted((ROOT / 'out/branding/part0').glob('*.png'))
-if [p.name for p in frames] != [f'{n:03}.png' for n in range(36)]:
-    raise SystemExit('Expected exactly 36 consecutive boot frames')
-destination = ROOT / 'device/aegis/qemu_arm64/branding/bootanimation.zip'
-with ZipFile(destination, 'w', compression=ZIP_STORED) as archive:
-    entries = [('desc.txt', b'720 720 24\np 0 0 part0 #F6F7F9\n')]
-    entries += [(f'part0/{p.name}', p.read_bytes()) for p in frames]
-    for name, data in entries:
-        info = ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
-        info.compress_type = ZIP_STORED
-        info.external_attr = 0o100644 << 16
-        archive.writestr(info, data)
-print(destination)
+from PIL import Image
+import io,json,hashlib
+ROOT=Path(__file__).resolve().parents[2]
+source=ROOT/'out/branding/production'
+meta=json.loads((source/'manifest.json').read_text())
+assert meta==dict(width=720,height=720,fps=30,introFrames=158,loopFrames=504,loopSeconds=16.8)
+entries=[]
+for part,count in [('part0',158),('part1',504)]:
+ frames=sorted((source/part).glob('*.png'))
+ if [p.name for p in frames]!=[f'{i:04}.png' for i in range(count)]:raise ValueError(f'Incomplete {part}')
+ for p in frames:
+  with Image.open(p) as im:
+   im=im.convert('RGB');assert im.size==(720,720)
+   assert all(im.getpixel(pos)==(0,0,0) for pos in [(0,0),(719,0),(0,719),(719,719)])
+   # Lossless RGB optimisation preserves exact black and antialiasing.
+   buffer=io.BytesIO();im.save(buffer,format='PNG',optimize=True)
+   entries.append((f'{part}/{p.name}',buffer.getvalue()))
+def write(name,description,selected):
+ destination=ROOT/'device/aegis/qemu_arm64/branding'/name
+ with ZipFile(destination,'w',compression=ZIP_STORED) as archive:
+  for filename,data in [('desc.txt',description.encode()),*selected]:
+   info=ZipInfo(filename,date_time=(2026,1,1,0,0,0));info.compress_type=ZIP_STORED;info.external_attr=0o100644<<16
+   archive.writestr(info,data)
+ with ZipFile(destination) as archive:assert archive.testzip() is None
+ if destination.stat().st_size>8*1024*1024:raise ValueError('Archive exceeds build-input file limit')
+ print(f'{destination.name}: {destination.stat().st_size} bytes, sha256={hashlib.sha256(destination.read_bytes()).hexdigest()}')
+write('bootanimation.zip','720 720 30\np 1 0 part0 #000000\np 0 0 part1 #000000\n',entries)
+# Shutdown uses the same approved loop, without replaying startup construction.
+write('shutdownanimation.zip','720 720 30\np 0 0 part1 #000000\n',[e for e in entries if e[0].startswith('part1/')])

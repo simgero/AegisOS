@@ -1,64 +1,71 @@
 # AegisOS system branding
 
-The QEMU product uses the approved ægis.os Brand Guide 06 artwork. This first
-pass supplies a light boot screen, a subtle three-dot activity loop, the same
-screen during shutdown/userspace restart, the brand wallpaper, an AegisOS
-default device name, and neutral system-version labels in English and German.
-The activity indicator does not report numeric boot progress.
+## Approved boot animation
+
+The production archive contains the approved dark design: exact black
+`#000000`, light shield and wordmark, and a green square. Solid phone, tablet
+and notebook shapes morph into the shield; their navigation apertures shrink
+closed geometrically. The notebook base is part of its morphing silhouette.
+The central green square and the wordmark remain visible throughout.
+
+The one-time opening includes the gentle acceleration into the loop. At 30 fps,
+158 opening frames are followed by 504 looping frames (16.8 seconds per full
+rotation). The loop continues from the intro's phase and repeats without an
+extra pause. Both parts use Android's interruptible `p` mode: finishing system
+boot takes precedence over completing the opening or another loop.
 
 ## Build integration
 
-`device/aegis/qemu_arm64/branding/branding.mk` installs the uncompressed animation
-archive under `/product/media`, including the dark-theme filename so selecting
-a dark boot theme does not fall back to the platform animation. The first pass
-intentionally uses the same light design for both themes. The archive contains
-36 frames at 24 fps; its interruptible loop stops when the system requests it.
+`device/aegis/qemu_arm64/branding/branding.mk` installs `bootanimation.zip` as
+`/product/media/bootanimation.zip`, `bootanimation-dark.zip` and
+`userspace-reboot.zip`. Both display themes intentionally use the approved OLED
+black design. Shutdown installs a separate loop-only `shutdownanimation.zip`;
+it does not replay the device construction.
 
-The existing static product overlay supplies the framework default wallpaper,
-SettingsProvider device-name defaults and Settings labels. The actual platform
-release number, SDK level, package names and legal notices are unchanged. A
-displayed system version of 16 still refers to the platform, not a claimed
-AegisOS release 16. Other locales and remaining setup/application strings have
-not yet been comprehensively rebranded.
+Existing static overlays supply the framework default wallpaper, device-name
+defaults and Settings labels. Saved user preferences remain intact. Platform
+release numbers, SDK levels, package identities and legal notices stay truthful.
+This is not a custom launcher or desktop.
 
-Existing saved wallpaper and device-name preferences are preserved. The new
-defaults apply on fresh data; changing an existing user's background is a
-separate user preference. The default lock screen follows the system wallpaper
-unless a separate lock wallpaper was selected.
+## Source and regeneration
 
-## Artwork and regeneration
+The self-contained approved source is `scripts/branding/boot-preview.html`.
+`scripts/branding/motion-preview.html` retains the interactive shape study;
+`logo-static.svg` and `svg-review.html` retain the static approval proof.
+The runtime SVG construction enforces mirror symmetry and uses regular centered
+polygons. These later revisions intentionally supersede the original raster
+animation and its three-dot activity indicator.
 
-The logo and wallpaper were copied unchanged from
-`website-brand-20260928/output-v6/brand-assets`. The build consumes only the
-checked-in files under `device`, without depending on that local website folder.
-
-`scripts/branding/boot.html` is the editable boot layout. Render with Node,
-Playwright, installed Chrome and Arial available:
+Render with Node, Playwright, Chrome and Arial available; package with Python
+and Pillow:
 
 ```sh
 node scripts/branding/render.cjs
 python3 scripts/branding/package.py
 ```
 
-Set `NODE_PATH` to the installed Playwright modules if necessary. PNGs are
-rendered into ignored `out/branding/part0`. The packager uses ZIP_STORED and fixed
-ZIP metadata. The normal AOSP build needs neither a browser nor these tools.
+Set `NODE_PATH` to the installed Playwright modules if necessary. Frames and
+render metadata are written to ignored `out/branding/production`. Rendering
+hides preview controls and uses explicit timestamps, not wall-clock playback.
+The packager checks the frame inventory, dimensions and black corners, then
+performs lossless RGB PNG optimisation. ZIP entries are stored uncompressed
+with fixed metadata, as required by Android. Each archive remains under the
+8-MiB build-input limit. The AOSP build consumes these checked-in archives and
+needs neither a browser nor Pillow.
 
-## Validation and remaining device checks
+## Verification status
 
-Locally checked: visual frame inspection, all 36 PNGs decoding at 720 × 720,
-ZIP integrity/uncompressed entries, XML parsing, and existing product installer
-tests. Source resource names and boot-file precedence were checked against the
-builder's pinned AOSP sources. No bootanimation APEX was present in that build;
-such an APEX would take priority over `/product/media` and needs rechecking if
-the product selection changes.
+The local animation package is built and validated: 662 PNG frames, 720 × 720,
+30 fps, exact black backgrounds, ZIP integrity and stored compression. The
+shutdown archive contains the 504 loop frames. Product installer regression
+checks cover copying nested product assets.
 
-The branded image still requires its own AOSP build and QEMU verification:
+A newly built system image and actual QEMU boot verification remain required.
+The existing visible VM predates these assets and is being used by another
+active development chat. It has not been modified or rebooted for this change.
 
-1. Confirm packaged product animation files match the source archive.
-2. Record boot animation and verify the normal boot completes.
-3. On fresh data, verify wallpaper, device name and Settings in German/English.
-4. On existing data, verify chosen wallpaper/device name remain unchanged.
-5. Check shutdown and restart, and confirm no blocking animation segment.
-
-This is the system branding pass, not a custom launcher, setup wizard or desktop.
+For device verification, compare the installed archive hashes, check for a
+higher-priority bootanimation APEX, record construction/loop/boot completion,
+and confirm that the animation exits when Android finishes booting. Check
+shutdown independently. Earlier AOSP source inspection found no selected
+bootanimation APEX; revisit that if product selection changes.
