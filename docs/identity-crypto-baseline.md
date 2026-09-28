@@ -8,7 +8,9 @@ CE-Schlüsselablage.
 
 Ein lokaler [Plattformtest](identity-platform-test.md) bestätigt Passwortprüfung,
 Passwortwechsel und CE-Sperre für einen persönlichen AOSP-Benutzer. Er prüft
-weder Neustartpersistenz noch den neuen AEGIS-Adapter.
+den neuen AEGIS-Adapter nicht. Ein separater [Persistenztest](persistent-qemu.md#tatsächlicher-neustarttest)
+bestätigt inzwischen den Erhalt passwortgeschützter Daten nach einem geordneten
+vollständigen Neustart.
 
 ## Im lokalen Gast festgestellt
 
@@ -62,7 +64,7 @@ Android ist ein userdebug-System mit Testschlüsseln; der direkte QEMU-Kernelsta
 beweist keinen vertrauenswürdigen Bootloader oder produktionsreifen Secure Boot.
 
 Android-Disk und TPM-Zustand müssen gemeinsam dauerhaft gespeichert werden.
-Der aktuelle Testlauf ist flüchtig. Die vorbereitete Persistenz benötigt noch
-den neuen Helper-Build und einen echten Neustarttest. Isolation bei gleichzeitig
+Der ursprüngliche Testlauf ist flüchtig; das neue gekoppelte Profil besteht
+den geordneten Neustarttest. Stromausfall und Migration bleiben offen. Isolation bei gleichzeitig
 entsperrten persönlichen Benutzern, Prozess-/Mount-Abbau beim AEGIS-Logout und
 die gesamte AEGIS-CLI bleiben separat nachzuweisen.

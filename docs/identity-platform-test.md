@@ -75,8 +75,10 @@ Benutzerstopp wurde nachgewiesen; daraus folgt keine allgemeine Sicherheitsgaran
 gegen Gast-root oder den Mac-Eigentümer.
 
 Android-Disk und Helper waren in diesem Lauf flüchtig. **Ein vollständiger
-Neustart mit erhaltenen Dateien und Schlüsseln wurde nicht geprüft.** Dafür
-fehlt der neue persistente Helper-Build. Ebenso offen sind der integrierte
+Neustart mit erhaltenen Dateien und Schlüsseln wurde in diesem Lauf nicht geprüft.**
+Ein späterer, separater [Persistenztest](persistent-qemu.md#tatsächlicher-neustarttest)
+mit dem neuen Helper bestätigt inzwischen einen geordneten Neustart samt
+Passwort- und Dateiprüfung. Weiterhin offen sind der integrierte
 AEGIS-Dienst, CLI, zwei persönliche Benutzer, Linux-Prozess-/Mount-Isolation,
 Adminautorisierung und Pakettransaktionen. Die Benutzerwechsel dieses Tests
 ersetzen insbesondere keinen vollständigen AEGIS-Logout mit Runtime-Abbau.

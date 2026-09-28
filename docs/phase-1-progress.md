@@ -7,7 +7,7 @@ Stand: 28. September 2026. Keine Abnahme des Gesamtziels.
 | Lokaler Android-Start | Bootabschluss und sichtbare Oberfläche bestätigt, siehe `qemu-first-boot.md`. |
 | ADB und Bildschirm | Authentifizierte Verbindung, Dateiübertragung und Bildschirmaufnahme geprüft; siehe `local-adb.md`. |
 | Bedienung | Virtuelle Tastatur schreibt den vollständigen Testtext; relative Maus öffnet mit linkem Klick eine Einstellungsseite. Native Mac-Fensterbedienung noch prüfen; Mac beim Versuch gesperrt. |
-| Dauerhafte Daten und Schlüssel | Gekoppelte Profile implementiert und mit echten Diskdateien getestet. Neuer Helper auf dem Server kompiliert und über GitHub veröffentlicht; lokale Downloadprüfung und echter Passwort-/Neustarttest fehlen. Siehe `persistent-qemu.md`. |
+| Dauerhafte Daten und Schlüssel | Neuer Helper auf dem Server gebaut und über GitHub geprüft bezogen. Vollständiger QEMU-Neustart mit persönlichem Passwort: falsches Passwort abgewiesen, CE gesperrt, richtiges Passwort liefert dieselben 4096 Bytes. Doppelstart, fehlende/fremde Disk und verlorener TPM-Zustand auf einer Kopie abgewiesen. Stromausfall- und Migrationsnachweis offen; siehe `persistent-qemu.md`. |
 | Gerätedienste | Bluetooth-Abstürze und NFC-Controller-Timeouts im bisherigen Image dokumentiert; zuletzt keine laufende Absturzschleife aller HALs belegt. Bluetooth-Schalter sowie fehlende NFC-/UWB-/Thread-Funktionen im nächsten Produktstand konfiguriert. Noch ungebaut; Framework-Start, verbliebene native HALs und weitere geerbte Geräte im neuen Gast prüfen. Siehe `qemu-hardware.md`. |
 | AEGIS-Identität/CLI | AOSP-Adapter, prozessgebundener Binder-Dienst und interaktive CLI einschließlich Ersteinrichtung und Benutzeranlage/-löschung mit frischer Adminprüfung im Quelltext. Produktpakete, Systemserver-Classpath, Bootressource und SELinux-Zuordnung ergänzt; alles noch unkompiliert und nicht im Gast. Server-Check baut auch Ressourcen/Policy, Kennungsregister, die betroffenen Framework-Dienste und 44 vorbereitete Android-Tests. Der neue lesende Dienstcheck weist die fehlende Integration im bisherigen Image korrekt zurück. Runtime-Koordination fehlt. Siehe `identity-cli.md`. |
 | AOSP-Passwortgrundlage | Ein persönlicher Testbenutzer: falsches Passwort abgewiesen, CE-Sperre nach Benutzerstopp bestätigt, richtiges Passwort stellt Dateizugriff wieder her. Nach Passwortwechsel wird das alte Passwort abgewiesen; das neue erhält dieselben Daten. Anschließend Plattformlöschung und Abwesenheit von acht Schlüssel-/Datenpfaden bestätigt. Tests über AOSP-Dialoge und Plattformbefehle, noch nicht über AEGIS; siehe `identity-platform-test.md`. |
@@ -161,8 +161,8 @@ neuen Kernel auf dem Builder ausgeführt; tatsächliche Images und Gasttests feh
 
 ## Reihenfolge
 
-1. Neuen Helper auf `aegis-build` bauen, über GitHub beziehen und gekoppelten
-   Neustart mit geschützten Daten prüfen.
+1. Erreichten geordneten Neustartnachweis um Absturz- und Migrationsfälle
+   ergänzen; gekoppelte Android-/Helper-Profile beibehalten.
 2. QEMU-Hardwarekonfiguration und Bedienung bereinigen; Kernel-Build vorbereiten.
 3. AOSP-vermittelte AEGIS-Anmeldung und Benutzerlebenszyklus integrieren.
 4. Runtime und Paketoperationen mit AOSP-Adminautorisierung integrieren.
@@ -233,7 +233,7 @@ Der persistente KeyMint-Helfer wurde anschließend aus `024354c` auf dem
 Server kompiliert und als `secure-env-20260928T134804Z-024354c1` über GitHub
 veröffentlicht. Das Exportskript hat das Archiv zurückgeladen und bytegenau
 verglichen. Lokale Prüfung und tatsächliche Wiederentschlüsselung nach
-einem Neustart stehen weiterhin aus.
+einem Neustart wurden anschließend bestätigt; siehe `persistent-qemu.md`.
 
 Der nächste Komponentenlauf `identity-20260928T135507Z-d8cfe22b-ZoTz0n`
 kompilierte die korrigierte Dateisystemprüfung. Er endete um 14:03:17 UTC nach
@@ -242,3 +242,20 @@ erhält den Wert `0x19800202` aus `ipc/mqueue.c` des exakten Kernel-Pins
 `50eb8d5d443b43f38d6e72f005f1b8601ac88a05` unter einem eigenen Konstantennamen.
 Die Prüfung des Message-Queue-Dateisystems bleibt erhalten. Der weitere
 `sizeof`-Fehler war eine Folge des ungültigen Tabelleninitialisierers.
+
+Der Lauf `identity-20260928T140941Z-5e045c4e-i5Skvo` kompilierte und linkte
+die nativen Init-/Setup-/Probe-Binaries. Auch CLI, Identitätskern und
+Speichergate erreichten die Java-Kompilierung. Der Gesamtlauf endete nach
+9:32 Minuten mit `FAILED`: `ProductConfigurationTest` verwendete
+`Os.getpwnam`, `getpwuid` und `StructPasswd`, die in der stabilen libcore-API
+des Testmoduls nicht enthalten sind. Die Vorwärtsprüfung verwendet nun
+`Process.getUidForName`/`getGidForName`; ein zusätzlicher nativer Test prüft
+kanonische Vorwärts-/Rückwärtsnamen über Bionic. Damit sind 44 Java- und
+51 native Gerätetests vorbereitet. Ihr vollständiger Build und ihre Ausführung
+bleiben offen; der Dienst-/Framework-Build ist noch nicht abgeschlossen.
+
+Unveränderte Produkt-/Identitätsdateien behalten nun ihre Zeitstempel, damit
+kleine Änderungen nicht allein wegen erneuter Quellkopien den gesamten
+Make-/Soong-Buildplan invalidieren. Die Linux-CI von `13485f1` besteht mit
+195 Tests ohne Auslassungen. Eine tatsächliche Zeitmessung folgt mit dem
+nächsten Komponentenlauf.
