@@ -12,6 +12,12 @@ Kontrollkanälen, PTYs und Gerätetests. Er ist nur ein explizites Buildziel;
 Produktaktivierung, Broker und SELinux-Übergänge fehlen noch. Er verändert
 weder die AOSP-Authentifizierung noch den weiterhin runtimefreien Dienstmodus.
 
+Die interne Bibliothek `libaegis-runtime-child` ergänzt die Beobachtung und das
+gezielte Beenden eines Kindprozesses über Pidfd samt zehn weiteren Gerätetests.
+Auch sie ist unkompiliert und nicht aktiviert. Bestätigtes Prozessende ersetzt
+weder Ressourcenabbau noch AOSP-Speichersperrung; die konkrete Runtime-Anbindung
+fehlt weiterhin.
+
 `AospIdentityBackend` ist für den späteren AEGIS-Systemdienst vorgesehen.
 Der Konstruktor verlangt den Android-Systemprozess-UID. Die Klasse besitzt
 keinen Binder-Endpunkt und keine eigene Benutzer-, Passwort- oder Schlüsseldatenbank.

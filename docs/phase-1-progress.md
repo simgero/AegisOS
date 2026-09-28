@@ -24,6 +24,14 @@ vorbereitete ARM64-Gerätetests. **Noch nicht kompiliert, nicht aktiviert und
 nicht im Gast getestet.** Broker, Mounts, SELinux-Anbindung, Paketverwaltung
 und vollständige AOSP-Logout-Koordination bleiben offen.
 
+Die Verwaltungsseite besitzt zusätzlich eine interne Bibliothek zur Bestätigung
+des tatsächlichen Kindprozessendes über eine stabile Kernel-Prozessreferenz.
+Timeouts behalten die Referenz; anderweitig verbrauchte Exitdaten bestätigen
+keinen Erfolg. Zehn zusätzliche Gerätetests sind vorbereitet. **Auch dieser
+Code ist unkompiliert und nicht im Gast geprüft.** Der Abgleich mit AOSP zeigt,
+dass `onUserStopping` allein keine bestätigte Barriere für den Runtime-Abbau
+bietet; die vollständige Stopp-/CE-Koordination bleibt zu implementieren.
+
 Auch die [gemeinsame Softwaregeneration](../runtime/generations.md) besitzt nun
 ein Buildrezept: technischer NSS-Benutzer, explizite Datei-Eigentümer, Entfernen
 der Set-ID-Bits, wiederholte ext4-Erzeugung und Lesen des tatsächlichen

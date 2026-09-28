@@ -95,6 +95,9 @@ public final class AegisIdentityService extends SystemService {
 
     @Override public void onUserStopping(TargetUser user) {
         // Do not acquire operations here: user stop is awaited on a Binder worker.
+        // This only revokes bindings. AOSP catches callback exceptions and then
+        // continues stopping; an async runtime stop here is not a CE-lock barrier.
+        // Managed runtime mode must supply the separate confirmed teardown path.
         revoke(user.getUserIdentifier());
     }
 

@@ -59,11 +59,22 @@ cc_binary {
     stl: "none",
 }
 
+// Internal primitive for the forthcoming broker/launcher. No public process
+// control endpoint; not linked into the namespace init or installed as a daemon.
+cc_library_static {
+    name: "libaegis-runtime-child",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/child.c"],
+    export_include_dirs: ["runtime"],
+    stl: "none",
+}
+
 // Compile on aegis-build; execute ONLY in the local Android QEMU guest.
 cc_test {
     name: "AegisRuntimeNativeTests",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/tests.cpp", "runtime/control.c", "runtime/sandbox.c"],
+    srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/control.c", "runtime/sandbox.c"],
+    static_libs: ["libaegis-runtime-child"],
     static_executable: true,
     data_bins: ["aegis-runtime-init"],
     test_suites: ["device-tests"],
