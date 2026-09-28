@@ -40,8 +40,10 @@ Nach dem Start dieses Vollbuilds wurden der
 [private AOSP-/Broker-Kanal und die native Kontextverwaltung](../runtime/broker-control.md)
 ergänzt: geprüfte Gegenstellen, Anfrage-/Identitätsbindung, gemeinsame Fristen,
 begrenzte Kontextzahl und erhaltener Besitz nach Start-/Abbaufehlern. Der neue
-Quellstand umfasst 52 Java- und 74 native Tests. **Diese zusätzlichen Änderungen
-sind noch nicht kompiliert, ausgeführt oder im Produkt aktiviert.** Der laufende
+Quellstand umfasst 52 Java- und 74 native Tests. Drei betroffene native Dateien
+sind separat als ARM64-Objekte, drei Java-Quellen gegen die tatsächlichen
+AOSP-Systemmodule erfolgreich kompiliert. **Vollständiger Komponentenbau,
+Linken/DEX, Ausführung und Produktaktivierung stehen weiterhin aus.** Der laufende
 Build wird dafür nicht abgebrochen oder während seiner Ausführung verändert.
 
 | Anforderung | Nachweis / verbleibende Arbeit |

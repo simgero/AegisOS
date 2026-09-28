@@ -132,6 +132,16 @@ cc_library_static {
     stl: "none",
 }
 
+// Immutable system_ext base validation and detached readonly mount; not yet
+// called by a production daemon or granted a production SELinux policy.
+cc_library_static {
+    name: "libaegis-runtime-base",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/base_image.cpp"],
+    static_libs: ["libbase", "libjsoncpp", "libcrypto"],
+    export_include_dirs: ["runtime"],
+}
+
 // Inert trusted probe for device tests; never a production setup helper.
 cc_binary {
     name: "aegis-runtime-namespace-probe",
@@ -145,9 +155,9 @@ cc_binary {
 cc_test {
     name: "AegisRuntimeNativeTests",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/memory_group_tests.cpp", "runtime/broker_protocol_tests.cpp", "runtime/ce_tests.cpp", "runtime/setup_tests.cpp", "runtime/setup_control.c", "runtime/control.c", "runtime/sandbox.c"],
+    srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/memory_group_tests.cpp", "runtime/broker_protocol_tests.cpp", "runtime/base_image_tests.cpp", "runtime/ce_tests.cpp", "runtime/setup_tests.cpp", "runtime/setup_control.c", "runtime/control.c", "runtime/sandbox.c"],
     header_libs: ["libcutils_headers"],
-    static_libs: ["libaegis-runtime-child", "libaegis-runtime-namespace", "libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-runtime-broker-owner"],
+    static_libs: ["libaegis-runtime-child", "libaegis-runtime-namespace", "libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-runtime-broker-owner", "libaegis-runtime-base"],
     static_executable: true,
     data_bins: ["aegis-runtime-init", "aegis-runtime-namespace-probe", "aegis-runtime-setup"],
     test_suites: ["device-tests"],

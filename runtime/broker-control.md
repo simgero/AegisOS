@@ -1,7 +1,16 @@
 # Privater AOSP-Kanal und Besitzer der Runtime-Kontexte
 
-Stand 28. September 2026: **Quelltext vorbereitet, noch nicht auf dem Builder
-kompiliert oder im Gast ausgeführt.** Der laufende Vollbuild `96f9ed6b` enthält
+Stand 28. September 2026: **Native ARM64-Objekte und Java-Klassen auf dem Builder
+kompiliert; noch nicht vollständig gelinkt, als Produkt gebaut oder im Gast ausgeführt.**
+`broker_protocol.c`, `broker_owner.c` und `context.c` wurden aus `b0b3de6e`
+mit den gepinnten Bionic-Headern und `-Wall -Wextra -Werror` übersetzt.
+Die drei Java-Klassen einschließlich des privaten Kanals wurden aus
+`ac699aab` gegen die tatsächlichen AOSP-Systemmodule und `framework.jar`
+übersetzt (zehn Klassendateien). Der erste Java-Versuch fand zwei in
+`OsConstants` nicht exportierte Socket-Flags; der korrigierte Code verwendet
+den bereits nichtblockierenden Deskriptor und Bionics festes `MSG_NOSIGNAL`.
+Diese Einzelprüfungen ersetzen weder Soong/DEX noch Geräteprüfungen.
+Der laufende Vollbuild `96f9ed6b` enthält
 diese späteren Änderungen nicht. Es gibt noch keinen installierten Broker-Daemon,
 keinen aktiven Socket und keine Registrierung im Identitätsdienst.
 `ro.aegis.runtime.mode=absent` bleibt bestehen.
