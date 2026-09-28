@@ -176,8 +176,11 @@ sauber sein und exakt dem zuvor über GitHub bezogenen Commit entsprechen.
 Der Check verwendet die gemeinsame Buildsperre, prüft den Manifest-Pin,
 registriert die verwalteten Produkt- und Paketquellen und baut `aegis`,
 `aegis-identity-service`, `AegisIdentityTests`, `framework-res` und
-`selinux_policy` sowie die generierten Vendor-/System-Ext-Kennungsregister mit
-maximal zwölf Jobs. Zuvor prüft AOSPs hashgeprüfter Originalparser die vollständige
+`selinux_policy`, die generierten Vendor-/System-Ext-Kennungsregister sowie
+`aegis-runtime-init` und `AegisRuntimeNativeTests` mit maximal zwölf Jobs.
+Der native Aufseher bleibt ein gesondertes Buildziel ohne Produktaktivierung;
+siehe [Prozessaufseher](../runtime/process-supervisor.md).
+Zuvor prüft AOSPs hashgeprüfter Originalparser die vollständige
 Produktliste der Kennungsdefinitionen auf Konflikte; siehe
 [`runtime/uid-mapping.md`](../runtime/uid-mapping.md). Damit werden auch Ressourcen und
 SELinux-Regeln des neuen Produktstands kompiliert; es wird weiterhin kein
@@ -192,7 +195,7 @@ Kopierabbrüche und die Aufbewahrung der vorigen Fassung. Sie prüfen weder Java
 noch AOSP-Berechtigungen.
 
 Erst erfolgreicher Komponentenbau und vorhandene JAR-/Startdateien samt
-Framework-Ressourcen und Test-APK setzen
+Framework-Ressourcen, Test-APK und nativen ARM64-Artefakten setzen
 `IDENTITY_COMPILED_NOT_INSTALLED`. Logs, Quellinventar und Modulprüfsummen liegen
 im zugehörigen Verzeichnis unter `/srv/aegis/runs`. Dieser Check ist noch nicht
 ausgeführt. Er startet keine VM, installiert keinen Dienst und veröffentlicht
@@ -206,6 +209,10 @@ Das Test-APK wird gemäß dem gepinnten Soong-Installationsschema aus
 `testcases/AegisIdentityTests/arm64/AegisIdentityTests.apk` aufgenommen. Nach dem
 Transport ist es ausschließlich in der lokalen QEMU-VM zu installieren und mit
 `org.aegisos.identity.tests/androidx.test.runner.AndroidJUnitRunner` auszuführen.
+Die nativen Tests und deren Aufseher-Binary werden zusammen aus
+`data/nativetest64/AegisRuntimeNativeTests/` gesammelt. Sie dürfen ebenfalls
+ausschließlich im lokalen Android-QEMU ausgeführt werden; weder Server-Build
+noch Host-CI führen den neuen Runtime-Code aus.
 
 Vor der tatsächlichen Nutzung fehlen:
 

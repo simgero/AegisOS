@@ -6,6 +6,12 @@ keine fertige `aegis`-CLI.** Die laufende QEMU-VM enthält diesen Code noch nich
 Sitzungsmodell, Kompilierprüfung und offene Integrationsschritte stehen in
 [`docs/identity-cli.md`](../../../docs/identity-cli.md).
 
+Unter `runtime/` liegt zusätzlich der noch unkompilierte native
+[Prozessaufseher](../../../runtime/process-supervisor.md) mit privaten
+Kontrollkanälen, PTYs und Gerätetests. Er ist nur ein explizites Buildziel;
+Produktaktivierung, Broker und SELinux-Übergänge fehlen noch. Er verändert
+weder die AOSP-Authentifizierung noch den weiterhin runtimefreien Dienstmodus.
+
 `AospIdentityBackend` ist für den späteren AEGIS-Systemdienst vorgesehen.
 Der Konstruktor verlangt den Android-Systemprozess-UID. Die Klasse besitzt
 keinen Binder-Endpunkt und keine eigene Benutzer-, Passwort- oder Schlüsseldatenbank.

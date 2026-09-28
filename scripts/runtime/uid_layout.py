@@ -11,6 +11,7 @@ import sys
 PROJECT = Path(__file__).resolve().parents[2]
 CONFIG = "device/aegis/qemu_arm64/runtime-ids.fs"
 JAVA = "packages/aegis/identity/src/org/aegisos/identity/RuntimeUidLayout.java"
+C_HEADER = "packages/aegis/identity/runtime/uid_layout.h"
 HEADER = "system/core/libcutils/include/private/android_filesystem_config.h"
 PARSER = "build/make/tools/fs_config/fs_config_generator.py"
 # android-16.0.0_r1 android_filesystem_config.h; checked against the real parser below.
@@ -71,7 +72,15 @@ def generated(layout):
             "    /** A fresh array prevents callers from changing the process-wide layout. */\n"
             "    static int[][] ranges() {\n"
             "        return new int[][] {\n" + triples + "\n        };\n    }\n}\n")
-    return {CONFIG: "\n".join(config), JAVA: java}
+    c_rows = ",\n".join(f"    {{{r['inside']}u, {r['app_id']}u, {r['count']}u}}" for r in rows)
+    native = ("// Generated from runtime/uid-map.json by scripts/runtime/uid_layout.py.\n"
+              "#ifndef AEGIS_RUNTIME_UID_LAYOUT_H\n#define AEGIS_RUNTIME_UID_LAYOUT_H\n"
+              "#include <stdint.h>\n"
+              "#define AEGIS_PER_USER_RANGE 100000u\n"
+              "struct aegis_uid_extent { uint32_t inside, app_id, count; };\n"
+              "static const struct aegis_uid_extent aegis_uid_extents[] = {\n"
+              + c_rows + "\n};\n#endif\n")
+    return {CONFIG: "\n".join(config), JAVA: java, C_HEADER: native}
 
 
 def check_generated(layout, project=PROJECT):

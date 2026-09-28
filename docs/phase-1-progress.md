@@ -15,6 +15,15 @@ Stand: 28. September 2026. Keine Abnahme des Gesamtziels.
 | Pakete und Isolation | Noch zu implementieren und mit zwei AOSP-Benutzern praktisch zu prüfen. |
 | Vollständiger Ablauf | Noch kein Nachweis für Login, Wechsel, Logout mit CE-Sperrung und Neustart mit zwei passwortgeschützten Benutzern. |
 
+Als nächster Runtime-Baustein liegt jetzt der
+[persönliche Prozessaufseher](../runtime/process-supervisor.md) mit privaten
+Kontrollkanälen, Shell-PTYs, UID/GID-Wechsel und Prozessende bei Brokerverlust
+im Quelltext vor. Die native Kennungsdatei wird mit Java und AOSP-Register
+gemeinsam erzeugt. Der Komponenten-Build umfasst zusätzlich den Aufseher und
+vorbereitete ARM64-Gerätetests. **Noch nicht kompiliert, nicht aktiviert und
+nicht im Gast getestet.** Broker, Mounts, SELinux-Anbindung, Paketverwaltung
+und vollständige AOSP-Logout-Koordination bleiben offen.
+
 ## Bestätigte Kernel-Lücke
 
 Der laufende Kernel 6.12.18 meldet in `/proc/config.gz`:

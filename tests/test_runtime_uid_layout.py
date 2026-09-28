@@ -108,7 +108,7 @@ class RuntimeUidLayoutTests(unittest.TestCase):
                 ids.validate(layout)
 
     def test_generated_source_drift_and_symlinks_fail_closed(self):
-        for name in (ids.CONFIG, ids.JAVA):
+        for name in (ids.CONFIG, ids.JAVA, ids.C_HEADER):
             path = self.project / name
             text = path.read_text()
             path.write_text(text + "changed\n")

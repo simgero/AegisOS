@@ -51,11 +51,13 @@ jobs=$(nproc)
 (( jobs <= 12 )) || jobs=12
 state COMPILING
 m -j"$jobs" aegis aegis-identity-service AegisIdentityTests framework-res selinux_policy \
-    passwd_vendor group_vendor passwd_system_ext group_system_ext
+    passwd_vendor group_vendor passwd_system_ext group_system_ext \
+    aegis-runtime-init AegisRuntimeNativeTests
 product=$(get_build_var PRODUCT_OUT)
 [[ $(get_build_var TARGET_ARCH) == arm64 ]]
 mkdir "$run/modules"
-# The pinned Soong android_test installs under testcases/<module>/<device arch>/.
+# The pinned android_test uses testcases/<module>/<arch>; cc_test and its
+# data_bins use data/nativetest64/<module>. These are collected, never executed.
 artifacts=(
     system/bin/aegis
     system/framework/aegis.jar
@@ -66,12 +68,18 @@ artifacts=(
     system_ext/etc/passwd
     system_ext/etc/group
     testcases/AegisIdentityTests/arm64/AegisIdentityTests.apk
+    system/bin/aegis-runtime-init
+    data/nativetest64/AegisRuntimeNativeTests/AegisRuntimeNativeTests
+    data/nativetest64/AegisRuntimeNativeTests/aegis-runtime-init
 )
 for relative in "${artifacts[@]}"; do
     test -s "$product/$relative"
     install -D -m 644 "$product/$relative" "$run/modules/$relative"
 done
 chmod 755 "$run/modules/system/bin/aegis"
+chmod 755 "$run/modules/system/bin/aegis-runtime-init" \
+    "$run/modules/data/nativetest64/AegisRuntimeNativeTests/AegisRuntimeNativeTests" \
+    "$run/modules/data/nativetest64/AegisRuntimeNativeTests/aegis-runtime-init"
 (cd "$run/modules" && sha256sum "${artifacts[@]}") > "$run/SHA256SUMS"
 state IDENTITY_COMPILED_NOT_INSTALLED
 echo "Identity modules compiled: $run"

@@ -39,3 +39,32 @@ android_test {
     certificate: "platform",
     test_suites: ["device-tests"],
 }
+
+// Explicit builder targets only. No PRODUCT_PACKAGES/init.rc entry: the AOSP
+// broker, private mount setup and SELinux transition are not integrated yet.
+cc_defaults {
+    name: "aegis-runtime-native-defaults",
+    enabled: false,
+    arch: { arm64: { enabled: true } },
+    compile_multilib: "64",
+    c_std: "gnu11",
+    cflags: ["-Wall", "-Wextra", "-Werror"],
+}
+
+cc_binary {
+    name: "aegis-runtime-init",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/init.c", "runtime/control.c", "runtime/sandbox.c"],
+    static_executable: true,
+    stl: "none",
+}
+
+// Compile on aegis-build; execute ONLY in the local Android QEMU guest.
+cc_test {
+    name: "AegisRuntimeNativeTests",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/tests.cpp", "runtime/control.c", "runtime/sandbox.c"],
+    static_executable: true,
+    data_bins: ["aegis-runtime-init"],
+    test_suites: ["device-tests"],
+}

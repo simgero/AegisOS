@@ -73,6 +73,12 @@ falsche Architektur, aktive Linux-Credentials, fehlerhaften dpkg-Zustand,
 unsichere Archivnamen, Größenlimits, Abbruch und Erhalt vorhandener Dateien.
 Diese Tests starten kein Betriebssystem und prüfen keine Namespace-Isolation.
 
+Der erste [persönliche Prozessaufseher](process-supervisor.md) liegt inzwischen
+als nativer Quelltext vor: eigene PTYs, UID/GID-Wechsel, Einsammeln beendeter
+Prozesse und Kontextende bei Verlust des Kontrollkanals. Er ist noch nicht
+kompiliert oder aktiviert. AOSP-Broker, Mounts und SELinux-Anbindung fehlen
+weiterhin; daraus folgt noch keine ausführbare Runtime.
+
 ## Vor dem ersten Runtime-Start noch erforderlich
 
 1. Die [vorbereitete UID/GID-Zuordnung](uid-mapping.md) auf dem Builder gegen
