@@ -48,6 +48,9 @@ bool bounded_nesting(const char* text, size_t length) {
             else if (c == '\\') escaped = true;
             else if (c == '"') string = false;
         } else if (c == '"') string = true;
+        // JsonCpp's object parser can skip comments after values even when
+        // allowComments=false. JSON has no slash token outside a string.
+        else if (c == '/') return false;
         else if (c == '{' || c == '[') { if (++depth > 8) return false; }
         else if (c == '}' || c == ']') { if (!depth) return false; --depth; }
     }

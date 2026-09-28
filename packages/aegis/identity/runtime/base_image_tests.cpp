@@ -22,6 +22,7 @@ std::string changed(std::string text, const std::string& before, const std::stri
     return text;
 }
 void reject(const std::string& text) {
+    SCOPED_TRACE(text); // Inert fixtures only; identify the rejected variant.
     aegis_base_receipt output, before;
     memset(&output, 0xa5, sizeof(output)); before = output;
     EXPECT_EQ(-1, aegis_base_parse_receipt(text.data(), text.size(), &output));
@@ -47,6 +48,11 @@ TEST(RuntimeBaseImage, DuplicateUnknownAndTrailingDataCannotAuthorizeMount) {
     reject(changed(text, "\"schema\":1", "\"schema\":1.0"));
     reject(changed(text, "\"schema\":1", "\"schema\":true"));
     reject(changed(text, "\"schema\":1", "\"schema\":1/* comment */"));
+    reject("/* before */" + text);
+    reject(text + "/* after */");
+    reject(changed(text, "\"schema\":1,", "\"schema\":1,// comment\n"));
+    reject(changed(text, "\"schema\":1", "\"schema\"/* name */:1"));
+    reject(changed(text, "\"schema\":1", "\"schema\":/* value */1"));
 }
 
 TEST(RuntimeBaseImage, WrongHashSizeOrBuildStatusIsRejected) {
@@ -77,5 +83,7 @@ TEST(RuntimeBaseImage, OversizedTruncatedNulAndDeeplyNestedReceiptsAreBounded) {
 TEST(RuntimeBaseImage, QuotedBracketsAndEscapesDoNotAffectNestingLimit) {
     auto text = changed(receipt(), "test fixture", "[[[[[[[[[[[[[[[[\\\"\\\\test]]]]]]]]]]]]]]]");
     aegis_base_receipt output = {};
+    EXPECT_EQ(0, aegis_base_parse_receipt(text.data(), text.size(), &output));
+    text = changed(receipt(), "test fixture", "https://example.invalid/path/* data */");
     EXPECT_EQ(0, aegis_base_parse_receipt(text.data(), text.size(), &output));
 }
