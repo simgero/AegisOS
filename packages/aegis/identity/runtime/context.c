@@ -3,6 +3,7 @@
 #endif
 #include "context.h"
 #include "control.h"
+#include "exec.h"
 #include "memory_group.h"
 #include "namespace.h"
 #include "setup.h"
@@ -22,6 +23,7 @@ struct aegis_context {
     int channel, ready;
     struct aegis_namespace *namespace;
     struct aegis_memory_group *memory;
+    struct aegis_exec *commands;
 };
 
 static int reject(int error) { errno = error; return -1; }
@@ -47,6 +49,7 @@ static int remaining(int64_t deadline) {
 
 static void seal(struct aegis_context *context) {
     context->ready = 0;
+    if (context->commands) (void)aegis_exec_close(&context->commands);
     if (context->channel >= 0) close(context->channel);
     context->channel = -1;
 }
@@ -137,6 +140,7 @@ int aegis_context_start_until(uint32_t user, uint32_t serial, int parent_fd, int
     if (remaining(deadline) <= 0) { errno = ETIMEDOUT; goto fail; }
     if (aegis_namespace_resume(context->namespace) < 0
             || await_ready(context, deadline) < 0) goto fail;
+    if (aegis_exec_create(context->channel, user, &context->commands) < 0) goto fail;
     context->ready = 1;
     if (aegis_context_channel(context) < 0) goto fail;
     return 0;
@@ -161,6 +165,28 @@ int aegis_context_channel(struct aegis_context *context) {
     }
     seal(context);
     return reject(EPIPE);
+}
+
+static int command_result(struct aegis_context *context, int result) {
+    int saved = errno;
+    if (result < 0 && aegis_exec_healthy(context->commands) < 0) {
+        seal(context);
+        if (context->namespace) (void)aegis_namespace_stop(context->namespace);
+    }
+    errno = saved;
+    return result;
+}
+
+int aegis_context_exec(struct aegis_context *context, size_t argc, const char *const *argv,
+                       uint64_t deadline_ns, uint64_t *command, int *master) {
+    if (aegis_context_channel(context) < 0) return -1;
+    return command_result(context,
+            aegis_exec_start(context->commands, argc, argv, deadline_ns, command, master));
+}
+
+int aegis_context_result(struct aegis_context *context, uint64_t command, int *wait_status) {
+    if (aegis_context_channel(context) < 0) return -1;
+    return command_result(context, aegis_exec_result(context->commands, command, wait_status));
 }
 
 int aegis_context_stop(struct aegis_context **output, int timeout_ms) {

@@ -8,6 +8,10 @@ die echten persönlichen Mounts und das private Startprotokoll. Der öffentliche
 AOSP-/CLI-Aufrufer, die Basis-Einbindung und SELinux-Integration fehlen weiterhin.
 Der Produktmodus bleibt `absent`.
 
+Eine nachfolgende [Terminalübergabe](terminal-handoff.md) ergänzt im Quelltext
+den persönlichen Befehlskanal und dessen Besitz beim Kontextabbau. Sie ist
+noch nicht kompiliert, im Gast ausgeführt oder an die AEGIS-CLI angebunden.
+
 Der ausschließlich vertrauenswürdige, einthreadige Host-Broker erhält aus seiner
 verifizierten Systembasis bereits geöffnete Basis-, Setup- und Init-Deskriptoren
 sowie den privaten Cgroup-Elternknoten. Er muss AOSP-Authentifizierung, Seriennummer,

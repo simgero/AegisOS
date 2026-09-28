@@ -1,5 +1,6 @@
 #ifndef AEGIS_RUNTIME_CONTEXT_H
 #define AEGIS_RUNTIME_CONTEXT_H
+#include <stddef.h>
 #include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
@@ -37,12 +38,21 @@ int aegis_context_start_until(uint32_t user, uint32_t serial, int parent_fd, int
                               int setup_fd, int init_fd, int create_home,
                               uint64_t deadline_ns, struct aegis_context **output);
 
-/* Borrowed private control fd, usable only by the owner after READY. Never
- * give it to a CLI client or close it. Caller owns protocol sequence numbers,
- * reply/PTY handling and fresh AOSP/session checks for every operation.
+/* Borrowed private control fd, usable only for owner liveness checks after READY.
+ * Never read/write/close it or give it to a CLI. Command I/O and sequence belong
+ * exclusively to exec/result below. Fresh AOSP/session checks remain required.
  * Refuses known-exited children; EOF/error still requires stop().
  */
 int aegis_context_channel(struct aegis_context *context);
+
+/* Personal command/PTY handoff with the caller's unchanged admission deadline.
+ * Same output/ownership contracts as exec.h. A poisoned exchange seals this
+ * context and requests namespace termination; stop() still must confirm cleanup.
+ * Result is nonblocking and consumes one finished waitpid status.
+ */
+int aegis_context_exec(struct aegis_context *context, size_t argc, const char *const *argv,
+                       uint64_t deadline_ns, uint64_t *command, int *master);
+int aegis_context_result(struct aegis_context *context, uint64_t command, int *wait_status);
 
 /* Seal, close the control channel, kill/wait-empty the memory group and reap
  * the child via its stable pidfd within ONE total 0..10000ms wait budget.
