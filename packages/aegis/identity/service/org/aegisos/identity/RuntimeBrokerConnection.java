@@ -26,6 +26,9 @@ import java.util.concurrent.locks.ReentrantLock;
 final class RuntimeBrokerConnection {
     private static final String SOCKET = "/dev/socket/aegis_runtime";
     private static final String PEER = "u:r:aegis_runtime_broker:s0";
+    // Pinned Bionic libc/include/sys/socket.h: MSG_NOSIGNAL=0x4000.
+    // OsConstants does not expose it. O_NONBLOCK is already set on the fd.
+    private static final int SEND_NO_SIGNAL = 0x4000;
     private final ReentrantLock operations = new ReentrantLock(true);
     private FileDescriptor descriptor;
     private LocalSocket socket;
@@ -123,7 +126,7 @@ final class RuntimeBrokerConnection {
             await(OsConstants.POLLOUT, deadline);
             try {
                 int sent = Os.sendto(descriptor, request, 0, request.length,
-                        OsConstants.MSG_DONTWAIT | OsConstants.MSG_NOSIGNAL, (SocketAddress) null);
+                        SEND_NO_SIGNAL, (SocketAddress) null);
                 if (sent != request.length) throw new IOException("Partial runtime packet");
                 break;
             } catch (ErrnoException error) {
