@@ -22,7 +22,7 @@ type aegis_runtime_scratch_file, file_type, coredomain_socket;
 type aegis_runtime_cgroup, fs_type;
 type aegis_runtime_socket, file_type, coredomain_socket;
 
-# A public attribute is not a general exception that vendor policy can reuse.
+# Private attributes are not general exceptions other domains can reuse.
 # All domains receive self:fork from AOSP; these guards close membership.
 neverallow { aegis_runtime_broker_domain -aegis_runtime_broker } self:process fork;
 neverallow { aegis_runtime_mount_domain -aegis_runtime_broker -aegis_runtime_setup } self:process fork;
@@ -72,6 +72,8 @@ allow aegis_runtime_broker aegis_runtime_home_file:dir create_dir_perms;
 allow aegis_runtime_broker aegis_runtime_home_file:filesystem { getattr remount };
 # CE policy/key status is read-only; no key creation/removal ioctl is granted.
 allowxperm aegis_runtime_broker { system_data_file aegis_runtime_home_file }:dir ioctl { 0x6616 0x661a };
+neverallowxperm aegis_runtime_broker { data_file_type -system_data_file
+    -aegis_runtime_home_file }:dir ioctl { FS_IOC_GET_ENCRYPTION_KEY_STATUS };
 allow aegis_runtime_broker self:capability {
     chown dac_override dac_read_search fowner kill setgid setuid sys_admin mknod
 };

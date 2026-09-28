@@ -12,7 +12,8 @@ Dateirechte und native Peer-/Protokollprüfung gelten zusätzlich. Es wird kein
 
 Die gepinnte Plattformpolicy verbietet neuen Domänen Mounts, Mknod und DAC-
 Ausnahmen. `register-runtime-policy.py` ergänzt deshalb ausdrücklich benannte
-Attribute für genau diese neuen vertrauenswürdigen Komponenten. Eine weitere,
+private Attribute für genau diese neuen vertrauenswürdigen Komponenten. Die
+eingefrorene öffentliche Android-Policy bleibt unverändert. Eine weitere,
 geschlossene Zuordnung erlaubt nur dem Aufseher und normalen GNU-Programmen
 die Ausführung aus dem unveränderlichen Basis-Dateisystem. Dieses trägt nach
 AOSP-Vorgabe `fs_type` und niemals zugleich `file_type`; die bestehenden
@@ -27,16 +28,22 @@ der Broker erhält ausdrücklich nur seinen eigenen Unterbaum. Ein zusätzliches
 Neverallow verbietet Runtime-Schreibzugriffe auf die übrige Cgroup-Hierarchie.
 SD-Card-/FUSE-Attribute und permissive Domänen werden nicht verwendet.
 
-Die AOSP-Revision und beide ursprünglichen Policydateien sind gehasht gepinnt.
+Die AOSP-Revision und vier ursprüngliche Policydateien sind gehasht gepinnt.
 Der Integrator prüft sämtliche Zieldateien vor Änderungen, erhält Sicherungen,
 verweigert fremde Bearbeitungen/Symlinks und prüft die tatsächlichen Bytes nach
 der Integration sowie nach dem Build erneut. Sieben inerte Hosttests prüfen
-diese Quellübernahme. Sie kompilieren keine Policy und belegen keine Isolation.
+diese Quellübernahme. Zwei weitere prüfen die Übernahme einer eigenen älteren
+Quellregistrierung und den Schutz fremder Änderungen beim Ergänzen verwalteter
+Dateien. Sie kompilieren keine Policy und belegen keine Isolation.
 
 Die Produktpolicy kennzeichnet unveränderliche Images, private CE-Verzeichnisse,
 Geräteansichten, temporäre Dateien und den eigenen Cgroup-Unterbaum getrennt.
 FScrypt-Ioctl-Freigaben betreffen ausschließlich Richtlinien-/Schlüsselstatus,
-nicht Erzeugung oder Entzug von Schlüsseln. AOSP bleibt dafür zuständig.
+nicht Erzeugung oder Entzug von Schlüsseln. Die ursprüngliche Vold-Neverallow
+für Schlüsseländerung und Status wird dafür getrennt: Nur beim lesenden
+Statusaufruf erhält der neue Broker eine Ausnahme, zusätzlich auf seine
+CE-Dateitypen begrenzt. Die Verbote für Schlüsseländerung und das Setzen einer
+Verschlüsselungsrichtlinie bleiben bestehen. AOSP bleibt dafür zuständig.
 Die einzige `no_new_privs`-/`nosuid`-Transition führt vom geprüften Aufseher
 zu einem gewöhnlichen Programm aus der unveränderlichen Softwarebasis.
 

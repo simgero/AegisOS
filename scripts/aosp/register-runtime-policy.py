@@ -19,7 +19,8 @@ source_io = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(source_io)
 checked_path, write_atomic, encoded = source_io.checked_path, source_io.write_atomic, source_io.encoded
 MARKER = 'out/aegis-runtime-policy/sources.json'
-FILES = {'public/attributes', 'private/domain.te'}
+LEGACY_FILES = {'public/attributes', 'private/domain.te'}
+FILES = LEGACY_FILES | {'private/attributes', 'private/vold.te'}
 STATUS = 'POLICY_SOURCES_PREPARED_NOT_COMPILED_OR_ENFORCED'
 ATTRIBUTES = b'''
 # AEGIS platform trust boundaries; membership is closed in product policy.
@@ -64,6 +65,28 @@ def patch_domain(data):
             text = source_io.replace_once(text, old, new)
     return text.encode()
 
+def patch_vold(data):
+    # Key creation/removal and policy-setting remain exclusively in AOSP.
+    # Split out just the read-only status query for the trusted CE owner.
+    old = '''# Only vold should ever add/remove file-based encryption keys.
+neverallowxperm {
+  domain
+  -vold
+} data_file_type:dir ioctl { FS_IOC_ADD_ENCRYPTION_KEY FS_IOC_REMOVE_ENCRYPTION_KEY FS_IOC_GET_ENCRYPTION_KEY_STATUS };'''
+    new = '''# Only vold should ever add/remove file-based encryption keys.
+neverallowxperm {
+  domain
+  -vold
+} data_file_type:dir ioctl { FS_IOC_ADD_ENCRYPTION_KEY FS_IOC_REMOVE_ENCRYPTION_KEY };
+
+# AEGIS's trusted owner can inspect key status, never create/remove a key.
+neverallowxperm {
+  domain
+  -vold
+  -aegis_runtime_broker_domain
+} data_file_type:dir ioctl { FS_IOC_GET_ENCRYPTION_KEY_STATUS };'''
+    return source_io.replace_once(data.decode(), old, new).encode()
+
 def prepare(project, aosp, originals=None, pins=None):
     project, aosp = Path(project).absolute(), Path(aosp).absolute()
     policy = aosp / 'system/sepolicy'
@@ -80,15 +103,18 @@ def prepare(project, aosp, originals=None, pins=None):
             or set(pins.get('files', {})) != FILES or set(originals) != FILES
             or any(digest(originals[name]) != pins['files'][name] for name in FILES)):
         raise ValueError('Platform policy does not match the pinned originals')
-    outputs = {'public/attributes': originals['public/attributes'] + ATTRIBUTES,
-               'private/domain.te': patch_domain(originals['private/domain.te'])}
+    outputs = {'public/attributes': originals['public/attributes'],
+               'private/attributes': originals['private/attributes'] + ATTRIBUTES,
+               'private/domain.te': patch_domain(originals['private/domain.te']),
+               'private/vold.te': patch_vold(originals['private/vold.te'])}
     record = {'schema': 1, 'status': STATUS, 'sepolicy_commit': pins['sepolicy_commit'],
               'inputs': pins['files'], 'outputs': {name: digest(data) for name, data in outputs.items()}}
     marker = checked_path(aosp, MARKER)
     previous = json.loads(marker.read_bytes()) if marker.exists() else None
     if previous is not None:
         validate_record(previous)
-        if previous['inputs'] != record['inputs'] or previous['sepolicy_commit'] != record['sepolicy_commit']:
+        if (any(record['inputs'].get(name) != value for name, value in previous['inputs'].items())
+                or previous['sepolicy_commit'] != record['sepolicy_commit']):
             raise ValueError('Policy ownership record belongs to another baseline')
     changes, before = {}, {}
     for name, data in outputs.items():
@@ -96,7 +122,7 @@ def prepare(project, aosp, originals=None, pins=None):
         current = target.read_bytes()
         if current == data:
             continue
-        if current != originals[name] and not (previous and digest(current) == previous['outputs'][name]):
+        if current != originals[name] and not (previous and digest(current) == previous['outputs'].get(name)):
             raise ValueError('Unmanaged platform policy edits; preserving them')
         changes[name], before[name] = data, current
     if changes:
@@ -118,7 +144,8 @@ def validate_record(record):
     import re
     if (record.get('schema') != 1 or record.get('status') != STATUS
             or not re.fullmatch('[0-9a-f]{40}', record.get('sepolicy_commit', ''))
-            or set(record.get('inputs', {})) != FILES or set(record.get('outputs', {})) != FILES
+            or set(record.get('inputs', {})) not in (FILES, LEGACY_FILES)
+            or set(record.get('outputs', {})) != set(record.get('inputs', {}))
             or any(not re.fullmatch('[0-9a-f]{64}', value)
                    for value in [*record['inputs'].values(), *record['outputs'].values()])):
         raise ValueError('Invalid platform policy source receipt')

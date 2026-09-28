@@ -38,6 +38,12 @@ allow { domain -appdomain -rs } cgroup:file w_file_perms;
 allow { domain -appdomain -rs } cgroup_v2:dir w_dir_perms;
 allow { domain -appdomain -rs } cgroup_v2:file w_file_perms;
 '''
+VOLD = b'''# Only vold should ever add/remove file-based encryption keys.
+neverallowxperm {
+  domain
+  -vold
+} data_file_type:dir ioctl { FS_IOC_ADD_ENCRYPTION_KEY FS_IOC_REMOVE_ENCRYPTION_KEY FS_IOC_GET_ENCRYPTION_KEY_STATUS };
+'''
 
 class PolicySources(unittest.TestCase):
     def setUp(self):
@@ -47,7 +53,9 @@ class PolicySources(unittest.TestCase):
         self.aosp = self.root / 'aosp'
         self.project = self.root / 'project'
         self.project.mkdir()
-        self.originals = {'public/attributes': b'attribute domain;\n', 'private/domain.te': DOMAIN}
+        self.originals = {'public/attributes': b'attribute domain;\n',
+                          'private/attributes': b'attribute private_example;\n',
+                          'private/domain.te': DOMAIN, 'private/vold.te': VOLD}
         self.pins = {'schema': 1, 'aosp_tag': 'android-16.0.0_r1', 'sepolicy_commit': 'a' * 40,
                      'files': {name: hashlib.sha256(data).hexdigest() for name, data in self.originals.items()}}
         for name, data in self.originals.items():
@@ -104,6 +112,36 @@ class PolicySources(unittest.TestCase):
     def test_missing_or_duplicate_guard_is_not_silently_patched(self):
         with self.assertRaises(ValueError): policy.patch_domain(DOMAIN.replace(b'-apexd', b'-changed'))
         with self.assertRaises(ValueError): policy.patch_domain(DOMAIN + DOMAIN)
+        with self.assertRaises(ValueError): policy.patch_vold(VOLD.replace(b'-vold', b'-changed'))
+        with self.assertRaises(ValueError): policy.patch_vold(VOLD + VOLD)
+
+    def legacy(self):
+        outputs = {'public/attributes': self.originals['public/attributes'] + policy.ATTRIBUTES,
+                   'private/domain.te': policy.patch_domain(DOMAIN)}
+        for name, data in outputs.items():
+            (self.aosp / 'system/sepolicy' / name).write_bytes(data)
+        marker = self.aosp / policy.MARKER
+        marker.parent.mkdir(parents=True)
+        marker.write_bytes(policy.encoded({'schema': 1, 'status': policy.STATUS,
+            'sepolicy_commit': self.pins['sepolicy_commit'],
+            'inputs': {name: self.pins['files'][name] for name in outputs},
+            'outputs': {name: policy.digest(data) for name, data in outputs.items()}}))
+
+    def test_owned_legacy_public_attributes_move_private_without_changing_public_api(self):
+        self.legacy()
+        receipt = self.prepare()
+        self.assertEqual(self.originals['public/attributes'],
+                         (self.aosp / 'system/sepolicy/public/attributes').read_bytes())
+        self.assertIn(policy.ATTRIBUTES,
+                      (self.aosp / 'system/sepolicy/private/attributes').read_bytes())
+        policy.verify(self.aosp, receipt)
+
+    def test_legacy_receipt_cannot_authorize_edits_to_newly_managed_files(self):
+        self.legacy()
+        (self.aosp / 'system/sepolicy/private/vold.te').write_bytes(VOLD + b'# unrelated\n')
+        before = self.snapshot()
+        with self.assertRaises(ValueError): self.prepare()
+        self.assertEqual(before, self.snapshot())
 
     def test_unknown_receipt_cannot_authorize_an_overwrite(self):
         self.prepare()
