@@ -1,10 +1,11 @@
 # Persistente lokale QEMU-Profile
 
 Stand 28. September 2026: Implementierung vorbereitet. Die Hosttests verwenden
-echte qcow2- und ext4-Dateien. Der neue Helper muss noch auf `aegis-build`
-kompiliert, über GitHub transportiert und hier in QEMU getestet werden.
+echte qcow2- und ext4-Dateien. Der neue Helper wurde auf `aegis-build`
+kompiliert und als [secure-env-20260928T134804Z-024354c1](https://github.com/simgero/AegisOS/releases/tag/secure-env-20260928T134804Z-024354c1)
+mit zurückgelesenem Archiv veröffentlicht. Downloadprüfung und QEMU-Test stehen aus.
 Ein erfolgreicher Android-Neustart mit erhaltenen Schlüsseln ist **noch nicht
-nachgewiesen**. Der bislang veröffentlichte Helper wird für persistente Profile
+nachgewiesen**. Der zuvor verwendete Helper wird für persistente Profile
 absichtlich zurückgewiesen.
 
 ## Zusammengehöriger Zustand

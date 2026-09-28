@@ -52,7 +52,7 @@ static _Noreturn void failed(uint32_t user, uint32_t serial) {
 }
 static void expired(int signal_number) { (void)signal_number; _exit(125); }
 
-static int directory(int fd, long type, uid_t uid, mode_t mode,
+static int directory(int fd, uint64_t type, uid_t uid, mode_t mode,
                       unsigned long required, unsigned long forbidden) {
     struct stat st;
     struct statfs fs;
@@ -266,7 +266,7 @@ done:;
 static int readback(void) {
     const unsigned long restricted = ST_NOSUID | ST_NODEV | ST_NOEXEC;
     const struct {
-        const char *name; long type; unsigned long required, forbidden;
+        const char *name; uint64_t type; unsigned long required, forbidden;
     } views[] = {
         {"/", EXT4_SUPER_MAGIC, ST_RDONLY | ST_NOSUID | ST_NODEV, ST_NOEXEC},
         {"/home/user", EXT4_SUPER_MAGIC, ST_NOSUID | ST_NODEV, ST_RDONLY | ST_NOEXEC},

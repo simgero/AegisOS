@@ -7,7 +7,7 @@ Stand: 28. September 2026. Keine Abnahme des Gesamtziels.
 | Lokaler Android-Start | Bootabschluss und sichtbare Oberfläche bestätigt, siehe `qemu-first-boot.md`. |
 | ADB und Bildschirm | Authentifizierte Verbindung, Dateiübertragung und Bildschirmaufnahme geprüft; siehe `local-adb.md`. |
 | Bedienung | Virtuelle Tastatur schreibt den vollständigen Testtext; relative Maus öffnet mit linkem Klick eine Einstellungsseite. Native Mac-Fensterbedienung noch prüfen; Mac beim Versuch gesperrt. |
-| Dauerhafte Daten und Schlüssel | Gekoppelte Profile implementiert und mit echten Diskdateien getestet. Neuer Helper-Build und echter Passwort-/Neustarttest fehlen; siehe `persistent-qemu.md`. |
+| Dauerhafte Daten und Schlüssel | Gekoppelte Profile implementiert und mit echten Diskdateien getestet. Neuer Helper auf dem Server kompiliert und über GitHub veröffentlicht; lokale Downloadprüfung und echter Passwort-/Neustarttest fehlen. Siehe `persistent-qemu.md`. |
 | Gerätedienste | Bluetooth-Abstürze und NFC-Controller-Timeouts im bisherigen Image dokumentiert; zuletzt keine laufende Absturzschleife aller HALs belegt. Bluetooth-Schalter sowie fehlende NFC-/UWB-/Thread-Funktionen im nächsten Produktstand konfiguriert. Noch ungebaut; Framework-Start, verbliebene native HALs und weitere geerbte Geräte im neuen Gast prüfen. Siehe `qemu-hardware.md`. |
 | AEGIS-Identität/CLI | AOSP-Adapter, prozessgebundener Binder-Dienst und interaktive CLI einschließlich Ersteinrichtung und Benutzeranlage/-löschung mit frischer Adminprüfung im Quelltext. Produktpakete, Systemserver-Classpath, Bootressource und SELinux-Zuordnung ergänzt; alles noch unkompiliert und nicht im Gast. Server-Check baut auch Ressourcen/Policy, Kennungsregister, die betroffenen Framework-Dienste und 44 vorbereitete Android-Tests. Der neue lesende Dienstcheck weist die fehlende Integration im bisherigen Image korrekt zurück. Runtime-Koordination fehlt. Siehe `identity-cli.md`. |
 | AOSP-Passwortgrundlage | Ein persönlicher Testbenutzer: falsches Passwort abgewiesen, CE-Sperre nach Benutzerstopp bestätigt, richtiges Passwort stellt Dateizugriff wieder her. Nach Passwortwechsel wird das alte Passwort abgewiesen; das neue erhält dieselben Daten. Anschließend Plattformlöschung und Abwesenheit von acht Schlüssel-/Datenpfaden bestätigt. Tests über AOSP-Dialoge und Plattformbefehle, noch nicht über AEGIS; siehe `identity-platform-test.md`. |
@@ -218,3 +218,19 @@ Kompilierabschluss und Gasttests bleiben offen. Die Linux-CI des separaten
 Exportwerkzeugs `f234349` besteht mit 190 Tests ohne Auslassungen; davon prüfen
 16 neue Tests ausschließlich Transport und Veröffentlichungsablauf mit
 inerten Dateien und einer GitHub-Fixture.
+
+Der Lauf `identity-20260928T133821Z-024354c1-4sBywQ` passierte am
+28. September beide Partitionsprüfungen und begann die native Kompilierung.
+Er endete um 13:46:09 UTC nach 7:31 Minuten mit Status `FAILED`: Bionics
+ARM64-`statfs.f_type` ist vorzeichenlos, der erwartete Dateisystemtyp in
+`sandbox.c` war dagegen `long`. Die Erwartungen in Sandbox und Mount-Helfer
+werden deshalb einheitlich als `uint64_t` geführt; die Prüfwerte und
+Compilerwarnungen bleiben unverändert. Mehrere native Quellen und Tests
+kompilierten bereits, aber kein vollständiger Modulabschluss ist bestätigt.
+Die Linux-CI von `024354c` besteht mit 190 Tests ohne Auslassungen.
+
+Der persistente KeyMint-Helfer wurde anschließend aus `024354c` auf dem
+Server kompiliert und als `secure-env-20260928T134804Z-024354c1` über GitHub
+veröffentlicht. Das Exportskript hat das Archiv zurückgeladen und bytegenau
+verglichen. Lokale Prüfung und tatsächliche Wiederentschlüsselung nach
+einem Neustart stehen weiterhin aus.

@@ -66,7 +66,7 @@ static int check_map(const char *path, uint32_t user_id) {
     return *cursor == '\0' ? 0 : invalid();
 }
 
-static int check_fs(const char *path, long type, unsigned long flags) {
+static int check_fs(const char *path, uint64_t type, unsigned long flags) {
     struct statfs fs;
     struct statvfs vfs;
     if (statfs(path, &fs) < 0 || statvfs(path, &vfs) < 0) return -1;
