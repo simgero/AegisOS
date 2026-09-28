@@ -101,3 +101,14 @@ Bootabschluss ist noch kein Test aller virtuellen Hardwaredienste, von ADB,
 Netzwerk oder einer produktionsgeeigneten Vertrauenskette. Die programmatische
 Eingabe über `input keyevent` lieferte im Diagnoseversuch einen Binder-Fehler;
 die interaktive Bedienung über das QEMU-Fenster ist noch separat zu prüfen.
+
+### Bildschirmkorrektur
+
+Der erste sichtbare Lauf meldete nach dem Start nur 640 × 480 Pixel bei
+320 dpi; dadurch war der Sperrbildschirm zu groß und abgeschnitten.
+Der Launcher setzt jetzt `virtio-gpu-pci,xres=720,yres=1280` sowie
+`cocoa,zoom-to-fit=on`. Im Lauf `portrait-1` meldet Android tatsächlich
+720 × 1280 Pixel bei 320 dpi und `sys.boot_completed=1`.
+Die Fensteranpassung ist in der
+[QEMU-Dokumentation](https://www.qemu.org/docs/master/system/qemu-manpage.html)
+beschrieben.
