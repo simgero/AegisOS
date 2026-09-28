@@ -9,16 +9,15 @@ wurde auf `aegis-build` vollständig kompiliert und gelinkt. Lauf
 Er enthält Identitätsdienst, den noch nicht aktivierten Runtime-Broker,
 52 Java- und 86 native Tests. Runtime-Modus bleibt `absent`.
 
-**Aktuelle Gastnachweise:** Mit dem neuen Kernel wurden alle 86 nativen
-Tests des Komponentencommits `336e9275` im lokalen Mac-QEMU ausgeführt:
-83 bestehen, drei Tests zur gemeinsamen Basis-Mount-Sicht scheitern mit `EINVAL`.
-Namensräume, getrennte Kernel-IDs, private Geräte, Kennungsregister und alle
-fünf CE-Negativtests bestehen. Das Fixture und der geplante Produktpfad liefern
-einen detached Mount, den der gepinnte Kernel nicht über `open_tree` klont;
-die Mount-Besitzanbindung bleibt zu korrigieren. Android war dabei durch Audio
-blockiert; dies ist kein vollständiger Boot-, Anmelde- oder Runtime-Nachweis.
-Zuvor bestanden 48 ausgewählte Java-Tests im alten Gast; die vollständigen 52
-Java-Tests im neuen Produkt stehen aus. Siehe [Komponententests](component-tests.md).
+**Aktuelle Gastnachweise:** Image `25fde995` ist im lokalen Mac-QEMU vollständig
+gebootet, mit authentifiziertem ADB, SELinux Enforcing, FBE und tatsächlichen
+verity-Tabellen für `system`/`system_ext`. Der sichtbare Startbildschirm ist bei
+640 × 480 und 160 dpi lesbar; ein QMP-Mausklick öffnet Gallery. Der AEGIS-Dienst
+läuft; installierte CLI-Statusbefehle funktionieren. Alle 52 Java-Tests und 83
+von 86 nativen Tests bestehen. Drei gemeinsame Basis-Mount-Tests scheitern mit
+`EINVAL`: Die aktuelle detached Quelle lässt sich im gepinnten Kernel nicht
+über `open_tree` klonen. Persönliche Anmeldung und Linux-Sitzungen sind noch
+nicht nachgewiesen. Siehe [Komponententests](component-tests.md).
 
 **Kernel:** Der Vollbuild `aosp-20260928T155300Z-96f9ed6b-c975dba9`
 scheiterte um 16:57 UTC an `check_vintf_all`: FCM 202504 verlangt
@@ -62,7 +61,9 @@ vollständige ursprüngliche Audiopolicy einschließlich des benötigten
 Software-Moduls bei weiterhin abgeschaltetem HCI-Controller. Vier XML-
 Regressionen bestehen. Ersatzbuild `25fde995`, Lauf
 `aosp-20260928T193617Z-25fde995-aecfe99a`, wurde um 19:36 UTC gestartet;
-GitHub-Verifikation und Gastboot stehen aus.
+GitHub-Verifikation (`UPLOAD_VERIFIED`) und Gastboot sind inzwischen bestanden.
+Dieser aktuelle Stand bleibt für die Nutzeransicht geöffnet; störende weitere
+Tests müssen ein gesondertes Profil und einen anderen ADB-Port verwenden.
 Siehe [QEMU-Hardware](qemu-hardware.md).
 
 Der private AOSP-/Broker-Kanal, Ressourcenbesitz, begrenzte Cgroup-Wiederherstellung

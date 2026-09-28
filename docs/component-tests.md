@@ -3,6 +3,22 @@
 Stand: 28. September 2026. Einzelne Module geprüft, noch keine Abnahme der
 installierten AEGIS-Dienste oder einer GNU/Linux-Sitzung.
 
+## Vollständiger Komponentenlauf im gebooteten Image `25fde995`
+
+QEMU-Lauf `out/full-build-25fde995/boot-1` meldet `sys.boot_completed=1` und
+SELinux Enforcing. Derselbe Komponentenstand `336e9275` wurde erneut gegen das
+vollständig gestartete Produkt geprüft: **52 von 52 Java-Tests und 83 von 86
+nativen Tests bestanden**. Die drei unten beschriebenen Basis-Mount-Fehler
+bleiben unverändert. Die vier bisher ausgenommenen Produktkonfigurationstests
+bestätigen nun die installierten Kennungsregister, die genau einmal konfigurierte
+AEGIS-Dienstklasse, mindestens vier Benutzerplätze und die ausgeschlossenen
+Funkfunktionen. Nachweise: `out/full-build-25fde995/component-tests/`.
+
+Zusätzlich erreichen die installierten CLI-Befehle `aegis user list` und
+`aegis status` den echten Dienst: keine persönlichen Benutzer, Terminal nicht
+angemeldet, Ersteinrichtung verfügbar, Runtime nicht installiert. Das ersetzt
+keine interaktive Passwortprüfung; persönliche Benutzer wurden noch nicht angelegt.
+
 ## Aktueller vollständiger nativer Lauf mit dem neuen Kernel
 
 Im Image `be1ad9ad` wurden alle **86 nativen Tests des Komponentencommits

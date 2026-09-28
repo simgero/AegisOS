@@ -1,9 +1,23 @@
 # Hardware des lokalen QEMU-Produkts
 
-Stand 28. September 2026: Die Vollbuilds `336e9275` und `be1ad9ad` wurden
-gebaut und über GitHub verifiziert. Beide lokalen Erststarts zeigten
-Audio-Konfigurationsfehler; die zweite Korrektur ist vorbereitet, noch nicht
-gebaut oder gebootet.
+Stand 28. September 2026: Vollbuild `25fde995`, Lauf
+`aosp-20260928T193617Z-25fde995-aecfe99a`, ist über GitHub verifiziert und
+im lokalen Mac-QEMU vollständig gebootet. `sys.boot_completed=1`, SELinux
+Enforcing, authentifiziertes ADB und AEGIS-Binder-Dienst sind bestätigt.
+Die drei Audio-Module `default`, `r_submix` und `bluetooth` sind registriert.
+Alle 52 Java-Tests einschließlich der vier Produktkonfigurationstests bestehen.
+Der Crash-Puffer war bei der anschließenden Kontrolle leer; dies ist eine
+Momentaufnahme, kein Langzeitnachweis. Von 86 nativen Tests bestehen 83;
+drei Basis-Mount-Tests bleiben offen (siehe Komponentenbericht).
+
+Die sichtbare Instanz bleibt für den Nutzer geöffnet, Profil
+`out/qemu-profiles/foundation-25fde995`, ADB `127.0.0.1:15755`.
+Android und der tatsächliche QEMU-Framebuffer wurden geprüft. Der neue
+Cocoa-Lauf liefert physisch 640 × 480 trotz der angeforderten 720 × 1280.
+Eine reine Größenüberschreibung erzeugte eine kleine Darstellung mit alten
+Randpixeln. Deshalb bleibt die physische Größe erhalten und die Android-Dichte
+ist auf 160 dpi gesetzt. Der vollständige Startbildschirm ist lesbar; ein
+QMP-Mausklick öffnete Gallery. Physische Mac-Eingabe wurde nicht gesondert geprüft.
 
 ## Gefundene Startfehler und Korrektur
 
@@ -18,7 +32,7 @@ Kernel, authentifiziertes ADB, FBE und SELinux Enforcing sind erreichbar.
 Beide Testprofile wurden mit bestätigtem Android- und Helper-Powerdown beendet.
 Logs: `out/full-build-336e9275/boot-1` und `out/full-build-be1ad9ad/boot-1`.
 
-Die neue Korrektur übernimmt wieder Cuttlefishs vollständige Original-Audiopolicy
+Die in `25fde995` gebootete Korrektur übernimmt wieder Cuttlefishs vollständige Original-Audiopolicy
 und kopiert `bluetooth_with_le_audio_policy_configuration_7_0.xml` ausdrücklich
 über `LOCAL_AUDIO_PRODUCT_COPY_FILES`. Der Bluetooth-Audio-Endpunkt im Audio-APEX
 ist vom nicht vorhandenen HCI-Controller getrennt. Dessen HAL bleibt abgeschaltet;
