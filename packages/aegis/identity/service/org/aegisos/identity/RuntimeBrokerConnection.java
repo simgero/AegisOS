@@ -1,13 +1,13 @@
 package org.aegisos.identity;
 
 import android.net.LocalSocket;
+import android.net.Credentials;
 import android.os.Process;
 import android.os.SELinux;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
 import android.system.StructPollfd;
-import android.system.StructUcred;
 import android.system.UnixSocketAddress;
 
 import java.io.FileDescriptor;
@@ -104,14 +104,16 @@ final class RuntimeBrokerConnection {
                 throw new IOException("Runtime connect failed");
             }
         }
-        StructUcred peer = Os.getsockoptUcred(descriptor, OsConstants.SOL_SOCKET, OsConstants.SO_PEERCRED);
-        if (peer.pid <= 0 || peer.uid != Process.ROOT_UID || peer.gid != Process.ROOT_UID
+        // This wrapper BORROWS the already-connected fd. poison() owns its close.
+        // The framework reads SO_PEERCRED without requiring unstable libcore APIs.
+        socket = new LocalSocket(descriptor);
+        Credentials peer = socket.getPeerCredentials();
+        if (peer == null || peer.getPid() <= 0 || peer.getUid() != Process.ROOT_UID
+                || peer.getGid() != Process.ROOT_UID
                 || !PEER.equals(SELinux.getPeerContext(descriptor))) {
             throw new SecurityException("Unexpected native runtime peer");
         }
-        // This wrapper BORROWS the already-connected fd. poison() owns its close.
         // LocalSocket's recvmsg wrapper lets us reject and close ancillary FDs.
-        socket = new LocalSocket(descriptor);
         RuntimeBrokerProtocol.Reply reply = exchange(RuntimeBrokerProtocol.HELLO, 0, 0, deadline);
         success(reply); // A new owner connection must first confirm predecessor cleanup.
     }
