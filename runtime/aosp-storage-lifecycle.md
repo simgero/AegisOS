@@ -3,8 +3,8 @@
 Stand 29. September 2026: Die fünf AOSP-Hooks sind im gebooteten Image vorhanden;
 ihre Gerätetests bestehen im Komponentenstand `ac87df1f`. Der aktuelle Quelltext
 verbindet im Modus `managed-v1` den echten nativen Besitzer, `RuntimeAdmission`
-und den Identitätsdienst. Diese neue Verbindung ist noch nicht kompiliert oder
-praktisch geprüft. Das Produkt bleibt `ro.aegis.runtime.mode=absent`, bis auch
+und den Identitätsdienst. Diese Verbindung ist in `2a766ab5` kompiliert; ihre
+Aktivierung und praktische integrierte Prüfung stehen noch aus. Das Produkt bleibt `ro.aegis.runtime.mode=absent`, bis auch
 SELinux, Init und die erforderlichen Systemtests integriert sind. Es sind keine
 öffentlichen PTY- oder Paketoperationen freigegeben.
 

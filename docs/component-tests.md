@@ -1,5 +1,37 @@
 # Komponentenläufe in lokalem QEMU
 
+## Komponentenstand 2a766ab5 auf bfe90925
+
+Am 29. September 2026 wurden die auf `aegis-build` kompilierten Komponenten
+`2a766ab5d6a6ef5ed4c01fd87fa4e97bb2e2961d` im getrennten lokalen
+`runtime-bfe90925`-QEMU geprüft: **111/111 native, 61/62 Java-Tests**.
+Die Sitzung verwendet SELinux Enforcing, authentifiziertes ADB und unveränderte
+Images von `bfe90925`. Es wurde kein Test abgewählt. Die einzige Java-Abweichung
+ist `config_sms_capable=true` aus der geerbten Vendor-RRO dieses Images.
+
+Der unmittelbar vorhergehende Komponentenstand `ac87df1f` hatte 106/110 native
+Tests bestanden. Vier positive Terminaltests öffneten Androids Tmpfs-`/dev/ptmx`
+statt des vom echten Supervisor verwendeten Devpts-Knotens. Die Fixture wurde
+korrigiert und ein zusätzlicher Test für die fortgesetzte Legacy-Ablehnung
+hinzugefügt; der produktive Terminalprüfer wurde nicht gelockert.
+
+Drei neue Java-Tests bestätigen, dass widerrufene interne Sitzungsbindungen auch
+nach einer anderen Anmeldung ungültig bleiben, mehrere gültige Anmeldungen
+bis zum Widerruf bestehen können und fremde Gate-/geschlossene Scope-Bindungen
+abgewiesen werden. Dabei kommt ein simulierter Quiescer zum Einsatz.
+
+- Build: `identity-20260928T223826Z-2a766ab5-sutWPl`.
+- [Geprüfter Release](https://github.com/simgero/AegisOS/releases/tag/components-20260928T224549Z-2a766ab5-2a766ab5-u7YQ7B).
+- Lokale Rohbelege: `out/components-2a766ab5/component-tests/`.
+- Native-Log SHA-256: `7e01d37b9e025b3d579233329e932063adac73f12ef5fa19db837cbc698f5ee2`.
+- Java-Log SHA-256: `cb46cc4cb258be79e7fff0e43b150af201439bdf3b819632163688f72f9809a6`.
+
+Die tatsächlich angebundenen verwalteten Dienstpfade sind kompiliert, aber im
+Produkt weiterhin deaktiviert. Diese root-/Komponententests beweisen weder
+produktive SELinux-Domänen noch persönliche Debian-Ausführung, Paketverwaltung
+oder vollständigen CE-Ressourcenabbau. Ältere Ergebnisse unten gelten nur für
+ihre jeweils genannten Stände.
+
 Stand: 28. September 2026. Einzelne Module und der separate CLI-Ablauf sind
 geprüft; eine persönliche GNU/Linux-Sitzung ist noch nicht integriert.
 

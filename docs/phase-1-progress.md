@@ -56,23 +56,35 @@ verifiziert übertragen. Im separaten lokalen Profil `runtime-bfe90925`
 bestehen **106/110 native und 58/59 Java-Tests**. Vier positive Terminaltests
 scheitern, weil deren Fixture `posix_openpt()` und damit Androids Tmpfs-
 `/dev/ptmx` verwendet. Der produktive Aufseher öffnet bereits `/dev/pts/ptmx`.
-Die Fixture ist im nächsten Stand daran angeglichen; ein zusätzlicher Test
+Die Fixture ist in `2a766ab5` daran angeglichen; ein zusätzlicher Test
 verlangt weiterhin die Ablehnung des Legacy-Geräts. Die produktive Prüfung
 wurde nicht gelockert. Der Java-Fehler bleibt die bekannte SMS-RRO.
 Rohbelege: `out/components-ac87df1f/component-tests/`.
 
-Die nächste Quellfassung verbindet die vorhandenen AOSP-Storage-Barrieren mit
+Commit `2a766ab5d6a6ef5ed4c01fd87fa4e97bb2e2961d` verbindet die AOSP-Storage-Barrieren mit
 dem nativen Besitzer und ergänzt `linux start|status|stop` im tatsächlichen
 AEGIS-Binder-/CLI-Pfad. Eine interne, pro Anmeldung gebundene Epoch-Zuordnung
 verhindert, dass eine spätere Anmeldung einen widerrufenen Terminalkanal
 reaktiviert. AOSP-Aufrufe erfolgen außerhalb der Runtime-Sperre; Logout verlangt
 zunächst bestätigten nativen Abbau und danach bestätigten AOSP-Stopp/CE-Sperre.
-Der Build enthält nun **111 native und 62 Java-Tests**. Diese Änderungen sind
-noch nicht kompiliert oder im Gast geprüft. Das Produkt bleibt `absent`;
+Der Komponentenlauf `identity-20260928T223826Z-2a766ab5-sutWPl` ist kompiliert
+und über [GitHub verifiziert](https://github.com/simgero/AegisOS/releases/tag/components-20260928T224549Z-2a766ab5-2a766ab5-u7YQ7B).
+Im separaten lokalen QEMU bestehen **111/111 native und 61/62 Java-Tests**;
+alle neuen Sitzungsbindungs- und korrigierten Terminaltests bestehen. Einziger
+Fehler ist weiterhin die SMS-RRO des gebooteten alten Images. Ein vollständiger
+Build dieses Commits wird deshalb für den tatsächlichen Overlay-Bootnachweis
+benötigt. Belege: `out/components-2a766ab5/component-tests/`. Die Komponenten-
+prüfungen führen den verwalteten AOSP-Dienst nicht aus. Das Produkt bleibt `absent`;
 SELinux/Init-Aktivierung, öffentliche PTY-/Shell-Verbindung, Paketaktionen und
 Löschungsintegration vor AOSP-ID-Freigabe fehlen weiterhin. `managed-v1` ist
 kein zur manuellen Aktivierung freigegebener Schalter.
-Details: [Terminalübergabe](../runtime/terminal-handoff.md).
+Vollbuild `aosp-20260928T224751Z-2a766ab5-ed1329db` ist jetzt für diesen
+Komponentencommit gestartet (InvocationID `f906755e34b848a8a377b4e1451f84c5`).
+Er soll die SMS-Product-RRO und die kompilierte Dienstfassung im vollständigen
+Image installieren; Modus bleibt `absent`. Download/AVB-Vorbereitung folgen
+erst nach `UPLOAD_VERIFIED`. Der separate Komponenten-Testgast ist geordnet
+beendet (Android `Power down`, `AEGIS_HELPER_SHUTDOWN_CLEAN`); das sichtbare
+`foundation-bfe90925` bleibt geöffnet. Details: [Terminalübergabe](../runtime/terminal-handoff.md).
 
 ## Erfüllung der fünf Ziele
 
@@ -80,7 +92,7 @@ Details: [Terminalübergabe](../runtime/terminal-handoff.md).
 | --- | --- |
 | Stabiles, dauerhaftes QEMU | Gepaarte Android-/KeyMint-Persistenz und geordnete Neustarts nachgewiesen. Neuer Gast ohne Telefonie-ANR im ersten Beobachtungsintervall; SMS-Konfiguration noch fehlerhaft. Lesbares Bild und QMP-Mausklick bestätigt; physische Mac-Eingabe, längere Stabilität, Stromausfall und Image-Migration offen. |
 | AEGIS-Benutzer und Anmeldung | Zwei-Benutzer-CLI-Test mit AOSP-Passwörtern, Wechsel, Passwortwechsel und Logout bestanden. Unterbrochene Ersteinrichtung, vollständige Admin-Negativtests, CLI-Löschung und ID-Wiederverwendung offen. Die bisherige Nachbereinigung nach Freigabe einer gelöschten AOSP-ID muss vor Löschungsfreigabe in den reservierten Plattform-Lebenszyklus verlegt werden. |
-| Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft; 106/110 native Tests im jüngsten geprüften Stand. AOSP-Speicherkoordination und CLI-Lebenszyklus jetzt angebunden, aber unkompiliert. Produktive SELinux-/Init-Aktivierung, CLI-PTY-Sitzung und wirkliche Linux-Ausführung fehlen; Modus bleibt ausdrücklich `absent`. |
+| Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft; 111/111 native Tests im jüngsten geprüften Komponentenstand. AOSP-Speicherkoordination und CLI-Lebenszyklus kompiliert; der verwaltete Dienst ist noch nicht aktiviert oder integriert geprüft. Produktive SELinux-/Init-Aktivierung, CLI-PTY-Sitzung und wirkliche Linux-Ausführung fehlen; Modus bleibt ausdrücklich `absent`. |
 | Pakete und Isolation | Pakettransaktionen und konsistente Aktivierung fehlen. Sowohl gemeinsame als auch private Pakete erfordern frische AOSP-Adminautorisierung. Persönliche Linux-Datei-/Prozessisolation muss mit zwei angemeldeten Benutzern geprüft werden. |
 | Gesamtablauf | Identitäts-/CE-Teil mit zwei Passwortbenutzern und Neustart nachgewiesen. Linux-Programme, Paketaktionen, Abbau aller Runtime-Ressourcen vor CE-Sperre und der vollständige integrierte Ablauf bleiben offen. |
 

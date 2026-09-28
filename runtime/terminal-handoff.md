@@ -6,7 +6,8 @@ kompiliert und gelinkt. Im lokalen Android-QEMU bestehen 106/110 native und
 `posix_openpt()` öffnet den Tmpfs-Knoten `/dev/ptmx`, den die produktive
 Devpts-Prüfung ausdrücklich abweist. Der nächste Quellstand verwendet wie der
 echte Supervisor `/dev/pts/ptmx` und testet die Legacy-Ablehnung zusätzlich.
-Diese Korrektur ist noch nicht gebaut oder ausgeführt. Der Java-Fehler betrifft
+Die Korrektur ist in `2a766ab5` gebaut: 111/111 native und 61/62 Java-Tests
+bestehen im lokalen QEMU, einschließlich der Legacy-Ablehnung. Der Java-Fehler betrifft
 die geerbte SMS-RRO; siehe [aktuellen Stand](../docs/phase-1-progress.md).
 Ein Linux-Befehl über die AEGIS-CLI ist weiterhin nicht verfügbar.
 
@@ -93,4 +94,5 @@ ungültig, auch wenn ein anderer Terminalkanal denselben Benutzer neu anmeldet.
 Ein persönliches PTY wird noch nicht an die CLI herausgegeben.
 SELinux-/Init-Aktivierung, echte Debian-Sitzungen, PTY-Widerruf und Paketabläufe
 bleiben offen. `runtime.mode=absent` bleibt im Produkt gesetzt. Die nächste
-Suite umfasst 111 native und 62 Java-Tests; noch kein Ausführungsnachweis.
+Suite umfasst 111 native und 62 Java-Tests; ihre Ergebnisse stehen oben. Die
+verwaltete Dienstanbindung selbst ist kompiliert, aber noch nicht im Gast aktiviert.

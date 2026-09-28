@@ -1,11 +1,11 @@
 # Serialisierung von Runtime-Zugang und CE-Operationen
 
-Stand: **Quelltext vorbereitet, nicht kompiliert oder in QEMU ausgeführt.**
-`RuntimeAdmission` ist eine interne Bibliothek des Identitätsdienstes. Der
-vorbereitete `RuntimeStorageController` verbindet sie mit der
-[AOSP-Speicherschnittstelle](aosp-storage-lifecycle.md). Der aktuelle Dienst
-registriert ihn ausdrücklich noch nicht und verlangt weiterhin den Modus
-`absent`. Es existiert noch kein ausführbarer Linux-Verwaltungsweg.
+Stand 29. September 2026: Die bisherigen Serialisierungs-/Storage-Tests sind
+im lokalen Android-QEMU bestanden. Commit `2a766ab5` verbindet die Bibliothek
+mit dem echten AOSP-Anmeldepfad, dem nativen Broker und dem Storage-Controller.
+Kompilierung und alle neuen
+Sitzungsbindungs-Gerätetests sind im Komponentenstand bestanden. Das Produkt bleibt
+`absent`; `managed-v1` darf erst mit Init, SELinux und Systemtests aktiviert werden.
 
 ## Reihenfolge und Eigentümer
 
@@ -14,10 +14,10 @@ Widerrufszähler. Benutzer-ID plus AOSP-Seriennummer bestimmen den aktuellen
 Eigentümer. Die Daten liegen nur im Arbeitsspeicher; sie sind keine persönliche
 Benutzerdatenbank, Passwortprüfung oder Schlüsselautorität.
 
-Ein künftiger Aufrufer muss unmittelbar vor der echten AOSP-Authentifizierung
-einen einmaligen Versuch anlegen. Nach erfolgreicher Authentifizierung und
+Der Identitätsdienst legt unmittelbar vor der echten AOSP-Authentifizierung
+einen einmaligen Versuch an. Nach erfolgreicher Authentifizierung und
 Prüfung des tatsächlichen Benutzers, seiner Seriennummer und des CE-Status
-darf er diesen Versuch einlösen. Abgelehnte Versuche werden verworfen.
+löst er diesen Versuch ein. Abgelehnte Versuche werden verworfen.
 Ein Versuch einer anderen Gate-Instanz, ein verbrauchter Versuch oder ein
 inzwischen widerrufener Stand darf keinen Zugang erteilen.
 
@@ -64,26 +64,36 @@ blockierenden fremden Aufruf nicht selbst sicher abbrechen; sie prüft die Frist
 vor und nach dessen Rückkehr. Ein überlaufender Widerrufszähler bleibt
 dauerhaft gesperrt und kehrt nicht zu einem alten gültigen Stand zurück.
 
+## Bindung an eine konkrete Anmeldung
+
+Nach einer bestätigten Anmeldung erhält nur die interne Sitzungsverwaltung
+eine `Binding` mit Gate, Benutzer, Seriennummer und zugelassener Epoch. Sie wird
+weder serialisiert noch an die CLI weitergereicht. Bestehende Zugriffe verwenden
+diese konkrete Bindung; eine Benutzer-ID allein reicht nicht. Nach Widerruf
+bleibt die alte Bindung ungültig, selbst wenn derselbe Benutzer in einem anderen
+Terminal frisch angemeldet wird. Mehrere gültige Anmeldungen können denselben
+bestehenden Kontext nutzen, solange kein Widerruf stattfindet.
+
 ## Noch erforderliche Integration und Nachweise
 
-Der native `Quiescer` fehlt. Er muss tatsächliches Prozessende und das Schließen
-aller Referenzen nachweisen, bei Fehlern verbleibende Ressourcen zur
-Wiederherstellung behalten und darf weder AOSP/LockSettings zurückrufen noch
-auf Arbeit warten, die dieselbe Sperre benötigt. Auch der Aufrufer darf unter
-einer Zugangssperre keine AOSP-Authentifizierung durchführen.
+Der aktuelle `Quiescer` widerruft Terminalbindungen ohne Identitätsmonitor und
+verlangt vom nativen Besitzer bestätigten Stopp aller Seriennummern. Im aktuellen
+Pfad gibt es keine öffentlichen PTY- oder Paketoperationen; deren spätere
+Einführung muss den Ressourcenbesitz und Widerruf ergänzen. AOSP/LockSettings
+wird niemals unter dieser Sperre aufgerufen. Die CLI bietet zunächst ausschließlich
+Start, Status und Stopp für die eigene, im Dienst authentifizierte Auswahl.
 
-`revoke()` ist eine nicht blockierende Entwertung für Lebenszyklus-Callbacks,
-**kein** Prozessabbau und keine abgeschlossene Benutzerabmeldung. Der künftige
-Controller muss Ressourcenabbau bei externem AOSP-Stopp auslösen und Starts
-für einen noch stoppenden Benutzer unabhängig von dieser Bibliothek verhindern.
-Sitzungsbindung, Adminprüfung, native Besitzerregistrierung, systemweiter
-Broker-Neustart und die direkten vold-Bereinigungspfade bleiben zu integrieren.
+`revoke()` ist eine nicht blockierende Entwertung für Lifecycle-Callbacks,
+**kein** Prozessabbau und keine abgeschlossene Abmeldung. Bei einer destruktiven
+AOSP-Speicheroperation bestätigt erst die separate Storage-Lease den nativen
+Abbau vor dem Schlüsselaufruf. Broker-Neustart/Reparatur, öffentliche Terminals,
+Pakettransaktionen, SELinux-/Init-Aktivierung, direkte vold-Löschpfade sowie
+wirkliche externe AOSP-Stopp-/Login-Rennen bleiben zu prüfen beziehungsweise
+zu integrieren.
 
-Zwölf vorbereitete Android-Tests verwenden einen simulierten Ressourcenbesitzer:
-einmalige Versuche, Widerruf vor/während Speicheroperationen, fehlgeschlagene
-Operationen, konkurrierende Zugriffe, Timeout, Threadunterbrechung, Serienwechsel,
-Threadbindung, doppelte Freigabe und verbotene Rekursion. Insgesamt sind nun
-44 Java- und 50 native Gerätetests vorbereitet. **Diese neuen Tests wurden
-nicht kompiliert oder ausgeführt.** Sie werden auf `aegis-build` gebaut und
-ausschließlich im lokalen Android-QEMU ausgeführt; eine Simulation bestätigt
-keinen tatsächlichen CE-Schlüsselentzug oder Prozessabbau.
+Drei zusätzliche Tests betreffen die dauerhafte Ungültigkeit einer alten
+Sitzungsbindung, mehrere gültige Anmeldungen und fremde Gate-/geschlossene
+Scope-Bindungen. Die neue Suite enthält 62 Java- und 111 native Gerätetests.
+Der simulierte Quiescer in diesen Tests ersetzt keinen tatsächlichen
+CE-Schlüsselentzug oder Prozessabbau. Sie werden auf `aegis-build` gebaut und
+nur im lokalen Android-QEMU ausgeführt.
