@@ -20,5 +20,28 @@ The rounded square has a 90-degree period, so 126 frames at 30 fps replace
 four repeated periods (504 frames). A full mathematical turn still takes
 16.8 seconds. Packaging checks the archive size before replacing an artifact.
 
-Runtime acceptance of the new build is pending. Older images do not contain
-the composer correction, even when launched with the BGRA property.
+## Verified runtime result
+
+Full build `5a01e7cfbc8db1d8b1625c38574c2205df94c708`, release
+`aosp-20260929T150357Z-5a01e7cf-0abe7af0`, was uploaded, downloaded and
+checksum/AVB-checked. Separate profile `graphics-5a01e7cf` boots with
+`sys.boot_completed=1` and SELinux Enforcing.
+
+The real QMP boot frame has 3,263 exact brand-green pixels `(196,241,90)`,
+zero swapped-green pixels `(90,241,196)`, and 26,009 exact shield-white pixels
+`(243,244,246)`. The internal screenshot independently contains exact green.
+The 720x1280 screen was visually reviewed for smooth contours.
+
+A normal lock-screen comparison has mean absolute channel error 0.457/255;
+98.53% of compared pixels agree within two levels in every channel. Exact
+pixel identity is not claimed: screenshot and display composition have small
+rounding differences. The swapped-channel hypothesis has 5.185/255 mean
+error, over eleven times higher. Screenshots transferred through the existing
+development console were checked against guest SHA-256; no ADB key was added.
+
+Evidence is in `out/full-build-5a01e7cf/visible-1/display-check.json`, alongside
+guest PNGs and QMP PPM/PNG captures. Boot playback was stopped after testing;
+the normal visible VM remains running. The previous profiles are preserved.
+Shutdown uses the new archive but has not been separately visually accepted.
+Older images do not contain the composer correction, even with the BGRA
+property. Future full builds run the hash-pinned graphics registration step.

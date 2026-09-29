@@ -9,8 +9,8 @@ closed geometrically. The notebook base is part of its morphing silhouette.
 The central green square and the wordmark remain visible throughout.
 
 The one-time opening includes the gentle acceleration into the loop. At 30 fps,
-158 opening frames are followed by 504 looping frames (16.8 seconds per full
-rotation). The loop continues from the intro's phase and repeats without an
+158 opening frames are followed by 126 looping frames (4.2 seconds per square
+period, unchanged 16.8 seconds per full rotation). The loop continues from the intro's phase and repeats without an
 extra pause. Both parts use Android's interruptible `p` mode: finishing system
 boot takes precedence over completing the opening or another loop.
 
@@ -55,14 +55,16 @@ needs neither a browser nor Pillow.
 
 ## Verification status
 
-The local animation package is built and validated: 662 PNG frames, 720 × 720,
+The local animation package is built and validated: 284 PNG frames, 720 × 720,
 30 fps, exact black backgrounds, ZIP integrity and stored compression. The
-shutdown archive contains the 504 loop frames. Product installer regression
+shutdown archive contains the 126 loop frames. Product installer regression
 checks cover copying nested product assets.
 
-A newly built system image and actual QEMU boot verification remain required.
-The existing visible VM predates these assets and is being used by another
-active development chat. It has not been modified or rebooted for this change.
+Full image `5a01e7cf` was built, uploaded and verified, then booted in a separate
+local QEMU profile with SELinux Enforcing. Its QMP screenshot contains the exact
+brand green `(196, 241, 90)` and shield white `(243, 244, 246)`. The earlier
+red/blue swap is corrected in the guest compositor. See [color evidence](qemu-colors.md).
+Frames are rendered at 3x resolution and downsampled for smoother contours.
 
 For device verification, compare the installed archive hashes, check for a
 higher-priority bootanimation APEX, record construction/loop/boot completion,
