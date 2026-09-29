@@ -1,3 +1,50 @@
+## Interne Paket-Passwortprüfung: 28811521
+
+Der auf `aegis-build` kompilierte und über GitHub verifizierte
+[Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T175837Z-28811521-28811521-NvDO6t)
+aus Commit `28811521b6c0b034a0e8cfa7b0cc8e8b715c0ff5` besteht am
+29. September 2026 um **17:59:39 UTC alle 105/105 Java-Gerätetests** in
+10,040 Sekunden, ohne Abwahl oder übersprungene Tests. Die 14 neuen Tests
+betreffen Adminstatus, Typ, ID/Seriennummer, Paketbeschränkungen vor und nach
+Verifikation, wiederholte Passwortpflicht, Ablehnung, Sperrfrist, fehlenden
+Provider und Entfernung von HAT und Passwort-Handle aus der Antwort. Der
+öffentliche Klassen-Eingang lehnt den App-Prozess ab und wischt sein Credential.
+Alle bisherigen 91 Java-Tests wurden ebenfalls erneut ausgeführt.
+
+**App-lokale Policy-Fixtures mit inerten Passwortantworten:** Es werden keine
+echten Adminpasswörter geprüft. Der neue LockSettings-Pfad ist im übertragenen
+`services.jar` kompiliert, läuft aber nicht im Systemserver des Vollimages
+`927cf51d`. Der fehlende zusätzliche CE-Unlock bei echter Bestätigung ist noch
+nicht im Vollsystem nachgewiesen. Aktion/Plan, Antragsteller, privates Ziel,
+Lebenszyklus und Paketarbeiter sind weiterhin nicht verbunden.
+[Details und Grenzen](../runtime/package-transactions.md).
+
+Profil `d68845b3-62a9-4181-a7cd-c0f0a8e7d316`, unveränderte Boot-ID
+`984f23bd-607e-4a6d-8c08-7ae91bccd4f5`. Vorher und nachher nur Benutzer und
+Schlüsselverzeichnisse 0, CE 0 entsperrt, keine persönlichen Kontexte.
+Enforcing und laufender Broker sind nachher erneut bestätigt. Die unveränderten
+nativen Quellen behalten den 138er-Nachweis von `8e1c2228`, ohne erneuten Lauf.
+Der sichtbare Launcher bleibt unverändert.
+
+Der erste Lauf `3f79bdbe` bestand 104/105 Tests: Das Gast-Fixture setzte nur
+`FLAG_GUEST`, behielt aber `FULL_SECONDARY` als Benutzertyp. Android16 ermittelt
+`isGuest()` aus `userType`. Der korrigierte Test setzt `USER_TYPE_FULL_GUEST`
+und prüft diese Voraussetzung. Nur Testcode änderte sich; der Fehlbeleg unter
+`out/components-3f79bdbe/component-tests/` bleibt erhalten.
+
+Bestätigter Lauf `identity-20260929T175632Z-28811521-Ounrcj`, InvocationID
+`c0400492ff414ae3b1164a9999bb4d2f`. Belege unter
+`out/components-28811521/component-tests/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `java.log` | `05e32e57ceee75fa9651be132c50792287736c5c777728c1ff010a1d3ad34225` |
+| identische `before.json` / `after.json` | `0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3` |
+| installiertes APK | `b79a68d754352ab9cdab9468ab94f772b5e00b87db9fb1fcc5af0529b5e32800` |
+
+Zusätzlich bestehen lokal 24 Quellintegrations-, 10 Identitätsregistrierungs-
+und 9 Archivtests; sieben Linux-Export-Fixtures sind auf dem Mac ausgelassen.
+
 ## Paket-Store: 8e1c2228
 
 Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260929T162856Z-8e1c2228-8e1c2228-OrbqxJ)

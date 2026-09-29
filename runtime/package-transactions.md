@@ -43,6 +43,14 @@ beweisen nicht die CE-Nebenwirkungen des neuen LockSettings-Pfads. Ein gebautes
 und gestartetes neues Systemimage samt echter AOSP-Bestätigung bleibt dafür
 erforderlich. Bis dahin wird der sichtbare, bekannte Startstand nicht ersetzt.
 
+Stand `28811521` ist auf dem Server kompiliert und als Test-APK im unveränderten
+lokalen `927cf51d`-Gast geprüft: **105/105 Java-Tests** bestehen am
+29. September 2026 um 17:59:39 UTC, einschließlich aller 14 neuen Adapter-Fixtures.
+Benutzer-/CE-Bestand ist vorher und nachher identisch; Enforcing und Broker
+bleiben aktiv. Die zuvor beschriebene Grenze zur echten Systemserver-Prüfung
+gilt weiterhin. Der erste Durchlauf enthielt ein falsch typisiertes Gast-Fixture;
+dessen Korrektur änderte nur Testcode. [Vollständiger Nachweis](../docs/component-tests.md).
+
 ## Implementierungsschritt: Auswahl und unveränderliche Abbilder
 
 `package_store.{h,cpp}` implementiert einen internen Speicherbaustein. Er ist

@@ -8,12 +8,20 @@ Für die Paketverwaltung ist jetzt ein interner Speicherbaustein für vollständ
 Generationen implementiert. Komponentenstand `8e1c2228` besteht **138/138
 native Gasttests**, darunter zehn neue Prüfungen von atomarer Auswahl,
 Eigentümer-/Basisbindung, Parallelität und Fehlerfällen. Die echte APT-Ausführung,
-frische AOSP-Adminfreigabe und produktive Broker-/CE-Anbindung fehlen weiterhin.
+produktive AOSP-Adminfreigabe und Broker-/CE-Anbindung fehlen weiterhin.
 [Nachweis und noch offene Integration](../runtime/package-transactions.md).
+
+Für die Passwortbestätigung ist ein zusätzlicher interner AOSP-Adapter
+implementiert und auf dem Server kompiliert. Komponentenstand `28811521`
+besteht **105/105 Java-Tests**, darunter 14 neue isolierte Policy-Fixtures.
+Der Adapter vermeidet im Quellpfad die anschließende Benutzer-/CE-Entsperrung;
+das ist noch nicht mit echten Adminpasswörtern im neuen Vollsystem geprüft.
+Die Bindung an Paketaktion, Antragsteller und privates Ziel sowie der eigentliche
+Paketarbeiter fehlen weiterhin. [Belege und Grenzen](component-tests.md).
 
 Neuester lokal gestarteter Vollbuild: **`927cf51d`**, mit Enforcing, FBE,
 authentifiziertem ADB und tatsächlichem dm-verity. Im separaten Gast bestehen
-**91/91 Java-Tests** aus Komponentenstand `be9d0d54`, einschließlich drei
+nun **105/105 Java-Tests** aus Komponentenstand `28811521`, einschließlich der drei
 Prüfungen des echten AOSP-Allocators in isolierten App-Fixtures. Gelöschte
 Kennungen bleiben darin während desselben Systemserver-Laufs reserviert,
 auch wenn der Nummernraum erschöpft ist. Die echten Benutzer- und
@@ -69,8 +77,8 @@ Komponentensuiten. [Komponentenbelege](component-tests.md).
 Der sichtbare Launcher bleibt beim geprüften Stand `2a766ab5`. Weitere
 Kandidaten werden auf Nutzerwunsch ohne sichtbares QEMU-Fenster geprüft.
 Bisherige gekoppelte Android-/KeyMint-Profile und alle gebundenen Basisdateien
-bleiben erhalten. Pakettransaktionen und Entfernung verwalteter Benutzer sind
-noch nicht umgesetzt.
+bleiben erhalten. Vollständige Pakettransaktionen sowie Freischaltung und
+Berechtigungsabnahme der verwalteten CLI-Benutzerlöschung stehen noch aus.
 
 ## Bestätigte Nachweise
 
