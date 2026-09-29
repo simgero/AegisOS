@@ -1,3 +1,59 @@
+## Eigener Veröffentlichungsprozess: d4fdb778
+
+Der auf `aegis-build` kompilierte und über GitHub verifizierte
+[Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T184758Z-d4fdb778-d4fdb778-gyOJTW)
+aus Commit `d4fdb7786769e6443eb90ad73b7dda5708313d20` besteht am
+29. September 2026 um **18:49:41 UTC alle 146/146 nativen Gerätetests**
+aus 21 Suiten in 11.375 ms, ohne Abwahl oder übersprungene Tests. Die acht
+neuen Tests für den eigenen Veröffentlichungsprozess benötigen 332 ms.
+
+Diese Tests starten tatsächlich den neuen ARM64-Helfer über pidfd und eigene
+Cgroups. Sie prüfen Veröffentlichung und Rücklesen, geschlossene eigene FDs,
+weiter gültige eigene Referenzen nach Schließen der Caller-FDs, private
+Zuordnung/Seriennummer, konkurrierenden Start ohne Beeinflussung des ersten
+Auftrags, Hashablehnung, unzulässige Eingaben und prozessgebundenen Besitz.
+
+Der Abbruchtest verwendet eine sparse 512-MiB-Quelldatei mit bekanntem Hash.
+Nach einer tatsächlich beobachteten Änderung im Store wird ausschließlich
+die eigene Test-Cgroup eingefroren. Eine vorhandene, noch unvollständige
+Kopierdatei wird unabhängig geprüft. Ein unmittelbarer Wait liefert Timeout,
+behält den Besitzer und verändert das Ergebnis nicht. Die anschließende
+Zwangsbeendigung bestätigt Reaping, leere/entfernte Cgroup und geschlossene
+eigene Referenzen; die Veröffentlichung bleibt ausdrücklich unbestätigt.
+Das separate Rücklesen bestätigt die vorherige vollständige Auswahl.
+Eigene erfolgreiche Fixtures werden anschließend entfernt. Dieser Test ist
+kein physischer Stromausfall und keine Aussage über Rollback nach bereits
+erfolgter Auswahl.
+
+**Inerte Dateien und eigene Test-Cgroups, keine APT-/CE-Lifecycle-Prüfung:**
+Der Helfer führt ausschließlich vertrauenswürdigen Kopier-/Speichercode aus.
+Keine Paketskripte, echten Adminpasswörter oder privaten CE-Stores werden
+verwendet. Der installierte Broker enthält den neuen Prozessbesitzer noch
+nicht; AOSP-Quieszenz, produktive SELinux-Anbindung, APT und CLI sind offen.
+[Implementierung und nächste Integration](../runtime/package-transactions.md).
+
+Der lokale Gast verwendet weiterhin Vollimage `927cf51d`, Profil
+`d68845b3-62a9-4181-a7cd-c0f0a8e7d316`, Boot-ID
+`984f23bd-607e-4a6d-8c08-7ae91bccd4f5`. Vorher-/Nachherbestand von Benutzern,
+Schlüsselverzeichnissen, CE und Runtime-Kontexten ist identisch; Enforcing,
+der laufende Broker und dieselbe Boot-ID sind nachher bestätigt. Der
+119er-Java-Nachweis von `09b10fd7` bleibt für unveränderte Java-Quellen erhalten;
+die Java-Suite wurde hier nicht wiederholt. Der sichtbare Launcher bleibt
+unverändert; alle bisherigen Profilpaare bleiben erhalten.
+
+Buildlauf `identity-20260929T184045Z-d4fdb778-M0dGUI`, InvocationID
+`410554fe90ab4198a800e14ba2478432`. Belege unter
+`out/components-d4fdb778/component-tests/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `native.log` | `adfd4f2ac14b1ffa90cdc07735b7fafa2c4daf9801bf85d6153ab6ab9bfdd9a0` |
+| identische `before.json` / `after.json` | `0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3` |
+
+Zusätzlich bestehen 10 lokale Quellregistrierungs- und 9 Archivtests; sieben
+Linux-Export-Fixtures sind auf dem Mac ausgelassen. Das neue Transportprofil
+v2 inventarisiert auch den Helfer und prüft ihn vor der Gastübertragung.
+
 ## Einmalige Paketbestätigung und Übergabe: 09b10fd7
 
 Der auf `aegis-build` kompilierte und über GitHub verifizierte

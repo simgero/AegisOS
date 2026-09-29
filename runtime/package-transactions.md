@@ -28,13 +28,18 @@ insbesondere wird kein Rollback behauptet. Alte Generationen und unausgewählte
 Reste werden nicht automatisch gelöscht. Caller-eigene FDs bleiben ausdrücklich
 Verantwortung des Callers; nur dieser kann vollständige CE-Freigabe bestätigen.
 
-Acht neue lokale Gerätetests sind vorbereitet: reale Veröffentlichung durch
+Acht neue lokale Gerätetests sind im Stand `d4fdb778` ausgeführt: reale Veröffentlichung durch
 den Kindprozess, eigene FD-Kopien, privater Eigentümer/Seriennummer, paralleler
 Startkonflikt, falscher Hash, unzulässiger Auftrag/Quell-FD, prozessgebundener
 Besitz und Abbruch während einer beobachteten unvollständigen Kopie. Die
 Fixtures verwenden ausschließlich eigene Cgroups und inerte Dateien unter
 `/data/local/tmp`. Es gibt damit noch keinen echten privaten CE-/Logout- oder
-APT-Nachweis. Kompilierung und Gastlauf dieses neuen Bausteins stehen aus.
+APT-Nachweis. Auf dem Server kompilierter Stand `d4fdb778` besteht am
+29. September 2026 um 18:49:41 UTC **146/146 native Tests** im lokalen
+`927cf51d`-Gast. Der Abbruchfall bestätigt eine noch unvollständige Kopie,
+Timeout mit erhaltener Verantwortung, tatsächlichen Prozessabbau und danach
+die bisherige Auswahl. Benutzer-/CE-Bestand bleibt identisch, Enforcing und
+Broker bleiben aktiv. [Vollständiger Nachweis](../docs/component-tests.md).
 Das Komponententransportprofil v2 ergänzt den exakt inventarisierten Helfer;
 ältere Release-Belege bleiben mit ihren jeweiligen gepinnten Werkzeugen gültig.
 

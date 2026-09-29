@@ -4,12 +4,14 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Für die Paketverwaltung ist jetzt ein interner Speicherbaustein für vollständige
-Generationen implementiert. Komponentenstand `8e1c2228` besteht **138/138
-native Gasttests**, darunter zehn neue Prüfungen von atomarer Auswahl,
-Eigentümer-/Basisbindung, Parallelität und Fehlerfällen. Die echte APT-Ausführung,
-produktive AOSP-Adminfreigabe und Broker-/CE-Anbindung fehlen weiterhin.
-[Nachweis und noch offene Integration](../runtime/package-transactions.md).
+Für die Paketverwaltung sind ein interner Speicherbaustein für vollständige
+Generationen und ein eigener Veröffentlichungsprozess implementiert.
+Komponentenstand `d4fdb778` besteht **146/146 native Gasttests**. Die acht neuen
+Fälle prüfen echte Kindprozesse und Cgroups, darunter einen Abbruch während
+einer beobachteten unvollständigen Kopie mit anschließend bestätigter bisheriger
+Auswahl. Der gesamte bisherige native Umfang wurde ebenfalls geprüft. Echte
+APT-Ausführung, produktive AOSP-Adminfreigabe und Broker-/CE-Anbindung fehlen
+weiterhin. [Nachweis und offene Integration](../runtime/package-transactions.md).
 
 Für die Passwortbestätigung sind der interne AOSP-Adapter und die einmalige
 Bindung an Paketaktion, Antragsteller und privates Ziel implementiert und auf
