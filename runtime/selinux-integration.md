@@ -37,12 +37,35 @@ Capability-Prüfung in `cap_capable`; SELinux prüft zusätzlich `cap_userns`.
 `init_user_ns`. Der native Pfad öffnet die Proc-Metadaten seines per Pidfd
 gehaltenen, noch gesperrten Kindes zur Einrichtung und Prüfung der ID-Maps.
 
-Die folgende Policy ergänzt nur die namensraumbezogene Prüfung für den
-Broker. Explizite Neverallows verbieten dessen Host-`sys_ptrace` und Ptrace
-auf Init; Dienst-Capability-Liste und Readproc-Zugehörigkeit bleiben unverändert.
-Diese Regel allein bindet die Berechtigung nicht an eine einzelne PID: Der
-Kernel prüft die Namespace-Autorität, und der native Besitzerpfad begrenzt die
-Operation auf sein eigenes Kind. Ein vollständiger neuer Gastnachweis steht aus.
+Der Vollbuild `aosp-20260929T061337Z-430f91da-820a3c19` endete am
+29. September um 06:19:53 UTC mit `FAILED`. Die AOSP-Neverallow-Regel in
+`system/sepolicy/private/domain.te:1627` verbietet dem Broker `sys_ptrace`
+auch in der Klasse `cap_userns`. Die versuchte Policy-Erweiterung ist daher
+verworfen; die AOSP-Regel bleibt unverändert. `inactive` und
+`ExecMainStatus=0` nach dem Einsammeln des Wrappers widerlegen diesen Fehler
+nicht. Kein Image dieses Laufs wurde veröffentlicht oder lokal übernommen.
+
+Die folgende native Korrektur vermeidet den fremden Proc-Pfad vollständig.
+Der eigene vertrauenswürdige Raw-Clone öffnet vor Ausführung des Setup-Helfers
+seine vier Proc-Inodes (`uid_map`, `gid_map`, `setgroups`, `oom_score_adj`)
+als `O_PATH` und seinen User-Namespace als NSFS-Deskriptor. Er übergibt sie
+über den nur zwischen Elternprozess und Kind geerbten privaten Gate-Socket.
+Der Elternprozess akzeptiert genau diese fünf unterschiedlichen Referenzen,
+prüft Typen, Dateisysteme und Namespace-Art sowie den eigenen lebenden Pidfd.
+Die Referenzen werden durch die eigene `/proc/self/fd`-Tabelle neu geöffnet.
+So bindet der Kernel die Map-Dateien an die ursprünglichen Eltern-Credentials;
+ein vom Kind bereits schreibbar geöffneter Map-Deskriptor wäre für die
+mehrteilige Abbildung nicht ausreichend (`new_idmap_permitted`). Es wird weder
+eine Kind-PID aufgelöst noch dessen Namespace-Magic-Link vom Elternprozess
+verfolgt. Kein Client kann diesen Kanal, eine PID oder einen Deskriptor wählen.
+
+Die bisherigen Einmal-Schreibvorgänge, exakte Map-Rückprüfung, OOM-Rücksetzung,
+Ausführungssperre und Pidfd-Abbau bleiben erhalten. Alle temporären Referenzen
+werden geschlossen; nur der verifizierte Namespace bleibt bis zum Abbau.
+Ein explizites Neverallow umfasst jetzt beide Capability-Klassen. Die neue
+Fassung benötigt einen neuen Komponentenbuild, tatsächliche lokale
+Gerätetests sowie einen vollständigen Boot mit der Broker-Domäne. Root-Fixtures
+allein beweisen weiterhin nicht den produktiven SELinux-Pfad.
 
 Die fünf Initialisierungszugriffe wechseln in dasselbe Init-Taskprofil, vor
 dessen abschließender PID-Zuweisung. Der gepinnte

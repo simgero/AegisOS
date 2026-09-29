@@ -321,6 +321,48 @@ TEST_F(RuntimeNamespace, ConcurrentUsersHaveDistinctKernelNamespacesAndHostIds) 
     finish(0); finish(1);
 }
 
+TEST_F(RuntimeNamespace, PrivateReferencesResetInheritedOomProtectionBeforeExec) {
+    int oom = open("/proc/self/oom_score_adj", O_RDWR | O_CLOEXEC);
+    ASSERT_GE(oom, 0);
+    char original[32];
+    ssize_t length = pread(oom, original, sizeof(original), 0);
+    if (length <= 0 || length == static_cast<ssize_t>(sizeof(original))) {
+        close(oom); FAIL() << "Cannot preserve fixture OOM adjustment";
+    }
+    if (pwrite(oom, "-1000", 5, 0) != 5) {
+        close(oom); FAIL() << "Cannot model Init's protected broker";
+    }
+    int created = create(0, 10);
+    int saved = errno;
+    ssize_t restored = pwrite(oom, original, static_cast<size_t>(length), 0);
+    close(oom);
+    ASSERT_EQ(length, restored) << "Restore fixture before reporting failure";
+    ASSERT_EQ(0, created) << strerror(saved);
+    ASSERT_EQ(0, aegis_namespace_prepare(contexts[0])) << strerror(errno);
+    pollfd ready = {peers[0], POLLIN, 0};
+    EXPECT_EQ(0, poll(&ready, 1, 20)) << "Mapping must not release execution";
+    ASSERT_EQ(0, aegis_namespace_resume(contexts[0])) << strerror(errno);
+    aegis_namespace_probe actual = {};
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(actual)), report(0, &actual));
+    check(actual, 10); // Includes OOM=0 and exact parent-relative UID/GID maps.
+    finish(0);
+}
+
+TEST_F(RuntimeNamespace, PreparingAndCancellingPrivateReferencesLeavesNoFdLeak) {
+    int before = descriptors();
+    ASSERT_GT(before, 0);
+    for (unsigned attempt = 0; attempt < 12; attempt++) {
+        ASSERT_EQ(0, create(0, 10 + attempt % 2)) << strerror(errno);
+        ASSERT_EQ(0, aegis_namespace_prepare(contexts[0])) << strerror(errno);
+        ASSERT_EQ(0, aegis_namespace_stop(contexts[0]));
+        aegis_child_exit result = {};
+        ASSERT_EQ(0, aegis_namespace_wait(contexts[0], 5000, &result));
+        aegis_namespace_release(contexts[0]); contexts[0] = nullptr;
+        close(peers[0]); peers[0] = -1;
+        EXPECT_EQ(before, descriptors()) << attempt;
+    }
+}
+
 TEST_F(RuntimeNamespace, CancellationBeforeMappingNeverExecutesTheProbe) {
     ASSERT_EQ(0, create(0, 10));
     ASSERT_EQ(0, aegis_namespace_stop(contexts[0]));

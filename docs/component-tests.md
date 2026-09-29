@@ -1,3 +1,15 @@
+## Nächster Namespace-Komponentenstand
+
+Nach dem am 29. September 2026 fehlgeschlagenen Vollbuild `430f91da` ist die
+Ptrace-Freigabe entfernt. Der native Elternprozess erhält feste Proc-/NSFS-
+Referenzen vom eigenen noch gesperrten Clone; kein fremder PID-Pfad wird
+geöffnet. Zwei zusätzliche Gerätetests prüfen die Rücksetzung geerbten
+OOM-Schutzes sowie wiederholte Vorbereitung/Abbruch ohne Deskriptorverlust.
+Damit sind 124 native Tests vorbereitet, **noch nicht neu kompiliert oder
+bestanden**. Die bisherigen 122/122 belegen nur `ebf3610`. Die unveränderten
+Java-/JNI-Quellen behalten ihren separaten 62/62-Nachweis. Der reale Start
+unter der produktiven SELinux-Domäne braucht weiterhin ein neues Vollimage.
+
 # Komponentenläufe in lokalem QEMU
 
 ## Private Cgroup-Delegation: ebf3610

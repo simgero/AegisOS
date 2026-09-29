@@ -45,9 +45,10 @@
 struct aegis_namespace {
     struct aegis_child *child;
     int proc_root, gate, attempted, mapped, userns, counted;
-    pid_t pid; /* Used once for proc anchoring; NEVER for kill/wait/reopening. */
     uint32_t user_id, serial;
 };
+
+enum { REF_UID, REF_GID, REF_GROUPS, REF_OOM, REF_USERNS, REF_COUNT };
 
 /* One trusted, process-owned mount namespace, established while still in
  * Android init's namespaces. Keep its nsfs fd for this broker's lifetime;
@@ -324,6 +325,36 @@ static _Noreturn void child_exec(int setup, int control, int gate, int parent,
     }
     if (syscall(SYS_rt_sigprocmask, SIG_SETMASK, &empty, NULL, sizeof(empty)) < 0)
         child_failed();
+    /* Only our trusted, gated clone holds this end of the private socket.
+     * Open its OWN proc references, so the parent never traverses another
+     * user's hidden /proc/PID or dereferences another process's ns link.
+     * Maps are O_PATH references, not open writable map files: the parent
+     * must reopen them under its original credentials for multi-ID mapping.
+     * Passing an already-open child map would lose that kernel authority. */
+    const char *names[] = {"uid_map", "gid_map", "setgroups", "oom_score_adj"};
+    int self = (int)syscall(SYS_openat, AT_FDCWD, "/proc/self",
+                            O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
+    if (self < 0) child_failed();
+    union { struct cmsghdr alignment; char bytes[CMSG_SPACE(REF_COUNT * sizeof(int))]; } ancillary = {0};
+    char kind = 'F';
+    struct iovec vector = {.iov_base = &kind, .iov_len = 1};
+    struct msghdr message = {.msg_iov = &vector, .msg_iovlen = 1,
+                            .msg_control = ancillary.bytes, .msg_controllen = sizeof(ancillary.bytes)};
+    struct cmsghdr *header = CMSG_FIRSTHDR(&message);
+    header->cmsg_level = SOL_SOCKET;
+    header->cmsg_type = SCM_RIGHTS;
+    header->cmsg_len = CMSG_LEN(REF_COUNT * sizeof(int));
+    int *refs = (int *)CMSG_DATA(header);
+    for (unsigned i = 0; i < REF_USERNS; i++) {
+        refs[i] = (int)syscall(SYS_openat, self, names[i], O_PATH | O_NOFOLLOW | O_CLOEXEC, 0);
+        if (refs[i] < 0) child_failed();
+    }
+    refs[REF_USERNS] = (int)syscall(SYS_openat, self, "ns/user", O_RDONLY | O_CLOEXEC, 0);
+    if (refs[REF_USERNS] < 0
+            || syscall(SYS_sendmsg, 5, &message, MSG_NOSIGNAL | MSG_DONTWAIT) != 1)
+        child_failed();
+    for (unsigned i = 0; i < REF_COUNT; i++) syscall(SYS_close, refs[i]);
+    syscall(SYS_close, self);
     struct pollfd ready = {.fd = 5, .events = POLLIN};
     struct timespec limit = {.tv_sec = 10};
     if (syscall(SYS_ppoll, &ready, 1u, &limit, NULL, sizeof(empty)) != 1
@@ -409,7 +440,6 @@ static int create(uint32_t user_id, uint32_t serial, int setup_fd, int control_f
     int restored = (int)syscall(SYS_rt_sigprocmask, SIG_SETMASK, &previous, NULL, sizeof(all));
     errno = saved;
     if (pid < 0) goto fail;
-    context->pid = pid;
     close(setup); close(control); close(parent); close(child_gate);
     if (restored < 0) { context->attempted = 1; close_gate(context); }
     *output = context;
@@ -441,8 +471,25 @@ int aegis_namespace_create_limited(uint32_t user_id, uint32_t serial, int setup_
     return create(user_id, serial, setup_fd, control_fd, group, output);
 }
 
-static int write_at(int proc, const char *name, const char *text, size_t length) {
-    int fd = openat(proc, name, O_WRONLY | O_CLOEXEC | O_NOFOLLOW);
+/* Reopen a kernel proc inode under THIS process's credentials. Only our own
+ * fd table is traversed. O_NOFOLLOW here would reject the intended fd magic
+ * link; the reference itself has already been checked as a proc regular file.
+ * Source references are never retained by or accepted from a runtime client. */
+static int reopen_reference(int reference, int flags) {
+    char name[64];
+    snprintf(name, sizeof(name), "/proc/self/fd/%d", reference);
+    int fd = open(name, flags | O_CLOEXEC);
+    if (fd < 0) return -1;
+    struct stat expected, actual;
+    if (fstat(reference, &expected) < 0 || fstat(fd, &actual) < 0
+            || expected.st_dev != actual.st_dev || expected.st_ino != actual.st_ino) {
+        close(fd); return denied();
+    }
+    return fd;
+}
+
+static int write_reference(int reference, const char *text, size_t length) {
+    int fd = reopen_reference(reference, O_WRONLY);
     if (fd < 0) return -1;
     /* uid/gid maps require a single write at offset 0. NEVER append or retry a
      * partial write, because the kernel may already have committed the map. */
@@ -453,9 +500,21 @@ static int write_at(int proc, const char *name, const char *text, size_t length)
     return 0;
 }
 
-static int mapped(int proc, const char *name, uint32_t user_id) {
+static int read_reference(int reference, char *text, size_t capacity) {
+    int fd = reopen_reference(reference, O_RDONLY);
+    if (fd < 0) return -1;
+    ssize_t length = read(fd, text, capacity - 1);
+    int saved = errno;
+    close(fd);
+    if (length < 0) { errno = saved; return -1; }
+    if ((size_t)length == capacity - 1) { errno = EOVERFLOW; return -1; }
+    text[length] = '\0';
+    return 0;
+}
+
+static int mapped(int reference, uint32_t user_id) {
     char text[1024];
-    if (text_at(proc, name, text, sizeof(text)) < 0) return -1;
+    if (read_reference(reference, text, sizeof(text)) < 0) return -1;
     const char *cursor = text;
     for (size_t i = 0; i < sizeof(aegis_uid_extents) / sizeof(aegis_uid_extents[0]); i++) {
         unsigned inside, outside, count;
@@ -473,8 +532,8 @@ static int still_waiting(struct aegis_namespace *context) {
     if (owner(context) < 0) return -1;
     if (context->attempted || context->gate < 0) { errno = EALREADY; return -1; }
     if (check_broker(context->proc_root, context->child->owner) < 0) return -1;
-    /* Public wait() might already have reaped this child. Never look up its
-     * numeric proc name after that, nor after somebody stole the exit status. */
+    /* Public wait() might already have reaped this child. Never prepare or
+     * release its execution gate after somebody consumed the exit status. */
     if (context->child->observed || context->child->observation_error) {
         errno = ECHILD;
         return -1;
@@ -486,24 +545,74 @@ static int still_waiting(struct aegis_namespace *context) {
     return 0;
 }
 
+static int receive_references(struct aegis_namespace *context, int refs[REF_COUNT]) {
+    struct pollfd ready = {.fd = context->gate, .events = POLLIN};
+    int polled = poll(&ready, 1, 10000);
+    if (polled < 0) return -1;
+    if (!polled) { errno = ETIMEDOUT; return -1; }
+    if (!(ready.revents & POLLIN)) { errno = EPIPE; return -1; }
+    union { struct cmsghdr alignment; char bytes[CMSG_SPACE(REF_COUNT * sizeof(int))]; } ancillary = {0};
+    char kind[2];
+    struct iovec vector = {.iov_base = kind, .iov_len = sizeof(kind)};
+    struct msghdr message = {.msg_iov = &vector, .msg_iovlen = 1,
+                            .msg_control = ancillary.bytes, .msg_controllen = sizeof(ancillary.bytes)};
+    ssize_t length = recvmsg(context->gate, &message, MSG_DONTWAIT | MSG_CMSG_CLOEXEC);
+    if (length < 0) return -1;
+    unsigned count = 0, headers = 0;
+    int malformed = 0;
+    for (struct cmsghdr *header = CMSG_FIRSTHDR(&message); header;
+            header = CMSG_NXTHDR(&message, header)) {
+        headers++;
+        if (header->cmsg_level != SOL_SOCKET || header->cmsg_type != SCM_RIGHTS
+                || header->cmsg_len < CMSG_LEN(0)) { malformed = 1; continue; }
+        size_t bytes = header->cmsg_len - CMSG_LEN(0);
+        if (bytes % sizeof(int)) malformed = 1;
+        for (size_t i = 0; i < bytes / sizeof(int); i++) {
+            int fd;
+            memcpy(&fd, CMSG_DATA(header) + i * sizeof(fd), sizeof(fd));
+            if (count < REF_COUNT) refs[count++] = fd;
+            else { close(fd); malformed = 1; }
+        }
+    }
+    if (length != 1 || kind[0] != 'F' || headers != 1 || count != REF_COUNT
+            || malformed || (message.msg_flags & (MSG_TRUNC | MSG_CTRUNC))) {
+        errno = EPROTO; return -1;
+    }
+    struct stat stats[REF_COUNT];
+    for (unsigned i = 0; i < REF_COUNT; i++) {
+        struct statfs fs;
+        int flags = fcntl(refs[i], F_GETFL);
+        if (flags < 0 || fstatfs(refs[i], &fs) < 0 || fstat(refs[i], &stats[i]) < 0)
+            return -1;
+        if (!S_ISREG(stats[i].st_mode)) return denied();
+        if (i < REF_USERNS) {
+            if (!(flags & O_PATH) || fs.f_type != PROC_SUPER_MAGIC) return denied();
+        } else if ((flags & (O_ACCMODE | O_PATH)) != O_RDONLY
+                || fs.f_type != NSFS_MAGIC || ioctl(refs[i], NS_GET_NSTYPE) != CLONE_NEWUSER) {
+            return denied();
+        }
+        for (unsigned j = 0; j < i; j++) {
+            if (stats[i].st_dev == stats[j].st_dev && stats[i].st_ino == stats[j].st_ino)
+                return denied();
+        }
+    }
+    return still_waiting(context);
+}
+
 int aegis_namespace_prepare(struct aegis_namespace *context) {
     if (owner(context) < 0) return -1;
     if (context->mapped) { errno = EALREADY; return -1; }
-    char number[32], map[1024], groups[32], oom[32];
-    int proc = -1, result = -1;
+    char map[1024], groups[32], oom[32];
+    int refs[REF_COUNT] = {-1, -1, -1, -1, -1}, result = -1;
     if (still_waiting(context) < 0) goto done;
     context->mapped = -1;  /* Writing either kernel map is a one-shot action. */
-    snprintf(number, sizeof(number), "%ld", (long)context->pid);
-    proc = openat(context->proc_root, number, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-    if (proc < 0) goto done;
+    if (receive_references(context, refs) < 0) goto done;
     /* Never inherit Android's protected-daemon OOM exemption. Do this while
      * the child is gated, before its maps and later credential changes.
      * memory.oom.group cannot kill a member with oom_score_adj=-1000. */
-    if (write_at(proc, "oom_score_adj", "0", 1) < 0
-            || text_at(proc, "oom_score_adj", oom, sizeof(oom)) < 0) goto done;
+    if (write_reference(refs[REF_OOM], "0", 1) < 0
+            || read_reference(refs[REF_OOM], oom, sizeof(oom)) < 0) goto done;
     if (strcmp(oom, "0\n")) { errno = EPROTO; goto done; }
-    /* Only this library reaps the child. Its proc entry cannot be recycled
-     * before this first/only open, even if it exited while waiting on the gate. */
     size_t length = 0;
     for (size_t i = 0; i < sizeof(aegis_uid_extents) / sizeof(aegis_uid_extents[0]); i++) {
         const struct aegis_uid_extent *row = &aegis_uid_extents[i];
@@ -512,25 +621,23 @@ int aegis_namespace_prepare(struct aegis_namespace *context) {
         if (n < 0 || (size_t)n >= sizeof(map) - length) { errno = EOVERFLOW; goto done; }
         length += (size_t)n;
     }
-    if (write_at(proc, "setgroups", "deny", 4) < 0
-            || write_at(proc, "uid_map", map, length) < 0
-            || write_at(proc, "gid_map", map, length) < 0
-            || text_at(proc, "setgroups", groups, sizeof(groups)) < 0
-            || mapped(proc, "uid_map", context->user_id) < 0
-            || mapped(proc, "gid_map", context->user_id) < 0) goto done;
+    if (write_reference(refs[REF_GROUPS], "deny", 4) < 0
+            || write_reference(refs[REF_UID], map, length) < 0
+            || write_reference(refs[REF_GID], map, length) < 0
+            || read_reference(refs[REF_GROUPS], groups, sizeof(groups)) < 0
+            || mapped(refs[REF_UID], context->user_id) < 0
+            || mapped(refs[REF_GID], context->user_id) < 0) goto done;
     if (strcmp(groups, "deny\n")) { errno = EPERM; goto done; }
-    /* This is a kernel nsfs magic link beneath our anchored proc directory.
-     * Keep the exact namespace, never reconstruct a map from another process. */
-    context->userns = openat(proc, "ns/user", O_RDONLY | O_CLOEXEC);
-    if (context->userns < 0) goto done;
-    if (ioctl(context->userns, NS_GET_NSTYPE) != CLONE_NEWUSER) { errno = EPROTO; goto done; }
+    context->userns = refs[REF_USERNS];
+    refs[REF_USERNS] = -1;
     context->mapped = 1;
     result = 0;
 done:;
     int saved = errno;
-    if (proc >= 0) close(proc);
+    for (unsigned i = 0; i < REF_COUNT; i++) if (refs[i] >= 0) close(refs[i]);
     if (result < 0) close_gate(context);
     errno = saved;
+    if (result < 0) return report_namespace_failure("private child reference preparation");
     return result;
 }
 

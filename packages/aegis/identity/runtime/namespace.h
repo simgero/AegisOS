@@ -37,6 +37,14 @@ int aegis_namespace_private_mounts(void);
  * Production attaches once; tests detach their own inert fixture on cleanup. */
 int aegis_namespace_attach_base(int verified_source_fd);
 
+/* Personal namespace preparation uses only references sent by the trusted
+ * raw clone over its private inherited gate. It opens its own proc inodes
+ * as O_PATH and its own user namespace as an NSFS fd. The parent reopens the
+ * proc references through its own fd table, retaining the parent credentials
+ * required for the multi-extent maps. No external fd/PID is accepted and no
+ * ptrace/readproc exemption is used. Maps and OOM protection are read back
+ * before the existing execution gate can be released. */
+
 /* INTERNAL trusted launcher primitive, not an AOSP authorization endpoint.
  * Caller: dedicated SINGLE-THREADED Android host-root broker, initial user/PID
  * namespaces and either the initial mount namespace or its own explicitly
