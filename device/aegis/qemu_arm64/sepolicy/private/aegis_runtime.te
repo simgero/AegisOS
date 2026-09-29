@@ -116,6 +116,10 @@ allowxperm aegis_runtime_broker loop_device:blk_file ioctl {
 };
 allow aegis_runtime_broker labeledfs:filesystem { mount relabelfrom };
 allow aegis_runtime_broker aegis_runtime_base_file:filesystem { mount remount relabelto unmount };
+# The fixed MS_REC|MS_PRIVATE operation on / follows unshare(CLONE_NEWNS).
+# SELinux checks mounton even for a propagation change. Only the trusted owner
+# may isolate this inherited root; ordinary programs get no root mount rights.
+allow aegis_runtime_broker rootfs:dir mounton;
 allow aegis_runtime_broker tmpfs:dir mounton;
 r_dir_file(aegis_runtime_mount_domain, aegis_runtime_base_file)
 

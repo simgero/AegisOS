@@ -165,6 +165,18 @@ von den getesteten Komponenten; die nativen Quellen bleiben identisch.
 Ein vollständiger Build dieses Standes ist für den tatsächlichen Startnachweis
 erforderlich. Eine laufende GNU-Sitzung ist weiterhin nicht nachgewiesen.
 
+Der Vollbuild `aosp-20260929T015209Z-afaf6462-d5919499` ist inzwischen mit
+`UPLOAD_VERIFIED` abgeschlossen und lokal mit einem neuen Profilpaar gebootet.
+Enforcing, FBE, authentifiziertes ADB und tatsächliche Verity-Tabellen sind
+bestätigt. Die feste Init-Namespace-Übergabe, das neue NSFS-Label und die
+private Cgroup-Vorbereitung funktionieren im tatsächlichen Dienststart.
+Die nächste konkrete Blockade ist ein Kernel-AVC für `rootfs:dir mounton`
+beim privaten Propagationswechsel des Brokers. Die folgende Policy-Korrektur
+ergänzt nur dieses Recht für den vertrauenswürdigen Besitzer; ein neuer
+Image-Test bleibt erforderlich. Der Kandidat ist weiterhin nicht als
+funktionierende Runtime oder sichtbarer Standard übernommen.
+Belege: `out/full-build-afaf6462/boot-1/`.
+
 Das bisherige Profil wurde nach rund 73 Minuten geordnet heruntergefahren;
 Android meldet `Power down`, der KeyMint-Helfer bestätigt seinen sauberen
 Abschluss. Das durchgehend aufgezeichnete Log enthält in diesem begrenzten
@@ -180,7 +192,7 @@ bisherige Android-/KeyMint-Paare bleiben erhalten.
 | --- | --- |
 | Stabiles, dauerhaftes QEMU | Gepaarte Android-/KeyMint-Persistenz und geordnete Neustarts nachgewiesen. Neues Image `2a766ab5` besteht alle 111 nativen und 62 Java-Tests einschließlich SMS-Konfiguration. Kein Telefonie-ANR im begrenzten ersten Beobachtungsintervall. Lesbares Bild und früherer QMP-Mausklick bestätigt; physische Mac-Eingabe, längere Stabilität, Stromausfall und Image-Migration offen. |
 | AEGIS-Benutzer und Anmeldung | Zwei-Benutzer-CLI-Test mit AOSP-Passwörtern, Wechsel, Passwortwechsel und Logout bestanden. Unterbrochene Ersteinrichtung, vollständige Admin-Negativtests, CLI-Löschung und ID-Wiederverwendung offen. Die bisherige Nachbereinigung nach Freigabe einer gelöschten AOSP-ID muss vor Löschungsfreigabe in den reservierten Plattform-Lebenszyklus verlegt werden. |
-| Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft. Der verwaltete Vollbuild `a8d38b97` bootet mit Enforcing und Verity, sein Broker bricht jedoch beim Start ab. Diagnose- und Helfer-Metadatenkorrektur `4e53dc18` kompiliert; deren 113/113 native Tests bestehen auf diesem Image. Vollständiges korrigiertes Image und dessen Dienststart noch offen. Aktiver Dienst, tatsächliche Domänenübergänge, CLI-PTY-Sitzung und wirkliche Linux-Ausführung bleiben unbewiesen. Das bisher geprüfte sichtbare Profil bleibt `absent`. |
+| Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft. Vollbuild `afaf6462` bootet mit Enforcing und Verity; Init-Namespace-Übergabe, NSFS-Label und private Cgroup-Vorbereitung sind bestätigt. Der Broker stoppt danach an einem belegten `rootfs:dir mounton`-Verbot; die enge Policy-Korrektur benötigt einen weiteren vollständigen Image-Test. Die unveränderten nativen Quellen bestehen 114/114 Komponententests. Aktiver Dienst, tatsächliche GNU-Domänenübergänge, CLI-PTY-Sitzung und Linux-Ausführung bleiben unbewiesen. Das sichtbare Standardprofil bleibt `absent`. |
 | Pakete und Isolation | Pakettransaktionen und konsistente Aktivierung fehlen. Sowohl gemeinsame als auch private Pakete erfordern frische AOSP-Adminautorisierung. Persönliche Linux-Datei-/Prozessisolation muss mit zwei angemeldeten Benutzern geprüft werden. |
 | Gesamtablauf | Identitäts-/CE-Teil mit zwei Passwortbenutzern und Neustart nachgewiesen. Linux-Programme, Paketaktionen, Abbau aller Runtime-Ressourcen vor CE-Sperre und der vollständige integrierte Ablauf bleiben offen. |
 

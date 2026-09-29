@@ -101,8 +101,9 @@ Schreibzugriff auf Namespace-Objekte oder Abschalten von SELinux sind kein
 Bestandteil der Korrektur. Die bisherigen ungenutzten PID-1-Procrechte des
 Brokers entfallen.
 
-Kompilierung, vollständiger Image-Start mit der neuen Policy, persönliche
-Kontexte und GNU-Ausführung stehen für diese Korrektur noch aus.
+Der Komponentenstand `3b350e74` ist einschließlich Policy kompiliert. Alle
+114 nativen Tests bestehen im vorherigen lokalen Image `4e53dc18`; diese
+Root-Fixtures allein prüfen den neuen produktiven Dienststart noch nicht.
 
 Bei der nachfolgenden Prüfung des gepinnten Kernelpfads `may_create()` fällt
 eine weitere Startvoraussetzung auf: Vor dem tatsächlichen Genfs-Lookup wird
@@ -111,4 +112,23 @@ Eine ausschließlich benannte Transition für `aegis-runtime` und die Zuordnung
 des privaten Typs zum Cgroup2-Dateisystem ergänzen deshalb die Policy.
 Dies erlaubt weder beliebige Android-Cgroup-Verzeichnisse noch Schreiben
 globaler Controllerdateien. Die Änderung betrifft keine nativen Quelltexte;
-ihre Kompilierung und der tatsächliche Brokerstart bleiben nachzuweisen.
+der Vollbuild `afaf6462` ist inzwischen kompiliert und über GitHub verifiziert.
+Sein separates lokales Profil bootet mit Enforcing, FBE und tatsächlichem
+dm-verity. Die drei Namespace-Objekte tragen das neue NSFS-Label. Init-Übergabe,
+Namespace-Prüfung und Cgroup-Vorbereitung gelingen: Der private Unterbaum ist
+`root:root 0700` mit `aegis_runtime_cgroup`, aktiviertem Memory-Controller,
+2-GiB-Limit und `populated 0`.
+
+Der nächste Startfehler ist nun konkret im Kernel-Audit belegt:
+`aegis_runtime_broker` erhält beim festen privaten Propagationswechsel von `/`
+ein verweigertes `rootfs:dir mounton`; der Broker meldet
+`private mount namespace errno=13`. Der gepinnte Kernel prüft in
+`selinux_mount()` auch `MS_PRIVATE` über `FILE__MOUNTON`.
+Die folgende Korrektur ergänzt ausschließlich dieses Recht für den Broker.
+Der native Pfad führt den Wechsel erst nach `unshare(CLONE_NEWNS)` aus und
+akzeptiert dafür weder einen Clientpfad noch Mountflags von außen. Andere
+Runtime-Domänen erhalten kein solches Recht. Der geänderte Policy-Stand muss
+erneut kompiliert und im vollständigen Image gestartet werden; persönliche
+GNU-Ausführung und Isolation bleiben offen.
+Rohbelege: `out/full-build-afaf6462/boot-1/boot-health.json`,
+`namespace-labels.txt`, `cgroup-metadata.txt` und `runtime-kernel-avcs.txt`.
