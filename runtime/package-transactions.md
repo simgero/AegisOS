@@ -1,12 +1,35 @@
 # Vollständige Paketgenerationen
 
-Aktueller Komponentenstand `1719eebd`: **171/171 native Gerätetests** im
-lokalen Hintergrund-QEMU. Der Publisher verarbeitet fehlende/ungültige private
-Abschlussantworten jetzt ohne unbeschränkte Header-Schleife; fehlende Bestätigung
-bleibt `Unconfirmed`. Vier Regressionstests und alle bisherigen APT-/Abbruchtests
-bestehen. [Nachweis und Grenzen](../docs/component-tests.md).
-Die registrierte Vorbereitung von Kandidaten, Planer und produktive
-AOSP-/CE-/CLI-Verbindung bleiben der nächste Implementierungsschritt.
+## Registrierte Vorbereitung kompletter Kandidaten
+
+Stand `adce0475` besteht **183/183 native Tests** im lokalen Hintergrund-QEMU.
+[Belege und Grenzen](../docs/component-tests.md). `BrokerPrepareCandidate`
+verbindet die bisher fehlende langsame Vorbereitung mit demselben registrierten
+Auftrag wie die APT-Ausführung: neue vollständige Basiskopie, Größen-/Hashprüfung,
+getrennter beschreibbarer ext4-Mount und einzeln verifizierte APT-Archive.
+Der feste hostseitige Helfer führt keine Paketskripte aus. Bestehende Archive
+werden nur nach erneuter Inhaltsprüfung wiederverwendet; vorhandene Ablagen
+werden nie übernommen. Die reale Broker-umask 0077 bleibt im Elternprozess
+erhalten, während der separate Helfer korrekte Kandidatenrechte erzeugt.
+
+Der Slot durchläuft `Preparing` und `Prepared`, bevor die bestehende frische
+AOSP-Freigabe die Ausführung starten darf. Job, Antragsteller, Seriennummer und
+Planhash bleiben unverändert. Sämtliche Teilstarts, Antwortwarteschlangen und
+vorbereiteten Mounts gehören zum selben `STOP_USER`-/Wiederverbindungs-/Abschaltpfad.
+Auch nach beendetem Kopierprozess bleibt ein vorbereiteter Mount eine gehaltene
+private Ressource. Der Native-Nachweis bestätigt Abbruch während einer realen
+Teilkopie, Abbau der Cgroup, Freigabe wartender/übernommener Mounts und Verschwinden
+des ausschließlich zugehörigen Loopgeräts. Eigene Aufruferreferenzen müssen
+weiter gesondert geschlossen werden. Reale AOSP-CE-Abmeldung ist damit noch
+nicht bewiesen.
+
+**Nächste Verbindung:** private CE-Ablage und produktive Cgroup-/SELinux-Einrichtung,
+vertrauenswürdiger Repository-/Abhängigkeitsplaner mit kanonischen APT-Archivnamen,
+frische AOSP-Adminfreigabe samt Java-/CLI-Anbindung, semantische Validierung und
+Auswahl vollständiger Generationen. Gemeinsame/private Updates, Konflikte und
+Reboot müssen anschließend im integrierten Vollimage geprüft werden. Der
+bisherige Gast bietet noch keinen produktiven Paketendpunkt. Die älteren
+Bausteinnachweise folgen mit ihren jeweils damaligen Grenzen.
 
 ## Brokerverwaltete Paket-Ausführung
 
@@ -26,9 +49,8 @@ Admin-Zielkennung und erteilt selbst keine Freigabe.
 
 Die Startübergabe benutzt ein gemeinsames begrenztes Zeitbudget und übernimmt
 alle vorbereiteten FDs. Der künftige AOSP-Aufrufer muss sie innerhalb seiner
-bestehenden Zulassung registrieren und erst danach das Gate freigeben. Kopieren, Hashen und
-Quellenprüfung gehören in eine noch zu implementierende, ebenfalls registrierte
-Vorbereitungsphase. Der Aufrufer muss seine Originalreferenzen gesondert
+bestehenden Zulassung registrieren und erst danach das Gate freigeben. Kopieren und Hashen laufen inzwischen in der oben beschriebenen registrierten
+Vorbereitung. Die vertrauenswürdige Repository-Prüfung und Planung bleiben offen. Der Aufrufer muss seine Originalreferenzen gesondert
 schließen. Ein eigener cgroup-begrenzter Namespace-PID1 erhält nur den
 Kandidaten, eine private Geräteansicht und versiegelte Auftragsdaten. Nach
 Abhängen Androids, vollständiger Mountprüfung und Rechtebegrenzung startet er
@@ -48,7 +70,7 @@ Der Produktionseinstieg verlangt eine eigene genaue SELinux-Domäne, die bislang
 nicht aktiviert wurde. Die Testausführung verwendet einen getrennten Test-Einstieg
 mit gemeinsamem Kern; ein produktiver SELinux-/CE-Nachweis wird nicht behauptet.
 
-**Nächste Verbindung:** Vertrauenswürdiger Planer und registrierte Vorbereitung,
+**Weiterhin offen:** Vertrauenswürdiger Planer,
 produktive Cgroup-/SELinux-Einrichtung, private CE-Ablage, frische AOSP-Adminfreigabe
 samt Java-/CLI-Anbindung, semantische Validierung und Auswahl vollständiger
 Generationen. Gemeinsame/private Versionen, Rebase-Konflikte, tatsächliches

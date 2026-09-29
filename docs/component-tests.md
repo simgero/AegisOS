@@ -1,3 +1,106 @@
+## Registrierte Paketvorbereitung bis APT: adce0475
+
+Der auf `aegis-build` kompilierte [Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T221859Z-adce0475-adce0475-VgK5Ma)
+aus `adce04750acbe4cbac10a72a5c1a4f513890ec8c` besteht am **2026-09-29T22:22:09Z
+alle 183/183 nativen Gerätetests**, 28 Suiten in 72.830 Sekunden, ohne Skip.
+Elf neue Vorbereitungs-/Übergabetests und eine Prüfung der begrenzten
+Eingabedaten ergänzen den zuvor nachgewiesenen Stand mit 171 Tests.
+Transportprofil `aegis-qemu-arm64-components-v4` enthält acht native Programme;
+neu ist der feste vertrauenswürdige Kopierhelfer `aegis-package-prepare`.
+Die lokalen Transportprüfungen bestanden mit neun aktiven und sieben
+plattformbedingt übersprungenen Tests.
+
+`BrokerPrepareCandidate` registriert die Arbeit vor dem Start im bestehenden
+Ausführungsslot. Benutzer, Seriennummer, monotone Auftragskennung und Planhash
+bleiben durch Vorbereitung und APT unverändert. Die gemeinsame Kapazität und
+die Grenze eines nicht abgeholten Auftrags je Antragsteller gelten weiter.
+Auch ein fehlgeschlagener Teilstart bleibt als konkreter Auftrag besessen.
+Es existiert kein neuer öffentlicher Socket- oder CLI-Endpunkt.
+
+Kopieren, Hashen, Mounten und Archivvorbereitung laufen in einem eigenen,
+cgroup-begrenzten Kind außerhalb der kurzen AOSP-Zulassung. Der feste Helfer
+führt keinen Paketcode aus. Er verlangt ein neues leeres root:root-Verzeichnis
+mit 0700 und ohne ACL, kopiert den gepinnten vollständigen Quelldatenträger
+und prüft Größe, SHA-256 sowie stabile Quellmetadaten. Nur seine neue Kopie
+wird über ein geprüftes autoclear-Loopgerät als getrenntes ext4-Dateisystem
+bereitgestellt. Vorhandene Ablagen werden weder übernommen noch repariert.
+
+Jedes Archiv erhält eine eigene Größen-/Hashbindung. Kopiert wird nur in den
+Cache des Kandidaten. Ein vorhandenes gleichnamiges Archiv wird ausschließlich
+nach erneuter Prüfung sowohl des Eingangs als auch der Cachedatei akzeptiert;
+abweichende Inhalte, Links oder ungeeignete Eigentümer werden abgewiesen.
+Die Namen müssen der von APT erwarteten Cacheform entsprechen, beispielsweise
+`paket_1_all.deb`. Der spätere vertrauenswürdige Planer muss die Zuordnung aus
+Paket-/Versions-/Architekturmetadaten liefern; ein Hash-Dateiname allein reicht
+bei `--no-download` nicht aus. Hashbindung ersetzt keine Repository-Signatur.
+
+Die erfolgreiche Antwort enthält genau einen getrennten Mount-FD. Solange er
+in der privaten Antwortwarteschlange liegt, besitzt ihn der registrierte
+Kanal. Nach Reaping und leerer/entfernter Cgroup übernimmt derselbe Slot den
+Mount und behält ihn mitsamt der Ablage im Zustand `Prepared`. Erst der
+bestehende Startpfad darf ihn unter frischer AOSP-Freigabe und Sitzungsprüfung
+an APT weitergeben. Hier wurde dieser interne Pfad direkt geprüft; die reale
+AOSP-Freigabe ist weiterhin nicht angeschlossen. Kopie oder Hashprüfung
+verbrauchen keine vorab gespeicherte Adminfreigabe.
+
+Tatsächlich im lokalen QEMU nachgewiesen:
+
+- Vollständige Basiskopie, exakte Archive, echte APT-Installation der synthetischen
+  Anwendung samt Abhängigkeit, installierte Dateien, Paketskript und technischer
+  Eigentümer 42:42 in der Benutzerabbildung. Der separate Broker-Test behält
+  dieselbe Auftragskennung bis zum Ergebnis `NeedsValidation`.
+- Erneute Verwendung einer bereits vorbereiteten Kopie mit identischen Cache-
+  Archiven und anschließender APT-Installation. Ein verändertes Cachearchiv
+  sowie falsche Image-/Archivhashes erzeugen keinen übernehmbaren Mount.
+- Eine bereits belegte Ablage bleibt unverändert. Der Helfer setzt seine eigene
+  umask auf 0022, damit die reale Broker-Voreinstellung 0077 keine Cacheverzeichnisse
+  mit falschen Rechten erzeugt. Geprüft sind 0755/0644 im Kandidaten, 0600/0400
+  für Image/Auftragsdaten und die unveränderte umask des Elternprozesses.
+- `STOP_USER` beendet eine nachweislich unvollständige Kopie. Dafür friert der
+  Test ausschließlich seine eigene Cgroup nach einer tatsächlichen Änderung
+  von `candidate.ext4` ein und bestätigt eine Größe zwischen 0 und 512 MiB.
+  Erst danach erfolgt der Abbruch über den echten Besitzerpfad.
+- `STOP_USER` schließt sowohl einen noch wartenden Antwort-Mount als auch einen
+  schon im Slot vorbereiteten Mount. Die Tests identifizieren das zugehörige
+  Loopgerät anhand Gerät/Inode der eigenen Kandidatendatei und bestätigen,
+  dass danach kein passendes Loopgerät mehr konfiguriert ist. Laufende Besitzer
+  lassen sich vorher nicht freigeben. FD-Zählung bestätigt die Übernahme genau
+  eines Mounts und das Schließen der übrigen eigenen Referenzen.
+
+**Grenzen:** Testablagen liegen ausschließlich unter `/data/local/tmp`; es
+wurden keine neuen AOSP-Benutzer, persönlichen CE-Stores oder Adminpasswörter
+verwendet. Aufrufer-eigene FDs bleiben deren Verantwortung. Die drei neuen
+Arbeiterpfade sind nicht in den laufenden Daemon/dessen SELinux-Domänen
+installiert. Privater CE-Store und AOSP-Zulassung, Repository-/Abhängigkeitsplaner,
+semantische Gesamtprüfung, Veröffentlichung/Startauswahl, private/gemeinsame
+Updates und Konfliktbehandlung sowie tatsächliche Abmeldung und Reboot bleiben
+zu verbinden und im Vollimage nachzuweisen. `Prepared` ist keine Freigabe;
+`NeedsValidation` ist keine aktivierte Paketgeneration. Die unveränderten
+119 Java-Tests wurden nicht erneut ausgeführt.
+
+Gast `927cf51d`, Profil `d68845b3-62a9-4181-a7cd-c0f0a8e7d316`, Boot-ID
+`984f23bd-607e-4a6d-8c08-7ae91bccd4f5`. Benutzer/CE/Schlüsselverzeichnisse bleiben
+bei 0, Runtime-Kontexte leer, Enforcing und der bestehende Broker aktiv.
+Sichtbarer Launcher und sämtliche Daten-/KeyMint-Paare bleiben erhalten.
+Erfolgreiche eigene Fixtures werden nach geschlossenen Referenzen entfernt;
+fehlgeschlagene bleiben erhalten.
+
+Build `identity-20260929T221753Z-adce0475-VOux1C`, Invocation `6aa14806bc1a441c84e27365a9579de5`.
+Belege: `out/components-adce0475/component-tests/`; `native.log` SHA-256
+`a011a21dca1cf90198ccb822138426e5f35b75257732e978af6cea9e4f9b5a17`; Vorher-/Nachher jeweils
+`0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3`.
+
+Vorherige Belege bleiben erhalten: `c8f707d5` bestand den Build, aber nur 1/2
+Smoke-Tests. APT meldete einen nicht erkannten kanonischen Cachepfad; Ursache
+war der anders benannte Testarchivname. Die geschützte eigene Testkopie
+`/data/local/tmp/aegis-preparation-FgD4iN` wurde nur lesend ausgewertet; ein
+normaler `adb pull` war an ihren Rechten gescheitert, ohne sie zu verändern.
+Der begrenzte Root-Lesezugriff und die Diagnose sind unter
+`out/components-c8f707d5/preparation-smoke/diagnostic.json` dokumentiert.
+`d5132eb9` bestand danach 2/2 Smoke- und 182/182 Gesamttests um
+2026-09-29T22:15:38Z. Beim Vergleich mit der realen Broker-umask wurde zusätzlich
+der neue Rechtefall ergänzt; der aktuelle Lauf umfasst ihn und alle früheren Tests.
+
 ## Begrenzter Paketabschluss bei fehlender Antwort: 1719eebd
 
 Der [Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T214339Z-1719eebd-1719eebd-Hh238A)
