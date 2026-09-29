@@ -68,6 +68,7 @@ if set(rules) != {'context.c', 'setup_tests.cpp', 'broker.c'}:
     raise ValueError('Expected all three existing ARM64 compiler rules')
 commands = {}
 for source, template in (('exec.c', 'context.c'), ('context.c', 'context.c'),
+                         ('ce.c', 'context.c'), ('ce_tests.cpp', 'setup_tests.cpp'),
                          ('exec_tests.cpp', 'setup_tests.cpp'), ('broker.c', 'broker.c'),
                          ('broker_owner.c', 'context.c'), ('broker_protocol.c', 'context.c'),
                          ('broker_protocol_tests.cpp', 'setup_tests.cpp'),

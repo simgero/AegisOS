@@ -1,13 +1,38 @@
 # AOSP-Speicheroperationen und Runtime-Abbau
 
 Stand 29. September 2026: Die fünf AOSP-Hooks und der Controller sind im
-lokalen Image `a187a309` mit `managed-v1` installiert. Enforcing und FBE
-sind bestätigt; der Init-gestartete Broker scheitert noch am privaten
-Basis-Mount-Anker. Dessen Korrektur besteht die nativen Gerätetests, der
-vollständige Ersatzbuild läuft. Die öffentliche Terminalanbindung ist
-implementiert, eine echte GNU-Sitzung und deren integrierter CE-Abbau sind
-weiterhin unbewiesen. Paketoperationen und verwaltete Benutzerlöschung sind
-nicht freigegeben. Aktuelle Belege: [Komponententests](../docs/component-tests.md).
+lokal getesteten Image `4366aa25` mit `managed-v1` installiert. Enforcing,
+FBE, der private Broker und ein tatsächlich gestarteter persönlicher Aufseher
+sind bestätigt. Die Bash-Sitzung scheitert noch an der Basis-Verknüpfung;
+der Korrekturbuild läuft. Persönlicher Kontextstopp, AOSP-Logout, CE-Sperre
+und entfernte Cgroup sind danach unabhängig geprüft. GNU-Ausführung und
+integrierte Mehrbenutzerisolation bleiben unbewiesen. Paketoperationen und
+verwaltete Benutzerlöschung fehlen. Aktuelle Belege:
+[Runtime-Policy](selinux-integration.md).
+
+## Erstmalige persönliche Home-Struktur
+
+Der vorbereitete native Provisionierungspfad legt `Desktop`, `Documents`,
+`Downloads`, `Pictures`, `Videos`, `Music`, `Books`, `.config`, `.local` und
+`.cache` ausschließlich im leeren, noch root-eigenen Staging-Home an. Die
+Verzeichnisse erhalten den tatsächlichen gemappten Eigentümer des jeweiligen
+AOSP-Benutzers und Modus `0700`. Alle Pfade sind feste relative Namen; die
+Verzeichnisöffnung folgt weder Verknüpfungen noch anderen Mounts.
+
+Die Provisionierung prüft anschließend die unveränderte, von AOSP geerbte
+CE-Policy jedes Verzeichnisses. Erst nach Metadatenprüfung, Synchronisation
+und erneuter Prüfung des CE-Schlüsselstatus wird der vollständige Anker unter
+seinem endgültigen Namen veröffentlicht. Bei Fehler bleibt das unveröffentlichte
+Staging-Verzeichnis erhalten und wird nicht automatisch übernommen.
+
+Ein bereits vorhandenes Home wird weiterhin nur validiert und geöffnet.
+Benutzerseitig gelöschte, umbenannte oder ersetzte Standardordner werden nicht
+zurückgesetzt. Die Layout-Hilfsfunktion lehnt nichtleere und nichtprivate
+Staging-Verzeichnisse ab; sie ist keine Authentisierung und kein CE-Nachweis.
+Vier zusätzliche native Tmpfs-Tests decken Eigentümerzuordnung, genaue
+Erststruktur, Verweigerung bei bestehenden Daten/Verknüpfungen und ungültige
+Identitäten beziehungsweise Staging-Metadaten ab. **Kompilierung, Ausführung
+dieser Tests und erstmalige reale CE-Provisionierung stehen noch aus.**
 
 ## Warum eine vorgeschaltete Sperre erforderlich ist
 
@@ -91,8 +116,7 @@ müssen ihre eigene interne Bindung erhalten. Lifecycle-Callbacks widerrufen
 Sitzungen ohne den Identitätsmonitor zu erwerben; beim gleichzeitigen Wechsel
 verhindert ein atomarer Vergleich das Löschen der neuen Benutzerbindung.
 
-Weiterhin offen sind der erfolgreiche Broker-Start in seiner SELinux-Domain,
-öffentlicher GNU-Terminalbetrieb, Pakettransaktionen sowie reale
+Weiterhin offen sind öffentlicher GNU-Terminalbetrieb, Pakettransaktionen sowie reale
 Start/Stop/CE-Rennentests.
 Direkte privilegierte vold-Aufrufe durchlaufen die Java-Schnittstelle nicht.
 Die Löschbereinigung nach Freigabe einer numerischen AOSP-ID muss in den noch

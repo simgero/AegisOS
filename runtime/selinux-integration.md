@@ -23,7 +23,7 @@ im Produkt beobachtet.
 
 `linux shell` um 09:16:20 scheitert an `init base:lnk_file read` für `bin`
 auf `loop94`. Die gemeinsame Debian-Basis verwendet `/bin -> usr/bin`;
-der Aufseher prüft den festen Bash-Pfad vor dem Terminalstart. Die neue
+das Kind löst diesen Pfad bei `execve` noch in der Aufseher-Domäne auf. Die neue
 Policy erlaubt nur `{ getattr read }` für Verknüpfungen dieser unveränderlichen
 Basis im Aufseher. Andere Daten- und Gerätearten bleiben unverändert.
 Zwei vorherige `setup self:cap_userns fsetid`-Verweigerungen brechen den

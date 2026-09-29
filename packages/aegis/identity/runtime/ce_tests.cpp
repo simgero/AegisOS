@@ -1,6 +1,7 @@
 // Compile ONLY on aegis-build; execute ONLY in local Android QEMU.
-// Detached, unencrypted tmpfs fixtures test rejection paths, NOT successful
-// AOSP provisioning, authentication, encryption, key removal or CE isolation.
+// Detached, unencrypted tmpfs fixtures test rejection paths and private layout
+// construction, NOT successful AOSP provisioning, authentication, encryption,
+// key removal or CE isolation.
 #include "ce_private.h"
 
 #include <gtest/gtest.h>
@@ -9,6 +10,7 @@
 #include <fcntl.h>
 #include <linux/mount.h>
 #include <private/android_filesystem_config.h>
+#include <set>
 #include <string>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -49,6 +51,96 @@ class RuntimeCe : public ::testing::Test {
     }
     void TearDown() override { if (root >= 0) close(root); }
 };
+
+TEST_F(RuntimeCe, NewPrivateHomeHasExactOwnedDirectoriesAndIsNotReinitialized) {
+    const std::set<std::string> expected = {
+        "Desktop", "Documents", "Downloads", "Pictures", "Videos", "Music", "Books",
+        ".config", ".local", ".cache",
+    };
+    int before = fd_count();
+    ASSERT_GT(before, 0);
+    ASSERT_EQ(0, aegis_ce_create_home_layout(root, 10));
+    EXPECT_EQ(before, fd_count());
+    int scan = aegis_ce_open_directory(root, ".");
+    ASSERT_GE(scan, 0);
+    DIR* directory = fdopendir(scan);
+    ASSERT_NE(nullptr, directory);
+    std::set<std::string> actual;
+    while (dirent* entry = readdir(directory)) {
+        std::string name = entry->d_name;
+        if (name == "." || name == "..") continue;
+        actual.insert(name);
+        struct stat st;
+        ASSERT_EQ(0, fstatat(root, name.c_str(), &st, AT_SYMLINK_NOFOLLOW));
+        EXPECT_EQ(static_cast<mode_t>(S_IFDIR | 0700), st.st_mode);
+        EXPECT_EQ(1007500u, st.st_uid);
+        EXPECT_EQ(1007500u, st.st_gid);
+    }
+    EXPECT_EQ(0, closedir(directory));
+    EXPECT_EQ(expected, actual);
+    // Simulate a user's later choice. Reinitialization must not repair it.
+    ASSERT_EQ(0, fchmodat(root, "Books", 0750, 0));
+    for (int i = 0; i < 16; i++) {
+        EXPECT_EQ(-1, aegis_ce_create_home_layout(root, 10)); EXPECT_EQ(EEXIST, errno);
+    }
+    struct stat st;
+    ASSERT_EQ(0, fstatat(root, "Books", &st, AT_SYMLINK_NOFOLLOW));
+    EXPECT_EQ(static_cast<mode_t>(S_IFDIR | 0750), st.st_mode);
+    EXPECT_EQ(before, fd_count());
+}
+
+TEST_F(RuntimeCe, HomeLayoutRejectsExistingFileAndSymlinkWithoutFollowingOrOverwriting) {
+    int sentinel = openat(root, "keep", O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+    ASSERT_GE(sentinel, 0);
+    const char payload[] = "existing private user bytes";
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(payload)), write(sentinel, payload, sizeof(payload)));
+    ASSERT_EQ(0, symlinkat("keep", root, "Books"));
+    int before = fd_count();
+    for (int i = 0; i < 16; i++) {
+        EXPECT_EQ(-1, aegis_ce_create_home_layout(root, 10)); EXPECT_EQ(EEXIST, errno);
+    }
+    struct stat st;
+    ASSERT_EQ(0, fstatat(root, "Books", &st, AT_SYMLINK_NOFOLLOW));
+    EXPECT_TRUE(S_ISLNK(st.st_mode));
+    char data[sizeof(payload)] = {};
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(data)), pread(sentinel, data, sizeof(data), 0));
+    EXPECT_EQ(0, memcmp(payload, data, sizeof(payload)));
+    EXPECT_EQ(-1, fstatat(root, "Desktop", &st, AT_SYMLINK_NOFOLLOW)); EXPECT_EQ(ENOENT, errno);
+    EXPECT_EQ(before, fd_count());
+    close(sentinel);
+}
+
+TEST_F(RuntimeCe, HomeLayoutRejectsInvalidIdentityAndNonPrivateStagingWithoutMutation) {
+    int before = fd_count();
+    for (uint32_t user : {0u, 9u, 21473u, UINT32_MAX}) {
+        EXPECT_EQ(-1, aegis_ce_create_home_layout(root, user)); EXPECT_EQ(EINVAL, errno);
+    }
+    ASSERT_EQ(0, fchmod(root, 0755));
+    EXPECT_EQ(-1, aegis_ce_create_home_layout(root, 10)); EXPECT_EQ(EPERM, errno);
+    ASSERT_EQ(0, fchmod(root, 0700));
+    ASSERT_EQ(0, fchown(root, 1007500, 1007500));
+    EXPECT_EQ(-1, aegis_ce_create_home_layout(root, 10)); EXPECT_EQ(EPERM, errno);
+    struct stat st;
+    EXPECT_EQ(-1, fstatat(root, "Books", &st, AT_SYMLINK_NOFOLLOW)); EXPECT_EQ(ENOENT, errno);
+    EXPECT_EQ(before, fd_count());
+}
+
+TEST_F(RuntimeCe, HomeLayoutUsesTheActualMappedOwnerForEachPersonalUser) {
+    int before = fd_count();
+    for (uint32_t user : {10u, 11u, 21472u}) {
+        const std::string name = std::to_string(user);
+        ASSERT_EQ(0, mkdirat(root, name.c_str(), 0700));
+        int home = aegis_ce_open_directory(root, name.c_str());
+        ASSERT_GE(home, 0);
+        ASSERT_EQ(0, aegis_ce_create_home_layout(home, user));
+        struct stat st;
+        ASSERT_EQ(0, fstatat(home, "Documents", &st, AT_SYMLINK_NOFOLLOW));
+        EXPECT_EQ(user * 100000u + 7500u, st.st_uid);
+        EXPECT_EQ(st.st_uid, st.st_gid);
+        close(home);
+    }
+    EXPECT_EQ(before, fd_count());
+}
 
 TEST_F(RuntimeCe, MissingOrNonCanonicalSerialIsNeverRepairedOrAccepted) {
     EXPECT_EQ(-1, aegis_ce_require_serial(root, 1)); EXPECT_EQ(ENODATA, errno);

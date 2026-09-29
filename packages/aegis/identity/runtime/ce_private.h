@@ -21,6 +21,11 @@ int aegis_ce_require_serial(int directory, uint32_t serial);
 /* No symlinks, magic links or mount crossings beneath an anchored directory. */
 int aegis_ce_open_directory(int parent, const char *relative);
 
+/* Create the initial standard directories in an empty root-owned staging
+ * home only. Internal layout operation, not authorization or CE validation;
+ * the provisioning caller checks AOSP CE policy before publication. */
+int aegis_ce_create_home_layout(int home, uint32_t user_id);
+
 /* Clone a validated personal home without applying a second UID map. */
 int aegis_ce_clone_home(int home, uint32_t user_id);
 

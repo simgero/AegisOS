@@ -4,6 +4,7 @@
 #include "ce_private.h"
 #include "uid_layout.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -124,6 +125,51 @@ static uint32_t home_uid(uint32_t user_id) {
     return UINT32_MAX;
 }
 
+static const char *const home_directories[] = {
+    "Desktop", "Documents", "Downloads", "Pictures", "Videos", "Music", "Books",
+    ".config", ".local", ".cache",
+};
+
+int aegis_ce_create_home_layout(int home, uint32_t user_id) {
+    if (user_id < 10 || user_id >= 21473) return reject(EINVAL);
+    uint32_t uid = home_uid(user_id);
+    if (uid == UINT32_MAX) return reject(EINVAL);
+    /* Only an empty, still root-owned unpublished staging home is eligible.
+     * Never fill in, repair or overwrite a previously published user's HOME. */
+    if (metadata(home, 0, 0, 0700) < 0 || no_acl(home) < 0) return -1;
+    int scan = aegis_ce_open_directory(home, ".");
+    if (scan < 0) return -1;
+    DIR *directory = fdopendir(scan);
+    if (!directory) { int saved = errno; close(scan); return reject(saved); }
+    int error = 0;
+    struct dirent *entry;
+    errno = 0;
+    while ((entry = readdir(directory))) {
+        if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")) {
+            error = EEXIST;
+            break;
+        }
+    }
+    if (!error) error = errno;
+    if (closedir(directory) < 0 && !error) error = errno;
+    if (error) return reject(error);
+    for (unsigned i = 0; i < sizeof(home_directories) / sizeof(home_directories[0]); i++) {
+        const char *name = home_directories[i];
+        if (mkdirat(home, name, 0700) < 0) return -1;
+        int child = aegis_ce_open_directory(home, name);
+        if (child < 0) return -1;
+        int result = -1;
+        if (metadata(child, 0, 0, 0700) == 0 && no_acl(child) == 0
+                && fchown(child, uid, uid) == 0 && fchmod(child, 0700) == 0
+                && metadata(child, uid, uid, 0700) == 0 && no_acl(child) == 0
+                && fsync(child) == 0 && still_named(home, name, child) == 0) result = 0;
+        int saved = errno;
+        close(child);
+        if (result < 0) return reject(saved);
+    }
+    return fsync(home);
+}
+
 static int check_home(int fd, uint32_t uid, const struct fscrypt_policy_v2 *expected) {
     if (metadata(fd, uid, uid, 0700) < 0 || no_acl(fd) < 0) return -1;
     return matching_policy(fd, expected);
@@ -135,7 +181,7 @@ static int check_anchor(int fd, const char *owner, const struct fscrypt_policy_v
     return matching_policy(fd, expected);
 }
 
-static int provision(int misc, uint32_t uid, const char *owner,
+static int provision(int misc, uint32_t user_id, uint32_t uid, const char *owner,
                      const struct fscrypt_policy_v2 *expected) {
     /* Caller holds the per-identity lifecycle lock. A leftover staging tree is
      * never adopted, overwritten, repaired or removed automatically. It can
@@ -150,7 +196,17 @@ static int provision(int misc, uint32_t uid, const char *owner,
     home = aegis_ce_open_directory(pending, "home");
     if (home < 0 || metadata(home, 0, 0, 0700) < 0 || no_acl(home) < 0
             || matching_policy(home, expected) < 0
-            || fchown(home, uid, uid) < 0 || fchmod(home, 0700) < 0
+            || aegis_ce_create_home_layout(home, user_id) < 0) goto done;
+    /* Each new directory must inherit the exact AOSP CE policy before the
+     * staging anchor is published. Layout creation itself is not CE proof. */
+    for (unsigned i = 0; i < sizeof(home_directories) / sizeof(home_directories[0]); i++) {
+        int child = aegis_ce_open_directory(home, home_directories[i]);
+        if (child < 0) goto done;
+        int checked = matching_policy(child, expected), saved = errno;
+        close(child);
+        if (checked < 0) { errno = saved; goto done; }
+    }
+    if (fchown(home, uid, uid) < 0 || fchmod(home, 0700) < 0
             || check_home(home, uid, expected) < 0 || check_anchor(pending, owner, expected) < 0
             || fsync(home) < 0 || fsync(pending) < 0
             || key_present(misc, expected) < 0
@@ -192,7 +248,7 @@ int aegis_ce_open_home(int data, uint32_t user_id, uint32_t serial, int create) 
      * Never set AOSP's serial or fscrypt policy, nor create missing AOSP roots. */
     anchor = aegis_ce_open_directory(misc, anchor_name);
     if (anchor < 0 && errno == ENOENT && create) {
-        if (provision(misc, uid, owner, &expected) < 0) goto done;
+        if (provision(misc, user_id, uid, owner, &expected) < 0) goto done;
         anchor = aegis_ce_open_directory(misc, anchor_name);
     }
     if (anchor < 0 || check_anchor(anchor, owner, &expected) < 0) goto done;

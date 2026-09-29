@@ -216,7 +216,7 @@ allow aegis_runtime_init aegis_runtime_program:process { signal sigkill };
 allow aegis_runtime_init { aegis_runtime_base_file aegis_runtime_home_file
     aegis_runtime_scratch_file aegis_runtime_devices_file }:dir r_dir_perms;
 # The Debian merged-/usr base resolves /bin/bash through /bin -> usr/bin.
-# The supervisor validates the fixed executable before creating the GNU PTY.
+# The child resolves this path during exec, before the GNU domain transition.
 allow aegis_runtime_init aegis_runtime_base_file:lnk_file { getattr read };
 allow aegis_runtime_init aegis_runtime_devices_file:lnk_file r_file_perms;
 allow aegis_runtime_init aegis_runtime_devices_file:chr_file rw_file_perms;
