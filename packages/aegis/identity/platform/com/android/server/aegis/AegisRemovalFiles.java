@@ -125,8 +125,16 @@ public final class AegisRemovalFiles {
 
     private static void syncDirectory(File parent) throws ErrnoException {
         FileDescriptor fd = Os.open(parent.getPath(), OsConstants.O_RDONLY
-                | OsConstants.O_DIRECTORY | OsConstants.O_CLOEXEC | OsConstants.O_NOFOLLOW, 0);
-        try { Os.fsync(fd); }
+                | OsConstants.O_CLOEXEC | OsConstants.O_NOFOLLOW, 0);
+        try {
+            // O_DIRECTORY is not exposed by the pinned Android OsConstants API.
+            // Verify the opened descriptor, not a separate pathname lookup.
+            if (!OsConstants.S_ISDIR(Os.fstat(fd).st_mode)) {
+                throw new ErrnoException("AOSP metadata parent is not a directory",
+                        OsConstants.ENOTDIR);
+            }
+            Os.fsync(fd);
+        }
         finally { Os.close(fd); }
     }
 }
