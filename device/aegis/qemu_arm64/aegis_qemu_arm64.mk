@@ -48,6 +48,11 @@ $(error AEGIS managed runtime requires a checked runtime kernel selection)
 endif
 PRODUCT_SYSTEM_PROPERTIES += ro.aegis.runtime.mode=managed-v1
 PRODUCT_PACKAGES += aegis-runtime-broker aegis-runtime-setup aegis-runtime-init
+# These two static namespace helpers deliberately live in verified /system.
+# Keep generic_system's artifact-path checks; allow only these exact outputs.
+PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
+    system/bin/aegis-runtime-init \
+    system/bin/aegis-runtime-setup
 endif
 
 PRODUCT_PACKAGES += \

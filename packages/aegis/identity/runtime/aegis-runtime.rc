@@ -10,7 +10,9 @@ service aegis-runtime-broker /system_ext/bin/aegis-runtime-broker
     user root
     group root
     capabilities CHOWN DAC_OVERRIDE DAC_READ_SEARCH FOWNER KILL SETGID SETUID SETPCAP SYS_ADMIN MKNOD
-    socket aegis_runtime seqpacket 0600 system system u:object_r:aegis_runtime_socket:s0
+    # Init uses the service domain for the socket's peer SID. The filesystem
+    # endpoint independently gets aegis_runtime_socket from file_contexts.
+    socket aegis_runtime seqpacket 0600 system system
     disabled
     # A failed owner stays failed. No restart can imply successful CE cleanup.
     oneshot
