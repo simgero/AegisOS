@@ -1,12 +1,13 @@
 # AOSP-Speicheroperationen und Runtime-Abbau
 
-Stand 29. September 2026: Die fünf AOSP-Hooks sind im gebooteten Image vorhanden;
-ihre Gerätetests bestehen im Komponentenstand `ac87df1f`. Der aktuelle Quelltext
-verbindet im Modus `managed-v1` den echten nativen Besitzer, `RuntimeAdmission`
-und den Identitätsdienst. Diese Verbindung ist in `2a766ab5` kompiliert; ihre
-Aktivierung und praktische integrierte Prüfung stehen noch aus. Das Produkt bleibt `ro.aegis.runtime.mode=absent`, bis auch
-SELinux, Init und die erforderlichen Systemtests integriert sind. Es sind keine
-öffentlichen PTY- oder Paketoperationen freigegeben.
+Stand 29. September 2026: Die fünf AOSP-Hooks und der Controller sind im
+lokalen Image `a187a309` mit `managed-v1` installiert. Enforcing und FBE
+sind bestätigt; der Init-gestartete Broker scheitert noch am privaten
+Basis-Mount-Anker. Dessen Korrektur besteht die nativen Gerätetests, der
+vollständige Ersatzbuild läuft. Die öffentliche Terminalanbindung ist
+implementiert, eine echte GNU-Sitzung und deren integrierter CE-Abbau sind
+weiterhin unbewiesen. Paketoperationen und verwaltete Benutzerlöschung sind
+nicht freigegeben. Aktuelle Belege: [Komponententests](../docs/component-tests.md).
 
 ## Warum eine vorgeschaltete Sperre erforderlich ist
 
@@ -90,10 +91,53 @@ müssen ihre eigene interne Bindung erhalten. Lifecycle-Callbacks widerrufen
 Sitzungen ohne den Identitätsmonitor zu erwerben; beim gleichzeitigen Wechsel
 verhindert ein atomarer Vergleich das Löschen der neuen Benutzerbindung.
 
-Weiterhin offen sind produktive SELinux-/Init-Aktivierung, öffentlicher
-Terminalbesitz, Pakettransaktionen sowie reale Start/Stop/CE-Rennentests.
+Weiterhin offen sind der erfolgreiche Broker-Start in seiner SELinux-Domain,
+öffentlicher GNU-Terminalbetrieb, Pakettransaktionen sowie reale
+Start/Stop/CE-Rennentests.
 Direkte privilegierte vold-Aufrufe durchlaufen die Java-Schnittstelle nicht.
 Die Löschbereinigung nach Freigabe einer numerischen AOSP-ID muss in den noch
 reservierten AOSP-Lebenszyklus verlegt werden. Für Benutzerlöschung bleibt
-`requireRuntimeAbsent()` deshalb bestehen; die übrigen neuen Lifecycle-Pfade
-berechtigen noch nicht zur Aktivierung des Produkts.
+`requireRuntimeAbsent()` deshalb bestehen.
+
+## Benutzerlöschung vor Freigabe der AOSP-ID
+
+Die Prüfung der gepinnten Plattformquellen bestätigt zusätzliche Lücken,
+die die fünf Storage-Key-Hooks allein nicht schließen. Dies ist eine
+Implementierungsvorgabe, kein bestandener Löschtest:
+
+- `UserManagerService.removeUserState()` entfernt zunächst LockSettings,
+  Schlüssel und Daten. Fehler beim Schlüsselabbau werden bisher abgefangen;
+  `UserDataPreparer` und `StorageManagerService.destroyUserStorage()`
+  verschlucken ebenfalls Fehler. Ein ungeklärter Abbau muss den partiellen
+  AOSP-Benutzereintrag erhalten und darf nicht den Systemserver beenden.
+- Stop- und Broadcast-Rückmeldungen verwenden nur die numerische ID.
+  Sie müssen das ursprüngliche AOSP-Objekt und seine Seriennummer behalten
+  und jede Finalisierung einmalig beanspruchen, bevor auch AM-Rückmeldungen
+  oder andere Löschwirkungen ausgeführt werden. Das gilt ebenfalls für
+  Bereinigung beim Booten und vorbereitete Benutzer.
+- Der Runtime-Abbau muss vor LockSettings beginnen. Die Runtime-Lease wird
+  vor den AOSP-Aufrufen geschlossen; diese erwerben für ihre Speicheraktionen
+  eigene Leases. Eine geschlossene Lease öffnet die Runtime-Zulassung nicht.
+- Die Benutzer-ID bleibt reserviert, bis Daten und Metadaten bestätigt
+  beseitigt sind. `mRemovingUserIds` allein reicht nicht: Der ID-Allocator
+  darf diese Liste bei Erschöpfung ausdünnen. Der weiterhin vorhandene
+  `UserData`-Eintrag und die Sperrordnung von `mPackagesLock` vor `mUsersLock`
+  müssen Wiederverwendung während numerischer Abschlussarbeiten verhindern.
+- `ResilientAtomicFile.delete()` ignoriert die Ergebnisse beim Löschen von
+  XML-Datei, Backup und Reservekopie. Diese Ergebnisse müssen vor ID-Freigabe
+  geprüft werden. Der verzögerte `WRITE_USER_MSG` liest hingegen unter
+  `mPackagesLock` den dann aktuellen `UserData`-Eintrag; er hält keinen alten
+  Datensatz fest. Dafür ist keine spekulative Snapshot-Korrektur erforderlich.
+- Die bisherige direkte vold-Nachbereinigung im AEGIS-Backend erfolgt erst
+  nach Freigabe der ID. Sie muss durch die bestätigte Plattformbereinigung
+  ersetzt werden, bevor verwaltete CLI-Löschung aktiviert wird. Angeschlossene
+  und gespeicherte, aber getrennte adoptierte Privatvolumes müssen weiterhin
+  vor der ersten irreversiblen Änderung ausdrücklich geprüft werden.
+
+Die Quellprüfung und exakten Git-Blob-Hashes der zusätzlich betroffenen
+Plattformdateien stehen in
+`out/full-build-026665fb/removal-followup.json`. Eine Erweiterung des
+Integrators muss den bisherigen Besitznachweis kontrolliert migrieren,
+alle zusätzlichen Originaldateien pinnen und fremde Änderungen erhalten.
+Nach dem Kompilieren bleiben reale Erfolgs-, Fehler-, Doppelrückmeldungs-
+und ID-Wiederverwendungstests mit persönlichen Runtime-Kontexten erforderlich.
