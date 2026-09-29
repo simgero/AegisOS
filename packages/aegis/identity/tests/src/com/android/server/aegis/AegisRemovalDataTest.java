@@ -83,4 +83,55 @@ public final class AegisRemovalDataTest {
         } finally { Os.chmod(root.getPath(), 0700); }
         assertArrayEquals(SENTINEL, Files.readAllBytes(root.toPath().resolve("child/data")));
     }
+
+    @Test public void credentialInventoryListsNamesWithoutChangingBytes() throws Exception {
+        Path state = Files.createDirectory(fixture.resolve("spblob"));
+        Files.write(state.resolve("000000000000001a.spblob"), SENTINEL);
+        Files.write(state.resolve("000000000000001a.pwd"), SENTINEL);
+        assertEquals(java.util.Set.of("000000000000001a.spblob", "000000000000001a.pwd"),
+                new java.util.HashSet<>(AegisRemovalData.listSystemFiles(state.toFile())));
+        assertArrayEquals(SENTINEL, Files.readAllBytes(state.resolve("000000000000001a.spblob")));
+    }
+
+    @Test public void absentCredentialDirectoryIsAnEmptyInventory() throws Exception {
+        assertTrue(AegisRemovalData.listSystemFiles(fixture.resolve("absent").toFile()).isEmpty());
+        assertFalse(Files.exists(fixture.resolve("absent")));
+    }
+
+    @Test public void credentialInventoryRejectsSymbolicRootsAndEntries() throws Exception {
+        Path state = Files.createDirectory(fixture.resolve("spblob"));
+        Path other = fixture.resolve("retained");
+        Files.write(other, SENTINEL);
+        Os.symlink(state.toString(), fixture.resolve("linked-root").toString());
+        Os.symlink(other.toString(), state.resolve("000000000000001a.spblob").toString());
+        for (File root : new File[] {state.toFile(), fixture.resolve("linked-root").toFile()}) {
+            try {
+                AegisRemovalData.listSystemFiles(root);
+                fail("Symbolic credential inventory accepted");
+            } catch (IOException expected) { }
+        }
+        assertArrayEquals(SENTINEL, Files.readAllBytes(other));
+    }
+
+    @Test public void credentialInventoryRejectsUnexpectedDirectories() throws Exception {
+        File root = populated("spblob");
+        try {
+            AegisRemovalData.listSystemFiles(root);
+            fail("Non-file credential-state entry accepted");
+        } catch (IOException expected) { }
+        assertArrayEquals(SENTINEL, Files.readAllBytes(root.toPath().resolve("child/data")));
+    }
+
+    @Test public void unreadableCredentialInventoryIsNotAcceptedAsAbsent() throws Exception {
+        File root = Files.createDirectory(fixture.resolve("spblob")).toFile();
+        Files.write(new File(root, "000000000000001a.spblob").toPath(), SENTINEL);
+        Os.chmod(root.getPath(), 0300);
+        try {
+            try {
+                AegisRemovalData.listSystemFiles(root);
+                fail("Unreadable credential directory accepted");
+            } catch (IOException expected) { }
+        } finally { Os.chmod(root.getPath(), 0700); }
+        assertArrayEquals(SENTINEL, Files.readAllBytes(new File(root, "000000000000001a.spblob").toPath()));
+    }
 }

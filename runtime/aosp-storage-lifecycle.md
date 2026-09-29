@@ -146,9 +146,10 @@ Die vorhandene bestmögliche AOSP-fs-verity-Absicherung bleibt im neuen
 Commitpfad erhalten. Bestehende normale AOSP-Aufrufer sind unverändert.
 
 Der Quellintegrator pinnt zusätzlich `ResilientAtomicFile`, `UserManagerService`,
-`UserDataPreparer` und `Installer`. Berichtsschema 3 übernimmt nur vollständig
-passende bisherige Nachweise der Schemata 1/2. Neue unbekannte Dateiänderungen
-verhindern die Installation. 15 lokale Tests prüfen Integration und Migration;
+`UserDataPreparer`, `Installer` und die beteiligten LockSettings-/SP-Quellen.
+Berichtsschema 4 übernimmt nur vollständig passende bisherige Nachweise der
+Schemata 1/2/3. Neue unbekannte Dateiänderungen verhindern die Installation.
+17 lokale Tests prüfen Integration und Migration;
 sie führen keine Android-Dateioperation aus.
 
 Komponentenstand `c239ab17` ist auf dem Builder kompiliert und über GitHub
@@ -159,8 +160,16 @@ App-Prozess. Die Korrektur bereitet ausschließlich diese app-eigene Testdatei
 Nachweis: `out/components-c239ab1/component-tests/`; Java-Protokoll SHA-256
 `d0394a52a702210496defdae971d8eb2235cc94a5417030a8f2b42c72959413a`.
 
-**Der neue Quellstand bindet die bestätigenden Methoden nun in AOSPs
-Benutzerlöschung ein; Kompilierung und Vollimage-Nachweis dafür stehen aus.**
+Die Korrektur und fünf Tests für Systemverzeichnis-Bereinigung sind im
+[Komponentenstand 5ef3e01e](https://github.com/simgero/AegisOS/releases/tag/components-20260929T123300Z-5ef3e01e-5ef3e01e-Gi3Tkv)
+gebaut und verifiziert. Im lokalen Gast `2f29f0ac` bestehen **83/83 Java-Tests**
+(0,543 s). Java-Protokoll SHA-256:
+`da2fa58a6af636703712f2de6757047cd6ba0886f5b452db74776e27e055d9a9`.
+Die unveränderten nativen Quellen verwenden weiterhin den geprüften 128er-
+Nachweis `d44ccb33`; sie wurden hierfür nicht erneut ausgeführt.
+
+**Die bestätigenden Methoden sind in AOSPs Benutzerlöschung eingebunden und
+kompiliert; der Vollimage-Nachweis dieser Löschroutine steht noch aus.**
 Stop- und Broadcast-Rückmeldungen behalten das ursprüngliche `UserData` und
 dessen Seriennummer. Getrennte einmalige Benachrichtigungs-/Abbauansprüche
 verhindern doppelte numerische Löschwirkungen. Fehler behalten den partiellen
@@ -185,6 +194,25 @@ nach numerischer ID aufschieben. Angeschlossene und gespeicherte abgetrennte
 private Zusatzvolumes verhindern die Löschung. Diese Änderungen sind noch
 kein realer Nachweis für Fehlerbehandlung, Wiederanlauf oder ID-Wiederverwendung.
 Verwaltete CLI-Benutzerlöschung bleibt durch `requireRuntimeAbsent()` gesperrt.
+
+Der folgende Quellstand ergänzt noch ungeprüfte Bestätigungen in AOSPs
+`LockSettingsService`, `SyntheticPasswordManager` und `SyntheticPasswordCrypto`:
+fehlgeschlagene Keystore-Löschung, GateKeeper-Rückrufe oder Inventarlesefehler
+behalten die Benutzerreservierung. Protector- und Profilalias-Löschung prüft
+auch die anschließende Abwesenheit. Das ursprüngliche Inventar bleibt bis
+zum bestätigten Schlüsselabbau erhalten. Legacy-Boot-/Wiederverwendungspfade
+bleiben unverändert; `LockPatternUtils` ruft über den vorhandenen AOSP-
+LocalService den neuen bestätigenden Pfad auf.
+
+Die QEMU-Konfiguration meldet Face- und Fingerprint-Funktionen. Der neue Pfad
+verlangt für beide tatsächlich `remaining=0`; Fehler, Unterbrechung und ein
+Timeout nach zehn Sekunden führen zum Abbruch mit erhaltener Reservierung.
+Eine fehlgeschlagene Hardware-/Enrollments-Abfrage gilt nicht als leere Liste.
+Für Benutzer mit vorhandener Weaver-Zustandsdatei wird die Löschung vor dem
+Protectorabbau abgewiesen, bis ein bestätigender Weaver-Pfad implementiert ist.
+Die beiden bisherigen QEMU-Testbenutzer haben keine solchen Zustandsdateien.
+Fünf zusätzliche Android-Tests prüfen die Inventarlesefunktion; insgesamt
+88 Java-Tests sind für den neuen Stand vorgesehen, noch nicht ausgeführt.
 
 Die folgende Prüfliste erklärt die abgedeckten Quellpfade und die noch
 ausstehenden Systemtests. Sie ist kein bestandener Löschtest:

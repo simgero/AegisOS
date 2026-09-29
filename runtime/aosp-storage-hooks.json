@@ -7,6 +7,9 @@
     "services/core/java/com/android/server/pm/ResilientAtomicFile.java": "9c63bdd710fc2a72a2a7e83c809fae93523334023e521148350b68805b85170b",
     "services/core/java/com/android/server/pm/UserManagerService.java": "40e8938d8a7b91d9aff0c6a69f36f796236a8542a442b8fc0210ab9979c65117",
     "services/core/java/com/android/server/pm/UserDataPreparer.java": "935b566808e93019b98b28423408c91c3310f0f9e4718f51bf05ba1f8c88b170",
-    "services/core/java/com/android/server/pm/Installer.java": "eaca2e029af76361f13246087f1e552226937d3f4001ecef67b366c3c3257678"
+    "services/core/java/com/android/server/pm/Installer.java": "eaca2e029af76361f13246087f1e552226937d3f4001ecef67b366c3c3257678",
+    "services/core/java/com/android/server/locksettings/LockSettingsService.java": "e9f758529db00b91d3a7460b62d855880e22e81007f486b7d740f0ab7aee712c",
+    "services/core/java/com/android/server/locksettings/SyntheticPasswordManager.java": "f022809efba8116fe61f16b0f7e14784d056e1f87a8410cf25528a5f90476835",
+    "services/core/java/com/android/server/locksettings/SyntheticPasswordCrypto.java": "e3156bab3046398ecb92d5411265af7b0c7513876eb0d2aa47b0fede2c79d69a"
   }
 }

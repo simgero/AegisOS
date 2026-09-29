@@ -17,10 +17,39 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Objects;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Internal AOSP removal primitives. No identity, key or authorization authority. */
 public final class AegisRemovalData {
     private AegisRemovalData() {}
+
+    /** Checked inventory of a quiescent AOSP credential-state directory. No file contents. */
+    public static List<String> listSystemFiles(File directory) throws IOException {
+        Path root = directory.toPath();
+        final BasicFileAttributes initial;
+        try {
+            initial = Files.readAttributes(root, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        } catch (NoSuchFileException absent) {
+            return new ArrayList<>();
+        }
+        if (!initial.isDirectory()) throw new IOException("Expected AOSP credential directory");
+        List<String> names = new ArrayList<>();
+        try (java.nio.file.DirectoryStream<Path> children = Files.newDirectoryStream(root)) {
+            for (Path child : children) {
+                BasicFileAttributes info = Files.readAttributes(child, BasicFileAttributes.class,
+                        LinkOption.NOFOLLOW_LINKS);
+                if (!info.isRegularFile()) throw new IOException("Unexpected credential-state entry");
+                names.add(child.getFileName().toString());
+            }
+        }
+        BasicFileAttributes after = Files.readAttributes(root, BasicFileAttributes.class,
+                LinkOption.NOFOLLOW_LINKS);
+        if (!after.isDirectory() || !Objects.equals(initial.fileKey(), after.fileKey())) {
+            throw new IOException("AOSP credential directory changed");
+        }
+        return names;
+    }
 
     /** Phase 1 cannot acknowledge deletion while an adopted disk may retain data. */
     public static StorageManager requireInternalStorageOnly(StorageManager storage) {

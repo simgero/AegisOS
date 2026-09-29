@@ -15,13 +15,17 @@ RESILIENT = 'services/core/java/com/android/server/pm/ResilientAtomicFile.java'
 MANAGER = 'services/core/java/com/android/server/pm/UserManagerService.java'
 PREPARER = 'services/core/java/com/android/server/pm/UserDataPreparer.java'
 INSTALLER = 'services/core/java/com/android/server/pm/Installer.java'
+LOCK_SETTINGS = 'services/core/java/com/android/server/locksettings/LockSettingsService.java'
+SYNTHETIC = 'services/core/java/com/android/server/locksettings/SyntheticPasswordManager.java'
+PROTECTOR_CRYPTO = 'services/core/java/com/android/server/locksettings/SyntheticPasswordCrypto.java'
 BRIDGE = 'services/core/java/com/android/server/aegis/AegisRuntimeStorage.java'
 SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisRuntimeStorage.java'
 REMOVAL_FILES = 'services/core/java/com/android/server/aegis/AegisRemovalFiles.java'
 REMOVAL_SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisRemovalFiles.java'
 REMOVAL_DATA = 'services/core/java/com/android/server/aegis/AegisRemovalData.java'
 REMOVAL_DATA_SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisRemovalData.java'
-ORIGINAL_FILES = {STORAGE, USERS, RESILIENT, MANAGER, PREPARER, INSTALLER}
+SCHEMA_THREE_ORIGINALS = {STORAGE, USERS, RESILIENT, MANAGER, PREPARER, INSTALLER}
+ORIGINAL_FILES = SCHEMA_THREE_ORIGINALS | {LOCK_SETTINGS, SYNTHETIC, PROTECTOR_CRYPTO}
 SOURCE_FILES = {BRIDGE: SOURCE, REMOVAL_FILES: REMOVAL_SOURCE, REMOVAL_DATA: REMOVAL_DATA_SOURCE}
 MARKER = 'out/aegis-runtime-storage/sources.json'
 PREFIX = 'com.android.server.aegis.AegisRuntimeStorage'
@@ -177,6 +181,157 @@ def patch_preparer(data):
             // The patched StorageManagerService propagates vold failure under its own lease.
             storage.destroyUserStorage(null, userId, flags);
             com.android.server.aegis.AegisRemovalData.requireInternalStorageOnly(storage);
+        }
+    }
+
+'''
+    return replace_once(text, anchor, addition + anchor).encode('utf-8')
+
+
+def patch_protector_crypto(data):
+    text = data.decode('utf-8')
+    old = method(text, '    public static void destroyProtectorKey(String keyAlias)')
+    new = replace_once(old, 'void destroyProtectorKey(', 'void destroyProtectorKeyChecked(')
+    new = replace_once(new, '            keyStore.deleteEntry(keyAlias);',
+                       '            keyStore.deleteEntry(keyAlias);\n'
+                       '            if (keyStore.containsAlias(keyAlias)) {\n'
+                       '                throw new IllegalStateException("SP protector key remains");\n'
+                       '            }')
+    new = replace_once(new, '            Slog.e(TAG, "Failed to delete SP protector key " + keyAlias, e);',
+                       '            throw new IllegalStateException("SP protector key deletion failed", e);')
+    return replace_once(text, old, old + '\n\n' + new).encode('utf-8')
+
+
+def patch_synthetic(data):
+    text = data.decode('utf-8')
+    anchor = '    public void removeUser(IGateKeeperService gatekeeper, int userId) {\n'
+    addition = '''    /** Synchronous checked path for a still-reserved AOSP user; original path is unchanged. */
+    public void removeUserChecked(IGateKeeperService gatekeeper, int userId) {
+        final java.util.List<String> files;
+        try {
+            files = com.android.server.aegis.AegisRemovalData.listSystemFiles(
+                    mStorage.getSyntheticPasswordDirectoryForUser(userId));
+        } catch (java.io.IOException failure) {
+            throw new IllegalStateException("Credential-state inventory unconfirmed", failure);
+        }
+        // Phase 1's QEMU uses GateKeeper. Never claim Weaver erasure from the
+        // original best-effort method (which can return without erasing a slot).
+        // Refuse BEFORE deleting any protector if this user has Weaver state.
+        for (String file : files) {
+            if (file.endsWith("." + WEAVER_SLOT_NAME)) {
+                throw new IllegalStateException("Checked Weaver user removal is not implemented");
+            }
+        }
+        final java.util.List<Long> protectors = new java.util.ArrayList<>();
+        for (String file : files) {
+            if (file.endsWith("." + SP_BLOB_NAME)) {
+                String id = file.substring(0, file.length() - SP_BLOB_NAME.length() - 1);
+                if (!id.matches("[0-9a-f]{16}")) {
+                    throw new IllegalStateException("Malformed AOSP protector-state name");
+                }
+                protectors.add(Long.parseUnsignedLong(id, 16));
+            }
+        }
+        for (long protectorId : protectors) {
+            SyntheticPasswordCrypto.destroyProtectorKeyChecked(getProtectorKeyAlias(protectorId));
+        }
+        try {
+            java.util.Objects.requireNonNull(gatekeeper, "AOSP GateKeeper unavailable")
+                    .clearSecureUserId(fakeUserId(userId));
+        } catch (RemoteException failure) {
+            throw new IllegalStateException("GateKeeper synthetic SID removal failed", failure);
+        }
+        // Keep the state files until LockSettings commits removal; on failure the
+        // original inventory must survive so a later boot can retry it.
+    }
+
+'''
+    return replace_once(text, anchor, addition + anchor).encode('utf-8')
+
+
+def patch_lock_settings(data):
+    text = data.decode('utf-8')
+    # LockPatternUtils -> LockSettingsInternal remains the AOSP authority.
+    # Do not change early-boot/reused-user internal best-effort call sites.
+    text = replace_once(text, '            LockSettingsService.this.removeUser(userId);',
+                        '            LockSettingsService.this.removeUserChecked(userId);')
+    anchor = '    private void removeUser(@UserIdInt int userId) {\n'
+    addition = '''    private void removeUserChecked(@UserIdInt int userId) {
+        synchronized (mUserCreationAndRemovalLock) {
+            if (!mThirdPartyAppsStarted) {
+                throw new IllegalStateException("LockSettings removal is not ready");
+            }
+            removeBiometricsChecked(userId);
+            mSpManager.removeUserChecked(getGateKeeperService(), userId);
+            mStrongAuth.removeUser(userId);
+            int result = AndroidKeyStoreMaintenance.onUserRemoved(userId);
+            if (result != 0) {
+                throw new IllegalStateException("AOSP Keystore user removal failed: " + result);
+            }
+            mUnifiedProfilePasswordCache.removePassword(userId);
+            try {
+                java.util.Objects.requireNonNull(getGateKeeperService(), "AOSP GateKeeper unavailable")
+                        .clearSecureUserId(userId);
+            } catch (RemoteException failure) {
+                throw new IllegalStateException("AOSP GateKeeper SID removal failed", failure);
+            }
+            try {
+                final String encryptAlias = PROFILE_KEY_NAME_ENCRYPT + userId;
+                final String decryptAlias = PROFILE_KEY_NAME_DECRYPT + userId;
+                mKeyStore.deleteEntry(encryptAlias);
+                mKeyStore.deleteEntry(decryptAlias);
+                if (mKeyStore.containsAlias(encryptAlias) || mKeyStore.containsAlias(decryptAlias)) {
+                    throw new IllegalStateException("AOSP profile key remains");
+                }
+            } catch (KeyStoreException failure) {
+                throw new IllegalStateException("AOSP profile-key removal failed", failure);
+            }
+            // Only now may the credential inventory and serial record disappear.
+            mStorage.removeUser(userId);
+        }
+    }
+
+    private static void awaitRemovalAcknowledgement(
+            java.util.concurrent.CompletableFuture<Void> done) {
+        try {
+            done.get(10, TimeUnit.SECONDS);
+        } catch (InterruptedException failure) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Biometric removal interrupted", failure);
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException failure) {
+            throw new IllegalStateException("Biometric removal unconfirmed", failure);
+        }
+    }
+
+    private void removeBiometricsChecked(int userId) {
+        android.content.pm.PackageManager pm = mContext.getPackageManager();
+        if (pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_FINGERPRINT)) {
+            FingerprintManager manager = java.util.Objects.requireNonNull(
+                    mInjector.getFingerprintManager(), "Fingerprint service unavailable");
+            java.util.concurrent.CompletableFuture<Void> done = new java.util.concurrent.CompletableFuture<>();
+            manager.removeAll(userId, new FingerprintManager.RemovalCallback() {
+                @Override public void onRemovalError(Fingerprint fp, int error, CharSequence message) {
+                    done.completeExceptionally(new IllegalStateException("Fingerprint removal failed: " + error));
+                }
+                @Override public void onRemovalSucceeded(Fingerprint fp, int remaining) {
+                    if (remaining == 0) done.complete(null);
+                }
+            });
+            awaitRemovalAcknowledgement(done);
+        }
+        if (pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_FACE)) {
+            FaceManager manager = java.util.Objects.requireNonNull(
+                    mInjector.getFaceManager(), "Face service unavailable");
+            java.util.concurrent.CompletableFuture<Void> done = new java.util.concurrent.CompletableFuture<>();
+            manager.removeAll(userId, new FaceManager.RemovalCallback() {
+                @Override public void onRemovalError(Face face, int error, CharSequence message) {
+                    done.completeExceptionally(new IllegalStateException("Face removal failed: " + error));
+                }
+                @Override public void onRemovalSucceeded(Face face, int remaining) {
+                    if (remaining == 0) done.complete(null);
+                }
+            });
+            awaitRemovalAcknowledgement(done);
         }
     }
 
@@ -442,13 +597,15 @@ def originals_from_git(base):
 
 def validate_record(record):
     schema = record.get('schema') if isinstance(record, dict) else None
-    if type(schema) is not int or schema not in (1, 2, 3):
+    if type(schema) is not int or schema not in (1, 2, 3, 4):
         raise ValueError('Invalid storage-source receipt schema')
-    expected_inputs = {1: {STORAGE, USERS}, 2: {STORAGE, USERS, RESILIENT}}.get(schema, ORIGINAL_FILES)
+    expected_inputs = {1: {STORAGE, USERS}, 2: {STORAGE, USERS, RESILIENT},
+                       3: SCHEMA_THREE_ORIGINALS}.get(schema, ORIGINAL_FILES)
     expected_outputs = {1: {STORAGE, USERS, BRIDGE},
-                        2: {STORAGE, USERS, RESILIENT, BRIDGE, REMOVAL_FILES}}.get(
+                        2: {STORAGE, USERS, RESILIENT, BRIDGE, REMOVAL_FILES},
+                        3: SCHEMA_THREE_ORIGINALS | SOURCE_FILES.keys()}.get(
                                 schema, ORIGINAL_FILES | SOURCE_FILES.keys())
-    if (not isinstance(record, dict) or schema not in (1, 2, 3)
+    if (not isinstance(record, dict) or schema not in (1, 2, 3, 4)
             or record.get('status') != 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED'
             or record.get('aosp_tag') != 'android-16.0.0_r1'
             or not isinstance(record.get('inputs'), dict)
@@ -484,8 +641,11 @@ def prepare(project, aosp, originals=None, pins=None):
                RESILIENT: patch_resilient(originals[RESILIENT]),
                MANAGER: patch_manager(originals[MANAGER]),
                PREPARER: patch_preparer(originals[PREPARER]),
-               INSTALLER: patch_installer(originals[INSTALLER]), **sources}
-    record = {'schema': 3, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
+               INSTALLER: patch_installer(originals[INSTALLER]),
+               LOCK_SETTINGS: patch_lock_settings(originals[LOCK_SETTINGS]),
+               SYNTHETIC: patch_synthetic(originals[SYNTHETIC]),
+               PROTECTOR_CRYPTO: patch_protector_crypto(originals[PROTECTOR_CRYPTO]), **sources}
+    record = {'schema': 4, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
               'aosp_tag': pins['aosp_tag'], 'inputs': pins['files'],
               'bridge_sha256': digest(sources[BRIDGE]),
               'outputs': {name: digest(data) for name, data in outputs.items()}}

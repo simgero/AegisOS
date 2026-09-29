@@ -1,0 +1,9 @@
+// Inert source-integration fixture; production patches the complete pinned Git blob.
+    private void removeUser(@UserIdInt int userId) {
+        originalBootAwareRemoval();
+    }
+    class LocalService {
+        public void removeUser(int userId) {
+            LockSettingsService.this.removeUser(userId);
+        }
+    }

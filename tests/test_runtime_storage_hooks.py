@@ -27,6 +27,9 @@ class StorageHookSourcesTests(unittest.TestCase):
             hooks.MANAGER: (fixtures / 'UserManagerService.fragment').read_bytes(),
             hooks.PREPARER: (fixtures / 'UserDataPreparer.fragment').read_bytes(),
             hooks.INSTALLER: (fixtures / 'Installer.fragment').read_bytes(),
+            hooks.LOCK_SETTINGS: (fixtures / 'LockSettingsService.fragment').read_bytes(),
+            hooks.SYNTHETIC: (fixtures / 'SyntheticPasswordManager.fragment').read_bytes(),
+            hooks.PROTECTOR_CRYPTO: (fixtures / 'SyntheticPasswordCrypto.fragment').read_bytes(),
         }
         self.pins = {'schema': 1, 'aosp_tag': 'android-16.0.0_r1',
                      'files': {name: hooks.digest(data) for name, data in self.originals.items()}}
@@ -172,7 +175,7 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.assertEqual(json.loads(marker.read_text()), legacy)
         self.target(hooks.RESILIENT).write_bytes(self.originals[hooks.RESILIENT])
         result = self.prepare()
-        self.assertEqual(result['schema'], 3)
+        self.assertEqual(result['schema'], 4)
         hooks.verify(self.aosp, result)
         self.assertEqual(self.target(hooks.REMOVAL_FILES).read_bytes(), self.removal_source.read_bytes())
         self.assertEqual(self.prepare(), result)
@@ -211,7 +214,50 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.assertFalse(self.target(hooks.REMOVAL_DATA).exists())
         self.assertEqual(json.loads(marker.read_text()), legacy)
         self.target(hooks.MANAGER).write_bytes(self.originals[hooks.MANAGER])
-        self.assertEqual(self.prepare()['schema'], 3)
+        self.assertEqual(self.prepare()['schema'], 4)
+
+    def test_schema_three_migration_rejects_unowned_lock_settings_changes(self):
+        receipt = self.prepare()
+        old_inputs = hooks.SCHEMA_THREE_ORIGINALS
+        old_outputs = old_inputs | hooks.SOURCE_FILES.keys()
+        legacy = {**receipt, 'schema': 3,
+                  'inputs': {k: v for k, v in receipt['inputs'].items() if k in old_inputs},
+                  'outputs': {k: v for k, v in receipt['outputs'].items() if k in old_outputs}}
+        marker = self.aosp / hooks.MARKER
+        marker.write_text(json.dumps(legacy))
+        for name in (hooks.LOCK_SETTINGS, hooks.SYNTHETIC, hooks.PROTECTOR_CRYPTO):
+            self.target(name).write_bytes(self.originals[name])
+        self.target(hooks.LOCK_SETTINGS).write_bytes(b'other developer change')
+        with self.assertRaises(ValueError): self.prepare()
+        self.assertEqual(self.target(hooks.SYNTHETIC).read_bytes(), self.originals[hooks.SYNTHETIC])
+        self.assertEqual(json.loads(marker.read_text()), legacy)
+        self.target(hooks.LOCK_SETTINGS).write_bytes(self.originals[hooks.LOCK_SETTINGS])
+        self.assertEqual(self.prepare()['schema'], 4)
+
+    def test_checked_keys_keep_inventory_until_all_remote_deletions_acknowledge(self):
+        self.prepare()
+        text = self.target(hooks.LOCK_SETTINGS).read_text()
+        self.assertIn('LockSettingsService.this.removeUserChecked(userId)', text)
+        checked = hooks.method(text, '    private void removeUserChecked(')
+        order = ['!mThirdPartyAppsStarted', 'removeBiometricsChecked(userId)', 'mSpManager.removeUserChecked(',
+                 'AndroidKeyStoreMaintenance.onUserRemoved(userId)', 'if (result != 0)',
+                 '.clearSecureUserId(userId)', 'mKeyStore.deleteEntry(',
+                 'mStorage.removeUser(userId)']
+        self.assertEqual([checked.index(s) for s in order], sorted(checked.index(s) for s in order))
+        self.assertIn('originalBootAwareRemoval();', text)
+        self.assertIn('done.get(10, TimeUnit.SECONDS)', text)
+        self.assertEqual(text.count('done.completeExceptionally('), 2)
+        self.assertEqual(text.count('if (remaining == 0) done.complete(null)'), 2)
+        synthetic = self.target(hooks.SYNTHETIC).read_text()
+        self.assertLess(synthetic.index('WEAVER_SLOT_NAME'),
+                        synthetic.index('SyntheticPasswordCrypto.destroyProtectorKeyChecked('))
+        self.assertIn('listSystemFiles(', synthetic)
+        self.assertIn('Malformed AOSP protector-state name', synthetic)
+        self.assertIn('originalBestEffortProtectorRemoval();', synthetic)
+        checked = hooks.method(self.target(hooks.PROTECTOR_CRYPTO).read_text(),
+                               '    public static void destroyProtectorKeyChecked(')
+        self.assertIn('keyStore.containsAlias(keyAlias)', checked)
+        self.assertIn('throw new IllegalStateException("SP protector key deletion failed", e)', checked)
 
     def test_removal_orders_metadata_and_data_before_reserved_identity_release(self):
         self.prepare()
