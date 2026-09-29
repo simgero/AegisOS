@@ -112,6 +112,8 @@ def main():
     p.add_argument('output',type=Path)
     p.add_argument('--seconds',type=int,default=180,help='0 keeps the VMs running until the QEMU window is closed')
     p.add_argument('--display',choices=['none','cocoa'],default='none')
+    p.add_argument('--framebuffer-format',choices=['rgba','bgra'],
+                   help='Override the local compositor framebuffer format for diagnostics')
     p.add_argument('--pointer',choices=['mouse','tablet'],default='mouse',
                    help='Relative mouse for Android cursor input; tablet retained for diagnostics')
     p.add_argument('--adb-port',type=int,default=0,
@@ -144,7 +146,13 @@ def run(args,manifest=None):
     output.mkdir(parents=True,exist_ok=False)
     (output/'helper-initrd.img').write_bytes(initrd)
     local_config=Path(__file__).resolve().parents[1]/'tools/qemu/local.bootconfig'
-    (output/'bootconfig').write_text(args.bootconfig.read_text().rstrip()+'\n'+local_config.read_text())
+    local_text=local_config.read_text()
+    if args.framebuffer_format:
+        import re
+        local_text=re.sub(r'(?m)^androidboot.hardware.hwcomposer.display_framebuffer_format=.*$',
+                          'androidboot.hardware.hwcomposer.display_framebuffer_format='+args.framebuffer_format,
+                          local_text)
+    (output/'bootconfig').write_text(args.bootconfig.read_text().rstrip()+'\n'+local_text)
     subprocess.run([sys.executable,str(Path(__file__).with_name('qemu-init.py')),
                     str(images),str(output/'android'),'--disk',str(args.disk.resolve()),
                     '--bootconfig',str(output/'bootconfig'),'--prepare-only'],check=True)
