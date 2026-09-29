@@ -4,24 +4,25 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Aktueller Kandidat: **`7c6b9b1c`**, vollständig gebaut, über GitHub verifiziert
+Aktueller Kandidat: **`4366aa25`**, vollständig gebaut, über GitHub verifiziert
 übertragen und im separaten lokalen Profil ohne sichtbares Fenster gestartet.
 Enforcing, FBE, authentifiziertes ADB und tatsächliches dm-verity sind bestätigt.
 Die private Cgroup-Delegation und der Boot ohne Runtime-AVCs bestehen.
 
-AOSP-Anlage und Anmeldung des ersten Testadministrators funktionieren; ein
-falsches Passwort wird abgewiesen. Der persönliche Linux-Start erreicht nun
-den Setup-Helfer in seiner richtigen SELinux-Domäne. Die vorherigen
-`nosuid_transition`-/`execute_no_trans`- und Bereinigungs-Verweigerungen treten
-nicht mehr auf. Er scheitert nun bei der Übergabe des privaten Home-Mounts:
-Der Kernel prüft einen `O_PATH`-Deskriptor beim Empfang als `dir ioctl`.
-Der Stopp, AOSP-Abmeldung, CE-Sperre und leere Kontext-Cgroup sind anschließend
-unabhängig bestätigt. **Eine GNU-Sitzung wurde weiterhin nicht ausgeführt.**
-Die gezielte Freigabe ausschließlich für die privaten Home-/Gerätewurzeln
-ist vorbereitet; die vorhandene Ioctl-Befehlsliste und die ausschließliche
-Zuständigkeit von vold für Schlüsseloperationen bleiben unverändert. Neuer
-Build und produktiver Startnachweis bleiben
-erforderlich. Details: [Runtime-Policy](../runtime/selinux-integration.md).
+AOSP-Anlage und Anmeldung des ersten Testadministrators funktionieren. Nach
+einem falschen Passwort bleiben seine CE-Daten nach unabhängigem Readback
+gesperrt. `linux start` erreicht erstmals `runtime=ready`; der tatsächliche
+Aufseher läuft in `aegis_runtime_init`, mit persönlichem UID/GID-Mapping und
+zugeordneter Kontext-Cgroup. Die vorherige Home-Mount-Empfangssperre ist behoben.
+
+`linux shell` scheitert anschließend beim Lesen der Verknüpfung `/bin` in der
+unveränderlichen Debian-Basis. **Eine GNU-Sitzung wurde weiterhin nicht
+ausgeführt.** Die gezielte Freigabe `init base:lnk_file { getattr read }` ist
+vorbereitet. Zwei nicht abbrechende `setup:cap_userns fsetid`-Verweigerungen
+wurden ebenfalls aufgezeichnet; dafür wird kein zusätzliches Recht erteilt.
+Stopp, AOSP-Abmeldung, CE-Sperre und entfernte Kontext-Cgroup sind unabhängig
+bestätigt. Neuer Build und GNU-Ausführungsnachweis bleiben erforderlich.
+Details: [Runtime-Policy](../runtime/selinux-integration.md).
 
 **124/124 native Tests** aus `c0d8c16c` bestehen auf dem vorherigen lokalen
 `ebf3610`-Image. Die nativen Quellen sind im Kandidaten unverändert.

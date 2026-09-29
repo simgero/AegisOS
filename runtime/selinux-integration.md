@@ -1,5 +1,43 @@
 # SELinux- und Init-Integration der Runtime
 
+## Persönlicher Kontext startet in 4366aa25; Bash noch nicht
+
+Build `aosp-20260929T085012Z-4366aa25-7160e5c0` wurde mit `UPLOAD_VERIFIED`
+veröffentlicht und lokal in Profil `a5a1ba9e-9836-4e66-9d16-3b8c506f33d5`
+getestet. Raw-SHA-256:
+`47b156d77edd3262b5808f9b236d557b581c80f71974d04229c05f127eea1064`;
+AVB-Digest:
+`7bedc8751c4ceebbb193d789928b4180c65265d7d19fb7f3eaa884a001be43a1`.
+Boot, Enforcing, FBE, tatsächliches dm-verity, sichere ADB-Anmeldung und private
+Cgroup-Delegation bestehen. Die Testanmeldung weist ein falsches Passwort ab;
+unabhängige AOSP-CE-Abfragen davor und danach bleiben `[0]`, erst nach dem
+korrekten Passwort `[0, 10]`.
+
+`linux start` um 09:16:03 UTC meldet `runtime=ready`. Der laufende Prozess 4806
+ist tatsächlich `u:r:aegis_runtime_init:s0`, mit UID/GID-Abbildung
+`0 -> 1005000 (1000 IDs)`, `1000 -> 1007500`, `65534 -> 1007501` und Cgroup
+`/aegis-runtime/contexts/u10-s10`. Das Readback der Aufseher-Mounts und
+Namespaces stammt von Entwicklungs-root, **nicht von einer GNU-Sitzung**.
+Die O_PATH-Empfangskorrektur und der feste Setup-zu-Init-Übergang sind damit
+im Produkt beobachtet.
+
+`linux shell` um 09:16:20 scheitert an `init base:lnk_file read` für `bin`
+auf `loop94`. Die gemeinsame Debian-Basis verwendet `/bin -> usr/bin`;
+der Aufseher prüft den festen Bash-Pfad vor dem Terminalstart. Die neue
+Policy erlaubt nur `{ getattr read }` für Verknüpfungen dieser unveränderlichen
+Basis im Aufseher. Andere Daten- und Gerätearten bleiben unverändert.
+Zwei vorherige `setup self:cap_userns fsetid`-Verweigerungen brechen den
+Kontextstart nicht ab; sie werden aufgezeichnet, nicht pauschal freigegeben.
+PTY-Übergabe und tatsächliche GNU-Ausführung sind weiterhin ausstehend.
+
+`linux stop` um 09:18:00 und AOSP-Logout um 09:18:07 funktionieren. Das
+unabhängige Readback um 09:18:35 bestätigt nur Benutzer 0 gestartet und
+CE-entsperrt, `populated 0`, `frozen 0` und die entfernte Gruppe `u10-s10`.
+Belege einschließlich Prüfsummen:
+`out/full-build-4366aa25/identity-test/`; Bootbelege unter `boot-1/`.
+Native/Java-Quellen sind unverändert. Die Verknüpfungskorrektur benötigt noch
+einen neuen vollständigen Build und den lokalen Ausführungsnachweis.
+
 ## Vollständiger Boot und persönlicher Start in 7c6b9b1c
 
 Build `aosp-20260929T081643Z-7c6b9b1c-e191fec1` ist mit `UPLOAD_VERIFIED`
