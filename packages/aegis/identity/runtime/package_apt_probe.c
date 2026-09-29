@@ -160,6 +160,9 @@ int aegis_probe_package_apt(uint32_t user) {
         int in = open("/dev/null", O_RDONLY | O_CLOEXEC);
         int log = open("/var/log/aegis-package-test.log", O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC, 0600);
         if (in < 0 || log < 0 || dup2(in, 0) < 0 || dup2(log, 1) < 0 || dup2(log, 2) < 0) _exit(126);
+        // Slots 0/1/2 began closed: open may already return its final slot.
+        // dup2(fd, fd) does NOT clear CLOEXEC, unlike a real duplication.
+        for (int fd = 0; fd < 3; fd++) if (fcntl(fd, F_SETFD, 0) < 0) _exit(126);
         if (syscall(SYS_close_range, 3u, ~0u, 0u) < 0) _exit(126);
         char *args[] = {"/bin/sh", "-c", (char *)script, NULL};
         char *env[] = {"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C", "HOME=/root", NULL};
@@ -171,7 +174,7 @@ int aegis_probe_package_apt(uint32_t user) {
     result.status = WIFEXITED(status) ? (uint32_t)WEXITSTATUS(status) : 256u + (uint32_t)WTERMSIG(status);
     if (!result.status) { result.phase = 6;errno = 0; }
 done:
-    result.error = result.phase == 6 ? 0 : (uint32_t)errno;
+    result.error = result.phase >= 5 ? 0 : (uint32_t)errno;
     for (int i = 0; i < 2; i++) if (fds[i] >= 0) close(fds[i]);
     return send(3, &result, sizeof(result), MSG_NOSIGNAL) == (ssize_t)sizeof(result) && result.phase == 6 ? 0 : 115;
 }
