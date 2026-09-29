@@ -3,6 +3,7 @@
 // prerequisites into a passing isolation result. No AOSP users are created.
 #include "namespace.h"
 #include "namespace_probe.h"
+#include "base_image.h"
 
 #include <gtest/gtest.h>
 #include <dirent.h>
@@ -490,6 +491,61 @@ TEST_F(RuntimeNamespace, DetachedBaseRequiresThePrivateAnchorBeforeItCanBeCloned
     mapped_files(mounts[0], 10);
     pollfd ready = {peers[0], POLLIN, 0};
     EXPECT_EQ(0, poll(&ready, 1, 20));
+}
+
+TEST_F(RuntimeNamespace, ReopenedRootDoesNotRetainDetachedMountOwnership) {
+    ASSERT_EQ(0, fixture(false));
+    ASSERT_EQ(0, freeze_source(false));
+    int root = openat(source, ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    ASSERT_GE(root, 0) << strerror(errno);
+    close(source);
+    source = root;
+    // Metadata is still readable, but closing the fsmount file description
+    // dissolved its anonymous namespace. This reproduces the production bug.
+    struct stat st;
+    ASSERT_EQ(0, fstat(source, &st));
+    EXPECT_EQ(-1, aegis_namespace_attach_base(source));
+    EXPECT_EQ(EINVAL, errno);
+}
+
+TEST_F(RuntimeNamespace, VerifiedImageRetainsOwnershipThroughAttachmentAndCloning) {
+    // Exercise the real producer and the immutable image, including its hash,
+    // loop device and SELinux-label checks. An already attached tmpfs fixture
+    // cannot catch a prematurely closed fsmount owner in aegis_base_open().
+    source = aegis_base_open();
+    ASSERT_GE(source, 0) << strerror(errno);
+    ASSERT_EQ(0, anchor_source()) << strerror(errno);
+    EXPECT_NE(0, fcntl(source, F_GETFL) & O_PATH);
+    EXPECT_NE(0, fcntl(source, F_GETFD) & FD_CLOEXEC);
+    struct stat original;
+    struct statvfs flags;
+    ASSERT_EQ(0, fstat(source, &original));
+    ASSERT_EQ(0, fstatvfs(source, &flags));
+    const unsigned long restricted = ST_RDONLY | ST_NOSUID | ST_NODEV | ST_NOEXEC;
+    EXPECT_EQ(restricted, flags.f_flag & restricted);
+    ASSERT_EQ(0, create(0, 10));
+    ASSERT_EQ(0, aegis_namespace_prepare(contexts[0]));
+    mounts[0] = aegis_namespace_base_mount(contexts[0], source);
+    ASSERT_GE(mounts[0], 0) << strerror(errno);
+    struct stat mapped;
+    ASSERT_EQ(0, fstat(mounts[0], &mapped));
+    EXPECT_EQ(original.st_dev, mapped.st_dev);
+    EXPECT_EQ(original.st_ino, mapped.st_ino);
+    EXPECT_EQ(1005000u, mapped.st_uid);
+    EXPECT_EQ(1005000u, mapped.st_gid);
+    ASSERT_EQ(0, fstatvfs(mounts[0], &flags));
+    EXPECT_EQ(ST_RDONLY | ST_NOSUID | ST_NODEV, flags.f_flag & restricted);
+    int writable = openat(mounts[0], "aegis-must-remain-readonly", O_CREAT | O_EXCL | O_WRONLY, 0600);
+    int saved = errno;
+    if (writable >= 0) close(writable);
+    EXPECT_EQ(-1, writable);
+    EXPECT_EQ(EROFS, saved);
+    // The probe is a trusted Android fixture, not execution of GNU userspace.
+    ASSERT_EQ(0, aegis_namespace_resume(contexts[0]));
+    aegis_namespace_probe actual = {};
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(actual)), report(0, &actual));
+    check(actual, 10);
+    finish(0);
 }
 
 TEST_F(RuntimeNamespace, TwoViewsKeepSharedInodesWithSeparateUserOwnership) {

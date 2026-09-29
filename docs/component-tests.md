@@ -1,5 +1,30 @@
 # Komponentenläufe in lokalem QEMU
 
+## Mount-Besitz nach vollständigem Boot von a187a309
+
+Build [`aosp-20260929T034544Z-a187a309-0129b0ef`](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T034544Z-a187a309-0129b0ef)
+ist veröffentlicht und nach Asset-/AVB-Prüfung im eigenen gekoppelten Profil
+gestartet. Enforcing, FBE, authentifiziertes ADB, dm-verity und die drei
+Telefonie-Overrides sind bestätigt. Die vorherige ext4-Kontextverweigerung
+ist überwunden. Der Broker scheitert nun mit `private base anchor errno=22`;
+die aufgezeichneten Runtime-AVCs sind leer. Beleg:
+`out/full-build-a187a309/boot-1/boot-health.json`.
+
+Der gepinnte Kernel `50eb8d5d443b43f38d6e72f005f1b8601ac88a05`
+markiert die `fsmount`-Dateibeschreibung mit `FMODE_NEED_UNMOUNT`.
+Ihr letztes Schließen ruft `dissolve_on_fput()` auf, auch wenn eine separat
+geöffnete Wurzel noch einen Pfadverweis hält. `move_mount()` weist diesen
+nicht mehr eingebundenen Mount anschließend mit `EINVAL` zurück. Der
+Basisöffner muss deshalb den ursprünglichen Mount-Deskriptor zurückgeben;
+der lesbare Deskriptor dient nur der unveränderten Labelprüfung.
+
+Zwei neue native Gerätetests sind vorbereitet: ein tatsächlich abgetrennter
+tmpfs-Mount reproduziert den Verlust beim Ersetzen des Besitzers; ein Test
+des echten Basisöffners prüft die unveränderliche ext4-Datei, private
+Einbindung, persönlichen ID-Mount und abgewiesenen Schreibzugriff. Sie sind
+noch nicht kompiliert oder ausgeführt. Kein persönlicher AOSP-Benutzer wurde
+im neuen Gast angelegt und GNU-Programme laufen weiterhin nicht.
+
 ## Terminal- und Basisvorbereitung: 026665fb auf Image 030dd177
 
 Der Komponentenlauf `identity-20260929T030627Z-026665fb-TMiVTr` kompiliert

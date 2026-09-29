@@ -4,13 +4,15 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Aktueller Nachweisstand: Das vollständige Image `026665fb` bootet im getrennten
+Aktueller Nachweisstand: Das vollständige Image `a187a309` bootet im getrennten
 lokalen Testprofil mit Enforcing, FBE, authentifiziertem ADB und tatsächlichem
-dm-verity. Sein Broker überwindet die zuvor beobachteten Loop-Node- und
-Kernel-Lesefehler, scheitert aber beim Erzeugen des ext4-Superblocks mit
-`EACCES`: Die zweite Prüfung für `context=` verlangt `relabelfrom` auf dem
-bereits gewählten Basislabel. Die gezielte Broker-Regel in `a187a309` ist im
-vollständigen Build kompiliert; Paketierung und neuer Gasttest folgen. **114 native
+dm-verity. Die ext4-Kontextprüfung besteht nach der gezielten Policy-Korrektur.
+Der nächste Startschritt scheitert beim privaten Mount-Anker mit `EINVAL`,
+ohne Runtime-AVC: Der Basisöffner gibt eine neu geöffnete Wurzel zurück und
+schließt dadurch den ursprünglichen `fsmount`-Besitzer zu früh. Die lokale
+Korrektur erhält diesen Deskriptor; zwei neue Gerätetests prüfen den Fehler
+und den echten Basisöffner bis zum persönlichen Mount-Klon. Build und Test
+der Korrektur stehen noch aus. **114 native
 und 62 Java-Tests bestehen** für die unveränderten Komponenten von `026665fb`
 im älteren Image `030dd177`. Öffentliche CLI-Negativtests und die verdeckte
 Passworteingabe samt Strg+C-Wiederherstellung bestehen im vollständigen Image

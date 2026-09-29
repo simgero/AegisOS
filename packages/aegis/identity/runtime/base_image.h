@@ -15,7 +15,9 @@ struct aegis_base_receipt {
 int aegis_base_parse_receipt(const char *json, size_t length, struct aegis_base_receipt *output);
 
 /* Fixed system_ext inputs only: no CLI paths, arbitrary manifests or images.
- * Returns an owned, detached, readonly/nosuid/nodev/noexec ext4 mount fd.
+ * Returns the owned O_PATH fsmount fd for a detached,
+ * readonly/nosuid/nodev/noexec ext4 mount. Keep that file description alive
+ * until attachment; reopening its root does not transfer mount ownership.
  * Source stays unmodified; no mount is attached by this function. The broker
  * attaches it in its own checked private namespace before cloning user views.
  * Requires the dedicated image/base SELinux types and production policy.

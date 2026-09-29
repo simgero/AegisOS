@@ -325,11 +325,13 @@ int aegis_base_open(void) {
     if (st.st_mode != (S_IFDIR | 0755) || st.st_uid || st.st_gid
             || st.st_dev != loop_stat.st_rdev || fs.f_type != EXT4_SUPER_MAGIC
             || (flags.f_flag & required) != required) return fail(EPROTO);
-    // fsmount returns an O_PATH fd. Open the same root readably for xattrs and
-    // callers; its path reference keeps this detached mount alive.
+    // fsmount's file description owns the anonymous mount namespace. A newly
+    // opened root only retains a path: closing the original fsmount description
+    // dissolves that namespace, so a later move_mount would fail with EINVAL.
+    // Use a readable descriptor only for xattrs; return the original owner.
     trace.phase = "open labeled detached root";
     unique_fd root(openat(mount.get(), ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
     if (root.get() < 0 || label(root.get(), kBaseLabel) < 0) return -1;
     trace.complete = true;
-    return root.release();
+    return mount.release();
 }
