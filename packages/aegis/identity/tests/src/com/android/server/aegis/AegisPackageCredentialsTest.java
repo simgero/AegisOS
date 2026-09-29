@@ -85,12 +85,21 @@ public final class AegisPackageCredentialsTest {
                 case 1: fixture.info.flags |= UserInfo.FLAG_DISABLED; break;
                 case 2: fixture.info.partial = true; break;
                 case 3: fixture.info.preCreated = true; break;
-                case 4: fixture.info.flags |= UserInfo.FLAG_GUEST; break;
+                case 4:
+                    // Android16 derives isGuest from userType, not FLAG_GUEST.
+                    fixture.info.flags |= UserInfo.FLAG_GUEST;
+                    fixture.info.userType = UserManager.USER_TYPE_FULL_GUEST;
+                    assertTrue(fixture.info.isGuest());
+                    break;
                 case 5: fixture.info.userType = UserManager.USER_TYPE_PROFILE_MANAGED; break;
                 case 6: fixture.info = null; break;
                 default: throw new AssertionError();
             }
-            throwsType(SecurityException.class, () -> fixture.call(AegisPackageCredentials.Action.INSTALL));
+            try {
+                throwsType(SecurityException.class, () -> fixture.call(AegisPackageCredentials.Action.INSTALL));
+            } catch (AssertionError failure) {
+                throw new AssertionError("Rejected-user fixture kind=" + kind, failure);
+            }
             assertEquals(0, fixture.checks.get());
         }
     }
