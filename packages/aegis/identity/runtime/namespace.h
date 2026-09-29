@@ -101,6 +101,17 @@ int aegis_namespace_resume(struct aegis_namespace *context);
  */
 int aegis_namespace_prepare(struct aegis_namespace *context);
 
+/* Explicit PACKAGE-worker mapping, never ordinary session preparation. Same
+ * fixed UID/GID extents, empty inherited groups, OOM readback, one-shot gate and
+ * ownership checks; preserves kernel setgroups=allow so APT can switch between
+ * mapped technical groups. The kernel rejects every unmapped GID. Ordinary
+ * prepare/resume still write deny. Package contexts cannot obtain a HOME view;
+ * only these contexts may map an exclusively owned writable candidate.
+ * No client endpoint or authorization: caller still needs AOSP approval,
+ * lifecycle registration, limited creation and checked worker mount/policy.
+ */
+int aegis_namespace_prepare_package(struct aegis_namespace *context);
+
 /* After prepare() and before resume(): clone a preopened, broker-verified,
  * readonly shared base root as a DETACHED readonly/nosuid/nodev/private mount,
  * ID-mapped to this exact child's namespace. Returns a new CLOEXEC fd; caller
@@ -119,7 +130,7 @@ int aegis_namespace_prepare(struct aegis_namespace *context);
 int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_source_fd);
 
 /* Internal package staging only, NOT authorization or a production worker.
- * After prepare(), before resume(): map an exclusively owned detached writable
+ * After prepare_package(), before resume(): map an exclusively owned detached writable
  * ext4 fsmount to this exact child. The caller has already copied and validated
  * an inactive candidate OUTSIDE the admission gate. Never pass the active base,
  * a personal home, an attached mount or a client-supplied descriptor.

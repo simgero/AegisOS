@@ -131,7 +131,7 @@ class RuntimeNamespace : public ::testing::Test {
         return recv(peers[slot], output, sizeof(*output), MSG_DONTWAIT | MSG_TRUNC);
     }
 
-    void check(const aegis_namespace_probe& result, uint32_t user) {
+    void check(const aegis_namespace_probe& result, uint32_t user, bool package = false) {
         EXPECT_EQ(0x41454e53u, result.magic);
         EXPECT_EQ(user, result.user_id);
         EXPECT_EQ(1234u, result.serial);
@@ -141,7 +141,7 @@ class RuntimeNamespace : public ::testing::Test {
         EXPECT_EQ(0u, result.uid); EXPECT_EQ(0u, result.gid);
         EXPECT_EQ(0u, result.groups); EXPECT_EQ(static_cast<uint32_t>(SIGKILL), result.death_signal);
         EXPECT_EQ(0u, result.extra_fds); EXPECT_EQ(1u, result.fixed_environment);
-        EXPECT_EQ(1u, result.private_mounts); EXPECT_EQ(1u, result.setgroups_denied);
+        EXPECT_EQ(1u, result.private_mounts); EXPECT_EQ(package ? 0u : 1u, result.setgroups_denied);
         const uint32_t expected[3][3] = {
             {0, user * 100000 + 5000, 1000}, {1000, user * 100000 + 7500, 1},
             {65534, user * 100000 + 7501, 1},
@@ -261,6 +261,18 @@ TEST_F(RuntimeNamespace, OfflineAptInstallsUpgradesAndPurgesCompleteCandidate) {
     EXPECT_EQ(-1, aegis_namespace_map_candidate(contexts[0], source));
     EXPECT_EQ(EAGAIN, errno);
     ASSERT_EQ(0, aegis_namespace_prepare(contexts[0]));
+    EXPECT_EQ(-1, aegis_namespace_map_candidate(contexts[0], source)); EXPECT_EQ(EPERM, errno);
+    struct stat unmapped;struct statvfs unchanged_flags;
+    ASSERT_EQ(0, fstat(source, &unmapped));ASSERT_EQ(0, fstatvfs(source, &unchanged_flags));
+    EXPECT_EQ(0u, unmapped.st_uid);EXPECT_NE(0u, unchanged_flags.f_flag & ST_NOEXEC);
+    ASSERT_EQ(0, aegis_namespace_stop(contexts[0]));
+    aegis_child_exit rejected = {};
+    ASSERT_EQ(0, aegis_namespace_wait(contexts[0], 5000, &rejected));
+    aegis_namespace_release(contexts[0]);contexts[0] = nullptr;
+    close(peers[0]);peers[0] = -1;
+    ASSERT_EQ(0, create(0, 10));
+    ASSERT_EQ(0, aegis_namespace_prepare_package(contexts[0]));
+    EXPECT_EQ(-1, aegis_namespace_home_mount(contexts[0], 0)); EXPECT_EQ(EPERM, errno);
     // Wrong object and a second mapping attempt cannot turn the ordinary base
     // or an already mapped candidate into another writable worker root.
     EXPECT_EQ(-1, aegis_namespace_map_candidate(contexts[0], setup));
@@ -272,7 +284,7 @@ TEST_F(RuntimeNamespace, OfflineAptInstallsUpgradesAndPurgesCompleteCandidate) {
     ASSERT_EQ(0, aegis_namespace_resume(contexts[0]));
     aegis_namespace_probe namespace_report = {};
     ASSERT_EQ(static_cast<ssize_t>(sizeof(namespace_report)), report(0, &namespace_report));
-    check(namespace_report, 10);
+    check(namespace_report, 10, true);
     ASSERT_EQ(1, send(peers[0], "A", 1, MSG_NOSIGNAL));
     uint32_t magic = 0x41505446;
     iovec io = {&magic, sizeof(magic)};
@@ -312,8 +324,11 @@ TEST_F(RuntimeNamespace, OfflineAptInstallsUpgradesAndPurgesCompleteCandidate) {
 }
 
 TEST_F(RuntimeNamespace, PackageWorkerRightsSurviveExecWithoutHostOrMountAuthority) {
-    ASSERT_EQ(0, create(0,10));ASSERT_EQ(0,aegis_namespace_resume(contexts[0]));
-    aegis_namespace_probe initial={};ASSERT_EQ(static_cast<ssize_t>(sizeof(initial)),report(0,&initial));check(initial,10);
+    ASSERT_EQ(0, create(0,10));
+    ASSERT_EQ(0, aegis_namespace_prepare_package(contexts[0]));
+    EXPECT_EQ(-1, aegis_namespace_home_mount(contexts[0], 0)); EXPECT_EQ(EPERM, errno);
+    ASSERT_EQ(0,aegis_namespace_resume(contexts[0]));
+    aegis_namespace_probe initial={};ASSERT_EQ(static_cast<ssize_t>(sizeof(initial)),report(0,&initial));check(initial,10,true);
     ASSERT_EQ(1,send(peers[0],"P",1,MSG_NOSIGNAL));
     pollfd ready={peers[0],POLLIN,0};ASSERT_EQ(1,poll(&ready,1,5000));
     aegis_package_policy_probe result={};
@@ -323,7 +338,7 @@ TEST_F(RuntimeNamespace, PackageWorkerRightsSurviveExecWithoutHostOrMountAuthori
         FAIL() << "Policy fixture reply=" << received << " wait=" << waited
                << " code=" << diagnostic.code << " status=" << diagnostic.status;
     }
-    EXPECT_EQ(0x504b4753u,result.magic);EXPECT_EQ(10u,result.user);EXPECT_EQ(63u,result.checks);
+    EXPECT_EQ(0x504b4753u,result.magic);EXPECT_EQ(10u,result.user);EXPECT_EQ(127u,result.checks);
     const uint64_t allowed=(1u<<CAP_CHOWN)|(1u<<CAP_DAC_OVERRIDE)|(1u<<CAP_FOWNER)
         |(1u<<CAP_FSETID)|(1u<<CAP_SETUID)|(1u<<CAP_SETGID);
     EXPECT_EQ(allowed,result.effective);EXPECT_EQ(allowed,result.permitted);

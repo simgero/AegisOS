@@ -44,7 +44,7 @@
 
 struct aegis_namespace {
     struct aegis_child *child;
-    int proc_root, gate, attempted, mapped, userns, counted;
+    int proc_root, gate, attempted, mapped, userns, counted, package;
     uint32_t user_id, serial;
 };
 
@@ -599,7 +599,7 @@ static int receive_references(struct aegis_namespace *context, int refs[REF_COUN
     return still_waiting(context);
 }
 
-int aegis_namespace_prepare(struct aegis_namespace *context) {
+static int prepare(struct aegis_namespace *context, int package) {
     if (owner(context) < 0) return -1;
     if (context->mapped) { errno = EALREADY; return -1; }
     char map[1024], groups[32], oom[32];
@@ -621,13 +621,19 @@ int aegis_namespace_prepare(struct aegis_namespace *context) {
         if (n < 0 || (size_t)n >= sizeof(map) - length) { errno = EOVERFLOW; goto done; }
         length += (size_t)n;
     }
-    if (write_reference(refs[REF_GROUPS], "deny", 4) < 0
+    // Ordinary sessions irreversibly deny supplementary-group changes.
+    // A package worker needs APT's technical-group transitions; its privileged
+    // parent writes the same bounded map and retains the kernel's allow mode.
+    // Only GIDs in this exact user's map are representable. No host group is
+    // inherited (checked before clone and again in the gated child).
+    if ((!package && write_reference(refs[REF_GROUPS], "deny", 4) < 0)
             || write_reference(refs[REF_UID], map, length) < 0
             || write_reference(refs[REF_GID], map, length) < 0
             || read_reference(refs[REF_GROUPS], groups, sizeof(groups)) < 0
             || mapped(refs[REF_UID], context->user_id) < 0
             || mapped(refs[REF_GID], context->user_id) < 0) goto done;
-    if (strcmp(groups, "deny\n")) { errno = EPERM; goto done; }
+    if (strcmp(groups, package ? "allow\n" : "deny\n")) { errno = EPERM; goto done; }
+    context->package = package;
     context->userns = refs[REF_USERNS];
     refs[REF_USERNS] = -1;
     context->mapped = 1;
@@ -641,6 +647,14 @@ done:;
     return result;
 }
 
+int aegis_namespace_prepare(struct aegis_namespace *context) {
+    return prepare(context, 0);
+}
+
+int aegis_namespace_prepare_package(struct aegis_namespace *context) {
+    return prepare(context, 1);
+}
+
 int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_source_fd) {
     if (still_waiting(context) < 0) return -1;
     if (context->mapped != 1 || context->userns < 0) { errno = EAGAIN; return -1; }
@@ -650,6 +664,7 @@ int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_sou
 int aegis_namespace_map_candidate(struct aegis_namespace *context, int candidate) {
     if (still_waiting(context) < 0) return -1;
     if (context->mapped != 1 || context->userns < 0) { errno = EAGAIN; return -1; }
+    if (!context->package) return denied();
     if (aegis_map_candidate_mount(candidate, context->userns, context->user_id) < 0) return -1;
     return still_waiting(context);
 }
@@ -657,6 +672,7 @@ int aegis_namespace_map_candidate(struct aegis_namespace *context, int candidate
 int aegis_namespace_home_mount(struct aegis_namespace *context, int create) {
     if (still_waiting(context) < 0) return -1;
     if (context->mapped != 1 || context->userns < 0) { errno = EAGAIN; return -1; }
+    if (context->package) return denied(); // no personal HOME in a package worker
     /* check_broker accepts only init's mount namespace or the exact private
      * copy established by this process. /data is never replaced by our base
      * anchor at /mnt. Neither path nor identity is chosen by a client. */

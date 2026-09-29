@@ -8,6 +8,7 @@
 #include "sandbox.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <grp.h>
 #include <linux/capability.h>
 #include <linux/sched.h>
 #include <linux/securebits.h>
@@ -110,6 +111,14 @@ int aegis_probe_package_policy_exec(uint32_t user) {
         }
     }
     close(file);
+    // Technical supplementary groups remain inside this exact user's map.
+    // A failed unmapped-GID change must not disturb the previous group set.
+    gid_t groups[] = {42, 65534}, actual[2] = {0}, outside = 1001;
+    int group_ok = setgroups(2, groups) == 0 && getgroups(2, actual) == 2
+        && actual[0] == 42 && actual[1] == 65534
+        && setgroups(1, &outside) == -1 && errno == EINVAL
+        && getgroups(2, actual) == 2 && actual[0] == 42 && actual[1] == 65534;
+    if (setgroups(0, NULL) == 0 && getgroups(0, NULL) == 0 && group_ok) r.checks |= 64;
     pid_t child = fork();
     if (child < 0) return 110;
     if (!child) {
@@ -117,7 +126,8 @@ int aegis_probe_package_policy_exec(uint32_t user) {
         struct aegis_package_policy_probe dropped = {0};
         int ok = setresgid(42, 42, 42) == 0 && setresuid(42, 42, 42) == 0
             && caps(&dropped) == 0 && !dropped.effective && !dropped.permitted && !dropped.ambient
-            && setresuid(0, 0, 0) == -1 && errno == EPERM;
+            && setresuid(0, 0, 0) == -1 && errno == EPERM
+            && setgroups(0, NULL) == -1 && errno == EPERM;
         _exit(ok ? 0 : 111);
     }
     int status;

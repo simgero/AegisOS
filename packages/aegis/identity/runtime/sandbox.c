@@ -203,7 +203,7 @@ int aegis_limit_package_worker(uint32_t user_id) {
             || check_map("/proc/self/gid_map", user_id) < 0) return -1;
     char text[128];
     if (read_text("/proc/self/setgroups", text, sizeof(text)) < 0) return -1;
-    if (strcmp(text, "deny\n")) return invalid();
+    if (strcmp(text, "allow\n")) return invalid();
     ssize_t length = readlink("/proc/self", text, sizeof(text));
     if (length != 1 || text[0] != '1') return invalid();
     // All permitted authority belongs to this mapped user namespace. No
