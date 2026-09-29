@@ -103,7 +103,7 @@ ergänzt ausschließlich diese zwei Pfade in der vorgesehenen Freigabeliste;
 die Prüfung bleibt aktiv. Der Dienst-Socket übernimmt zudem korrekt den
 Broker-Peer-Kontext; sein Dateisystemname behält das separate Socket-Label.
 Dienste und Modus werden nur bei ausgewählten, geprüften Basis- und
-Kernel-Eingaben aktiviert. Das sichtbare Profil bleibt `foundation-2a766ab5`.
+Kernel-Eingaben aktiviert. Das bisher geprüfte Profil bleibt `foundation-2a766ab5`.
 Die Bestandsaufnahme dort zeigt den Android-Cgroup-Elternbereich als
 `system:system` mit Modus `0775`. Die bisherige native Root-Annahme ist in
 `ae1e5d5` gezielt korrigiert, mit zwei zusätzlichen negativen/positiven
@@ -111,8 +111,18 @@ Gerätetests und weiterhin zwingender Root-Eigentümerschaft privater Gruppen.
 Im Komponentenstand `a8d38b97` ist diese Korrektur nun kompiliert und lokal
 geprüft: **113/113 native Tests bestehen** auf dem unveränderten Image
 `2a766ab5`. Der korrigierte Vollbuild
-`aosp-20260929T001619Z-a8d38b97-55707a05` ist gestartet. Produktive Domänen,
-Dienststart und echte GNU-Ausführung sind damit weiterhin nicht nachgewiesen.
+`aosp-20260929T001619Z-a8d38b97-55707a05` ist kompiliert und paketiert;
+der GitHub-Upload läuft. Produktive Domänen, Dienststart und echte
+GNU-Ausführung sind damit weiterhin nicht nachgewiesen.
+
+Das bisherige Profil wurde nach rund 73 Minuten geordnet heruntergefahren;
+Android meldet `Power down`, der KeyMint-Helfer bestätigt seinen sauberen
+Abschluss. Das durchgehend aufgezeichnete Log enthält in diesem begrenzten
+Intervall keinen Treffer für App-Absturz, ANR oder das frühere Modem-Warten.
+Beleg: `out/full-build-2a766ab5/interactive-20260929T011639-68287/extended-stability.json`.
+Der Nutzer erlaubt weitere Aktualisierungen der sichtbaren lokalen Version.
+Neue Images werden zunächst mit einem separaten Profilpaar geprüft;
+bisherige Android-/KeyMint-Paare bleiben erhalten.
 
 ## Erfüllung der fünf Ziele
 
