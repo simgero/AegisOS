@@ -1,6 +1,7 @@
 // Compile on aegis-build, execute in local QEMU. Real publication children and
 // cgroups, inert filesystem payloads; no AOSP users, CE store or APT execution.
 #include "package_publisher.h"
+#include "package_publish_protocol.h"
 #include "namespace.h"
 #include <android-base/unique_fd.h>
 #include <gtest/gtest.h>
@@ -14,6 +15,8 @@
 #include <signal.h>
 #include <sys/inotify.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -432,5 +435,95 @@ TEST_F(RuntimePackageBroker, PreparationsAreBoundedAndForkCannotUseTheOwnersJobs
     }
     int status=0;ASSERT_EQ(child,waitpid(child,&status,0));ASSERT_TRUE(WIFEXITED(status));EXPECT_EQ(0,WEXITSTATUS(status));
     ASSERT_EQ(0,aegis_broker_owner_stop_all(broker,0));EXPECT_EQ(baseline,Descriptors());
+}
+} // namespace
+
+namespace {
+class RuntimePublicationReply : public ::testing::Test {
+ protected:
+    unique_fd sender,receiver;
+    const uint64_t job=47;
+    const std::string plan=std::string(64,'b');
+    void SetUp() override {
+        int sockets[2];ASSERT_EQ(0,socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,sockets));
+        sender.reset(sockets[0]);receiver.reset(sockets[1]);
+    }
+    publication::Reply Valid(int result=0,int error=0) {
+        publication::Reply reply={};reply.job=job;reply.result=result;reply.error=error;
+        memcpy(reply.plan,plan.c_str(),65);return reply;
+    }
+    void Unconfirmed() {
+        auto result=publication::ReceiveReply(receiver.get(),job,plan);
+        EXPECT_EQ(PackagePublish::Unconfirmed,result.publication);EXPECT_EQ(EIO,result.error);
+    }
+    void Send(const publication::Reply& reply) {
+        ASSERT_EQ(static_cast<ssize_t>(sizeof(reply)),send(sender.get(),&reply,sizeof(reply),MSG_NOSIGNAL));
+    }
+};
+TEST_F(RuntimePublicationReply, MissingReplyIsBoundedForOpenAndClosedPeer) {
+    // Test the exact production decoder in an owned child so a regression is
+    // reported promptly, rather than wedging the whole test runner/VM.
+    for(bool closed:{false,true}) {
+        if(closed)sender.reset();
+        pid_t child=fork();ASSERT_GE(child,0);
+        if(child==0) {
+            auto result=publication::ReceiveReply(receiver.get(),job,plan);
+            _exit(result.publication==PackagePublish::Unconfirmed && result.error==EIO ? 0 : 90);
+        }
+        unique_fd process(syscall(SYS_pidfd_open,child,0));
+        if(!process.ok()) {
+            int saved=errno;kill(child,SIGKILL);waitpid(child,nullptr,0);
+            FAIL()<<"pidfd_open: "<<strerror(saved);
+        }
+        pollfd completed={process.get(),POLLIN,0};
+        int observed=poll(&completed,1,2000);
+        if(observed!=1)ASSERT_EQ(0,syscall(SYS_pidfd_send_signal,process.get(),SIGKILL,nullptr,0));
+        int status=0;ASSERT_EQ(child,waitpid(child,&status,0));
+        EXPECT_EQ(1,observed)<<"Private completion decoder exceeded 2 seconds";
+        ASSERT_TRUE(WIFEXITED(status));EXPECT_EQ(0,WEXITSTATUS(status));
+    }
+}
+TEST_F(RuntimePublicationReply, OnlyMatchingJobPlanAndConsistentResultAreAccepted) {
+    for(int value:{-1,0,1}) {
+        auto reply=Valid(value,value ? ESTALE : 0);Send(reply);
+        auto result=publication::ReceiveReply(receiver.get(),job,plan);
+        EXPECT_EQ(static_cast<PackagePublish>(value),result.publication);EXPECT_EQ(reply.error,result.error);
+    }
+    for(int which=0;which<7;++which) {
+        auto reply=Valid();
+        switch(which) {
+          case 0:reply.job++;break;
+          case 1:reply.plan[0]='a';break;
+          case 2:reply.plan[64]='x';break;
+          case 3:reply.result=2;break;
+          case 4:reply.error=-1;break;
+          case 5:reply.error=4096;break;
+          case 6:reply.error=EIO;break;
+        }
+        Send(reply);Unconfirmed();
+    }
+}
+TEST_F(RuntimePublicationReply, EmptyShortAndOversizedPacketsCannotConfirm) {
+    auto reply=Valid();std::array<char,sizeof(reply)+1> bytes={};
+    memcpy(bytes.data(),&reply,sizeof(reply));
+    for(size_t size:{size_t{0},sizeof(reply)-1,sizeof(reply)+1}) {
+        ASSERT_EQ(static_cast<ssize_t>(size),send(sender.get(),bytes.data(),size,MSG_NOSIGNAL));
+        Unconfirmed();
+    }
+}
+TEST_F(RuntimePublicationReply, RejectsAndClosesAncillaryReferencesIncludingTruncation) {
+    unique_fd original(open("/dev/null",O_RDONLY|O_CLOEXEC));ASSERT_TRUE(original.ok());
+    int before=Descriptors();auto reply=Valid();
+    for(size_t payload:{size_t{0},sizeof(reply)})for(size_t count:{size_t{1},size_t{16},size_t{32}}) {
+        alignas(cmsghdr) char controls[CMSG_SPACE(32*sizeof(int))]={};
+        iovec io={&reply,payload};msghdr message={};message.msg_iov=&io;message.msg_iovlen=1;
+        message.msg_control=controls;message.msg_controllen=CMSG_SPACE(count*sizeof(int));
+        auto* header=CMSG_FIRSTHDR(&message);header->cmsg_level=SOL_SOCKET;header->cmsg_type=SCM_RIGHTS;
+        header->cmsg_len=CMSG_LEN(count*sizeof(int));
+        int descriptor=original.get();
+        for(size_t i=0;i<count;++i)memcpy(CMSG_DATA(header)+i*sizeof(int),&descriptor,sizeof(int));
+        ASSERT_EQ(static_cast<ssize_t>(payload),sendmsg(sender.get(),&message,MSG_NOSIGNAL));
+        Unconfirmed();EXPECT_EQ(before,Descriptors());EXPECT_GE(fcntl(original.get(),F_GETFD),0);
+    }
 }
 } // namespace

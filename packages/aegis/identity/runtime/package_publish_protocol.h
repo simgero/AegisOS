@@ -16,6 +16,10 @@ struct Request {
     Image previous, candidate;
 };
 struct Reply { uint64_t job; int32_t result, error; char plan[65]; };
+// Nonblocking private packet decoder. Missing/invalid replies are Unconfirmed;
+// this alone never proves lifecycle completion. Publisher calls it only AFTER
+// reaping the exact child and removing its empty group. All received FDs close.
+PackagePublicationResult ReceiveReply(int channel,uint64_t job,const std::string& plan);
 inline bool Hash(const char text[65]) {
     if (text[64]) return false;
     for (unsigned i=0;i<64;++i)

@@ -113,31 +113,46 @@ bool File(int fd,mode_t type,bool executable) {
     syscall(SYS_execveat,wire::kExecutable,"",args,env,AT_EMPTY_PATH);Failed();
 }
 PackagePublicationResult Response(PackagePublisher* p,const aegis_child_exit& exit) {
+    if(exit.code!=CLD_EXITED || exit.status!=0)
+        return {PackagePublish::Unconfirmed,EIO};
+    return publication::ReceiveReply(p->channel.get(),p->job,p->plan);
+}
+
+} // namespace
+
+PackagePublicationResult publication::ReceiveReply(int channel,uint64_t job,const std::string& plan) {
     PackagePublicationResult result{PackagePublish::Unconfirmed,EIO};
-    if(exit.code!=CLD_EXITED || exit.status!=0)return result;
     wire::Reply reply={};
     alignas(cmsghdr) char ancillary[CMSG_SPACE(16*sizeof(int))]={};
     iovec vector{&reply,sizeof(reply)};
     msghdr message={};message.msg_iov=&vector;message.msg_iovlen=1;
     message.msg_control=ancillary;message.msg_controllen=sizeof(ancillary);
-    ssize_t n=recvmsg(p->channel.get(),&message,MSG_CMSG_CLOEXEC|MSG_DONTWAIT|MSG_TRUNC);
+    ssize_t n=recvmsg(channel,&message,MSG_CMSG_CLOEXEC|MSG_DONTWAIT|MSG_TRUNC);
+    // A failed receive leaves the input control capacity untouched. Do not
+    // interpret the initialized buffer as a kernel-returned ancillary chain.
+    if(n<0)return result;
     bool control=false;
     for(cmsghdr* c=CMSG_FIRSTHDR(&message);c;c=CMSG_NXTHDR(&message,c)) {
         control=true;
-        if(c->cmsg_level==SOL_SOCKET && c->cmsg_type==SCM_RIGHTS && c->cmsg_len>=CMSG_LEN(0)) {
+        // EOF may also leave capacity unchanged. Bionic's CMSG_NXTHDR does
+        // not advance over a zero-length header. Bound it before advancing.
+        auto* end=reinterpret_cast<unsigned char*>(message.msg_control)+message.msg_controllen;
+        if(c->cmsg_len<CMSG_LEN(0)
+           || c->cmsg_len>static_cast<size_t>(end-reinterpret_cast<unsigned char*>(c)))break;
+        if(c->cmsg_level==SOL_SOCKET && c->cmsg_type==SCM_RIGHTS) {
             size_t count=(c->cmsg_len-CMSG_LEN(0))/sizeof(int);
-            int* fds=reinterpret_cast<int*>(CMSG_DATA(c));
-            for(size_t i=0;i<count;++i)close(fds[i]);
+            for(size_t i=0;i<count;++i) {
+                int fd;memcpy(&fd,CMSG_DATA(c)+i*sizeof(fd),sizeof(fd));close(fd);
+            }
         }
     }
     if(n!=static_cast<ssize_t>(sizeof(reply)) || control || message.msg_flags&(MSG_TRUNC|MSG_CTRUNC)
-       || reply.job!=p->job || !wire::Hash(reply.plan) || p->plan!=reply.plan
+       || reply.job!=job || !wire::Hash(reply.plan) || plan!=reply.plan
        || reply.result<-1 || reply.result>1 || reply.error<0 || reply.error>4095
        || (reply.result==0 && reply.error))return result;
     result.publication=static_cast<PackagePublish>(reply.result);result.error=reply.error;
     return result;
 }
-} // namespace
 
 int PackagePublicationCheck(const PackagePublication& request) {
     wire::Request message={};return Encode(request,&message) ? 0 : Fail(EINVAL);
