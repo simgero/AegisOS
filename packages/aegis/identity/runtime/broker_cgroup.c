@@ -13,6 +13,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/statfs.h>
+#include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -73,6 +74,81 @@ static int same_name(int parent, const char *name, int held) {
     struct stat a, b;
     if (fstat(held, &a) < 0 || fstatat(parent, name, &b, AT_SYMLINK_NOFOLLOW) < 0) return -1;
     return a.st_dev == b.st_dev && a.st_ino == b.st_ino ? 0 : fail(ESTALE);
+}
+
+int aegis_broker_cgroup_open_delegation(int root, int *entry) {
+    if (!entry || *entry != -1) return fail(EINVAL);
+    if (getuid() || geteuid() || getgid() || getegid()) return fail(EPERM);
+    if (directory(root, 0, 0) < 0) return -1;
+    int parent = openat(root, AEGIS_BROKER_DELEGATION,
+                        O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (parent < 0) return -1;
+    int owner = -1, procs = -1, result = -1;
+    DIR *entries = NULL;
+    struct stat st;
+    if (fstat(root, &st) < 0 || directory(parent, 1, st.st_dev) < 0
+            || same_name(root, AEGIS_BROKER_DELEGATION, parent) < 0
+            || equal_at(parent, "cgroup.type", "domain\n") < 0
+            || equal_at(parent, "cgroup.procs", "") < 0
+            || equal_at(parent, "cgroup.subtree_control", "memory\n") < 0
+            || equal_at(parent, "cgroup.max.depth", "2\n") < 0
+            || equal_at(parent, "cgroup.max.descendants", "18\n") < 0
+            || equal_at(parent, "memory.max", "max\n") < 0
+            || equal_at(parent, "memory.high", "max\n") < 0
+            || equal_at(parent, "memory.oom.group", "0\n") < 0) goto done;
+    owner = openat(parent, AEGIS_BROKER_OWNER,
+                   O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (owner < 0 || directory(owner, 1, st.st_dev) < 0
+            || same_name(parent, AEGIS_BROKER_OWNER, owner) < 0
+            || equal_at(owner, "cgroup.type", "domain\n") < 0
+            || equal_at(owner, "cgroup.subtree_control", "") < 0
+            || equal_at(owner, "cgroup.max.depth", "0\n") < 0
+            || equal_at(owner, "cgroup.max.descendants", "0\n") < 0
+            || equal_at(owner, "memory.max", "max\n") < 0
+            || equal_at(owner, "memory.high", "max\n") < 0
+            || equal_at(owner, "memory.oom.group", "0\n") < 0) goto done;
+    char expected[32];
+    snprintf(expected, sizeof(expected), "%ld\n", (long)syscall(SYS_getpid));
+    // cgroup.procs comes from the kernel. Exact membership excludes a failed
+    // Init profile, an empty owner leaf and a second process sharing the leaf.
+    if (equal_at(owner, "cgroup.procs", expected) < 0) goto done;
+    char statistics[512];
+    if (read_at(owner, "cgroup.stat", statistics, sizeof(statistics)) < 0) goto done;
+    if (strncmp(statistics, "nr_descendants 0\n", 17)) { errno = EPERM; goto done; }
+    int scan = openat(parent, ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (scan < 0) goto done;
+    entries = fdopendir(scan);
+    if (!entries) { close(scan); goto done; }
+    struct dirent *item;
+    for (;;) {
+        errno = 0;
+        item = readdir(entries);
+        if (!item) { if (errno) goto done; break; }
+        if (!strcmp(item->d_name, ".") || !strcmp(item->d_name, "..")) continue;
+        struct stat child;
+        if (fstatat(parent, item->d_name, &child, AT_SYMLINK_NOFOLLOW) < 0) goto done;
+        if (S_ISREG(child.st_mode)) continue;
+        if (!S_ISDIR(child.st_mode)
+                || (strcmp(item->d_name, AEGIS_BROKER_OWNER)
+                    && strcmp(item->d_name, AEGIS_BROKER_CGROUP))) {
+            errno = EPERM; goto done;
+        }
+    }
+    procs = openat(parent, "cgroup.procs", O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+    if (procs < 0 || fstat(procs, &st) < 0) goto done;
+    if (!S_ISREG(st.st_mode) || st.st_uid || st.st_gid || (st.st_mode & 0022)) {
+        errno = EPERM; goto done;
+    }
+    if (same_name(parent, "cgroup.procs", procs) < 0) goto done;
+    *entry = procs; procs = -1; result = parent;
+done:;
+    int saved = errno;
+    if (entries) closedir(entries);
+    if (procs >= 0) close(procs);
+    if (owner >= 0) close(owner);
+    if (result < 0) close(parent);
+    errno = saved;
+    return result;
 }
 static int decimal(const char **cursor, uint32_t maximum, uint32_t *output) {
     const char *start = *cursor, *p = start;

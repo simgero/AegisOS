@@ -1,0 +1,18 @@
+{
+  "Profiles": [
+    {
+      "Name": "AegisRuntimeBroker",
+      "Actions": [
+        {
+          "Name": "WriteFile",
+          "Params": {
+            "FilePath": "/sys/fs/cgroup/aegis-runtime/broker/cgroup.procs",
+            "ProcFilePath": "/sys/fs/cgroup/aegis-runtime/broker/cgroup.procs",
+            "Value": "<pid>",
+            "LogFailures": "true"
+          }
+        }
+      ]
+    }
+  ]
+}

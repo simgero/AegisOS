@@ -17,7 +17,7 @@
 #include <unistd.h>
 
 struct aegis_memory_group {
-    int parent, directory, ready;
+    int parent, directory, procs, ready;
     pid_t owner;
     uint32_t user, serial;
     char name[48];
@@ -48,8 +48,18 @@ static int owned(struct aegis_memory_group *group) {
             || fstatat(group->parent, group->name, &named, AT_SYMLINK_NOFOLLOW) < 0) return -1;
     if (fs.f_type != CGROUP2_SUPER_MAGIC || !S_ISDIR(held.st_mode)
             || held.st_uid || held.st_gid) return reject(EPERM);
-    return held.st_dev == named.st_dev && held.st_ino == named.st_ino
-            ? 0 : reject(ESTALE);
+    if (held.st_dev != named.st_dev || held.st_ino != named.st_ino) return reject(ESTALE);
+    // Retain the target's VFS-resolved cgroup.procs inode across clone3's
+    // dentry-less permission check. No task is migrated through this file.
+    if (group->procs >= 0) {
+        if (fstat(group->procs, &held) < 0
+                || fstatat(group->directory, "cgroup.procs", &named, AT_SYMLINK_NOFOLLOW) < 0)
+            return -1;
+        if (!S_ISREG(held.st_mode) || held.st_uid || held.st_gid || (held.st_mode & 0022))
+            return reject(EPERM);
+        if (held.st_dev != named.st_dev || held.st_ino != named.st_ino) return reject(ESTALE);
+    }
+    return 0;
 }
 
 static int read_value(int directory, const char *name, char *text, size_t capacity) {
@@ -129,7 +139,7 @@ int aegis_memory_group_create(int parent_fd, uint32_t user, uint32_t serial,
     group->owner = (pid_t)syscall(SYS_getpid);
     group->user = user;
     group->serial = serial;
-    group->directory = -1;
+    group->directory = group->procs = -1;
     group->parent = fcntl(parent_fd, F_DUPFD_CLOEXEC, 4);
     snprintf(group->name, sizeof(group->name), "u%u-s%u", user, serial);
     if (group->parent < 0 || mkdirat(group->parent, group->name, 0700) < 0) {
@@ -158,6 +168,8 @@ int aegis_memory_group_create(int parent_fd, uint32_t user, uint32_t serial,
         return reject(saved);
     }
     if (fchmod(group->directory, 0700) < 0 || owned(group) < 0) return -1;
+    group->procs = openat(group->directory, "cgroup.procs", O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    if (group->procs < 0 || owned(group) < 0) return -1;
     int state = populated(group->directory);
     if (state < 0) return -1;
     if (state) return reject(EBUSY);
@@ -215,6 +227,7 @@ int aegis_memory_group_remove(struct aegis_memory_group **pointer) {
     if (state) return reject(EBUSY);
     if (unlinkat(group->parent, group->name, AT_REMOVEDIR) < 0) return -1;
     close(group->directory);
+    if (group->procs >= 0) close(group->procs);
     close(group->parent);
     free(group);
     *pointer = NULL;

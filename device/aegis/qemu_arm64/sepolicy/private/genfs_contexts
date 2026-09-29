@@ -1,3 +1,6 @@
-genfscon cgroup2 /aegis-runtime u:object_r:aegis_runtime_cgroup:s0
+genfscon cgroup2 /aegis-runtime u:object_r:aegis_runtime_delegation:s0
+genfscon cgroup2 /aegis-runtime/cgroup.procs u:object_r:aegis_runtime_entry:s0
+genfscon cgroup2 /aegis-runtime/broker u:object_r:aegis_runtime_owner_cgroup:s0
+genfscon cgroup2 /aegis-runtime/contexts u:object_r:aegis_runtime_cgroup:s0
 # Namespace handles are kernel NSFS objects, not arbitrary unlabeled files.
 genfscon nsfs / u:object_r:aegis_runtime_namespace_file:s0

@@ -20,6 +20,9 @@ type aegis_runtime_home_file, file_type, data_file_type, core_data_file_type;
 type aegis_runtime_devices_file, file_type;
 type aegis_runtime_scratch_file, file_type, coredomain_socket;
 type aegis_runtime_cgroup, fs_type;
+type aegis_runtime_delegation, fs_type;
+type aegis_runtime_entry, fs_type;
+type aegis_runtime_owner_cgroup, fs_type;
 type aegis_runtime_socket, file_type, coredomain_socket;
 type aegis_runtime_namespace_file, fs_type;
 
@@ -93,13 +96,25 @@ allow aegis_runtime_broker self:capability {
     chown dac_override dac_read_search fowner kill setgid setuid sys_admin mknod
 };
 
-# Private cgroup subtree; root controller settings and Android groups stay read-only.
-allow aegis_runtime_broker cgroup_v2:dir { getattr search open read write add_name };
+# Init assigns the broker's private leaf. It is outside all workload limits and
+# recovery kills. No runtime domain may change its owner/delegation controls.
+neverallow aegis_runtime_domain { aegis_runtime_delegation aegis_runtime_owner_cgroup }:file { write append };
+neverallow { aegis_runtime_domain -aegis_runtime_broker } aegis_runtime_entry:file { write append };
+allow init { aegis_runtime_delegation aegis_runtime_owner_cgroup }:dir create_dir_perms;
+allow init { aegis_runtime_delegation aegis_runtime_owner_cgroup aegis_runtime_entry }:file rw_file_perms;
+type_transition init cgroup_v2:dir aegis_runtime_delegation "aegis-runtime";
+type_transition init aegis_runtime_delegation:dir aegis_runtime_owner_cgroup "broker";
+allow { aegis_runtime_delegation aegis_runtime_owner_cgroup aegis_runtime_entry } cgroup_v2:filesystem associate;
+# Private workload subtree; shared Android controller settings stay read-only.
+allow aegis_runtime_broker cgroup_v2:dir r_dir_perms;
 allow aegis_runtime_broker cgroup_v2:file r_file_perms;
-# mkdir is checked against its type transition before genfs lookup of the new
-# inode. Name only this one aggregate; never allow creating arbitrary Android
-# cgroup_v2 directories. The children inherit our private type.
-type_transition aegis_runtime_broker cgroup_v2:dir aegis_runtime_cgroup "aegis-runtime";
+allow aegis_runtime_broker aegis_runtime_delegation:dir { r_dir_perms write add_name };
+allow aegis_runtime_broker aegis_runtime_delegation:file r_file_perms;
+r_dir_file(aegis_runtime_broker, aegis_runtime_owner_cgroup)
+# clone3 requires write permission on this private common ancestor's procs
+# inode. It is not a grant for root cgroup.procs or any ancestor controller.
+allow aegis_runtime_broker aegis_runtime_entry:file rw_file_perms;
+type_transition aegis_runtime_broker aegis_runtime_delegation:dir aegis_runtime_cgroup "contexts";
 allow aegis_runtime_cgroup cgroup_v2:filesystem associate;
 allow aegis_runtime_broker aegis_runtime_cgroup:dir create_dir_perms;
 allow aegis_runtime_broker aegis_runtime_cgroup:file rw_file_perms;

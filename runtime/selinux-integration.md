@@ -38,7 +38,8 @@ atomare Prozesszuordnung abgeschwächt. Als nächste Lösung ist eine durch Init
 zugewiesene private Hierarchie mit getrenntem Broker- und Kontextzweig zu
 prüfen. Sie muss den gemeinsamen Vorfahren privat halten, den Broker aus
 Kontext-Kill-/Speichergruppen ausschließen und Start, Absturzbereinigung sowie
-Controller-Grenzen nachweisen. Diese Umstellung ist **noch nicht implementiert**.
+Controller-Grenzen nachweisen. Die folgende Quelländerung setzt diese
+Umstellung um; Build und Gastnachweis dieser neuen Fassung stehen noch aus.
 Die bisherigen Root-Fixtures prüfen diesen Produktions-SELinux-Pfad nicht.
 
 Belege: `out/full-build-d308ea6a/boot-1/boot-health.json` und
@@ -50,6 +51,42 @@ CE meldet `ENOENT`; die zunächst auf `ENOKEY` beschränkte Testauswertung ist
 deshalb fehlgeschlagen und wird nicht als bestandener Einzeltest ausgegeben.
 Diese Entwicklungs-root-Probe ist kein GNU-Isolationsnachweis. Eine tatsächliche
 GNU-Sitzung oder Übernahme als sichtbarer geprüfter Launcher ist nicht erfolgt.
+
+### Private Delegation im neuen Quellstand
+
+Init erstellt `/sys/fs/cgroup/aegis-runtime` mit einem separaten `broker`-Blatt
+und aktiviert dort den bereits von Android delegierten Speichercontroller.
+Das Gerät ergänzt genau ein Taskprofil `AegisRuntimeBroker`; AOSPs vorhandene
+Plattformprofile bleiben erhalten. Der gepinnte Profilparser ignoriert
+`JoinCgroup` für Cgroup v2. Deshalb verwendet das Profil die unterstützte
+`WriteFile`-Aktion mit explizitem `ProcFilePath` und `<pid>`. Init wendet sie
+nach seiner normalen Gruppenaktivierung und vor dem Wechsel zur Broker-Domäne
+an. Der Broker prüft seine exklusive Mitgliedschaft selbst, weil Init einen
+Profilfehler nur protokolliert. Ein fehlgeschlagener oder falsch zugeordneter
+Start darf die Kontextbereinigung nicht erreichen.
+
+Der Broker darf ausschließlich den Zweig `contexts` erstellen und bereinigen.
+Dessen bestehende 2-GiB-Gesamtgrenze, persönliche 1-GiB-Grenzen, maximale
+Kontextanzahl und `cgroup.kill` schließen das Broker-Blatt aus. Eigene Labels
+trennen Delegationssteuerdateien, Broker-Blatt, gemeinsamen `cgroup.procs`-
+Vorfahren und Benutzergruppen. Die Runtime erhält keine Schreibrechte auf
+Androids gemeinsame Cgroup-Dateien oder die Steuerdateien ihrer Delegation
+bzw. ihres Brokers. Nur die für `clone3` nötige Schreibprüfung des privaten
+gemeinsamen Vorfahren ist freigegeben. Der Broker hält dessen aufgelösten
+Deskriptor bis nach dem Kontextabbau; jede persönliche Gruppe hält entsprechend
+ihren Ziel-Deskriptor bis zur bestätigten Entfernung.
+
+Init sendet im gepinnten `libprocessgroup/processgroup.cpp` auch nach einer
+Gruppenmigration mindestens dem ursprünglichen Dienstprozess ein Signal.
+Der Broker bleibt für den bestätigten Abbau seiner persönlichen Prozesse
+zuständig; PID1-PDEATHSIG und die unverändert erforderliche Recovery bleiben
+zusätzliche Grenzen. Der tatsächliche Signal-/Shutdown-Pfad in der neuen
+Hierarchie ist noch im vollständigen Gast zu prüfen.
+
+Sechs zusätzliche native Tests prüfen die neue Delegation, Fehler vor Recovery,
+getrennten Broker-Erhalt und die Lebensdauer des Ziel-Deskriptors. Sie müssen
+auf dem Builder kompiliert und im lokalen Android-QEMU ausgeführt werden;
+Root-Fixtures ersetzen weiterhin nicht den tatsächlichen Produktions-Boot.
 
 ## Aktueller Bootbefund: immutable Basis
 

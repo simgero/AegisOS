@@ -3,12 +3,25 @@
 on post-fs-data && property:ro.aegis.runtime.mode=managed-v1
     mkdir /data/misc/aegis-runtime 0700 root root
     restorecon_recursive /data/misc/aegis-runtime
+    # Init owns delegation and places the broker before executing its domain.
+    # The empty parent is the common ancestor checked by CLONE_INTO_CGROUP.
+    # Workload recovery/limits affect only the separate contexts branch.
+    mkdir /sys/fs/cgroup/aegis-runtime 0700 root root
+    write /sys/fs/cgroup/aegis-runtime/cgroup.max.depth 2
+    write /sys/fs/cgroup/aegis-runtime/cgroup.max.descendants 18
+    write /sys/fs/cgroup/aegis-runtime/cgroup.subtree_control +memory
+    mkdir /sys/fs/cgroup/aegis-runtime/broker 0700 root root
+    write /sys/fs/cgroup/aegis-runtime/broker/cgroup.max.depth 0
+    write /sys/fs/cgroup/aegis-runtime/broker/cgroup.max.descendants 0
     start aegis-runtime-broker
 
 service aegis-runtime-broker /system_ext/bin/aegis-runtime-broker
     class main
     user root
     group root
+    # Applied by Init after its normal cgroup activation and before exec.
+    # The broker independently refuses startup if membership was not applied.
+    task_profiles AegisRuntimeBroker
     capabilities CHOWN DAC_OVERRIDE DAC_READ_SEARCH FOWNER KILL SETGID SETUID SETPCAP SYS_ADMIN MKNOD
     # Init uses the service domain for the socket's peer SID. The filesystem
     # endpoint independently gets aegis_runtime_socket from file_contexts.

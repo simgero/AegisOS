@@ -17,6 +17,7 @@
 #include <poll.h>
 #include <private/android_filesystem_config.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <string.h>
 #include <string>
 #include <vector>
@@ -162,6 +163,156 @@ class RuntimeMemoryGroup : public ::testing::Test {
 
 class RuntimeContext : public RuntimeMemoryGroup {};
 class RuntimeBrokerOwner : public RuntimeMemoryGroup {};
+
+class RuntimeBrokerDelegation : public RuntimeMemoryGroup {
+ protected:
+    int delegation = -1, owner = -1;
+
+    void SetUp() override {
+        RuntimeMemoryGroup::SetUp();
+        ASSERT_FALSE(HasFatalFailure());
+        ASSERT_EQ(0, mkdirat(parent, AEGIS_BROKER_DELEGATION, 0700));
+        delegation = openat(parent, AEGIS_BROKER_DELEGATION, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        ASSERT_GE(delegation, 0);
+        ASSERT_EQ(0, fchmod(delegation, 0700));
+        ASSERT_EQ(0, put(delegation, "cgroup.max.depth", "2\n"));
+        ASSERT_EQ(0, put(delegation, "cgroup.max.descendants", "18\n"));
+        ASSERT_EQ(0, put(delegation, "cgroup.subtree_control", "+memory\n"));
+        ASSERT_EQ(0, mkdirat(delegation, AEGIS_BROKER_OWNER, 0700));
+        owner = openat(delegation, AEGIS_BROKER_OWNER, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        ASSERT_GE(owner, 0);
+        ASSERT_EQ(0, fchmod(owner, 0700));
+        ASSERT_EQ(0, put(owner, "cgroup.max.depth", "0\n"));
+        ASSERT_EQ(0, put(owner, "cgroup.max.descendants", "0\n"));
+    }
+
+    void TearDown() override {
+        if (owner >= 0) close(owner);
+        if (delegation >= 0) {
+            // Fixture child has already been reaped. Only our own test paths.
+            int aggregate = openat(delegation, AEGIS_BROKER_CGROUP, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+            if (aggregate >= 0) {
+                close(aggregate);
+                EXPECT_EQ(0, unlinkat(delegation, AEGIS_BROKER_CGROUP, AT_REMOVEDIR));
+            }
+            EXPECT_EQ(0, unlinkat(delegation, AEGIS_BROKER_OWNER, AT_REMOVEDIR));
+            close(delegation);
+            EXPECT_EQ(0, unlinkat(parent, AEGIS_BROKER_DELEGATION, AT_REMOVEDIR));
+        }
+        RuntimeMemoryGroup::TearDown();
+    }
+
+    void check_in_owner(int expected_error) {
+        const std::string original = get(root, "cgroup.subtree_control");
+        pid_t child = fork();
+        ASSERT_GE(child, 0);
+        if (child == 0) {
+            signal(SIGALRM, SIG_DFL); alarm(10);
+            const std::string pid = std::to_string(getpid()) + "\n";
+            if (put(owner, "cgroup.procs", pid.c_str()) < 0) _exit(70);
+            int entry = -1;
+            int checked = aegis_broker_cgroup_open_delegation(parent, &entry);
+            int error = errno;
+            if (expected_error) _exit(checked == -1 && entry == -1 && error == expected_error ? 0 : 71);
+            if (checked < 0 || entry < 0 || !(fcntl(entry, F_GETFD) & FD_CLOEXEC)) _exit(72);
+            struct stat actual = {}, expected = {};
+            if (fstat(entry, &actual) < 0
+                    || fstatat(delegation, "cgroup.procs", &expected, AT_SYMLINK_NOFOLLOW) < 0
+                    || actual.st_dev != expected.st_dev || actual.st_ino != expected.st_ino) _exit(73);
+            for (int attempt = 0; attempt < 2; ++attempt) {
+                int aggregate = aegis_broker_cgroup_prepare(checked, 0);
+                if (aggregate < 0) _exit(74);
+                if (get(aggregate, "cgroup.procs") != ""
+                        || get(aggregate, "memory.max") != "2147483648\n"
+                        || get(owner, "cgroup.procs") != pid
+                        || get(owner, "memory.max") != "max\n") _exit(75);
+                close(aggregate);
+            }
+            close(entry); close(checked);
+            _exit(0);
+        }
+        int status = 0;
+        ASSERT_EQ(child, waitpid(child, &status, 0));
+        ASSERT_TRUE(WIFEXITED(status)) << status;
+        EXPECT_EQ(0, WEXITSTATUS(status));
+        EXPECT_EQ(original, get(root, "cgroup.subtree_control"));
+        EXPECT_EQ("", get(owner, "cgroup.procs"));
+    }
+};
+
+TEST_F(RuntimeBrokerDelegation, PrivateAncestorAndSeparateOwnerSurviveRecovery) {
+    check_in_owner(0);
+}
+
+TEST_F(RuntimeBrokerDelegation, UnassignedCallerCannotRecoverContexts) {
+    int entry = -1;
+    EXPECT_EQ(-1, aegis_broker_cgroup_open_delegation(parent, &entry)); EXPECT_EQ(EPROTO, errno);
+    EXPECT_EQ(-1, entry);
+    struct stat st = {};
+    EXPECT_EQ(-1, fstatat(delegation, AEGIS_BROKER_CGROUP, &st, AT_SYMLINK_NOFOLLOW));
+    EXPECT_EQ(ENOENT, errno);
+}
+
+TEST_F(RuntimeBrokerDelegation, WrongOwnerModeAndControllerLimitsAreRejected) {
+    ASSERT_EQ(0, fchmod(owner, 0750));
+    check_in_owner(EPERM);
+    ASSERT_EQ(0, fchmod(owner, 0700));
+    ASSERT_EQ(0, put(delegation, "cgroup.max.depth", "3\n"));
+    check_in_owner(EPROTO);
+    EXPECT_EQ("3\n", get(delegation, "cgroup.max.depth"));
+}
+
+TEST_F(RuntimeBrokerDelegation, ForeignBranchIsPreservedBeforeRecovery) {
+    ASSERT_EQ(0, mkdirat(delegation, "foreign", 0700));
+    check_in_owner(EPERM);
+    struct stat st = {};
+    EXPECT_EQ(0, fstatat(delegation, "foreign", &st, AT_SYMLINK_NOFOLLOW));
+    EXPECT_EQ(-1, fstatat(delegation, AEGIS_BROKER_CGROUP, &st, AT_SYMLINK_NOFOLLOW));
+    EXPECT_EQ(ENOENT, errno);
+    EXPECT_EQ(0, unlinkat(delegation, "foreign", AT_REMOVEDIR));
+}
+
+TEST_F(RuntimeBrokerDelegation, MissingDelegationAndInvalidOutputsAreNotProvisioned) {
+    int entry = -1;
+    EXPECT_EQ(-1, aegis_broker_cgroup_open_delegation(owner, &entry)); EXPECT_EQ(ENOENT, errno);
+    EXPECT_EQ(-1, entry);
+    EXPECT_EQ(-1, aegis_broker_cgroup_open_delegation(parent, nullptr)); EXPECT_EQ(EINVAL, errno);
+    entry = parent;
+    EXPECT_EQ(-1, aegis_broker_cgroup_open_delegation(parent, &entry)); EXPECT_EQ(EINVAL, errno);
+    EXPECT_EQ(parent, entry);
+}
+
+TEST_F(RuntimeMemoryGroup, ProcessFileReferenceSurvivesClaimUntilConfirmedRemoval) {
+    ASSERT_EQ(0, make(0, 10));
+    int directory = open_group(10); ASSERT_GE(directory, 0);
+    struct stat expected = {};
+    ASSERT_EQ(0, fstatat(directory, "cgroup.procs", &expected, AT_SYMLINK_NOFOLLOW));
+    auto references = [&expected]() {
+        DIR *fds = opendir("/proc/self/fd");
+        if (!fds) return -1;
+        int count = 0;
+        for (dirent *item; (item = readdir(fds));) {
+            char *end = nullptr;
+            long number = strtol(item->d_name, &end, 10);
+            if (!*item->d_name || *end || number < 0 || number > INT_MAX) continue;
+            struct stat st = {};
+            int fd = static_cast<int>(number);
+            if (fstat(fd, &st) == 0 && st.st_dev == expected.st_dev && st.st_ino == expected.st_ino) {
+                if (!(fcntl(fd, F_GETFD) & FD_CLOEXEC) || (fcntl(fd, F_GETFL) & O_ACCMODE) != O_RDONLY)
+                    count = -100;
+                ++count;
+            }
+        }
+        closedir(fds); return count;
+    };
+    EXPECT_EQ(1, references());
+    EXPECT_GE(aegis_memory_group_claim(groups[0], 10, 1234), 0);
+    EXPECT_EQ(1, references());
+    ASSERT_EQ(0, aegis_memory_group_kill_and_wait(groups[0], 5000));
+    ASSERT_EQ(0, aegis_memory_group_remove(&groups[0]));
+    EXPECT_EQ(0, references());
+    close(directory);
+}
 
 class RuntimeBrokerCgroup : public RuntimeMemoryGroup {
  protected:

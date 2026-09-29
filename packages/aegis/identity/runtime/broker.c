@@ -316,16 +316,20 @@ int main(int argc, char **argv) {
         return 1;
     }
     int signals = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
-    int lock = -1, root = -1, parent = -1, base = -1, setup = -1, init = -1, listener = -1;
+    int lock = -1, root = -1, delegation = -1, entry = -1, parent = -1;
+    int base = -1, setup = -1, init = -1, listener = -1;
     struct aegis_broker_owner *owner = NULL;
     const char *phase = "signals";
     int result = 1;
     if (signals < 0) goto done;
     phase = "exclusive lock"; lock = exclusive_lock(); if (lock < 0) goto done;
-    phase = "cgroup recovery";
+    phase = "init cgroup delegation";
     root = open("/sys/fs/cgroup", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (root < 0) goto done;
-    parent = aegis_broker_cgroup_prepare(root, 10000); if (parent < 0) goto done;
+    delegation = aegis_broker_cgroup_open_delegation(root, &entry);
+    if (delegation < 0) goto done;
+    phase = "cgroup recovery";
+    parent = aegis_broker_cgroup_prepare(delegation, 10000); if (parent < 0) goto done;
     phase = "private mount namespace";
     if (aegis_namespace_private_mounts() < 0) goto done;
     phase = "immutable base"; base = aegis_base_open(); if (base < 0) goto done;
@@ -359,7 +363,7 @@ done:;
     else __android_log_print(ANDROID_LOG_INFO, "AegisRuntimeBroker", "AEGIS_RUNTIME_BROKER_STOPPED");
     // On incomplete cleanup no ACK is sent. Process death closes remaining
     // references; the next owner must recover the private group before HELLO.
-    int descriptors[] = {init, setup, base, parent, root, signals, lock};
+    int descriptors[] = {init, setup, base, parent, entry, delegation, root, signals, lock};
     for (unsigned i = 0; i < sizeof(descriptors) / sizeof(descriptors[0]); ++i)
         if (descriptors[i] >= 0) close(descriptors[i]);
     return result;
