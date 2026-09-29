@@ -11,8 +11,13 @@ import tempfile
 
 STORAGE = 'services/core/java/com/android/server/StorageManagerService.java'
 USERS = 'services/core/java/com/android/server/am/UserController.java'
+RESILIENT = 'services/core/java/com/android/server/pm/ResilientAtomicFile.java'
 BRIDGE = 'services/core/java/com/android/server/aegis/AegisRuntimeStorage.java'
 SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisRuntimeStorage.java'
+REMOVAL_FILES = 'services/core/java/com/android/server/aegis/AegisRemovalFiles.java'
+REMOVAL_SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisRemovalFiles.java'
+ORIGINAL_FILES = {STORAGE, USERS, RESILIENT}
+SOURCE_FILES = {BRIDGE: SOURCE, REMOVAL_FILES: REMOVAL_SOURCE}
 MARKER = 'out/aegis-runtime-storage/sources.json'
 PREFIX = 'com.android.server.aegis.AegisRuntimeStorage'
 
@@ -84,6 +89,43 @@ def patch_users(data):
     return replace_once(text, old, new).encode('utf-8')
 
 
+def patch_resilient(data):
+    text = data.decode('utf-8')
+    anchor = '    public void failWrite(FileOutputStream str) {\n'
+    addition = '''    /** Checked commit for removal; the original UserData must remain reserved on error. */
+    public void finishWriteChecked(FileOutputStream str) throws IOException {
+        if (mMainOutStream != str || str == null) {
+            throw new IllegalStateException("Invalid incoming stream.");
+        }
+        try {
+            com.android.server.aegis.AegisRemovalFiles.commit(mFile, mTemporaryBackup,
+                    mReserveCopy, mMainOutStream, mMainInStream, mReserveOutStream, mFileMode);
+            // Keep AOSP's best-effort fs-verity protection for both committed copies.
+            try (ParcelFileDescriptor mainPfd = ParcelFileDescriptor.dup(mMainInStream.getFD());
+                 ParcelFileDescriptor copyPfd = ParcelFileDescriptor.dup(mReserveInStream.getFD())) {
+                FileIntegrity.setUpFsVerity(mainPfd);
+                FileIntegrity.setUpFsVerity(copyPfd);
+            } catch (IOException e) {
+                Slog.e(LOG_TAG, "Failed to verity-protect " + mDebugName, e);
+            }
+        } finally {
+            close();
+        }
+    }
+
+    /** No ignored delete booleans and no fallback file left behind on success. */
+    public void deleteChecked() throws IOException {
+        if (mMainOutStream != null || mMainInStream != null || mReserveOutStream != null
+                || mReserveInStream != null || mCurrentInStream != null) {
+            throw new IllegalStateException("Metadata file is still in use");
+        }
+        com.android.server.aegis.AegisRemovalFiles.delete(mFile, mTemporaryBackup, mReserveCopy);
+    }
+
+'''
+    return replace_once(text, anchor, addition + anchor).encode('utf-8')
+
+
 def checked_path(root, relative):
     current = root
     if root.is_symlink() or not root.is_dir():
@@ -122,20 +164,23 @@ def encoded(value):
 
 def originals_from_git(base):
     result = {}
-    for name in (STORAGE, USERS):
+    for name in sorted(ORIGINAL_FILES):
         result[name] = subprocess.run(['git', '-C', str(base), 'show', 'HEAD:' + name],
                                       check=True, capture_output=True).stdout
     return result
 
 
 def validate_record(record):
-    if (not isinstance(record, dict) or record.get('schema') != 1
+    legacy = isinstance(record, dict) and record.get('schema') == 1
+    expected_inputs = {STORAGE, USERS} if legacy else ORIGINAL_FILES
+    expected_outputs = {STORAGE, USERS, BRIDGE} if legacy else ORIGINAL_FILES | SOURCE_FILES.keys()
+    if (not isinstance(record, dict) or record.get('schema') not in (1, 2)
             or record.get('status') != 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED'
             or record.get('aosp_tag') != 'android-16.0.0_r1'
             or not isinstance(record.get('inputs'), dict)
-            or set(record['inputs']) != {STORAGE, USERS}
+            or set(record['inputs']) != expected_inputs
             or not isinstance(record.get('outputs'), dict)
-            or set(record['outputs']) != {STORAGE, USERS, BRIDGE}
+            or set(record['outputs']) != expected_outputs
             or any(not isinstance(value, str) or not re.fullmatch('[0-9a-f]{64}', value)
                    for value in [*record['inputs'].values(), *record['outputs'].values()])
             or record.get('bridge_sha256') != record['outputs'][BRIDGE]):
@@ -147,30 +192,32 @@ def prepare(project, aosp, originals=None, pins=None):
     # Optional in-process inputs are only for inert integration fixtures. CLI
     # always reads the committed AOSP Git blobs and repository pin, no override.
     base = aosp / 'frameworks/base'
-    checked_path(aosp, 'frameworks/base/' + STORAGE)
-    checked_path(aosp, 'frameworks/base/' + USERS)
+    for name in ORIGINAL_FILES:
+        checked_path(aosp, 'frameworks/base/' + name)
     if originals is None:
         originals = originals_from_git(base)
     if pins is None:
         pins = json.loads(checked_path(project, 'runtime/aosp-storage-hooks.json').read_bytes())
     if (pins.get('schema') != 1 or pins.get('aosp_tag') != 'android-16.0.0_r1'
-            or set(pins.get('files', {})) != {STORAGE, USERS}
-            or set(originals) != {STORAGE, USERS}
+            or set(pins.get('files', {})) != ORIGINAL_FILES
+            or set(originals) != ORIGINAL_FILES
             or any(digest(originals[name]) != pins['files'][name] for name in originals)):
         raise ValueError('AOSP Git source does not match the exact pinned storage baseline')
-    bridge = checked_path(project, SOURCE).read_bytes()
+    sources = {name: checked_path(project, source).read_bytes()
+               for name, source in SOURCE_FILES.items()}
     outputs = {STORAGE: patch_storage(originals[STORAGE]),
-               USERS: patch_users(originals[USERS]), BRIDGE: bridge}
-    record = {'schema': 1, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
+               USERS: patch_users(originals[USERS]),
+               RESILIENT: patch_resilient(originals[RESILIENT]), **sources}
+    record = {'schema': 2, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
               'aosp_tag': pins['aosp_tag'], 'inputs': pins['files'],
-              'bridge_sha256': digest(bridge),
+              'bridge_sha256': digest(sources[BRIDGE]),
               'outputs': {name: digest(data) for name, data in outputs.items()}}
     marker = checked_path(aosp, MARKER)
     previous = None
     if marker.exists():
         previous = json.loads(marker.read_bytes())
         validate_record(previous)
-        if previous['inputs'] != pins['files']:
+        if any(pins['files'].get(name) != value for name, value in previous['inputs'].items()):
             raise ValueError('Invalid storage-source ownership record')
     changes = {}
     before = {}
@@ -180,8 +227,8 @@ def prepare(project, aosp, originals=None, pins=None):
         current = target.read_bytes() if target.exists() else None
         if current == data:
             continue  # Also recognizes an interrupted installation of these exact bytes.
-        allowed = current is None if name == BRIDGE else current == originals[name]
-        if previous and current is not None:
+        allowed = current is None if name in SOURCE_FILES else current == originals[name]
+        if previous and current is not None and name in previous['outputs']:
             allowed |= digest(current) == previous['outputs'][name]
         if not allowed:
             raise ValueError('Unmanaged or modified AOSP storage source; preserving local work')

@@ -134,6 +134,30 @@ reservierten AOSP-Lebenszyklus verlegt werden. Für Benutzerlöschung bleibt
 
 ## Benutzerlöschung vor Freigabe der AOSP-ID
 
+Der erste Implementierungsschritt ergänzt nun `AegisRemovalFiles` und zwei
+ausdrücklich bestätigende Methoden in der gepinnten AOSP-`ResilientAtomicFile`.
+Beim Schreiben werden die geöffneten Inodes mit den Dateinamen abgeglichen,
+beide neuen Kopien geschrieben und synchronisiert und erst danach die alte
+Backupkopie entfernt. Auch das Elternverzeichnis wird synchronisiert.
+Datei-, Berechtigungs-, Unlink- oder Synchronisationsfehler werden weitergegeben.
+Beim Löschen müssen Hauptdatei und beide Fallbackkopien fehlen; Verzeichnisse,
+Symlinks und mehrfach verlinkte Dateien werden vor dem ersten Unlink abgewiesen.
+Die vorhandene bestmögliche AOSP-fs-verity-Absicherung bleibt im neuen
+Commitpfad erhalten. Bestehende normale AOSP-Aufrufer sind unverändert.
+
+Der Quellintegrator pinnt zusätzlich `ResilientAtomicFile.java` und übernimmt
+nur einen vollständig passenden bisherigen Besitznachweis. Neue unbekannte
+Dateiänderungen bleiben erhalten und verhindern die Installation. Zwölf
+lokale Tests prüfen diese Quellintegration und Migration; sie führen keine
+Android-Dateioperation aus. Zehn neue Android-Tests verwenden echte eigene
+Gastdateien einschließlich fehlgeschlagener Unlinks und ersetzter Inodes;
+ihre Kompilierung und lokale Ausführung stehen noch aus.
+
+**Die neuen Methoden sind noch nicht in UserManagerService aufgerufen.**
+Der bestätigte Speicherabbau, Seriennummernbindung der Rückmeldungen und
+Freigabe der AOSP-ID bleiben der nächste Integrationsschritt. Damit ist
+keine reale Benutzerlöschung nachgewiesen oder freigeschaltet.
+
 Die Prüfung der gepinnten Plattformquellen bestätigt zusätzliche Lücken,
 die die fünf Storage-Key-Hooks allein nicht schließen. Dies ist eine
 Implementierungsvorgabe, kein bestandener Löschtest:

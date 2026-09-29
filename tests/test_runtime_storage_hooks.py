@@ -23,12 +23,15 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.originals = {
             hooks.STORAGE: (fixtures / 'StorageManagerService.fragment').read_bytes(),
             hooks.USERS: (fixtures / 'UserController.fragment').read_bytes(),
+            hooks.RESILIENT: (fixtures / 'ResilientAtomicFile.fragment').read_bytes(),
         }
         self.pins = {'schema': 1, 'aosp_tag': 'android-16.0.0_r1',
                      'files': {name: hooks.digest(data) for name, data in self.originals.items()}}
         self.source = self.project / hooks.SOURCE
         self.source.parent.mkdir(parents=True)
         self.source.write_bytes(b'first inert bridge-source fixture\n')
+        self.removal_source = self.project / hooks.REMOVAL_SOURCE
+        self.removal_source.write_bytes(b'inert checked-files fixture\n')
         for name, data in self.originals.items():
             destination = self.target(name)
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -142,6 +145,47 @@ class StorageHookSourcesTests(unittest.TestCase):
                 with self.assertRaises(ValueError): hooks.verify(self.aosp, modified)
         for invalid in (None, [], 'invalid'):
             with self.assertRaises(ValueError): hooks.verify(self.aosp, invalid)
+
+    def test_exact_legacy_receipt_migrates_without_adopting_new_file_changes(self):
+        legacy = {'schema': 1, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
+                  'aosp_tag': 'android-16.0.0_r1',
+                  'inputs': {k: self.pins['files'][k] for k in (hooks.STORAGE, hooks.USERS)}}
+        old_outputs = {hooks.STORAGE: hooks.patch_storage(self.originals[hooks.STORAGE]),
+                       hooks.USERS: hooks.patch_users(self.originals[hooks.USERS]),
+                       hooks.BRIDGE: self.source.read_bytes()}
+        legacy['outputs'] = {k: hooks.digest(v) for k, v in old_outputs.items()}
+        legacy['bridge_sha256'] = legacy['outputs'][hooks.BRIDGE]
+        for name, data in old_outputs.items():
+            self.target(name).parent.mkdir(parents=True, exist_ok=True)
+            self.target(name).write_bytes(data)
+        marker = self.aosp / hooks.MARKER
+        marker.parent.mkdir(parents=True)
+        marker.write_text(json.dumps(legacy))
+        hooks.verify(self.aosp, legacy)
+        self.target(hooks.RESILIENT).write_bytes(b'local unrelated atomic-file change')
+        with self.assertRaises(ValueError): self.prepare()
+        self.assertFalse(self.target(hooks.REMOVAL_FILES).exists())
+        self.assertEqual(json.loads(marker.read_text()), legacy)
+        self.target(hooks.RESILIENT).write_bytes(self.originals[hooks.RESILIENT])
+        result = self.prepare()
+        self.assertEqual(result['schema'], 2)
+        hooks.verify(self.aosp, result)
+        self.assertEqual(self.target(hooks.REMOVAL_FILES).read_bytes(), self.removal_source.read_bytes())
+        self.assertEqual(self.prepare(), result)
+
+    def test_invalid_legacy_extension_is_not_a_valid_ownership_record(self):
+        receipt = self.prepare()
+        receipt['schema'] = 1
+        (self.aosp / hooks.MARKER).write_text(json.dumps(receipt))
+        with self.assertRaises(ValueError): self.prepare()
+
+    def test_checked_atomic_file_methods_are_installed_without_replacing_legacy_failure_path(self):
+        self.prepare()
+        source = self.target(hooks.RESILIENT).read_text()
+        self.assertIn('AegisRemovalFiles.commit(', source)
+        self.assertIn('AegisRemovalFiles.delete(', source)
+        self.assertIn('FileIntegrity.setUpFsVerity(mainPfd)', source)
+        self.assertIn('originalFailureHandling();', source)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,4 @@
+// Inert source anchor fixture. Never compiled or executed as AOSP.
+    public void failWrite(FileOutputStream str) {
+        originalFailureHandling();
+    }
