@@ -1,6 +1,29 @@
 # Hardware des lokalen QEMU-Produkts
 
-## Aktueller Gast `2a766ab5`, 29. September 2026
+## Virtuelle Eingabe im Testgast `026665fb`, 29. September 2026
+
+Der separate verwaltete Testgast zeigt Sperrbildschirm, Dialoge und Launcher
+vollständig in **720 × 1280 bei 320 dpi**, auch ohne sichtbares Mac-Fenster.
+Über QMP gesendete Enter-, Tab- und Leertasten ändern sichtbar den Android-
+Zustand und Dialogfokus. Zwei ausstehende ADB-Dialoge gehören nach Vergleich
+des angezeigten Fingerprints zu demselben bereits autorisierten Mac; sie
+wurden über diesen Eingabeweg geschlossen. ADB bleibt authentifiziert.
+
+Eine anschließend zeitlich begrenzte `getevent`-Erfassung bestätigt den
+vollständigen virtuellen Geräteweg: `KEY_LEFTSHIFT` DOWN/UP auf
+`QEMU Virtio Keyboard` (`/dev/input/event1`) sowie `REL_X=17`, `REL_Y=-9`
+auf `QEMU Virtio Mouse` (`/dev/input/event2`). Die Ereignisse kommen von QMP,
+nicht von Androids `input`-Befehl. Die Erfassung endet anschließend planmäßig
+durch Timeout; dieser Exitcode ist kein Gerätefehler.
+
+Rohbelege: `out/full-build-026665fb/boot-1/virtual-hid-result.json`,
+`virtual-hid-events.log` und die dortigen `hid-*.png`. Das bestätigt virtuelle
+Eingabe und Bildausgabe, nicht die physische Mac-Tastatur/Maus im Cocoa-Fenster,
+Langzeitstabilität oder GNU-Isolation. Der Broker dieses Images scheitert
+weiterhin am separat dokumentierten Basis-Mountfehler. Das normale sichtbare
+Profil bleibt vorerst `2a766ab5` und ist auf Wunsch des Nutzers geschlossen.
+
+## Zuletzt sichtbarer Stand `2a766ab5`, 29. September 2026
 
 Der [vollständige Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260928T224751Z-2a766ab5-ed1329db)
 ist nach GitHub-Transport, Prüfsummen- und AVB-Kettenprüfung lokal gebootet.
