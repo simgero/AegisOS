@@ -20,12 +20,33 @@ Systemdienst, JNI und Policy des alten Images wurden nicht ersetzt.
 Der Broker dieses alten Images scheitert weiterhin beim Öffnen der Basis.
 Diese Komponentennachweise ersetzen daher weder den neuen Produktionspfad
 noch Passwort-/Rohmodusprüfungen der öffentlichen CLI, GNU-Ausführung oder
-Zwei-Benutzer-Isolation. Der vollständige Build für genau `026665fb` folgt.
+Zwei-Benutzer-Isolation.
 
 - Rohbelege: `out/components-026665fb/component-tests/`.
 - Native-Log SHA-256: `fb7e22c651f451849b305e42ea46a76b875f80a216bde0936d67a7fc1fe63fc4`.
 - Java-Log SHA-256: `2d0664d0f8f39d609b3fedfdda32c1d8a4baa96170a48646b8934a0f7acc952b`.
 - Gastbeleg SHA-256: `e1b02a074ce729bd0c9240e94e6e5fa7ff478243b2243fb81b3f677f4e055387`.
+
+Der anschließende vollständige Build
+[`aosp-20260929T031210Z-026665fb-02ff1cf0`](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T031210Z-026665fb-02ff1cf0)
+ist mit `UPLOAD_VERIFIED` abgeschlossen. Nach Prüfung aller 21 Assets und
+der AVB-Kette bootet das neue Profil `runtime-026665fb` mit Enforcing,
+FBE, authentifiziertem ADB, tatsächlichen Verity-Tabellen und allen drei
+Telefonie-Booleans auf false. Der alte Testgast wurde geordnet mit bestätigtem
+Android-Powerdown und sauberem KeyMint-Helper beendet; seine Daten bleiben erhalten.
+
+Der neue Basis-Wartepfad erreicht beim ersten Start die ext4-Superblock-Erzeugung,
+ohne den früheren Kernel-FD-AVC. Dort scheitert er mit `errno=13` und
+`aegis_runtime_broker -> aegis_runtime_base_file:filesystem relabelfrom`.
+Im gepinnten Kernel `50eb8d5d443b43f38d6e72f005f1b8601ac88a05` setzt
+`selinux_set_mnt_opts()` erst die Superblock-SID aus `context=`, anschließend
+prüft `may_context_mount_inode_relabel()` erneut `relabelfrom` auf dieser SID.
+Die bereits vorhandene AOSP-Regel `allow fs_type self:filesystem associate`
+deckt die folgende Zuordnungsprüfung ab. Deshalb wird ausschließlich die
+fehlende Berechtigung für Broker und Basis-Dateisystem ergänzt. Kein permissiver
+Betrieb und keine Regeländerung im laufenden Gast. Die neue Policy braucht
+einen weiteren vollständigen Build und Bootnachweis; Native-/Java-Quellen und
+Tests bleiben identisch. Rohbeleg: `out/full-build-026665fb/boot-1/boot-health.json`.
 
 ## Init-Namespace-Übergabe: Komponenten 3b350e74 auf Image 4e53dc18
 

@@ -120,7 +120,11 @@ allowxperm aegis_runtime_broker loop_device:blk_file ioctl {
     LOOP_CONFIGURE LOOP_GET_STATUS64 BLKGETSIZE64 BLKROGET
 };
 allow aegis_runtime_broker labeledfs:filesystem { mount relabelfrom };
-allow aegis_runtime_broker aegis_runtime_base_file:filesystem { mount remount relabelto unmount };
+# context= first labels the superblock, then labels its root inode. The second
+# check uses the already-selected base SID as relabelfrom (pinned hooks.c,
+# selinux_set_mnt_opts / may_context_mount_inode_relabel). No other base label
+# or ordinary program gains this permission.
+allow aegis_runtime_broker aegis_runtime_base_file:filesystem { mount remount relabelfrom relabelto unmount };
 # The fixed MS_REC|MS_PRIVATE operation on / follows unshare(CLONE_NEWNS).
 # SELinux checks mounton even for a propagation change. Only the trusted owner
 # may isolate this inherited root; ordinary programs get no root mount rights.
