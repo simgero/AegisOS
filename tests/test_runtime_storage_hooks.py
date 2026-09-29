@@ -85,6 +85,16 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.assertEqual(len(copies), 1)
         self.assertEqual(copies[0].read_bytes(), b'first inert bridge-source fixture\n')
 
+    def test_missing_allocator_anchor_blocks_entire_source_install(self):
+        altered = self.originals[hooks.MANAGER].replace(
+                b'int getNextAvailableId()', b'int changedAllocator()')
+        self.originals[hooks.MANAGER] = altered
+        self.pins['files'][hooks.MANAGER] = hooks.digest(altered)
+        with self.assertRaises(ValueError): self.prepare()
+        self.assertEqual(self.target(hooks.STORAGE).read_bytes(), self.originals[hooks.STORAGE])
+        self.assertFalse(self.target(hooks.BRIDGE).exists())
+        self.assertFalse((self.aosp / 'out').exists())
+
     def test_unmanaged_changes_block_all_writes(self):
         self.target(hooks.USERS).write_bytes(b'builders local work\n')
         with self.assertRaises(ValueError): self.prepare()

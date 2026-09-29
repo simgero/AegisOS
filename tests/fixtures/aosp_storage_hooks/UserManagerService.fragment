@@ -101,3 +101,14 @@
     private void removeUserState(final @UserIdInt int userId) {
         originalBestEffortRemoval();
     }
+
+    int getNextAvailableId() {
+        // Inert representation of the upstream exhaustion fallback.
+        int nextId = scanNextAvailableIdLocked();
+        if (nextId < 0) {
+            mRemovingUserIds.clear();
+            restoreRecentlyRemovedIds();
+            nextId = scanNextAvailableIdLocked();
+        }
+        return nextId;
+    }

@@ -1,5 +1,31 @@
 # AOSP-Speicheroperationen und Runtime-Abbau
 
+## Kennungen während desselben Systemserver-Laufs nicht recyceln
+
+Die Quellprüfung nach dem erfolgreichen 73ddcb61-Durchlauf bestätigt eine
+noch nicht durch diesen Test abgedeckte Grenze: `LockSettingsStrongAuth.removeUser()`
+stellt eine Nachricht mit numerischer ID in die Main-Handler-Queue. Seine
+Alarmrückmeldungen tragen ebenfalls nur diese ID. Gleichzeitig kann AOSPs
+`getNextAvailableId()` bei erschöpftem Nummernraum `mRemovingUserIds` leeren
+und alte, vollständig gelöschte IDs wieder vergeben. Das ist eine belegte
+Quellkonstellation, kein beobachteter Angriff oder fehlgeschlagener Gasttest.
+
+Die neue lokale Korrektur entfernt diesen Recycling-Fallback. Die vorhandene
+AOSP-Reservierung bleibt für die Lebensdauer des Systemservers erhalten,
+auch nach bestätigtem Entfernen von `UserData`. Bei Erschöpfung schlägt die
+Anlage fehl, ohne Reservierungen zu verwerfen. Der manuelle Testschalter kann
+im neuen Finalisierungspfad ebenfalls keine ID freigeben. Es entsteht keine
+zweite Benutzerverwaltung. Nach Neustart können vollständig entfernte IDs
+normal wiederverwendet werden; partielle Benutzer bleiben durch ihre
+persistenten AOSP-Einträge reserviert und werden wie zuvor wiederhergestellt.
+
+Diese Änderung ist **noch nicht in einem neuen Android-Image kompiliert oder
+im Gast geprüft**. Die Hostprüfungen kontrollieren Einbau und Erhalt der
+Quellinvarianten, nicht das Verhalten eines erschöpften echten AOSP-Allocators.
+Verwaltete CLI-Löschung bleibt gesperrt. Die Änderung behauptet weder synchrone
+StrongAuth-Aufräumarbeiten noch eine umfassende Prüfung fremder nativer Dienste
+über einen Systemserver-Neustart hinweg.
+
 ## Plattformlöschung, Wiederherstellung und neue Identität: 73ddcb61
 
 Der vollständige [Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T142612Z-73ddcb61-404e18ff)

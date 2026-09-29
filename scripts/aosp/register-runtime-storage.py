@@ -410,6 +410,19 @@ def patch_aidl_response(data, client):
 
 def patch_manager(data):
     text = data.decode('utf-8')
+    # Framework handlers such as StrongAuth still queue work by numeric ID.
+    # Keep AOSP's own removal set for this system-server lifetime, including
+    # allocator exhaustion. A new system server has no old Java handler queue;
+    # persisted partial users are independently recovered before their reuse.
+    allocator = method(text, '    int getNextAvailableId()')
+    text = replace_once(text, allocator, '''    int getNextAvailableId() {
+        synchronized (mUsersLock) {
+            final int nextId = scanNextAvailableIdLocked();
+            if (nextId >= 0) return nextId;
+            throw new IllegalStateException(
+                    "No user id available without reusing a removed identity");
+        }
+    }''')
     text = replace_once(text, '        @NonNull UserInfo info;\n', '''        @NonNull UserInfo info;
         // Claims belong to this exact AOSP object, never to a reusable numeric ID.
         // Guarded by the enclosing service's mUsersLock; failures retain both claims.
@@ -608,10 +621,11 @@ def patch_manager(data):
                     removeUserDataLU(userId);
                     mIsUserManaged.delete(userId);
                     updateUserIds();
-                    if (RELEASE_DELETED_USER_ID) mRemovingUserIds.delete(userId);
+                    // Keep the numeric ID retired for this system-server lifetime.
+                    // Queued legacy handler work must never address a new identity.
                 }
             }
-            // No destructive numeric-ID calls after the reservation has been released.
+            // Persistent removal is complete; the numeric ID remains retired in RAM.
             Slog.i(LOG_TAG, "AOSP user removal committed for " + userId + "/" + serial);
         } catch (Exception failure) {
             // Retain partial UserData and its claim even if cleanup partially succeeded.
