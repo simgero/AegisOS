@@ -4,17 +4,24 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Aktueller Nachweisstand: Das vollständige Image `a187a309` bootet im getrennten
-lokalen Testprofil mit Enforcing, FBE, authentifiziertem ADB und tatsächlichem
-dm-verity. Die ext4-Kontextprüfung besteht nach der gezielten Policy-Korrektur.
-Der nächste Startschritt scheitert beim privaten Mount-Anker mit `EINVAL`,
-ohne Runtime-AVC: Der Basisöffner gibt eine neu geöffnete Wurzel zurück und
-schließt dadurch den ursprünglichen `fsmount`-Besitzer zu früh. Die Korrektur
-`d308ea6a` erhält diesen Deskriptor. **116/116 native Gerätetests bestehen**
-auf Image `a187a309`, einschließlich der Fehlerreproduktion und des echten
-Basisöffners bis zum persönlichen Mount-Klon. Der vollständige Build
-`aosp-20260929T042930Z-d308ea6a-57b5567f` läuft; sein echter Broker-Start und
-GNU-Ausführung sind noch unbewiesen. Die **62/62 Java-Tests** des Stands
+Aktueller Nachweisstand: Das vollständige Image `d308ea6a` ist mit
+`UPLOAD_VERIFIED` über GitHub übertragen und bootet im getrennten lokalen
+Testprofil mit Enforcing, FBE, authentifiziertem ADB und tatsächlichem
+dm-verity. Der Init-gestartete Broker erreicht erstmals
+`AEGIS_RUNTIME_BROKER_LISTENING` in seiner eigenen SELinux-Domäne. Die
+Korrektur erhält den ursprünglichen `fsmount`-Besitzer bis zur privaten
+Einbindung der Basis. **116/116 native Gerätetests bestehen** auf dem
+vorherigen Image `a187a309`, einschließlich der Fehlerreproduktion und des
+echten Basisöffners bis zum persönlichen Mount-Klon.
+
+Im neuen vollständigen Image wurde der erste AOSP-Testadministrator angelegt;
+falsches Passwort wird abgewiesen, korrektes Passwort entsperrt CE. Der
+persönliche Linux-Start scheitert jedoch an der Cgroup-Zuweisung. Der Kontext
+wird als `sealed` gemeldet, anschließend durch `linux stop` bestätigt abgebaut.
+**GNU-Ausführung bleibt unbewiesen.** Der genaue Befund und die zusätzliche
+Kernel-Anforderung an den gemeinsamen Cgroup-Vorfahren stehen in der
+[Runtime-Policy](../runtime/selinux-integration.md#persönlicher-start-in-d308ea6a).
+Die **62/62 Java-Tests** des Stands
 `026665fb` auf Image `030dd177` gelten weiterhin für unveränderte Java-/JNI-
 Quellen. Öffentliche CLI-Negativtests und die verdeckte
 Passworteingabe samt Strg+C-Wiederherstellung bestehen im vollständigen Image

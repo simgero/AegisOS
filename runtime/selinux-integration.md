@@ -1,5 +1,56 @@
 # SELinux- und Init-Integration der Runtime
 
+## Persönlicher Start in d308ea6a
+
+Der vollständige Build `aosp-20260929T042930Z-d308ea6a-57b5567f` wurde am
+29. September 2026 mit `UPLOAD_VERIFIED` veröffentlicht und lokal samt
+AVB-Kette geprüft. Im frischen Profil `157bd001-a912-4a2a-85c1-3d8803f03c0c`
+bootet Android mit Enforcing, FBE, authentifiziertem ADB und tatsächlichem
+dm-verity. Init startet den Broker regulär: `AEGIS_RUNTIME_BROKER_LISTENING`,
+Domäne `u:r:aegis_runtime_broker:s0`. Der frühere Mount-Ankerfehler ist behoben.
+
+Nach AOSP-Anmeldung von Testbenutzer 10/Seriennummer 10 scheitert `linux start`
+um 04:56:22 UTC. Der AVC verweigert dem Broker `write` auf Cgroup-Inode 10132
+mit Label `cgroup_v2`. Der anschließende VFS-Befund identifiziert genau diese
+Inode als `/sys/fs/cgroup/aegis-runtime/u10-s10/cgroup.procs`, nun mit dem
+vorgesehenen privaten Label `aegis_runtime_cgroup`. Die Gruppe ist leer.
+`linux status` meldet `sealed`; `linux stop` entfernt die Gruppe bestätigt,
+und der aggregierte Bereich meldet weiterhin `populated 0`.
+
+Der gepinnte Kernel `50eb8d5d443b43f38d6e72f005f1b8601ac88a05` erklärt zwei
+getrennte Voraussetzungen:
+
+1. `cgroup_css_set_fork` prüft das Ziel über `cgroup_may_write` und
+   `kernfs_get_inode` direkt mit `inode_permission(MAY_WRITE)`. Ein bislang
+   nicht über VFS aufgelöstes `cgroup.procs` hat dabei keinen Dentry-Alias für
+   das pfadabhängige Genfs-Label. SELinux kann erst bei einer späteren
+   VFS-Auflösung den privaten Pfad zuordnen. Das passt zum beobachteten
+   Labelwechsel derselben Inode. Die Zielreferenz muss vor dem atomaren Clone
+   korrekt aufgelöst und währenddessen gehalten werden.
+2. Danach prüft `cgroup_attach_permissions` zusätzlich Schreibrecht auf
+   `cgroup.procs` des gemeinsamen Vorfahren. Der Broker liegt tatsächlich in
+   `/system/uid_0/pid_626`; der geplante Kontext liegt unter `/aegis-runtime`.
+   Ihr gemeinsamer Vorfahr ist die Android-Wurzel. Eine Auflösung allein
+   behebt diese zweite Anforderung nicht.
+
+Es wurde weder ein allgemeines Schreibrecht auf `cgroup_v2` erteilt noch die
+atomare Prozesszuordnung abgeschwächt. Als nächste Lösung ist eine durch Init
+zugewiesene private Hierarchie mit getrenntem Broker- und Kontextzweig zu
+prüfen. Sie muss den gemeinsamen Vorfahren privat halten, den Broker aus
+Kontext-Kill-/Speichergruppen ausschließen und Start, Absturzbereinigung sowie
+Controller-Grenzen nachweisen. Diese Umstellung ist **noch nicht implementiert**.
+Die bisherigen Root-Fixtures prüfen diesen Produktions-SELinux-Pfad nicht.
+
+Belege: `out/full-build-d308ea6a/boot-1/boot-health.json` und
+`out/full-build-d308ea6a/identity-test/runtime-start-diagnostic.json` samt
+AVCs und CLI-Ereignissen. Eine nach Anmeldung geschriebene CE-Dateiprobe ist
+nach Logout nicht lesbar; AOSP meldet nur Benutzer 0 als CE-entsperrt. Erneute
+Anmeldung liefert dieselben 4096 Bytes zurück. Der Leseversuch bei gesperrtem
+CE meldet `ENOENT`; die zunächst auf `ENOKEY` beschränkte Testauswertung ist
+deshalb fehlgeschlagen und wird nicht als bestandener Einzeltest ausgegeben.
+Diese Entwicklungs-root-Probe ist kein GNU-Isolationsnachweis. Eine tatsächliche
+GNU-Sitzung oder Übernahme als sichtbarer geprüfter Launcher ist nicht erfolgt.
+
 ## Aktueller Bootbefund: immutable Basis
 
 Das separat gepaarte Image `030dd177` bootet vollständig mit Enforcing,
