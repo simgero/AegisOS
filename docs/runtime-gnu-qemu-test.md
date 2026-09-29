@@ -6,6 +6,13 @@ Der Ablauf umfasst Benutzerwechsel, Bildschirmsperre, Logout, Passwortwechsel
 und den Neustart desselben Android-/KeyMint-Paars. **Dies ist eine begrenzte
 Funktionsabnahme; Phase 1 ist noch nicht vollständig implementiert.**
 
+Der spätere Vollbuild `73ddcb61` ergänzt einen gezielten realen Nachweis für
+Plattformlöschung, reservierten Fehlerzustand, Wiederherstellung nach Reboot
+und neue Identität bei wiederverwendeter Nummer. Eigene GNU-Dateien und
+ursprüngliche Hintergrundprozesse dienen als unabhängige Kontrollen.
+[Löschbericht mit Grenzen und Prüfsummen](../runtime/aosp-storage-lifecycle.md).
+Der nachfolgende umfassende Ablauf wurde dafür nicht vollständig wiederholt.
+
 ## Aktueller Nachweis: Anmeldereihenfolge im Vollbuild 2f29f0ac
 
 Der [Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T105434Z-2f29f0ac-44199b33)

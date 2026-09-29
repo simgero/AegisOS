@@ -12,8 +12,14 @@ Die folgende Policy ergänzt ausschließlich Baumdurchlauf, `rmdir` und
 `unlink` für den vorhandenen AOSP-Bereinigungsdienst auf unserem dedizierten
 Home-Typ. Sie erlaubt weder Inhaltlesen/-schreiben noch Erstellen, Relabeln
 oder zusätzliche Capabilities. `neverallow` begrenzt diese Erweiterung.
-Das ist noch kein Kompilierungs- oder Löschtestnachweis; ein neuer vollständiger
-Build und die erneute lokale Prüfung sind erforderlich.
+Im vollständigen Build `73ddcb61` bestehen nun die AOSP-/`neverallow`-
+Kompilierung und die tatsächliche lokale Plattformlöschung mit persönlichem
+GNU-Verzeichnis. Zusätzlich bestehen ein kontrollierter Inventarfehler mit
+reservierter Kennung, Bereinigung beim Neustart und eine neue Identität bei
+wiederverwendeter Nummer. Enforcing bleibt vor und nach dem Neustart aktiv.
+Die genauen Belege und Grenzen stehen im oben verlinkten Löschbericht;
+verwaltete CLI-Berechtigungen und allgemeine Konkurrenzfestigkeit sind damit
+nicht abgenommen.
 
 ## Tatsächliche GNU-Ausführung in 6a807692
 

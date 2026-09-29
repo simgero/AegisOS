@@ -1,5 +1,61 @@
 # AOSP-Speicheroperationen und Runtime-Abbau
 
+## Plattformlöschung, Wiederherstellung und neue Identität: 73ddcb61
+
+Der vollständige [Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T142612Z-73ddcb61-404e18ff)
+enthält die unten beschriebene gezielte SELinux-Korrektur. AOSP-Kompilierung
+einschließlich `neverallow`, Upload-Rückprüfung, alle 21 heruntergeladenen
+Assets und AVB sind bestätigt. Ein GitHub-HTTP-500 betraf ausschließlich
+`config.sh`; nur dieses fehlende Asset wurde erneut geladen, ohne Buildneustart.
+
+Am 29. September 2026 wurde das separate lokale Profil
+`e20922c4-e760-42d3-b65a-3b22b58c60a5` ohne sichtbares Fenster geprüft.
+AVB-Digest: `3a628f2676209fa08a862a29b74871643098c7782bffa333070d8405737ece55`.
+Beide ersten persönlichen Anmeldungen funktionieren ohne Aufwärmversuch,
+mit verzögerter Sitzungsprüfung und tatsächlicher GNU-Ausführung. Die folgenden
+Zeiten sind UTC:
+
+| Prüfung | Tatsächlich beobachtet |
+| --- | --- |
+| Normale Plattformlöschung | Beta `11/11` wird um 15:03:36 bei laufendem GNU-Hintergrundprozess entfernt. Um 15:03:57 sind AOSPs Abschlussmeldung, fehlende CE-/DE-Schlüsselverzeichnisse, sämtliche geprüften Benutzer-Datenpfade und XML-Kopien sowie die bereinigten Benutzerlisten bestätigt. |
+| Prozess- und Peer-Kontrolle | Betas Originalprozess `6022`, Startzeit `49654`, ist beendet. Alphas ursprünglicher Prozess `4902`, Startzeit `38669`, läuft weiter; sein GNU-Readback um 15:04:39 ergibt dieselben 1.024 Bytes. |
+| Kontrollierter Abbruch | Ein leerer, eindeutig identifizierter Testordner im SP-Inventar führt bei Alphas Löschung um 15:06:09 zu `Credential-state inventory unconfirmed`, vor dem Protectorabbau. Alpha `10/10` bleibt partiell reserviert; Originalprozess und Kontext verschwinden, CE ist gesperrt. Eine wiederholte öffentliche Anfrage gibt die Kennung nicht frei. |
+| Wiederherstellung | Nach Entfernung ausschließlich des leeren Testordners wird dasselbe Android-/KeyMint-Paar geordnet neu gestartet. Ohne neue Löschanfrage schließt AOSP Alphas Bereinigung ab; um 15:08:44 bestehen dieselben Abwesenheitsprüfungen. Beta bleibt ebenfalls entfernt. |
+| Tatsächliche ID-Wiederverwendung | Ein zuvor regulär angelegter Administrator `12/12` meldet sich nach Reboot an. Mit frischer Admin-Passwortprüfung entsteht um 15:09:28 der neue Benutzer `11/13`; der Allocator wird nicht verändert. Betas altes Passwort wird abgewiesen, CE bleibt gesperrt und kein Kontext entsteht. |
+| Neue GNU-Dateien | Nach Anmeldung mit dem neuen Passwort findet `11/13` weder Alphas noch Betas Probedatei. Eigene 1.024 Bytes lassen sich über GNU schreiben und bytegleich lesen. Beide verbliebenen Benutzer werden danach regulär abgemeldet. |
+
+Die Boot-ID wechselt von `cccb9b83-f5fc-4cca-987f-179bacb92b39` zu
+`a00a969b-093b-4072-b20a-1bf0a32c8fbe`. Profil und AVB bleiben gleich.
+Die unabhängige Abschlussprüfung um 15:16:12 bestätigt ausschließlich Benutzer
+0 gestartet und CE-entsperrt, keine persönlichen Kontexte, `populated 0`,
+Enforcing, FBE, authentifiziertes ADB und tatsächliche Verity-Tabellen für
+`system` und `system_ext`. Ein vorheriger Diagnoseversuch verwendete den
+falschen Gerätenamen `system`; die korrigierte Prüfung nutzt `system-verity`.
+Dabei wurde kein Gastzustand verändert. Sieben Bootlogs enthalten keines der
+vollständigen generierten Testpasswörter. Der Treiber ist beendet und seine
+Passwortpuffer sind verworfen; das Testprofil bleibt erhalten.
+
+**Dieser Nachweis betrifft die AOSP-Plattformlöschung über Entwicklungs-root.**
+Die verwaltete AEGIS-CLI-Löschung bleibt gesperrt. Eine doppelte öffentliche
+Anfrage beweist keine manipulierte oder verspätete Rückmeldung. Wiederverwendung
+nach Reboot deckt weder Allocator-Erschöpfung im selben Boot noch sämtliche
+asynchronen numerischen Nacharbeiten ab. Ein Fehler nach bereits erfolgtem
+Schlüsselabbau wurde hier nicht injiziert. Weaver-Zustände und eingeschriebene
+Biometrie wurden nicht geprüft; die echten leeren HAL-Rückmeldungen schon.
+Pakettransaktionen bleiben unimplementiert. Die unveränderten Komponentenbelege
+Java 88/88 und native 128/128 wurden nicht als neue Testausführung ausgegeben.
+
+Rohbelege: `out/full-build-73ddcb61/removal-test/`,
+`identity-test/events-accepted.json` und beide Bootverzeichnisse. SHA-256:
+
+- `removal-test/result.json`: `e913f8e20a21f9bf51b7d93da7473090a1b7fe5eb6515513eda5a571211fbe16`.
+- `identity-test/events-accepted.json`: `d567c9eba3421adf713e3f57a557741f14615bdd490c43b30b2297f027ffc661`.
+- Lokale Treibervariante: `7c8b13644c2563dfda7cb98eeed8749f7766df61af917ece1f7cf1540924c348`.
+
+Der Neustart verwendet einen unveränderten lokalen Launcher-Abzug aus
+`73ddcb61`, damit parallele Grafikänderungen die Testbedingungen nicht ändern.
+Der sichtbare Launcher und alle früheren gekoppelten Profile bleiben erhalten.
+
 ## Leere Biometrie bestätigt, privater Abbau noch verweigert: 760474df
 
 Der vollständige [Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T134115Z-760474df-4114780f)

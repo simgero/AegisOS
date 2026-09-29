@@ -4,7 +4,17 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Aktueller lokal geprüfter Kandidat: **`2f29f0ac`**. Zwei persönliche
+Neuester lokal geprüfter Vollbuild: **`73ddcb61`**. Die gezielte
+SELinux-Korrektur ermöglicht jetzt den vollständigen AOSP-Abbau eines privaten
+GNU-Benutzers. Ein absichtlich vor dem Schlüsselabbau gestörter Löschvorgang
+behält seine Kennung reserviert und wird nach Neustart desselben Profilpaars
+automatisch abgeschlossen. Eine anschließend regulär wiederverwendete Nummer
+erhält eine neue Seriennummer; das alte Passwort und die alten Probedateien
+gehen nicht auf den neuen Benutzer über. [Ablauf und Grenzen](../runtime/aosp-storage-lifecycle.md).
+Die normale AEGIS-CLI-Löschung bleibt bis zur Berechtigungsabnahme gesperrt;
+Pakettransaktionen sind weiterhin nicht implementiert.
+
+Der umfassende Zwei-Benutzer-Nachweis stammt aus **`2f29f0ac`**. Zwei persönliche
 AOSP-Benutzer führen jetzt tatsächlich GNU/Linux-Programme in getrennten
 Kontexten aus. Geprüfte gegenseitige Datei- und Prozesszugriffe werden
 verhindert. Benutzerwechsel und Bildschirmsperre widerrufen offene
