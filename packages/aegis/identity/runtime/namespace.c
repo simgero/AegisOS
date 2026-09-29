@@ -685,6 +685,16 @@ int aegis_namespace_home_mount(struct aegis_namespace *context, int create) {
     if (data < 0) return -1;
     int home = aegis_ce_open_home(data, context->user_id, context->serial, create);
     int saved = errno;
+    if (home >= 0 && create) {
+        /* Initialize broker-only package metadata in this same authorized CE
+         * lifecycle admission. No package installation or reusable approval.
+         * This also gives the pending directory its broker-only SELinux type.
+         * No package reference is exported to the ordinary runtime. */
+        int packages = aegis_ce_open_packages(data, context->user_id, context->serial, 1);
+        saved = errno;
+        if (packages < 0) { close(home); home = -1; }
+        else close(packages);
+    }
     close(data);
     if (home < 0) { errno = saved; return -1; }
     int tree = aegis_ce_clone_home(home, context->user_id);

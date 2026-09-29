@@ -1,3 +1,4 @@
+#include "ce_live_test.h"
 // Compile on the SSH builder, execute only in local QEMU. Synthetic packages
 // in an exclusively copied base; no live AOSP users, passwords or CE mutation.
 #include "package_executor.h"
@@ -586,3 +587,30 @@ TEST_F(RuntimePackagePreparation, StopDuringObservedCopyReapsWorkerAndRetainsPar
     EXPECT_EQ(partial.st_size,after.st_size);
 }
 } // namespace
+
+// Opt-in only after the host driver authenticates a newly created AOSP user
+// and starts the actual production runtime in a separate paired profile.
+using DISABLED_RuntimePackageCe = RuntimePackagePreparation;
+TEST_F(DISABLED_RuntimePackageCe, RegisteredPrivatePreparationStopsBeforeAospLogout) {
+    aegis_ce_test::Identity identity;ASSERT_TRUE(aegis_ce_test::Read(&identity));
+    ASSERT_EQ(0,aegis_broker_owner_create(parent.get(),source.get(),execute_helper.get(),execute_helper.get(),&broker));
+    plan.execution.requester=identity.user;plan.execution.serial=identity.serial;plan.execution.job=0;
+    int before=CountFDs();
+    ASSERT_EQ(0,BrokerPreparePersonalCandidate(broker,plan,parent.get(),source.get(),prepare_helper.get(),
+                                              execute_helper.get(),Fds(),Deadline(),&job))<<strerror(errno);
+    PublicationState state=PublicationState::Preparing;PackageExecutionResult result;
+    for(unsigned i=0;i<2000 && state==PublicationState::Preparing;++i) {
+        ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
+        ASSERT_EQ(0,BrokerPollExecution(broker,identity.user,identity.serial,job,plan.execution.plan_sha256,&state,&result));
+        if(state==PublicationState::Preparing)usleep(10000);
+    }
+    ASSERT_EQ(PublicationState::Prepared,state)<<result.error;
+    EXPECT_EQ(before+4,CountFDs()); // registered cgroup/stage/mount/executable
+    aegis_broker_request r={};r.magic=AEGIS_BROKER_MAGIC;r.version=AEGIS_BROKER_VERSION;
+    r.operation=AEGIS_BROKER_STOP_USER;r.user=identity.user;r.deadline_ns=Deadline();r.sequence=4;
+    aegis_broker_state stopped=AEGIS_BROKER_SEALED;
+    ASSERT_EQ(0,aegis_broker_owner_apply(broker,&r,&stopped));EXPECT_EQ(AEGIS_BROKER_ABSENT,stopped);
+    EXPECT_EQ(before,CountFDs());
+    // Actual CE eviction is asserted next through AOSP logout by the host
+    // driver. This test does not pretend its direct owner is the live daemon.
+}

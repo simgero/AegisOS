@@ -3,6 +3,10 @@
 // construction, NOT successful AOSP provisioning, authentication, encryption,
 // key removal or CE isolation.
 #include "ce_private.h"
+#include "ce_live_test.h"
+#include "base_image.h"
+#include "package_store.h"
+#include <memory>
 
 #include <gtest/gtest.h>
 #include <dirent.h>
@@ -288,6 +292,84 @@ TEST_F(RuntimeCe, InvalidPackageIdentitiesAndJobsAreRejectedBeforeCreatingStorag
     EXPECT_EQ(-1, fstatat(root, "packages", &st, AT_SYMLINK_NOFOLLOW)); EXPECT_EQ(ENOENT, errno);
     EXPECT_EQ(-1, fstatat(root, "staging", &st, AT_SYMLINK_NOFOLLOW)); EXPECT_EQ(ENOENT, errno);
     EXPECT_EQ(before, fd_count());
+}
+
+// Explicit integration suite; not run in the empty-user component fixture.
+// The host driver pins a fresh full-image profile, obtains the identities from
+// AOSP, authenticates through the CLI and starts the production runtime first.
+// This native process never changes credentials, CE policy or AOSP user state.
+class DISABLED_RuntimeCeAosp : public ::testing::Test {
+ protected:
+    aegis_ce_test::Identity identity;
+    android::base::unique_fd data,area;
+    aegis::PackageGeneration generation;
+    void SetUp() override {
+        ASSERT_TRUE(aegis_ce_test::Read(&identity));
+        data.reset(open("/data",O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(data.ok());
+    }
+    void Area() {
+        area.reset(aegis_ce_open_packages(data.get(),identity.user,identity.serial,0));
+        ASSERT_TRUE(area.ok())<<strerror(errno);
+        char label[128]={};ssize_t n=fgetxattr(area.get(),"security.selinux",label,sizeof(label));
+        ASSERT_GT(n,0);ASSERT_LT(n,static_cast<ssize_t>(sizeof(label)));
+        if(label[n-1]==0)--n;
+        ASSERT_EQ("u:object_r:aegis_package_private_file:s0",std::string(label,n));
+    }
+    void Base() {
+        android::base::unique_fd receipt(open("/system_ext/etc/aegis/runtime/generation.json",O_RDONLY|O_CLOEXEC|O_NOFOLLOW));
+        ASSERT_TRUE(receipt.ok());std::array<char,16385> text;
+        ssize_t n=read(receipt.get(),text.data(),text.size());ASSERT_GT(n,0);
+        aegis_base_receipt expected={};ASSERT_EQ(0,aegis_base_parse_receipt(text.data(),n,&expected));
+        generation={expected.sha256,expected.sha256,expected.bytes};
+    }
+    void Selection(aegis::PackageStore* store) {
+        aegis::PackageGeneration found;
+        android::base::unique_fd image(store->Current(&found));ASSERT_TRUE(image.ok())<<strerror(errno);
+        EXPECT_EQ(generation.image_sha256,found.image_sha256);
+        EXPECT_EQ(generation.shared_base_sha256,found.shared_base_sha256);
+        EXPECT_EQ(generation.bytes,found.bytes);
+    }
+};
+TEST_F(DISABLED_RuntimeCeAosp, PublishesCompleteBaseInAlreadyProvisionedAospCe) {
+    Area();ASSERT_FALSE(HasFatalFailure());Base();ASSERT_FALSE(HasFatalFailure());
+    android::base::unique_fd store_fd(aegis_ce_package_store(area.get(),identity.user,identity.serial));
+    ASSERT_TRUE(store_fd.ok());
+    aegis::PackageOwner owner={true,identity.user,identity.serial};
+    std::unique_ptr<aegis::PackageStore> store(aegis::PackageStore::Open(store_fd.get(),owner,true));
+    ASSERT_NE(nullptr,store.get())<<strerror(errno);
+    android::base::unique_fd source(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_NOFOLLOW|O_CLOEXEC));
+    ASSERT_TRUE(source.ok());std::atomic_bool cancel{false};
+    ASSERT_EQ(aegis::PackagePublish::Confirmed,store->Publish(nullptr,source.get(),generation,cancel))<<strerror(errno);
+    Selection(store.get());ASSERT_FALSE(HasFatalFailure());
+    // The store's identity check is independent of the directory opener.
+    store.reset();
+    for(auto other:{aegis::PackageOwner{true,identity.user,identity.serial+1},
+                    aegis::PackageOwner{false,0,0}}) {
+        std::unique_ptr<aegis::PackageStore> wrong(aegis::PackageStore::Open(store_fd.get(),other,false));
+        EXPECT_EQ(nullptr,wrong.get());EXPECT_EQ(ESTALE,errno);
+    }
+}
+TEST_F(DISABLED_RuntimeCeAosp, ReopensExactGenerationAndRejectsAnotherSerial) {
+    Area();ASSERT_FALSE(HasFatalFailure());Base();ASSERT_FALSE(HasFatalFailure());
+    android::base::unique_fd store_fd(aegis_ce_package_store(area.get(),identity.user,identity.serial));
+    ASSERT_TRUE(store_fd.ok());
+    std::unique_ptr<aegis::PackageStore> store(aegis::PackageStore::Open(store_fd.get(),{true,identity.user,identity.serial},false));
+    ASSERT_NE(nullptr,store.get())<<strerror(errno);Selection(store.get());ASSERT_FALSE(HasFatalFailure());
+    int before=fd_count();
+    for(unsigned i=0;i<16;++i) {
+        EXPECT_EQ(-1,aegis_ce_open_packages(data.get(),identity.user,identity.serial+1,0));EXPECT_EQ(ESTALE,errno);
+        EXPECT_EQ(-1,aegis_ce_package_store(area.get(),identity.user,identity.serial+1));EXPECT_EQ(ESTALE,errno);
+        EXPECT_EQ(-1,aegis_ce_new_package_stage(area.get(),identity.user,identity.serial+1,1));EXPECT_EQ(ESTALE,errno);
+    }
+    EXPECT_EQ(before,fd_count());
+}
+TEST_F(DISABLED_RuntimeCeAosp, LockedAospKeyCannotOpenOrProvisionPackageStorage) {
+    int before=fd_count();
+    for(unsigned i=0;i<16;++i) {
+        EXPECT_EQ(-1,aegis_ce_open_packages(data.get(),identity.user,identity.serial,0));EXPECT_EQ(ENOKEY,errno);
+        EXPECT_EQ(-1,aegis_ce_open_packages(data.get(),identity.user,identity.serial,1));EXPECT_EQ(ENOKEY,errno);
+    }
+    EXPECT_EQ(before,fd_count());
 }
 
 }  // namespace

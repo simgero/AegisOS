@@ -150,6 +150,9 @@ r_dir_file(aegis_runtime_broker, aegis_runtime_image_file)
 # no new write access, path traversal or permission for ordinary GNU programs.
 allow kernel aegis_runtime_broker:fd use;
 allow kernel aegis_runtime_image_file:file read;
+# Loop I/O uses the trusted opener's backing fd. Private copied candidates need
+# both directions; this grants no pathname traversal, opening or execution.
+allow kernel aegis_package_private_file:file { read write };
 allow aegis_runtime_broker { aegis_runtime_setup_exec aegis_runtime_init_exec }:file r_file_perms;
 allow aegis_runtime_broker block_device:dir { getattr search };
 allow aegis_runtime_broker loop_control_device:chr_file rw_file_perms;

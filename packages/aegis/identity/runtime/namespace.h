@@ -147,7 +147,9 @@ int aegis_namespace_map_candidate(struct aegis_namespace *context, int candidate
 
 /* After prepare(), before resume(): resolve this context's immutable id+serial
  * against AOSP's existing internal-volume CE roots, optionally provision its
- * private home, and return a detached writable/nosuid/nodev/private mount fd.
+ * private home and broker-only package metadata, and return a detached
+ * writable/nosuid/nodev/private HOME mount fd. Package metadata stays outside
+ * this mount and its temporary references close within the same admission.
  * No second ID map: files already carry the mapped ordinary host UID/GID.
  * No caller paths, repair of AOSP metadata, or key mutation/export. create is
  * strictly 0/1; existing mismatches and interrupted provisioning are errors.
