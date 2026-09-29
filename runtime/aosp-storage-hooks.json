@@ -10,6 +10,11 @@
     "services/core/java/com/android/server/pm/Installer.java": "eaca2e029af76361f13246087f1e552226937d3f4001ecef67b366c3c3257678",
     "services/core/java/com/android/server/locksettings/LockSettingsService.java": "e9f758529db00b91d3a7460b62d855880e22e81007f486b7d740f0ab7aee712c",
     "services/core/java/com/android/server/locksettings/SyntheticPasswordManager.java": "f022809efba8116fe61f16b0f7e14784d056e1f87a8410cf25528a5f90476835",
-    "services/core/java/com/android/server/locksettings/SyntheticPasswordCrypto.java": "e3156bab3046398ecb92d5411265af7b0c7513876eb0d2aa47b0fede2c79d69a"
+    "services/core/java/com/android/server/locksettings/SyntheticPasswordCrypto.java": "e3156bab3046398ecb92d5411265af7b0c7513876eb0d2aa47b0fede2c79d69a",
+    "services/core/java/com/android/server/biometrics/sensors/RemovalClient.java": "29d88bc906b48ac468e671c15d17d14ad72098adc60d71c0429ab7b385be8312",
+    "services/core/java/com/android/server/biometrics/sensors/fingerprint/aidl/FingerprintRemovalClient.java": "4ace5460616ee2da4846735c94b93aeac56a75fbcdd4b81065f424c7f34ba025",
+    "services/core/java/com/android/server/biometrics/sensors/face/aidl/FaceRemovalClient.java": "73f14705d6d49dce6b5f8f5195f2ab06d22de8e6697ed7b127bd2823ba7b139b",
+    "services/core/java/com/android/server/biometrics/sensors/fingerprint/aidl/AidlResponseHandler.java": "6cddd2a32fce6403e31fe7f6b1d08d08ddc2088e2fd41d0f20bb2a59534aafad",
+    "services/core/java/com/android/server/biometrics/sensors/face/aidl/AidlResponseHandler.java": "2e2022a1d8ba7df2b8094f2a849d215899e8285a57fd831b845781a64ad6ceb3"
   }
 }

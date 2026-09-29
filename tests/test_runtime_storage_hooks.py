@@ -30,6 +30,11 @@ class StorageHookSourcesTests(unittest.TestCase):
             hooks.LOCK_SETTINGS: (fixtures / 'LockSettingsService.fragment').read_bytes(),
             hooks.SYNTHETIC: (fixtures / 'SyntheticPasswordManager.fragment').read_bytes(),
             hooks.PROTECTOR_CRYPTO: (fixtures / 'SyntheticPasswordCrypto.fragment').read_bytes(),
+            hooks.BIOMETRIC_REMOVAL: (fixtures / 'RemovalClient.fragment').read_bytes(),
+            hooks.FINGERPRINT_REMOVAL: (fixtures / 'FingerprintRemovalClient.fragment').read_bytes(),
+            hooks.FACE_REMOVAL: (fixtures / 'FaceRemovalClient.fragment').read_bytes(),
+            hooks.FINGERPRINT_RESPONSE: (fixtures / 'FingerprintAidlResponseHandler.fragment').read_bytes(),
+            hooks.FACE_RESPONSE: (fixtures / 'FaceAidlResponseHandler.fragment').read_bytes(),
         }
         self.pins = {'schema': 1, 'aosp_tag': 'android-16.0.0_r1',
                      'files': {name: hooks.digest(data) for name, data in self.originals.items()}}
@@ -175,7 +180,7 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.assertEqual(json.loads(marker.read_text()), legacy)
         self.target(hooks.RESILIENT).write_bytes(self.originals[hooks.RESILIENT])
         result = self.prepare()
-        self.assertEqual(result['schema'], 4)
+        self.assertEqual(result['schema'], 5)
         hooks.verify(self.aosp, result)
         self.assertEqual(self.target(hooks.REMOVAL_FILES).read_bytes(), self.removal_source.read_bytes())
         self.assertEqual(self.prepare(), result)
@@ -214,7 +219,7 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.assertFalse(self.target(hooks.REMOVAL_DATA).exists())
         self.assertEqual(json.loads(marker.read_text()), legacy)
         self.target(hooks.MANAGER).write_bytes(self.originals[hooks.MANAGER])
-        self.assertEqual(self.prepare()['schema'], 4)
+        self.assertEqual(self.prepare()['schema'], 5)
 
     def test_schema_three_migration_rejects_unowned_lock_settings_changes(self):
         receipt = self.prepare()
@@ -232,7 +237,54 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.assertEqual(self.target(hooks.SYNTHETIC).read_bytes(), self.originals[hooks.SYNTHETIC])
         self.assertEqual(json.loads(marker.read_text()), legacy)
         self.target(hooks.LOCK_SETTINGS).write_bytes(self.originals[hooks.LOCK_SETTINGS])
-        self.assertEqual(self.prepare()['schema'], 4)
+        self.assertEqual(self.prepare()['schema'], 5)
+
+    def test_schema_four_migration_rejects_unowned_biometric_changes_before_writing(self):
+        receipt = self.prepare()
+        old_inputs = hooks.SCHEMA_FOUR_ORIGINALS
+        old_outputs = old_inputs | hooks.SOURCE_FILES.keys()
+        legacy = {**receipt, 'schema': 4,
+                  'inputs': {k: v for k, v in receipt['inputs'].items() if k in old_inputs},
+                  'outputs': {k: v for k, v in receipt['outputs'].items() if k in old_outputs}}
+        marker = self.aosp / hooks.MARKER
+        marker.write_text(json.dumps(legacy))
+        for name in hooks.BIOMETRIC_ORIGINALS:
+            self.target(name).write_bytes(self.originals[name])
+        self.target(hooks.FACE_RESPONSE).write_bytes(b'other developer biometric changes')
+        with self.assertRaises(ValueError): self.prepare()
+        self.assertEqual(self.target(hooks.BIOMETRIC_REMOVAL).read_bytes(),
+                         self.originals[hooks.BIOMETRIC_REMOVAL])
+        self.assertEqual(json.loads(marker.read_text()), legacy)
+        self.target(hooks.FACE_RESPONSE).write_bytes(self.originals[hooks.FACE_RESPONSE])
+        self.assertEqual(self.prepare()['schema'], 5)
+
+    def test_empty_hal_completion_does_not_replace_generic_null_or_nonempty_handling(self):
+        self.prepare()
+        source = self.target(hooks.BIOMETRIC_REMOVAL).read_text()
+        self.assertIn('originalNullIdentifierFailureAndOrdinaryRemoval();', source)
+        helper = hooks.method(source, '    protected final void acknowledgeEmptyRemoval(')
+        self.assertLess(helper.index('requestedCount != 0'), helper.index('getListener().onRemoved(null, 0)'))
+        self.assertLess(helper.index('getBiometricsForUser('), helper.index('getListener().onRemoved(null, 0)'))
+        self.assertIn('onRemoved(null, 0);', helper)
+        self.assertIn('catch (RemoteException failure)', helper)
+        for removal, response, client in (
+                (hooks.FINGERPRINT_REMOVAL, hooks.FINGERPRINT_RESPONSE, 'FingerprintRemovalClient'),
+                (hooks.FACE_REMOVAL, hooks.FACE_RESPONSE, 'FaceRemovalClient')):
+            actual = self.target(removal).read_text()
+            self.assertIn('mBiometricIds == null ? -1 : mBiometricIds.length', actual)
+            self.assertIn('actualHalRemoveEnrollments(mBiometricIds)', actual)
+            actual = self.target(response).read_text()
+            self.assertIn('originalNonEmptyCompletion();', actual)
+            self.assertIn('if (c instanceof ' + client + ')', actual)
+            self.assertIn('c.onRemoved(null /* identifier */, 0 /* remaining */)', actual)
+
+    def test_changed_empty_response_anchor_rejects_entire_source_installation(self):
+        altered = self.originals[hooks.FACE_RESPONSE].replace(b'0 /* remaining */', b'changedRemaining')
+        self.originals[hooks.FACE_RESPONSE] = altered
+        self.pins['files'][hooks.FACE_RESPONSE] = hooks.digest(altered)
+        with self.assertRaises(ValueError): self.prepare()
+        self.assertEqual(self.target(hooks.BIOMETRIC_REMOVAL).read_bytes(), self.originals[hooks.BIOMETRIC_REMOVAL])
+        self.assertFalse(self.target(hooks.BRIDGE).exists())
 
     def test_checked_keys_keep_inventory_until_all_remote_deletions_acknowledge(self):
         self.prepare()

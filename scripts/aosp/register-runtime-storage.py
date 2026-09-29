@@ -18,6 +18,11 @@ INSTALLER = 'services/core/java/com/android/server/pm/Installer.java'
 LOCK_SETTINGS = 'services/core/java/com/android/server/locksettings/LockSettingsService.java'
 SYNTHETIC = 'services/core/java/com/android/server/locksettings/SyntheticPasswordManager.java'
 PROTECTOR_CRYPTO = 'services/core/java/com/android/server/locksettings/SyntheticPasswordCrypto.java'
+BIOMETRIC_REMOVAL = 'services/core/java/com/android/server/biometrics/sensors/RemovalClient.java'
+FINGERPRINT_REMOVAL = 'services/core/java/com/android/server/biometrics/sensors/fingerprint/aidl/FingerprintRemovalClient.java'
+FACE_REMOVAL = 'services/core/java/com/android/server/biometrics/sensors/face/aidl/FaceRemovalClient.java'
+FINGERPRINT_RESPONSE = 'services/core/java/com/android/server/biometrics/sensors/fingerprint/aidl/AidlResponseHandler.java'
+FACE_RESPONSE = 'services/core/java/com/android/server/biometrics/sensors/face/aidl/AidlResponseHandler.java'
 BRIDGE = 'services/core/java/com/android/server/aegis/AegisRuntimeStorage.java'
 SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisRuntimeStorage.java'
 REMOVAL_FILES = 'services/core/java/com/android/server/aegis/AegisRemovalFiles.java'
@@ -25,7 +30,10 @@ REMOVAL_SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/Aegi
 REMOVAL_DATA = 'services/core/java/com/android/server/aegis/AegisRemovalData.java'
 REMOVAL_DATA_SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisRemovalData.java'
 SCHEMA_THREE_ORIGINALS = {STORAGE, USERS, RESILIENT, MANAGER, PREPARER, INSTALLER}
-ORIGINAL_FILES = SCHEMA_THREE_ORIGINALS | {LOCK_SETTINGS, SYNTHETIC, PROTECTOR_CRYPTO}
+SCHEMA_FOUR_ORIGINALS = SCHEMA_THREE_ORIGINALS | {LOCK_SETTINGS, SYNTHETIC, PROTECTOR_CRYPTO}
+BIOMETRIC_ORIGINALS = {BIOMETRIC_REMOVAL, FINGERPRINT_REMOVAL, FACE_REMOVAL,
+                       FINGERPRINT_RESPONSE, FACE_RESPONSE}
+ORIGINAL_FILES = SCHEMA_FOUR_ORIGINALS | BIOMETRIC_ORIGINALS
 SOURCE_FILES = {BRIDGE: SOURCE, REMOVAL_FILES: REMOVAL_SOURCE, REMOVAL_DATA: REMOVAL_DATA_SOURCE}
 MARKER = 'out/aegis-runtime-storage/sources.json'
 PREFIX = 'com.android.server.aegis.AegisRuntimeStorage'
@@ -339,6 +347,67 @@ def patch_lock_settings(data):
     return replace_once(text, anchor, addition + anchor).encode('utf-8')
 
 
+def patch_biometric_removal(data):
+    text = data.decode('utf-8')
+    anchor = '    public void onRemoved(@NonNull BiometricAuthenticator.Identifier identifier, int remaining) {\n'
+    # Keep generic null/error handling intact. Only the two AIDL clients call
+    # this method, after an actual empty HAL completion for their empty request.
+    addition = '''    /** An actual AIDL completion, not a missing callback or cached no-enrollment hint. */
+    protected final void acknowledgeEmptyRemoval(int requestedCount) {
+        if (requestedCount != 0
+                || !mBiometricUtils.getBiometricsForUser(getContext(), getTargetUserId()).isEmpty()) {
+            onRemoved(null, 0); // Preserve the original failure path for inconsistent completion.
+            return;
+        }
+        if (getListener() == null) {
+            mCallback.onClientFinished(this, false);
+            return;
+        }
+        mAuthenticatorIds.put(getTargetUserId(), 0L);
+        try {
+            getListener().onRemoved(null, 0);
+        } catch (RemoteException failure) {
+            Slog.w(TAG, "Empty removal acknowledgement delivery failed", failure);
+            mCallback.onClientFinished(this, false);
+            return;
+        }
+        mCallback.onClientFinished(this, true);
+    }
+
+'''
+    # The annotation belongs to the original public method, not the new helper.
+    return replace_once(text, '    @Override\n' + anchor,
+                        addition + '    @Override\n' + anchor).encode('utf-8')
+
+
+def patch_aidl_removal(data):
+    text = data.decode('utf-8')
+    anchor = '    @Override\n    protected void startHalOperation() {\n'
+    addition = '''    /** Called only by this sensor's actual empty AIDL HAL completion. */
+    public void onEmptyRemovalResponse() {
+        acknowledgeEmptyRemoval(mBiometricIds == null ? -1 : mBiometricIds.length);
+    }
+
+'''
+    return replace_once(text, anchor, addition + anchor).encode('utf-8')
+
+
+def patch_aidl_response(data, client):
+    text = data.decode('utf-8')
+    original = method(text, '    public void onEnrollmentsRemoved(int[] enrollmentIds)')
+    old = '''            handleResponse(RemovalConsumer.class, (c) -> c.onRemoved(null /* identifier */,
+                    0 /* remaining */));'''
+    new = '''            handleResponse(RemovalConsumer.class, (c) -> {
+                if (c instanceof CLIENT) {
+                    ((CLIENT) c).onEmptyRemovalResponse();
+                } else {
+                    // Other consumers retain the original null/error semantics.
+                    c.onRemoved(null /* identifier */, 0 /* remaining */);
+                }
+            });'''.replace('CLIENT', client)
+    return replace_once(text, original, replace_once(original, old, new)).encode('utf-8')
+
+
 def patch_manager(data):
     text = data.decode('utf-8')
     text = replace_once(text, '        @NonNull UserInfo info;\n', '''        @NonNull UserInfo info;
@@ -600,15 +669,16 @@ def originals_from_git(base):
 
 def validate_record(record):
     schema = record.get('schema') if isinstance(record, dict) else None
-    if type(schema) is not int or schema not in (1, 2, 3, 4):
+    if type(schema) is not int or schema not in (1, 2, 3, 4, 5):
         raise ValueError('Invalid storage-source receipt schema')
     expected_inputs = {1: {STORAGE, USERS}, 2: {STORAGE, USERS, RESILIENT},
-                       3: SCHEMA_THREE_ORIGINALS}.get(schema, ORIGINAL_FILES)
+                       3: SCHEMA_THREE_ORIGINALS, 4: SCHEMA_FOUR_ORIGINALS}.get(schema, ORIGINAL_FILES)
     expected_outputs = {1: {STORAGE, USERS, BRIDGE},
                         2: {STORAGE, USERS, RESILIENT, BRIDGE, REMOVAL_FILES},
-                        3: SCHEMA_THREE_ORIGINALS | SOURCE_FILES.keys()}.get(
+                        3: SCHEMA_THREE_ORIGINALS | SOURCE_FILES.keys(),
+                        4: SCHEMA_FOUR_ORIGINALS | SOURCE_FILES.keys()}.get(
                                 schema, ORIGINAL_FILES | SOURCE_FILES.keys())
-    if (not isinstance(record, dict) or schema not in (1, 2, 3, 4)
+    if (not isinstance(record, dict) or schema not in (1, 2, 3, 4, 5)
             or record.get('status') != 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED'
             or record.get('aosp_tag') != 'android-16.0.0_r1'
             or not isinstance(record.get('inputs'), dict)
@@ -647,8 +717,13 @@ def prepare(project, aosp, originals=None, pins=None):
                INSTALLER: patch_installer(originals[INSTALLER]),
                LOCK_SETTINGS: patch_lock_settings(originals[LOCK_SETTINGS]),
                SYNTHETIC: patch_synthetic(originals[SYNTHETIC]),
-               PROTECTOR_CRYPTO: patch_protector_crypto(originals[PROTECTOR_CRYPTO]), **sources}
-    record = {'schema': 4, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
+               PROTECTOR_CRYPTO: patch_protector_crypto(originals[PROTECTOR_CRYPTO]),
+               BIOMETRIC_REMOVAL: patch_biometric_removal(originals[BIOMETRIC_REMOVAL]),
+               FINGERPRINT_REMOVAL: patch_aidl_removal(originals[FINGERPRINT_REMOVAL]),
+               FACE_REMOVAL: patch_aidl_removal(originals[FACE_REMOVAL]),
+               FINGERPRINT_RESPONSE: patch_aidl_response(originals[FINGERPRINT_RESPONSE], 'FingerprintRemovalClient'),
+               FACE_RESPONSE: patch_aidl_response(originals[FACE_RESPONSE], 'FaceRemovalClient'), **sources}
+    record = {'schema': 5, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
               'aosp_tag': pins['aosp_tag'], 'inputs': pins['files'],
               'bridge_sha256': digest(sources[BRIDGE]),
               'outputs': {name: digest(data) for name, data in outputs.items()}}

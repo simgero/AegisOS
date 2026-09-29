@@ -1,0 +1,9 @@
+// Inert source-integration fixture, not an Android implementation.
+    public void onEnrollmentsRemoved(int[] enrollmentIds) {
+        if (enrollmentIds.length > 0) {
+            originalNonEmptyCompletion();
+        } else {
+            handleResponse(RemovalConsumer.class, (c) -> c.onRemoved(null /* identifier */,
+                    0 /* remaining */));
+        }
+    }

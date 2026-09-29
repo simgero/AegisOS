@@ -1,0 +1,5 @@
+// Inert source-integration fixture, not an Android implementation.
+    @Override
+    public void onRemoved(@NonNull BiometricAuthenticator.Identifier identifier, int remaining) {
+        originalNullIdentifierFailureAndOrdinaryRemoval();
+    }

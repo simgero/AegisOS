@@ -1,5 +1,55 @@
 # AOSP-Speicheroperationen und Runtime-Abbau
 
+## Gasttest der reservierten Löschung: 2e27713e
+
+Der vollständige [Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T124901Z-2e27713e-10dee9cb)
+wurde am 29. September nach Build und GitHub-Rückprüfung lokal in einem eigenen
+Profil ohne sichtbares Fenster gestartet. AVB, tatsächliches dm-verity, FBE,
+Enforcing und der durch Init gestartete Broker bestehen. Beide neuen
+Testbenutzer können sich beim ersten Versuch anmelden und tatsächlich GNU
+ausführen. Das ist **noch keine erfolgreiche Benutzerlöschung**.
+
+Um 13:20:43 UTC wird Beta (`11/11`) über den Entwicklungszugang von AOSP
+entfernt, während sein echter GNU-Hintergrundprozess läuft. Der Originalprozess
+`5961`, Startzeit `17005`, und sein Kontext werden beendet, CE 11 gesperrt.
+Alphas Originalprozess `4881`, Startzeit `9742`, läuft weiter; sein späterer
+GNU-Readback ergibt dieselben 1.024 Bytes. Danach wird auch Alpha regulär
+abgemeldet. Beide Profile früherer Builds bleiben erhalten.
+
+Die Bereinigung stoppt jedoch um 13:20:54 mit `Biometric removal unconfirmed`.
+Der tatsächliche virtuelle Fingerabdruck-HAL meldet eine leere Antwort auf
+`removeEnrollments(size:0)`. Der gepinnte AIDL-Handler übersetzt sie in
+`onRemoved(null, 0)`; `RemovalClient` behandelt das als Fehler. Der
+Fingerprint-Service reicht diesen Fehler nicht an den wartenden
+`removeAll`-Empfänger weiter. Die neue Zehn-Sekunden-Grenze hält deshalb die
+ursprüngliche AOSP-Kennung mit `partial=true` reserviert. Primär- und
+Reservekopie des Benutzerrecords bestätigen das. Ein wiederholter öffentlicher
+Löschauftrag gibt die Kennung ebenfalls nicht frei, obwohl `pm remove-user`
+bereits „Success“ meldet. Der Test wertet diese Meldung nicht als Abschluss.
+
+Die folgende **noch nicht im Gast geprüfte Korrektur** trennt eine tatsächlich
+empfangene leere AIDL-Antwort von generischem `null`/Fehler: Nur bei leerem
+Originalauftrag und leerem AOSP-Eintrag darf sie bestätigt werden. Nichtleere
+Antworten und andere Consumer behalten ihre bisherigen Pfade; ein fehlender
+Callback oder Timeout bleibt ein Fehler. Fünf weitere gepinnte AOSP-Dateien
+werden dafür integriert. Schema 5 akzeptiert das bisherige Schema 4 nur mit
+seinem exakten Dateisatz und übernimmt keine fremden Änderungen. Die 38
+Hostprüfungen betreffen Quellintegration, Build-Eingaben und Richtlinie; sie
+ersetzen weder Android-Kompilierung noch einen erneuten Systemtest.
+
+Belege: `out/full-build-2e27713e/removal-test/`. `beta.json` hat SHA-256
+`efadf137988e3811061dfb058e72f150ac9dc3381cefc4379146d3cc2e656b15`,
+der zeitlich begrenzte HAL-/AOSP-Auszug `biometric-timeout.log`
+`6be7453c5ae87f2bb93ad11109642ec82b8c61be40f37d00eedf361184622004`.
+Die erste Metadatenprüfung musste für Androids binäres XML auf dessen
+`abx2xml` mit Ausgabe nach stdout umgestellt werden; keine Metadaten wurden
+dabei umgeschrieben. Der geplante künstliche Inventarfehler und Neustarttest
+wurden wegen des vorher gefundenen echten Fehlers noch nicht ausgeführt.
+Die verwaltete CLI-Löschung bleibt gesperrt; weder deren Adminprüfung noch
+Stale-Callback-/ID-Wiederverwendungsfestigkeit sind damit abgenommen.
+
+## Vorheriger Nachweis: Anmeldung, Logout und Persistenz
+
 Stand 29. September 2026: Die fünf AOSP-Hooks und der Controller sind im
 lokal getesteten Image `2f29f0ac` mit `managed-v1` installiert. Zwei tatsächliche
 GNU-Kontexte, Hintergrundbetrieb nach Benutzerwechsel und Bildschirmsperre,
