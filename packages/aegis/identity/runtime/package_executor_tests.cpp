@@ -141,7 +141,7 @@ class RuntimePackageExecutor : public ::testing::Test {
     }
     int StopUser(uint32_t user) {
         aegis_broker_request r={};r.magic=AEGIS_BROKER_MAGIC;r.version=AEGIS_BROKER_VERSION;
-        r.operation=AEGIS_BROKER_STOP_USER;r.user=user;r.serial=42;r.sequence=2;r.deadline_ns=Deadline();
+        r.operation=AEGIS_BROKER_STOP_USER;r.user=user;r.serial=0;r.sequence=2;r.deadline_ns=Deadline();
         aegis_broker_state state=AEGIS_BROKER_SEALED;
         int result=aegis_broker_owner_apply(broker,&r,&state);
         if(!result)EXPECT_EQ(AEGIS_BROKER_ABSENT,state);return result;
@@ -222,7 +222,9 @@ TEST_F(RuntimePackageExecutor, PartialStartRetainsCgroupAndDescriptorsUntilFinis
 }
 TEST_F(RuntimePackageExecutor, ProductionEntryRejectsDeveloperTestDomain) {
     Archives(1);Helper("aegis-package-execute");ASSERT_FALSE(HasFatalFailure());int before=CountFDs();
+    uint64_t before_start=Deadline();
     EXPECT_EQ(-1,Start());ASSERT_NE(nullptr,worker);
+    EXPECT_LT(Deadline()-before_start,UINT64_C(4000000000));
     PackageExecutionResult result;ASSERT_EQ(0,PackageExecutorFinish(&worker,true,9000,&result)) << strerror(errno);
     EXPECT_EQ(PackageExecutionOutcome::Unconfirmed,result.outcome);EXPECT_EQ(before,CountFDs());
     EXPECT_EQ("<unavailable>",AptImageFixture::read(candidate.get(),"var/log/aegis-exec-script"));

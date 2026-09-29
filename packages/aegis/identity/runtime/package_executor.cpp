@@ -114,6 +114,9 @@ int PackageExecutorStart(int groups, int stage, int candidate, int helper,
     if (aegis_memory_group_create(groups, plan.requester, plan.serial, &p->group) < 0
             || aegis_namespace_create_limited(plan.requester, plan.serial, helper, child.get(), p->group, &p->context) < 0) return -1;
     p->spawned = true;
+    // Retaining our copy of the child's socket would hide early helper death
+    // from Reply(), needlessly holding admission until the entire deadline.
+    child.reset();
     int left = Left(deadline);if (left <= 0) return Fail(ETIMEDOUT);
     if (aegis_namespace_prepare_package_for(p->context, left) < 0
             || aegis_namespace_map_candidate(p->context, p->candidate.get()) < 0) return -1;
