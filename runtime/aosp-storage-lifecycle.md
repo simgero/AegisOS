@@ -1,7 +1,7 @@
 # AOSP-Speicheroperationen und Runtime-Abbau
 
 Stand 29. September 2026: Die fünf AOSP-Hooks und der Controller sind im
-lokal getesteten Image `6a807692` mit `managed-v1` installiert. Zwei tatsächliche
+lokal getesteten Image `d44ccb33` mit `managed-v1` installiert. Zwei tatsächliche
 GNU-Kontexte, Hintergrundbetrieb nach Benutzerwechsel und Bildschirmsperre,
 Abbau beider ursprünglicher Hintergrundprozesse bei Logout und unabhängige
 CE-Sperre sind geprüft. Die GNU-Dateien bleiben nach Neustart desselben
@@ -12,7 +12,7 @@ Paketoperationen und verwaltete Benutzerlöschung fehlen. Belege und Grenzen:
 
 ## Erstmalige persönliche Home-Struktur
 
-Der vorbereitete native Provisionierungspfad legt `Desktop`, `Documents`,
+Der native Provisionierungspfad legt `Desktop`, `Documents`,
 `Downloads`, `Pictures`, `Videos`, `Music`, `Books`, `.config`, `.local` und
 `.cache` ausschließlich im leeren, noch root-eigenen Staging-Home an. Die
 Verzeichnisse erhalten den tatsächlichen gemappten Eigentümer des jeweiligen
@@ -33,8 +33,13 @@ Vier zusätzliche native Tmpfs-Tests decken Eigentümerzuordnung, genaue
 Erststruktur, Verweigerung bei bestehenden Daten/Verknüpfungen und ungültige
 Identitäten beziehungsweise Staging-Metadaten ab. Kompiliert auf `aegis-build`
 und lokal ausgeführt bestehen im Stand `d44ccb33` **128/128 native Tests**.
-**Die erstmalige reale CE-Provisionierung im neuen vollständigen Image steht
-noch aus**; die Layout-Fixtures verwenden unverschlüsseltes Tmpfs.
+Die Layout-Fixtures verwenden unverschlüsseltes Tmpfs. Zusätzlich besteht
+inzwischen der reale CE-/GNU-Nachweis im vollständigen `d44ccb33`: zwei
+persönliche Erststrukturen, getrennte Eigentümer, Erhalt eigener gelöschter,
+umbenannter oder durch Verknüpfungen ersetzter Ordner sowie unveränderte
+Konfigurationsbytes nach Kontextstopp und Neustart desselben Android-/KeyMint-
+Paars. Betas eigener Bestand bleibt von Alphas Änderungen unberührt.
+Zeitpunkte, Grenzen und Rohbelege stehen im [GNU-Test](../docs/runtime-gnu-qemu-test.md).
 
 ## Warum eine vorgeschaltete Sperre erforderlich ist
 

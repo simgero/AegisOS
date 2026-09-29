@@ -4,7 +4,7 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Aktueller lokal geprüfter Kandidat: **`6a807692`**. Zwei persönliche
+Aktueller lokal geprüfter Kandidat: **`d44ccb33`**. Zwei persönliche
 AOSP-Benutzer führen jetzt tatsächlich GNU/Linux-Programme in getrennten
 Kontexten aus. Geprüfte gegenseitige Datei- und Prozesszugriffe werden
 verhindert. Benutzerwechsel und Bildschirmsperre widerrufen offene
@@ -13,22 +13,29 @@ Vollständige Abmeldung beendet die zugehörigen Prozesse und sperrt CE.
 Die von GNU geschriebenen Dateien überstehen den Neustart desselben
 Android-/KeyMint-Paars bytegenau. Falsche und nach Passwortwechsel alte
 Passwörter entsperren die Daten nicht. Enforcing, FBE, authentifiziertes ADB
-und tatsächliches dm-verity bleiben bestätigt.
+und tatsächliches dm-verity bleiben bestätigt. Die zehn privaten Standardordner
+werden jetzt in echtem CE angelegt. Eigene Ordneränderungen und Konfiguration
+bleiben nach Kontextneustart und vollständigem Reboot erhalten, ohne den
+anderen Benutzer zu verändern. Der Passwortwechsel-Nachweis stammt aus dem
+vorherigen `6a807692`; er wurde in `d44ccb33` nicht wiederholt.
 
 **Offen bleibt eine nachträgliche Terminal-Abmeldung bei manchen Wechseln zu
 vorher gestoppten Benutzern.** Eine frische zweite Anmeldung funktioniert.
-Der betreffende Keyguard-/Wechselablauf wird weiter untersucht; die Prüfung
-wird nicht als störungsfreier Anmeldeablauf ausgegeben. Auch der Resize-
-Testtreiber benötigt eine Korrektur seines Host-Signals und Prompt-Parsers.
+Der Fehler wurde nach dem Reboot von `d44ccb33` erneut beobachtet. Die neue
+Anmeldereihenfolge `2f29f0ac` wartet auf den abgeschlossenen Android-Wechsel,
+bevor die CLI das Passwort abfragt. Sie wird noch nicht als funktionierender
+Gesamtablauf ausgegeben. Der Resize-Treiber wurde dagegen korrigiert; beide
+tatsächlichen GNU-Größenrückmeldungen bestehen.
 Vollständiger Ablauf, genaue Grenzen und Prüfsummen:
 [GNU-Test mit zwei Benutzern](runtime-gnu-qemu-test.md).
 
-**128/128 native Tests** des nachfolgenden Komponentenstands `d44ccb33`
-bestehen auf diesem lokalen Image. Die vier neuen Tests betreffen die
-Erstanlage privater Standardordner mit gemapptem Eigentümer. Der vollständige
-Build läuft; die tatsächliche CE-Provisionierung dieser Ordner ist noch nicht
-geprüft. **62/62 Java-Tests** aus `026665fb` bleiben für unveränderte Java-/JNI-
-Quellen gültig. [Komponentenbelege](component-tests.md).
+**128/128 native Tests** von `d44ccb33` bestehen im vorherigen lokalen
+`6a807692`-Image. Die vier neuen Tests betreffen private Standardordner;
+deren reale CE-Provisionierung ist nun zusätzlich im Vollbuild bestätigt.
+**68/68 Java-Tests** des nachfolgenden `2f29f0ac` bestehen nach vollständiger
+Benutzerabmeldung im lokalen `d44ccb33`. Dessen vollständiger neuer Build
+läuft auf `aegis-build`; die neue Anmeldereihenfolge muss danach als
+installierter Dienst geprüft werden. [Komponentenbelege](component-tests.md).
 
 Der sichtbare Launcher bleibt beim geprüften Stand `2a766ab5`. Weitere
 Kandidaten werden auf Nutzerwunsch ohne sichtbares QEMU-Fenster geprüft.

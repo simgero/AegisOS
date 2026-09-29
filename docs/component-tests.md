@@ -1,3 +1,25 @@
+## Anmeldevorbereitung: 2f29f0ac
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260929T104228Z-2f29f0ac-2f29f0ac-QdCsAG)
+des Commits `2f29f0ace2a6164980621b87037f20df344a569f` besteht im lokalen
+QEMU-Image `d44ccb33` **68/68 Java-Tests**, ohne Abwahl oder übersprungene
+Tests. Beide persönlichen Testbenutzer waren vorher abgemeldet, CE gesperrt
+und ihre Kontexte unabhängig bestätigt entfernt; die Tests laufen in Benutzer 0.
+
+Die sechs neuen Tests betreffen die einmalige Anmeldungsvorbereitung:
+Identität einschließlich Seriennummer, geänderte Sperr-/Benutzer-Epochen,
+Abbruch und konkurrierende Verwendung. Die unveränderten nativen Quellen
+behalten den unten dokumentierten 128/128-Nachweis; sie wurden nicht erneut
+ausgeführt. Der installierte Dienst behält noch die alte Reihenfolge.
+Ein vollständiges neues Image und tatsächliche erste Anmeldung ohne vorherigen
+Aufwärmversuch, falsches Passwort, Benutzerwechsel und Bildschirmsperre
+bleiben für die Dienstkorrektur erforderlich.
+
+Belege: `out/components-2f29f0a/component-tests/result.json`, `java.log`
+(SHA-256 `505ce3ae28d79fbc6a1681c535ffecc704991aec442ec92980dd4374a38b7e63`)
+und `guest.txt`
+(`1e68b3808f92fb66318f06637902c734d3bd624e5a2c4889a361ac848f936320`).
+
 ## Private Home-Erststruktur: d44ccb33
 
 Der auf `aegis-build` kompilierte Stand
@@ -16,7 +38,8 @@ setzt private Änderungen nicht zurück. Die Quellen für Java/JNI sind gegenüb
 
 Diese Root-Fixtures verwenden unverschlüsseltes Tmpfs. Der installierte
 Broker in `6a807692` enthält die Home-Erweiterung noch nicht. Reale erstmalige
-CE-Provisionierung und GNU-Zugriff erfordern den neuen vollständigen Build.
+CE-Provisionierung und GNU-Zugriff wurden anschließend im vollständigen
+`d44ccb33` separat im [Zwei-Benutzer-Test](runtime-gnu-qemu-test.md) nachgewiesen.
 Die tatsächlichen GNU-/Logout-/Persistenztests von `6a807692` sind separat
 im [Zwei-Benutzer-Test](runtime-gnu-qemu-test.md) dokumentiert.
 

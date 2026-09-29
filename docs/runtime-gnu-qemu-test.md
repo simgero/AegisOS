@@ -6,6 +6,73 @@ Der Ablauf umfasst Benutzerwechsel, Bildschirmsperre, Logout, Passwortwechsel
 und den Neustart desselben Android-/KeyMint-Paars. **Dies ist eine begrenzte
 Funktionsabnahme; Phase 1 ist noch nicht vollständig implementiert.**
 
+## Ergänzung: private Home-Struktur im Vollbuild d44ccb33
+
+Der [Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T101135Z-d44ccb33-f8bf03a3)
+des Commits `d44ccb3389889740f19373969a00216807b400a7` wurde am selben Tag
+im eigenen lokalen Profil `runtime-d44ccb33` geprüft. UUID:
+`a42780d7-97ad-4ae2-ace2-dff7b4c9d634`; AVB-Digest:
+`1208721a78ece6f49323c2b364a806d419fa9fb7506cb5aecdaa82600eb96e78`.
+Der folgende Nachweis ergänzt den historischen 6a-Durchlauf weiter unten.
+
+Die beiden neuen AOSP-Testbenutzer `10/10` und `11/11` sehen beim ersten
+GNU-Zugang jeweils genau die zehn vorgesehenen Home-Verzeichnisse, ohne
+Verknüpfungen, mit internem Eigentümer `1000:1000` und Modus `0700`.
+Die Prüfungen erfolgen um 10:38:23 und 10:44:30 UTC aus ihren tatsächlich
+angemeldeten GNU-Shells auf AOSP-CE, nicht aus unverschlüsselten Root-Fixtures.
+
+Alpha ändert `Books` auf `0750`, entfernt `.cache`, benennt `Downloads` um,
+legt an dessen Stelle eine relative Verknüpfung an und schreibt eine
+synthetische Konfiguration. Diese eigenen Änderungen bleiben nach
+`linux stop`/`linux start`, Benutzerwechsel und vollständigem Neustart
+unverändert. Es erfolgt kein nachträgliches Auffüllen oder Zurücksetzen.
+Betas Verzeichnisse bleiben separat unverändert; Alphas Konfiguration und
+Umbenennung sind dort nicht vorhanden. Die vorherige private `/tmp`-Probe
+verschwindet beim Kontextneustart beziehungsweise Reboot.
+
+Auch die gegenseitigen GNU-Datei-/SIGSTOP-Verweigerungen, unterschiedliche
+Namespaces und fortlaufenden ursprünglichen Hintergrundprozesse wurden
+erneut geprüft. Wechsel über eine zweite authentifizierte CLI und
+Bildschirmsperre widerrufen die aktive GNU-PTY. Bei `Asleep` und sicherem
+Keyguard bleiben beide CE-Bereiche für ihre eigenen Hintergrundprozesse
+entsperrt. Logout beendet hingegen jeweils den ursprünglichen Prozess,
+entfernt den Kontext und sperrt CE; Betas Logout lässt Alpha weiterlaufen.
+
+Nach geordnetem Android-/Helper-Stopp bootet dasselbe Profil mit neuer
+Boot-ID `3e098bae-7bb4-49e1-808e-69e84f6722bb` und zunächst CE `[0]`.
+Enforcing, FBE, authentifiziertes ADB und tatsächliches dm-verity bestehen.
+Beide zuvor von GNU geschriebenen Dateien sind bis zur eigenen Anmeldung
+unlesbar und anschließend bytegleich. SHA-256 der jeweils 1.024 Bytes:
+
+- Alpha: `af67f767d143d76a797f89ffb7faae09319f6fc12a241776b5fd3c264656ce97`.
+- Beta: `3a8c01e79a0ec5cdd2c061013e66e4ccc4889653f8f7633bf487d82301ed8421`.
+
+**Der Anmeldefehler bleibt reproduzierbar:** Betas bestätigte Anmeldung
+um 10:51:07 und `runtime=ready` um 10:51:08 werden von einer Shell-Ablehnung
+um 10:51:09 gefolgt. Eine frische zweite Anmeldung ermöglicht um 10:51:24
+den identischen Dateizugriff. Die neue Anmeldereihenfolge aus `2f29f0ac`
+ist in diesem Image nicht enthalten und damit hier nicht abgenommen.
+
+Der korrigierte lokale Resize-Treiber liefert `SIGWINCH` ausdrücklich an
+seinen eigenen ADB-Kindprozess und wartet auf einen eindeutigen GNU-Exit-
+Nachweis statt auf eine beliebige Prompt-Neuzeichnung. Die tatsächlichen
+Größen `36 104` und `28 92` bestehen. Ctrl-C erhält die benutzbare Shell;
+eine vollständige Vordergrundprozessgruppen-Prüfung ist damit nicht behauptet.
+
+Abschließend sind beide Benutzer abgemeldet, CE `[0]`, keine persönlichen
+Kontexte und `populated 0` unabhängig bestätigt (10:52:22). Die CLI ist
+geschlossen. Nach separaten Java-Komponententests wurde das Paar um
+10:54:18 sauber heruntergefahren und erhalten; keine Launcher-Promotion.
+Passwortwechsel wurde hier nicht erneut geprüft. Pakettransaktionen,
+verwaltete Löschung und umfassende IPC-/Systemaufrufprüfungen bleiben offen.
+
+Belege unter `out/full-build-d44ccb33/identity-test/`, einschließlich
+`reboot-checkpoint.json`, `reboot-readback.json`, `final-cleanup.json`,
+`screen-lock-readback.json` und `SHA256SUMS`:
+
+- `events-accepted.json`: `8fe2ac87a3858f8e05a8da78fb3aa66ffcebfc537525bf0081202c483c2c1521`.
+- `result.json`: `fbd17c32ef7858127b5d9a0a4da81e18a65ab96e300e9a17305a7e00fc38e112`.
+
 ## Festgehaltener Stand
 
 - Image-Commit: `6a807692c20e1b277e2369cdbf7841cb98e3b293`.

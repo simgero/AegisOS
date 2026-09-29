@@ -35,9 +35,11 @@ wiederverwendet. Die bisherigen Widerrufe offener GNU-Terminals bleiben bestehen
 
 Sechs neue Komponententests betreffen Einmaligkeit, fremde/wiederverwendete
 Identitäten, Sperre, Benutzerstopp, Abbruch und konkurrierende Verwendung.
-**Dieser Quellstand ist noch nicht kompiliert oder im vollständigen Image
-geprüft.** Die Fixtures ersetzen weder die tatsächliche AOSP-Reihenfolge noch
-den Negativtest am gesperrten Benutzer oder eine reale Bildschirmsperre.
+Commit `2f29f0ac` ist auf `aegis-build` kompiliert und über GitHub übertragen;
+**68/68 Java-Komponententests bestehen** im lokalen QEMU. Der vollständige
+Build für die tatsächliche Dienstintegration läuft. Die Fixtures ersetzen
+weder die tatsächliche AOSP-Reihenfolge noch den Negativtest am gesperrten
+Benutzer oder eine reale Bildschirmsperre. [Komponentenbelege](component-tests.md).
 
 ## Erster Komponentenstand (25fde995)
 
