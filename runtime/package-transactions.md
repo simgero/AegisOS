@@ -1,5 +1,43 @@
 # Vollständige Paketgenerationen
 
+## Eigener Prozess für die Veröffentlichung
+
+`PackagePublisher` startet jetzt einen separat verwalteten Prozess für Hashen,
+Kopieren und die Auswahl eines bereits vollständig geprüften Paketabbilds.
+Der kurze Start erhält ausschließlich vertrauenswürdige FDs und einen an den
+Antragsteller gebundenen Auftrag. Er führt keine Paketauflösung oder Dateikopie
+innerhalb des AOSP-Zulassungsgates aus. Der aufrufende Broker muss auch einen
+fehlgeschlagenen Teilstart vor Freigabe des Gates beim Lebenszyklus registrieren.
+Diese produktive Anbindung ist noch offen.
+
+Der Prozess wird mit stabilem pidfd unmittelbar in einer eigenen begrenzten
+Cgroup angelegt; nach dem Raw-Clone erfolgt ausschließlich ein fester Exec
+mit versiegelter Konfiguration und den benötigten Deskriptoren. Andere geerbte
+FDs, Signaleinstellungen und Umgebungsvariablen werden nicht weitergereicht.
+Der Helfer erhält keine Passwörter oder CLI-Pfade und führt keinen Paketcode
+oder APT aus. Seine Herkunft und die semantische Konsistenz des Kandidaten
+muss der vertrauenswürdige Aufrufer vorher prüfen. Er ersetzt keinen späteren
+isolierten APT-Arbeiter und besitzt noch keine produktive SELinux-Anbindung.
+
+Ein erfolgreiches Ende verlangt tatsächliches Reaping des Kindes, eine
+bestätigt leere und entfernte Cgroup und das Schließen aller eigenen
+Quell-/Store-FDs. Ein Timeout behält die Ressourcen zur weiteren Bereinigung.
+Eine Abbruchanforderung allein bestätigt nichts. Bei erzwungenem Prozessende
+oder fehlender gültiger Antwort bleibt die Veröffentlichung unbestätigt;
+insbesondere wird kein Rollback behauptet. Alte Generationen und unausgewählte
+Reste werden nicht automatisch gelöscht. Caller-eigene FDs bleiben ausdrücklich
+Verantwortung des Callers; nur dieser kann vollständige CE-Freigabe bestätigen.
+
+Acht neue lokale Gerätetests sind vorbereitet: reale Veröffentlichung durch
+den Kindprozess, eigene FD-Kopien, privater Eigentümer/Seriennummer, paralleler
+Startkonflikt, falscher Hash, unzulässiger Auftrag/Quell-FD, prozessgebundener
+Besitz und Abbruch während einer beobachteten unvollständigen Kopie. Die
+Fixtures verwenden ausschließlich eigene Cgroups und inerte Dateien unter
+`/data/local/tmp`. Es gibt damit noch keinen echten privaten CE-/Logout- oder
+APT-Nachweis. Kompilierung und Gastlauf dieses neuen Bausteins stehen aus.
+Das Komponententransportprofil v2 ergänzt den exakt inventarisierten Helfer;
+ältere Release-Belege bleiben mit ihren jeweiligen gepinnten Werkzeugen gültig.
+
 ## Aktionsbindung und begrenzte Übergabe
 
 `PackageApproval` bindet einen vorbereiteten Auftrag unveränderlich an den
