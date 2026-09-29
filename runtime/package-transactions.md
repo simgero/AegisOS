@@ -1,5 +1,46 @@
 # Vollständige Paketgenerationen
 
+## Aktionsbindung und begrenzte Übergabe
+
+`PackageApproval` bindet einen vorbereiteten Auftrag unveränderlich an den
+authentifizierten Antragsteller mit ID/Seriennummer, expliziten Bereich,
+Aktion und die vom vertrauenswürdigen Planer bestimmte Auftragskennung samt
+Plan-Digest. Bei `user` bleibt der private Eigentümer der Antragsteller,
+auch wenn eine andere Person ihr Adminpasswort bestätigt. Bei `all` wird
+kein privater Admin-Zielbereich erzeugt. Kennung und Digest allein gewähren
+keine Rechte und dürfen später nicht ungeprüft aus CLI-Eingaben stammen.
+
+`AospPackageAuthority` ist der reale Adapter: Er prüft AOSP-Zustand und
+Paketbeschränkungen des Antragstellers vor und nach Bestätigung. Die frische
+Adminprüfung läuft ausschließlich über den zuvor implementierten lokalen
+LockSettings-Adapter; bei dessen Fehlen existiert kein Rückfall auf eine
+vorhandene Sitzung oder den normalen Login. Das Credential wird verbraucht
+und überschrieben, auch bei früher Ablehnung oder einem doppelten Aufruf.
+
+Eine Vorbereitung kann nur einmal bestätigt werden. Ein paralleler Verlierer
+kann weder eine zweite Prüfung starten noch den Auftrag des Gewinners
+abbrechen. Ablehnung oder Widerruf nach erfolgreicher Übernahme der Vorbereitung
+widerruft genau diesen Auftrag. Beginnt die native Übergabe und scheitert
+deren Bestätigung oder der anschließende Sitzungscheck, lautet das Ergebnis
+ausdrücklich unbestätigt; ein unveränderter Paketbestand wird nicht behauptet.
+Abbruchanforderung ist kein Beweis für Arbeiterende oder CE-Freigabe.
+
+Die `Handoff`-Schnittstelle verlangt eine kurze Registrierung unter der
+vorhandenen Runtime-Zulassung mit erneutem Sitzungscheck. Die native Instanz
+muss alle Ressourcen auch bei einem fehlgeschlagenen Start übernehmen und
+bis zur bestätigten Beendigung halten. Kopieren, Hashen und APT gehören nicht
+in diese kurze Übergabe. Der Aufrufer bekommt keine wiederverwendbare
+Adminfreigabe zurück; Rückkehr bedeutet lediglich bestätigte Übergabe.
+
+**Noch nicht verbunden:** Es gibt keinen produktiven Planer oder nativen
+Paketarbeiter, keine Paket-CLI und keine Implementierung dieser `Handoff`-
+Schnittstelle im Broker. Auch die Abbruch-/CE-Verantwortung der tatsächlichen
+Arbeit ist deshalb noch nicht erfüllt. Der unveränderliche Plan muss später
+vollständige Versions-/Abhängigkeitsauflösung, Ausgangsgenerationen und etwaige
+Rückkehr auf gemeinsame Versionen enthalten. Die neuen Koordinatortests
+verwenden kontrollierte Authority-/Handoff-Fixtures; sie ersetzen keine echten
+Adminpasswörter, Paketinstallationen oder Abmeldungen während APT.
+
 ## Separater Schritt: AOSP-Passwortbestätigung ohne Anmeldung
 
 Der neue interne `AegisPackageCredentials`-Adapter wird von LockSettings in
