@@ -1,32 +1,53 @@
 # Vollständige Paketgenerationen
 
-## Tatsächlicher APT-Lauf im vollständigen Kandidaten
+## Brokerverwaltete Paket-Ausführung
 
-Stand `fddf9563` besteht am 29. September 2026 um 20:29:33 UTC alle
-**158/158 nativen Tests** im lokalen Mac-QEMU. Das echte Debian-APT/dpkg
-installiert zwei voneinander abhängige Offline-Testpakete in einer eigenen
-beschreibbaren ext4-Kopie, aktualisiert beide, erhält eine geänderte Konfiguration
-und entfernt Pakete und Konfiguration wieder. Paketskripte und technischer
-Dateibesitz werden tatsächlich geprüft. [Beleg und Grenzen](../docs/component-tests.md).
+Stand `90b9732d` besteht am 2026-09-29T21:31:27Z **167/167 native Tests**
+im lokalen Mac-QEMU. Der neue `PackageExecutor` führt echtes Debian-APT in
+vollständigen, ausschließlich für den Auftrag erzeugten ext4-Kopien aus.
+Installation, Update, Konfigurationserhalt, Entfernung, technische Eigentümer
+und laufende Paketskripte sind nachgewiesen. [Belege und Grenzen](../docs/component-tests.md).
 
-Die explizite Paketvorbereitung erlaubt nur Gruppenwechsel innerhalb derselben
-festen UID/GID-Abbildung; normale Sitzungen behalten ihre Gruppensperre.
-Paketkontexte erhalten keinen persönlichen HOME-Mount. Nur sie dürfen einen
-exklusiven, noch nicht verbundenen Kandidaten beschreibbar abbilden; eine
-normale Runtime-Vorbereitung kann das nicht. Der Kandidat entsteht vollständig
-vor dem kurzen Namespace-Gate. Die neue Abbildungsfunktion authentifiziert weder
-AOSP noch Quellen oder Eigentum; dies bleibt Aufgabe des vertrauenswürdigen
-Ressourcenbesitzers. Bei Teilfehlern muss der Kandidat verworfen werden.
+Vorbereiten, Starten, Beobachten und Abbrechen gehören jetzt zum selben nativen
+Brokerbesitzer wie Veröffentlichungen. `STOP_USER`, Wiederverbindung und
+Abschaltung besuchen beide Arten; Teilstarts bleiben bis zum tatsächlichen
+Aufräumen registriert. Beide teilen 16 Plätze, monotone IDs und höchstens einen
+nicht abgeholten Auftrag je Antragsteller. Start/Status/Abbruch sind an ID,
+Seriennummer, Auftrag und Plan gebunden. Die API erhält keine separate
+Admin-Zielkennung und erteilt selbst keine Freigabe.
 
-**Nächste produktive Verbindung:** Eigener begrenzter, beim Broker registrierter
-APT-Arbeiter mit einer genauen SELinux-Domäne und vollständigem FD-/Loop-/Mount-
-Besitz; vertrauenswürdige Auflösung und eingefrorene, verifizierte Paketquellen;
-Bindung an frische AOSP-Adminfreigabe und privaten Antragsteller/CE; semantische
-Validierung, Veröffentlichung und Auswahl ganzer Generationen. Dazu kommen
-Verbindungswiderruf, Abbruch/Logout während APT und gemeinsame/private Rebase-
-Konflikte. Die Probe aktiviert keine Paket-CLI und integriert APT noch nicht in
-den vorhandenen Veröffentlichungsbesitzer. Ein neues Vollimage und reale
-Benutzer-/CE-Nachweise bleiben erforderlich.
+Die Startübergabe benutzt ein gemeinsames begrenztes Zeitbudget und übernimmt
+alle vorbereiteten FDs. Der künftige AOSP-Aufrufer muss sie innerhalb seiner
+bestehenden Zulassung registrieren und erst danach das Gate freigeben. Kopieren, Hashen und
+Quellenprüfung gehören in eine noch zu implementierende, ebenfalls registrierte
+Vorbereitungsphase. Der Aufrufer muss seine Originalreferenzen gesondert
+schließen. Ein eigener cgroup-begrenzter Namespace-PID1 erhält nur den
+Kandidaten, eine private Geräteansicht und versiegelte Auftragsdaten. Nach
+Abhängen Androids, vollständiger Mountprüfung und Rechtebegrenzung startet er
+festes APT mit lokal bereitgestellten Archiven; keine frei gewählten Befehle.
+
+Bestätigtes Ende setzt PID1-Reaping, leere/entfernte Cgroup und geschlossene
+übernommene Referenzen voraus. Timeouts behalten den Besitzer. Ein getöteter
+Arbeiter ist `Unconfirmed`, nicht vermeintlich zurückgerollt. Selbst erfolgreiches
+APT liefert lediglich `NeedsValidation`. Abbruch nach natürlichem Ende und vor
+Abholung widerruft auch diese Weitergabe. `remove` erhält Konfiguration;
+Purge war nur Teil der älteren separaten Probe und wird nicht implizit angeboten.
+
+Normale Runtime-Sitzungen behalten ihre Gruppensperre. Ausschließlich die
+Paketvorbereitung erlaubt Gruppenwechsel innerhalb derselben festen Abbildung
+und einen beschreibbaren Kandidaten; sie erhält keinen persönlichen HOME-Mount.
+Der Produktionseinstieg verlangt eine eigene genaue SELinux-Domäne, die bislang
+nicht aktiviert wurde. Die Testausführung verwendet einen getrennten Test-Einstieg
+mit gemeinsamem Kern; ein produktiver SELinux-/CE-Nachweis wird nicht behauptet.
+
+**Nächste Verbindung:** Vertrauenswürdiger Planer und registrierte Vorbereitung,
+produktive Cgroup-/SELinux-Einrichtung, private CE-Ablage, frische AOSP-Adminfreigabe
+samt Java-/CLI-Anbindung, semantische Validierung und Auswahl vollständiger
+Generationen. Gemeinsame/private Versionen, Rebase-Konflikte, tatsächliches
+AOSP-Logout während APT und Reboot benötigen ein neues integriertes Vollimage
+und reale Benutzertests. Im bislang laufenden System gibt es weiterhin keinen
+freigeschalteten Paketendpunkt. Die folgenden älteren Bausteinnachweise bleiben
+mit ihren jeweiligen Grenzen erhalten.
 
 ## Begrenzte Rechte für den isolierten Paketarbeiter
 

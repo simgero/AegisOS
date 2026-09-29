@@ -1,3 +1,102 @@
+## Brokerverwalteter APT-Arbeiter: 90b9732d
+
+Der auf `aegis-build` kompilierte und über GitHub verifizierte
+[Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T213008Z-90b9732d-90b9732d-ncIcPj) aus Commit `90b9732dc6e2528e23837870267c8256a327a7da`
+besteht am **2026-09-29T21:31:27Z alle 167/167 nativen Gerätetests**
+aus 25 Suiten in 18.864 Sekunden, ohne übersprungene Tests.
+Dazu gehören acht neue Executor-/Broker-Tests und eine Prüfung begrenzter
+Auftragsfelder. Der aktuelle Testtransport heißt
+`aegis-qemu-arm64-components-v3` und umfasst sieben native Programme,
+einschließlich getrennter Produktions- und Test-Einstiege des APT-Arbeiters.
+
+Der neue Arbeiter erhält ausschließlich eine intern vorbereitete eigene
+ext4-Kopie, einen begrenzten Auftrag und eine private Geräteansicht. Er prüft
+Namespaces, UID/GID-Abbildungen und Enforcing, hängt Androids Wurzel ab,
+prüft die vollständige Mountliste und begrenzt seine Rechte vor Debian-Code.
+Er startet ausschließlich festes `apt-get` mit vorbereiteten Archivnamen bzw.
+Paketnamen, leeren Quellen und `--no-download`. Keine Shellbefehle, Hostpfade
+oder frei gewählten APT-Optionen kommen aus dem Auftrag. Die Auftragsdaten
+liegen in einem vollständig versiegelten memfd; Antworten binden Benutzer,
+Seriennummer, Auftragsnummer und Planhash. Die Echtheit und vollständige
+Auflösung der Archive bleiben Aufgaben des noch fehlenden Planers.
+
+Tatsächlich ausgeführt und bestätigt:
+
+- Installation zweier synthetischer Pakete mit exakter Versionsabhängigkeit,
+  Update beider, technische Eigentümer 42:42 und Paketskripte. Die geänderte
+  Konfiguration bleibt erhalten. `remove` entfernt die Paketdateien und lässt
+  die Konfiguration bewusst bestehen; der ältere separate Purge-Test besteht
+  ebenfalls weiterhin.
+- Alle vom Executor übernommenen Deskriptoren sind nach bestätigtem Ende
+  geschlossen. Bestätigung setzt tatsächliches PID1-Reaping, eine leere und
+  entfernte Cgroup und das Schließen eigener Mount-/Stagingreferenzen voraus.
+  Die externen Prüf-FDs und der Test-Loop werden separat vom Fixture geschlossen.
+- Abbruch bei einem nachweislich wartenden echten `postinst`: Prozesse enden,
+  Cgroup wird leer, ein vorheriger nicht blockierender Wait behält den Besitzer.
+  Ein getöteter Auftrag liefert `Unconfirmed`, keine behauptete Rückabwicklung.
+- Abbruch nach natürlichem APT-Ende und nach internem Reaping verweigert ebenfalls
+  die Weitergabe des Kandidaten. Eine frühere erfolgreiche Ausführung wird
+  dadurch nicht zur Aktivierungsfreigabe.
+- Der reale Broker-`STOP_USER`-Pfad beendet den laufenden APT-Auftrag des
+  Antragstellers und erhält die Vorbereitung eines anderen Benutzers.
+  Falsche Seriennummer/Planhash, doppelte Starts und fremder Abbruch scheitern.
+  Veröffentlichung und APT teilen Kapazität, IDs und eine ausstehende Arbeit
+  je Antragsteller; ein konkurrierender Veröffentlichungseintrag wird abgewiesen.
+- Ein Teilstart behält seine Cgroup/FDs bis zum Aufräumen. Der Produktionseinstieg
+  verweigert die Entwickler-Testdomäne; sein früher Tod wird ohne Warten auf
+  das gesamte neunsekündige Test-Startbudget erkannt.
+
+`NeedsValidation` bedeutet ausschließlich: APT meldete Exit 0, es kam eine
+passende Abschlussantwort und die Ressourcen sind freigegeben. Der Kandidat
+ist damit weder semantisch validiert noch veröffentlicht oder aktiviert.
+Der Produktionshelper verlangt zusätzlich exakt `aegis_package_worker` als
+SELinux-Domäne. Der separat benannte Testhelper verwendet dieselbe Ausführung
+und dieselben Namespace-/Enforcing-Prüfungen, ohne diesen Domänennachweis zu
+behaupten. Es wurde keine permissive Richtlinie oder produktive Ausnahme aktiviert.
+
+**Nachweisgrenzen:** Der neue Besitzer wird direkt im nativen Test aufgerufen,
+nicht in den laufenden Daemon installiert. Es fehlen die produktive
+Cgroup-/SELinux-Einrichtung, lifecycle-eigene Vorbereitung/Kopie/Downloads,
+vertrauenswürdige Repository-/Versionsauflösung, privater CE-Store, reale frische
+AOSP-Freigabe samt Java-/CLI-Verbindung, semantische Generationsprüfung und
+Auswahl beim Runtime-Start. Reale AOSP-Abmeldung/CE-Sperrung während APT,
+konkurrierende persönliche Paketbereiche, gemeinsames Update/Rebase und
+Neustart mit integrierter Paketverwaltung sind damit noch nicht nachgewiesen.
+Die zuvor getesteten 119 Java-Tests sind für unveränderte Quellen übernommen,
+nicht erneut ausgeführt. Die lokalen Transporttests bestanden mit neun
+aktiven Prüfungen und sieben plattformbedingt übersprungenen Prüfungen.
+
+Gast `927cf51d`, Profil `d68845b3-62a9-4181-a7cd-c0f0a8e7d316`,
+Boot-ID `984f23bd-607e-4a6d-8c08-7ae91bccd4f5`. Benutzer/CE/Schlüsselverzeichnisse bleiben
+bei 0, persönliche Runtime-Kontexte bleiben leer. Enforcing und der bestehende
+Broker sind unverändert aktiv. Sichtbarer Launcher und sämtliche Daten-/KeyMint-
+Profilpaare wurden nicht ersetzt. Erfolgreiche eigene Testkopien werden erst
+nach dem Schließen ihrer Referenzen entfernt; fehlgeschlagene bleiben erhalten.
+
+Buildlauf `identity-20260929T212909Z-90b9732d-H0ZbNL`, InvocationID `f36e8ec964144fa3b32c385bb263eb94`.
+Belege: `out/components-90b9732d/component-tests/`. `native.log` SHA-256
+`926fd41df7bd9a00c078199f5335b2dc95004c14f2ff5a7b8991c22062dcf6e7`; identische Vorher-/Nachherdateien
+`0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3`.
+
+Vorherige Versuche bleiben dokumentiert: `8c3cac8e` bestand den Build, scheiterte
+vor Arbeiterstart am noch fehlenden Archivcache im Fixture; `82c9240e` wurde
+beim absoluten Mountziel korrekt durch `RESOLVE_BENEATH` abgewiesen.
+`bcb6ac2b` bestand den echten Install-/Update-/Remove-Smoke-Test und 166/167
+Gesamttests. Der eine Fehler war ein Test-`STOP_USER` mit Seriennummer 42 statt
+des vorgeschriebenen Werts 0. Das Protokoll wurde beibehalten, der Test korrigiert.
+Zusätzlich wurde die elterliche Kopie des Kind-Sockets früh geschlossen, damit
+ein abgewiesener Helper sofort als beendet beobachtet wird. Ein erster lokaler
+Smoke-Aufruf verwendete versehentlich den falschen ADB-Port und startete keinen Test.
+`014d217d` legte nach Freigabe des Kind-Sockets eine Endlosschleife im neuen
+Ancillary-Parser bei EOF offen. Ausschließlich der anhand seines exakten
+Programmpfads geprüfte Test-PID 8524 wurde beendet; sein Kind war bereits
+beendet. Beide Prozesse waren danach verschwunden, und die nachweislich leeren
+eigenen Test-Cgroups wurden entfernt. Der separate Aufräumbeleg liegt unter
+`out/components-014d217d/component-tests/cleanup.json`; die Imagekopie bleibt.
+Die Korrektur prüft jede Headerlänge vor dem Weiterschalten und verwirft
+fehlgeschlagene Empfangsaufrufe vor der Auswertung. Der aktuelle vollständige
+Durchlauf enthält den zuvor hängenden Fehlerfall samt Zeitbegrenzungsprüfung.
+
 ## Echter Offline-APT-Durchlauf: fddf9563
 
 Der auf `aegis-build` kompilierte und über GitHub verifizierte
