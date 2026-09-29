@@ -4,6 +4,7 @@
 #define _GNU_SOURCE
 #endif
 #include "namespace_probe.h"
+#include "package_policy_probe.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -35,6 +36,11 @@ static int read_map(const char *name, uint32_t rows[3][3]) {
 }
 
 int main(int argc, char **argv) {
+    if (argc == 2 && !strcmp(argv[0], "aegis-package-policy-exec")) {
+        char *end;unsigned long user = strtoul(argv[1], &end, 10);
+        if (*end || user < 10 || user >= 21473) return 92;
+        return aegis_probe_package_policy_exec((uint32_t)user);
+    }
     if (argc != 3 || strcmp(argv[0], "aegis-runtime-setup") || getpid() != 1) return 91;
     struct aegis_namespace_probe report = {.magic = 0x41454e53};
     char *end;
@@ -93,5 +99,7 @@ int main(int argc, char **argv) {
     struct timeval timeout = {.tv_sec = 5};
     if (setsockopt(3, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) return 99;
     char command;
-    return recv(3, &command, 1, 0) == 1 && command == 'Q' ? 0 : 100;
+    if (recv(3, &command, 1, 0) != 1) return 100;
+    if (command == 'P') return aegis_probe_package_policy(report.user_id);
+    return command == 'Q' ? 0 : 100;
 }

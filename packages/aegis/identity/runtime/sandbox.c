@@ -192,6 +192,55 @@ int aegis_limit_shell(void) {
     return 0;
 }
 
+int aegis_limit_package_worker(uint32_t user_id) {
+    uid_t r, e, saved; gid_t gr, ge, gs;
+    if (user_id < 10 || user_id >= 21473 || getpid() != 1 || getppid() != 0
+            || getsid(0) != 1 || getpgrp() != 1 || syscall(SYS_gettid) != 1)
+        return invalid();
+    if (getresuid(&r, &e, &saved) < 0 || getresgid(&gr, &ge, &gs) < 0) return -1;
+    if (r || e || saved || gr || ge || gs || getgroups(0, NULL)) return invalid();
+    if (check_map("/proc/self/uid_map", user_id) < 0
+            || check_map("/proc/self/gid_map", user_id) < 0) return -1;
+    char text[128];
+    if (read_text("/proc/self/setgroups", text, sizeof(text)) < 0) return -1;
+    if (strcmp(text, "deny\n")) return invalid();
+    ssize_t length = readlink("/proc/self", text, sizeof(text));
+    if (length != 1 || text[0] != '1') return invalid();
+    // All permitted authority belongs to this mapped user namespace. No
+    // SYS_ADMIN, SETPCAP, SYS_CHROOT, MKNOD, SETFCAP or network-admin
+    // capability remains. Trusted mounts/SELinux and lifecycle are separate.
+    const uint32_t allowed = (1u << CAP_CHOWN) | (1u << CAP_DAC_OVERRIDE)
+        | (1u << CAP_FOWNER) | (1u << CAP_FSETID) | (1u << CAP_SETUID) | (1u << CAP_SETGID);
+    if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) < 0
+            || prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0
+            || prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) < 0
+            || prctl(PR_SET_SECUREBITS, SECBIT_NOROOT | SECBIT_NOROOT_LOCKED,
+                     0, 0, 0) < 0) return -1;
+    for (int cap = 0; cap < 64; cap++) {
+        if (cap < 32 && (allowed & (1u << cap))) continue;
+        if (prctl(PR_CAPBSET_DROP, cap, 0, 0, 0) < 0 && errno != EINVAL) return -1;
+    }
+    struct rlimit files = {256, 256}, processes = {256, 256}, core = {0, 0};
+    if (setrlimit(RLIMIT_NOFILE, &files) < 0 || setrlimit(RLIMIT_NPROC, &processes) < 0
+            || setrlimit(RLIMIT_CORE, &core) < 0) return -1;
+    // Ambient inheritance is restricted to this exact set; locked NOROOT
+    // prevents exec as UID0 from resurrecting anything else. Ordinary UID
+    // changes still drop permitted/effective/ambient authority normally.
+    struct __user_cap_header_struct header = {.version = _LINUX_CAPABILITY_VERSION_3};
+    struct __user_cap_data_struct data[2] = {{0}, {0}};
+    data[0].effective = data[0].permitted = allowed | (1u << CAP_SETPCAP);
+    data[0].inheritable = allowed;
+    if (syscall(SYS_capset, &header, data) < 0) return -1;
+    for (int cap = 0; cap < 32; cap++) if (allowed & (1u << cap))
+        if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap, 0, 0) < 0) return -1;
+    if (prctl(PR_SET_SECUREBITS, SECBIT_NOROOT | SECBIT_NOROOT_LOCKED
+            | SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED,
+            0, 0, 0) < 0) return -1;
+    data[0].effective = data[0].permitted = allowed;
+    if (syscall(SYS_capset, &header, data) < 0) return -1;
+    return aegis_install_filter();
+}
+
 #define DENY(n) BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SYS_##n, 0, 1), \
                 BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | EPERM)
 

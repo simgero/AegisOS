@@ -3,6 +3,11 @@
 // prerequisites into a passing isolation result. No AOSP users are created.
 #include "namespace.h"
 #include "namespace_probe.h"
+#include "package_policy_probe.h"
+#include "sandbox.h"
+#include <linux/capability.h>
+#include <linux/securebits.h>
+#include <sys/prctl.h>
 #include "base_image.h"
 
 #include <gtest/gtest.h>
@@ -245,6 +250,37 @@ class RuntimeNamespace : public ::testing::Test {
         }
     }
 };
+
+TEST_F(RuntimeNamespace, PackageWorkerRightsSurviveExecWithoutHostOrMountAuthority) {
+    ASSERT_EQ(0, create(0,10));ASSERT_EQ(0,aegis_namespace_resume(contexts[0]));
+    aegis_namespace_probe initial={};ASSERT_EQ(static_cast<ssize_t>(sizeof(initial)),report(0,&initial));check(initial,10);
+    ASSERT_EQ(1,send(peers[0],"P",1,MSG_NOSIGNAL));
+    pollfd ready={peers[0],POLLIN,0};ASSERT_EQ(1,poll(&ready,1,5000));
+    aegis_package_policy_probe result={};
+    ssize_t received=recv(peers[0],&result,sizeof(result),MSG_TRUNC);
+    if (received != static_cast<ssize_t>(sizeof(result))) {
+        aegis_child_exit diagnostic={};int waited=aegis_namespace_wait(contexts[0],5000,&diagnostic);
+        FAIL() << "Policy fixture reply=" << received << " wait=" << waited
+               << " code=" << diagnostic.code << " status=" << diagnostic.status;
+    }
+    EXPECT_EQ(0x504b4753u,result.magic);EXPECT_EQ(10u,result.user);EXPECT_EQ(63u,result.checks);
+    const uint64_t allowed=(1u<<CAP_CHOWN)|(1u<<CAP_DAC_OVERRIDE)|(1u<<CAP_FOWNER)
+        |(1u<<CAP_FSETID)|(1u<<CAP_SETUID)|(1u<<CAP_SETGID);
+    EXPECT_EQ(allowed,result.effective);EXPECT_EQ(allowed,result.permitted);
+    EXPECT_EQ(allowed,result.inheritable);EXPECT_EQ(allowed,result.bounding);EXPECT_EQ(allowed,result.ambient);
+    EXPECT_EQ(1u,result.nnp);EXPECT_EQ(2u,result.filter);
+    EXPECT_EQ(static_cast<uint32_t>(SECBIT_NOROOT|SECBIT_NOROOT_LOCKED
+        |SECBIT_NO_CAP_AMBIENT_RAISE|SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED),result.securebits);
+    aegis_child_exit ended={};ASSERT_EQ(0,aegis_namespace_wait(contexts[0],5000,&ended));
+    EXPECT_EQ(CLD_EXITED,ended.code);EXPECT_EQ(0,ended.status);
+}
+
+TEST(RuntimePackageSandbox, HostCallerRejectedBeforePrivilegeChanges) {
+    int bits=prctl(PR_GET_SECUREBITS,0,0,0,0),nnp=prctl(PR_GET_NO_NEW_PRIVS,0,0,0,0);
+    EXPECT_EQ(-1,aegis_limit_package_worker(10));EXPECT_EQ(EPERM,errno);
+    EXPECT_EQ(bits,prctl(PR_GET_SECUREBITS,0,0,0,0));
+    EXPECT_EQ(nnp,prctl(PR_GET_NO_NEW_PRIVS,0,0,0,0));
+}
 
 TEST_F(RuntimeNamespace, HostHandoffRejectsWrongHandlesWithoutLeakingOrReplacingPins) {
     int user_ns = open("/proc/1/ns/user", O_RDONLY | O_CLOEXEC);
