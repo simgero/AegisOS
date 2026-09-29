@@ -1,5 +1,30 @@
 # Komponentenläufe in lokalem QEMU
 
+## Komponentenstand a8d38b97 auf dem geprüften Image 2a766ab5
+
+Am 29. September 2026 bestehen **113/113 native Tests**, ohne Filter oder
+übersprungene Tests, im lokalen Mac-QEMU mit SELinux Enforcing und
+authentifiziertem ADB. Die auf `aegis-build` erzeugten Komponenten stammen aus
+`a8d38b97b8e3c8fb15365327fdadb04506baa019`, Lauf
+`identity-20260929T000603Z-a8d38b97-WVXn2V`. Der
+[Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260929T001323Z-a8d38b97-a8d38b97-RodhFL)+wurde über GitHub übertragen und vor Ausführung auf seine Prüfsummen geprüft.
+Das gebootete Image bleibt unverändert `2a766ab5`; keine Framework-Dateien
+wurden ersetzt. Dieser Lauf enthält keine erneute Java-Testausführung.
+
+Die zwei neuen Cgroup-Tests bestätigen, dass Androids Elternbereich
+`system:system 0775` akzeptiert wird, private Gruppen weiterhin zwingend
+`root:root 0700` verlangen und abweichende Eigentümer oder zu offene Modi vor
+dem Anlegen eines Runtime-Unterbaums scheitern. Die Tests verändern nur ihren
+eigenen temporären Unterbaum, nicht den wirklichen Android-Cgroup-Elternbereich.
+
+- Rohbelege: `out/components-a8d38b97/native-tests/`.
+- Native-Log SHA-256: `131fa1d21bf9831afc6185109164cad3f9e2b2454b9d21089b1a237171bab761`.
+- Gastbeleg SHA-256: `ae923c374233a284952958c950f4958e07066e8b45c64405d887642ec3f88845`.
+
+Diese Entwicklungs-root-Fixtures beweisen weiterhin keine Ausführung in den
+neuen produktiven SELinux-Domänen. Das gebootete Produkt bleibt `absent`;
+der verwaltete Dienststart und eine persönliche GNU/Linux-Sitzung sind offen.
+
 ## Vollständiges Image und Komponentenstand 2a766ab5
 
 Am 29. September 2026 bestehen im neuen lokalen Mac-QEMU **111/111 native

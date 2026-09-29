@@ -97,16 +97,21 @@ Aufseher und GNU-Programme; AOSP behält die Schlüsselverwaltung. Neun inerte
 Tests prüfen die gepinnte und gegen fremde Änderungen abgesicherte
 Policy-Quellintegration. Details: [Runtime-Policy](../runtime/selinux-integration.md).
 
-Vollbuild `aosp-20260928T235701Z-e835d7ea-d28a494a` ist für den ersten separaten
-`managed-v1`-Boot gestartet. Dienste und Modus werden nur bei ausgewählten,
-geprüften Basis- und Kernel-Eingaben aktiviert. Der Lauf ist noch kein Boot-
-oder Runtime-Nachweis; das sichtbare Profil bleibt `foundation-2a766ab5`.
+Vollbuild `aosp-20260928T235701Z-e835d7ea-d28a494a` scheiterte an der
+Artifact-Path-Prüfung für die beiden neuen `/system/bin`-Helfer. `a8d38b97`
+ergänzt ausschließlich diese zwei Pfade in der vorgesehenen Freigabeliste;
+die Prüfung bleibt aktiv. Der Dienst-Socket übernimmt zudem korrekt den
+Broker-Peer-Kontext; sein Dateisystemname behält das separate Socket-Label.
+Dienste und Modus werden nur bei ausgewählten, geprüften Basis- und
+Kernel-Eingaben aktiviert. Das sichtbare Profil bleibt `foundation-2a766ab5`.
 Die Bestandsaufnahme dort zeigt den Android-Cgroup-Elternbereich als
 `system:system` mit Modus `0775`. Die bisherige native Root-Annahme ist in
 `ae1e5d5` gezielt korrigiert, mit zwei zusätzlichen negativen/positiven
 Gerätetests und weiterhin zwingender Root-Eigentümerschaft privater Gruppen.
-Diese Korrektur ist noch nicht kompiliert oder ausgeführt und nicht Teil
-des bereits laufenden Images `e835d7ea`.
+Im Komponentenstand `a8d38b97` ist diese Korrektur nun kompiliert und lokal
+geprüft: **113/113 native Tests bestehen** auf dem unveränderten Image
+`2a766ab5`. Ein korrigierter Vollbuild ist gestartet. Produktive Domänen,
+Dienststart und echte GNU-Ausführung sind damit weiterhin nicht nachgewiesen.
 
 ## Erfüllung der fünf Ziele
 
@@ -114,7 +119,7 @@ des bereits laufenden Images `e835d7ea`.
 | --- | --- |
 | Stabiles, dauerhaftes QEMU | Gepaarte Android-/KeyMint-Persistenz und geordnete Neustarts nachgewiesen. Neues Image `2a766ab5` besteht alle 111 nativen und 62 Java-Tests einschließlich SMS-Konfiguration. Kein Telefonie-ANR im begrenzten ersten Beobachtungsintervall. Lesbares Bild und früherer QMP-Mausklick bestätigt; physische Mac-Eingabe, längere Stabilität, Stromausfall und Image-Migration offen. |
 | AEGIS-Benutzer und Anmeldung | Zwei-Benutzer-CLI-Test mit AOSP-Passwörtern, Wechsel, Passwortwechsel und Logout bestanden. Unterbrochene Ersteinrichtung, vollständige Admin-Negativtests, CLI-Löschung und ID-Wiederverwendung offen. Die bisherige Nachbereinigung nach Freigabe einer gelöschten AOSP-ID muss vor Löschungsfreigabe in den reservierten Plattform-Lebenszyklus verlegt werden. |
-| Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft; 111/111 native Tests im jüngsten ausgeführten Stand. AOSP-Speicherkoordination, CLI-Lebenszyklus und neue SELinux-/Init-Integration kompiliert. Der erste verwaltete Test-Image-Build läuft; aktiver Dienst, tatsächliche Domänenübergänge, CLI-PTY-Sitzung und wirkliche Linux-Ausführung bleiben unbewiesen. Das geprüfte sichtbare Profil bleibt `absent`. |
+| Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft; 113/113 native Tests des korrigierten Komponentenstands bestehen auf Image `2a766ab5`. AOSP-Speicherkoordination, CLI-Lebenszyklus und neue SELinux-/Init-Integration kompiliert. Ein korrigierter verwalteter Test-Image-Build läuft; aktiver Dienst, tatsächliche Domänenübergänge, CLI-PTY-Sitzung und wirkliche Linux-Ausführung bleiben unbewiesen. Das geprüfte sichtbare Profil bleibt `absent`. |
 | Pakete und Isolation | Pakettransaktionen und konsistente Aktivierung fehlen. Sowohl gemeinsame als auch private Pakete erfordern frische AOSP-Adminautorisierung. Persönliche Linux-Datei-/Prozessisolation muss mit zwei angemeldeten Benutzern geprüft werden. |
 | Gesamtablauf | Identitäts-/CE-Teil mit zwei Passwortbenutzern und Neustart nachgewiesen. Linux-Programme, Paketaktionen, Abbau aller Runtime-Ressourcen vor CE-Sperre und der vollständige integrierte Ablauf bleiben offen. |
 
