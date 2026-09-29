@@ -111,9 +111,25 @@ Gerätetests und weiterhin zwingender Root-Eigentümerschaft privater Gruppen.
 Im Komponentenstand `a8d38b97` ist diese Korrektur nun kompiliert und lokal
 geprüft: **113/113 native Tests bestehen** auf dem unveränderten Image
 `2a766ab5`. Der korrigierte Vollbuild
-`aosp-20260929T001619Z-a8d38b97-55707a05` ist kompiliert und paketiert;
-der GitHub-Upload läuft. Produktive Domänen, Dienststart und echte
-GNU-Ausführung sind damit weiterhin nicht nachgewiesen.
+`aosp-20260929T001619Z-a8d38b97-55707a05` ist mit `UPLOAD_VERIFIED`
+abgeschlossen und über GitHub geprüft empfangen. Nach AVB-Kettenprüfung
+bootet das frische Profil `runtime-a8d38b97` vollständig mit authentifiziertem
+ADB, FBE, tatsächlichen Verity-Tabellen und SELinux Enforcing. Der ausgewählte
+Modus ist tatsächlich `managed-v1`. Init startet den Broker, dieser beendet
+sich jedoch nach fünf Millisekunden mit Exitcode 1. Sein Zustandsverzeichnis
+bleibt leer; ein spezifischer AVC wurde nicht aufgezeichnet. Die bisherigen
+Fehlermeldungen gehen in Inits `/dev/null`-Standardfehlerkanal verloren.
+Dieser Kandidat ist deshalb **nicht als sichtbarer funktionierender Stand
+übernommen**. Echte GNU-Ausführung bleibt unbewiesen.
+
+Die nächste Quellkorrektur schreibt feste Phasen-/Errno-Diagnosen über das
+bereits freigegebene Android-Logging; sie erweitert keine SELinux-Rechte.
+Außerdem verlangt die Helferprüfung nun die im Image beobachtete AOSP-
+Eigentümerschaft `root:shell` statt `root:root`, weiterhin mit exaktem Modus
+0755, Label und schreibgeschütztem EROFS. Dies ist ein separat belegter
+späterer Prüfkonflikt, **keine bestätigte Ursache des frühen Dienstabbruchs**.
+Kompilierung und erneuter Bootnachweis dieser Korrektur stehen noch aus.
+Bootbelege: `out/full-build-a8d38b97/boot-1/boot-health.json`.
 
 Das bisherige Profil wurde nach rund 73 Minuten geordnet heruntergefahren;
 Android meldet `Power down`, der KeyMint-Helfer bestätigt seinen sauberen
@@ -130,7 +146,7 @@ bisherige Android-/KeyMint-Paare bleiben erhalten.
 | --- | --- |
 | Stabiles, dauerhaftes QEMU | Gepaarte Android-/KeyMint-Persistenz und geordnete Neustarts nachgewiesen. Neues Image `2a766ab5` besteht alle 111 nativen und 62 Java-Tests einschließlich SMS-Konfiguration. Kein Telefonie-ANR im begrenzten ersten Beobachtungsintervall. Lesbares Bild und früherer QMP-Mausklick bestätigt; physische Mac-Eingabe, längere Stabilität, Stromausfall und Image-Migration offen. |
 | AEGIS-Benutzer und Anmeldung | Zwei-Benutzer-CLI-Test mit AOSP-Passwörtern, Wechsel, Passwortwechsel und Logout bestanden. Unterbrochene Ersteinrichtung, vollständige Admin-Negativtests, CLI-Löschung und ID-Wiederverwendung offen. Die bisherige Nachbereinigung nach Freigabe einer gelöschten AOSP-ID muss vor Löschungsfreigabe in den reservierten Plattform-Lebenszyklus verlegt werden. |
-| Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft; 113/113 native Tests des korrigierten Komponentenstands bestehen auf Image `2a766ab5`. AOSP-Speicherkoordination, CLI-Lebenszyklus und neue SELinux-/Init-Integration kompiliert. Ein korrigierter verwalteter Test-Image-Build läuft; aktiver Dienst, tatsächliche Domänenübergänge, CLI-PTY-Sitzung und wirkliche Linux-Ausführung bleiben unbewiesen. Das geprüfte sichtbare Profil bleibt `absent`. |
+| Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft; 113/113 native Tests des Komponentenstands `a8d38b97` bestehen auf Image `2a766ab5`. Der verwaltete Vollbuild bootet mit Enforcing und Verity, sein Broker bricht jedoch beim Start ab. Diagnose- und Helfer-Metadatenkorrektur vorbereitet. Aktiver Dienst, tatsächliche Domänenübergänge, CLI-PTY-Sitzung und wirkliche Linux-Ausführung bleiben unbewiesen. Das bisher geprüfte sichtbare Profil bleibt `absent`. |
 | Pakete und Isolation | Pakettransaktionen und konsistente Aktivierung fehlen. Sowohl gemeinsame als auch private Pakete erfordern frische AOSP-Adminautorisierung. Persönliche Linux-Datei-/Prozessisolation muss mit zwei angemeldeten Benutzern geprüft werden. |
 | Gesamtablauf | Identitäts-/CE-Teil mit zwei Passwortbenutzern und Neustart nachgewiesen. Linux-Programme, Paketaktionen, Abbau aller Runtime-Ressourcen vor CE-Sperre und der vollständige integrierte Ablauf bleiben offen. |
 

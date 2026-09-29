@@ -6,6 +6,8 @@
 #include "broker_owner.h"
 #include "namespace.h"
 #include <cutils/sockets.h>
+#include <log/log.h>
+#include <private/android_filesystem_config.h>
 #include <selinux/selinux.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -31,6 +33,13 @@
 #include <unistd.h>
 
 static int fail(int error) { errno = error; return -1; }
+/* Init connects daemon stderr to /dev/null. Fixed phase names and errno are
+ * useful at boot without logging credentials, user paths or protocol data. */
+static void report_failure(const char *phase, int error) {
+    __android_log_print(ANDROID_LOG_ERROR, "AegisRuntimeBroker",
+                        "AEGIS_RUNTIME_BROKER_FAILED: %s errno=%d", phase, error);
+    errno = error;
+}
 static uint64_t now_ns(void) {
     struct timespec now;
     if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) return 0;
@@ -54,7 +63,11 @@ static int helper(const char *name, const char *label) {
     struct statfs fs;
     struct statvfs flags;
     if (fstat(fd, &st) < 0 || fstatfs(fd, &fs) < 0 || fstatvfs(fd, &flags) < 0) goto error;
-    if (st.st_mode != (S_IFREG | 0755) || st.st_uid || st.st_gid || st.st_nlink != 1
+    /* AOSP's installed /system/bin executables are root:shell, mode 0755.
+     * The group has no write access; EROFS, immutable contents and the exact
+     * executable label remain mandatory. Do not normalize image ownership. */
+    if (st.st_mode != (S_IFREG | 0755) || st.st_uid != AID_ROOT
+            || st.st_gid != AID_SHELL || st.st_nlink != 1
             || st.st_size < 64 || st.st_size > 32 * 1024 * 1024
             || fs.f_type != EROFS_SUPER_MAGIC_V1 || !(flags.f_flag & ST_RDONLY)
             || (flags.f_flag & ST_NOEXEC)) { errno = EPERM; goto error; }
@@ -233,21 +246,26 @@ int main(int argc, char **argv) {
     (void)argv;
     umask(0077);
     char mode[PROP_VALUE_MAX], *context = NULL;
-    if (argc != 1 || __system_property_get("ro.aegis.runtime.mode", mode) <= 0
-            || strcmp(mode, "managed-v1") || is_selinux_enabled() != 1 || security_getenforce() != 1
-            || getcon(&context) < 0 || !context || strcmp(context, "u:r:aegis_runtime_broker:s0")) {
-        freecon(context); fprintf(stderr, "AEGIS_RUNTIME_BROKER_REJECTED: mode or security context\n");
+    if (argc != 1) { report_failure("argument count", EINVAL); return 1; }
+    if (__system_property_get("ro.aegis.runtime.mode", mode) <= 0 || strcmp(mode, "managed-v1")) {
+        report_failure("runtime mode", EPERM); return 1;
+    }
+    if (is_selinux_enabled() != 1) { report_failure("SELinux enabled", EPERM); return 1; }
+    if (security_getenforce() != 1) { report_failure("SELinux enforcing", EPERM); return 1; }
+    if (getcon(&context) < 0) { report_failure("read own security context", errno); return 1; }
+    if (!context || strcmp(context, "u:r:aegis_runtime_broker:s0")) {
+        freecon(context); report_failure("own security context", EPERM);
         return 1;
     }
     freecon(context);
     struct sigaction action = {.sa_handler = SIG_DFL};
     sigemptyset(&action.sa_mask);
     if (sigaction(SIGCHLD, &action, NULL) < 0 || setgroups(0, NULL) < 0) {
-        fprintf(stderr, "AEGIS_RUNTIME_BROKER_FAILED: initial process state errno=%d\n", errno);
+        report_failure("initial process state", errno);
         return 1;
     }
     if (aegis_namespace_check_broker() < 0) {
-        fprintf(stderr, "AEGIS_RUNTIME_BROKER_FAILED: initial namespaces errno=%d\n", errno);
+        report_failure("initial namespaces", errno);
         return 1;
     }
     sigset_t mask;
@@ -255,7 +273,7 @@ int main(int argc, char **argv) {
     sigaddset(&mask, SIGTERM); sigaddset(&mask, SIGINT);
     sigaddset(&mask, SIGHUP); sigaddset(&mask, SIGCHLD);
     if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) {
-        fprintf(stderr, "AEGIS_RUNTIME_BROKER_FAILED: initial signal mask errno=%d\n", errno);
+        report_failure("initial signal mask", errno);
         return 1;
     }
     int signals = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
@@ -284,7 +302,7 @@ int main(int argc, char **argv) {
     if (aegis_broker_owner_create(parent, base, setup, init, &owner) < 0) goto done;
     phase = "init socket"; listener = inherited_listener(); if (listener < 0) goto done;
     if (clearenv() < 0 || listen(listener, 4) < 0) goto done;
-    fprintf(stderr, "AEGIS_RUNTIME_BROKER_LISTENING\n");
+    __android_log_print(ANDROID_LOG_INFO, "AegisRuntimeBroker", "AEGIS_RUNTIME_BROKER_LISTENING");
     phase = "control channel";
     if (serve(listener, signals, owner) < 0) goto done;
     result = 0;
@@ -298,8 +316,8 @@ done:;
             result = 1;
         }
     }
-    if (result) fprintf(stderr, "AEGIS_RUNTIME_BROKER_FAILED: %s errno=%d\n", phase, saved);
-    else fprintf(stderr, "AEGIS_RUNTIME_BROKER_STOPPED\n");
+    if (result) report_failure(phase, saved);
+    else __android_log_print(ANDROID_LOG_INFO, "AegisRuntimeBroker", "AEGIS_RUNTIME_BROKER_STOPPED");
     // On incomplete cleanup no ACK is sent. Process death closes remaining
     // references; the next owner must recover the private group before HELLO.
     int descriptors[] = {init, setup, base, parent, root, signals, lock};

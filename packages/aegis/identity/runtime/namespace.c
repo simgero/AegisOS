@@ -17,6 +17,7 @@
 #include <linux/mount.h>
 #include <linux/nsfs.h>
 #include <linux/sched.h>
+#include <log/log.h>
 #include <poll.h>
 #include <signal.h>
 #include <stddef.h>
@@ -57,6 +58,13 @@ static pid_t broker_mounts_owner;
 static unsigned live_contexts;
 
 static int denied(void) { errno = EPERM; return -1; }
+static int report_namespace_failure(const char *phase) {
+    int saved = errno;
+    __android_log_print(ANDROID_LOG_ERROR, "AegisRuntimeNamespace",
+                        "AEGIS_RUNTIME_NAMESPACE_FAILED: %s errno=%d", phase, saved);
+    errno = saved;
+    return -1;
+}
 static int owner(struct aegis_namespace *context) {
     if (!context) { errno = EINVAL; return -1; }
     return context->child->owner == (pid_t)syscall(SYS_getpid) ? 0 : denied();
@@ -99,20 +107,30 @@ static int check_broker(int proc, pid_t pid) {
     struct statfs fs;
     struct sigaction action;
     if (getresuid(&r, &e, &s) < 0 || getresgid(&gr, &ge, &gs) < 0
-            || sigaction(SIGCHLD, NULL, &action) < 0 || fstatfs(proc, &fs) < 0) return -1;
+            || sigaction(SIGCHLD, NULL, &action) < 0 || fstatfs(proc, &fs) < 0)
+        return report_namespace_failure("read process prerequisites");
     if (r || e || s || gr || ge || gs || getgroups(0, NULL) != 0
             || fs.f_type != PROC_SUPER_MAGIC || action.sa_handler == SIG_IGN
-            || (action.sa_flags & SA_NOCLDWAIT) || syscall(SYS_gettid) != pid) return denied();
+            || (action.sa_flags & SA_NOCLDWAIT) || syscall(SYS_gettid) != pid) {
+        denied(); return report_namespace_failure("process prerequisites");
+    }
     char number[32];
     snprintf(number, sizeof(number), "%ld", (long)pid);
     int self = openat(proc, number, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-    if (self < 0) return -1;
+    if (self < 0) return report_namespace_failure("open own proc directory");
+    const char *phase = "open init proc directory";
     int init = openat(proc, "1", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     int result = -1;
     if (init < 0) goto done;
-    if (same_namespace(self, init, "ns/user") < 0
-            || same_namespace(self, init, "ns/pid") < 0
-            || initial_map(self, "uid_map") < 0 || initial_map(self, "gid_map") < 0) goto done;
+    phase = "compare init user namespace";
+    if (same_namespace(self, init, "ns/user") < 0) goto done;
+    phase = "compare init PID namespace";
+    if (same_namespace(self, init, "ns/pid") < 0) goto done;
+    phase = "initial UID map";
+    if (initial_map(self, "uid_map") < 0) goto done;
+    phase = "initial GID map";
+    if (initial_map(self, "gid_map") < 0) goto done;
+    phase = "compare mount namespace";
     if (broker_mounts == -1) {
         if (same_namespace(self, init, "ns/mnt") < 0) goto done;
     } else {
@@ -124,6 +142,7 @@ static int check_broker(int proc, pid_t pid) {
             denied(); goto done;
         }
     }
+    phase = "single thread";
     int task = openat(self, "task", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (task < 0) goto done;
     DIR *threads = fdopendir(task);
@@ -142,6 +161,7 @@ done:;
     if (init >= 0) close(init);
     close(self);
     errno = saved;
+    if (result < 0) return report_namespace_failure(phase);
     return result;
 }
 

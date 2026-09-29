@@ -96,6 +96,7 @@ cc_library_static {
     defaults: ["aegis-runtime-native-defaults"],
     srcs: ["runtime/namespace.c", "runtime/mounts.c", "runtime/ce.c", "runtime/devices.c", "runtime/memory_group.c"],
     header_libs: ["libcutils_headers"],
+    shared_libs: ["liblog"],
     static_libs: ["libaegis-runtime-child"],
     export_include_dirs: ["runtime"],
     stl: "none",

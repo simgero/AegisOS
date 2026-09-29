@@ -6,8 +6,17 @@ kompiliert, einschließlich Neverallow-, API-Freeze-, Treble-, Kontext- und
 Policy-Tests. Lauf `identity-20260928T235046Z-6633a086-BVktdL` endete mit
 `IDENTITY_COMPILED_NOT_INSTALLED`. Das ist noch kein Nachweis eines gestarteten,
 erzwingend getrennten Linux-Kontexts.
-Das zuletzt ausgelieferte Produkt bleibt `ro.aegis.runtime.mode=absent`.
-Der nächste Teststand aktiviert `managed-v1` nur mit den explizit geprüften
+Das bisher als sichtbarer Stand geprüfte Profil bleibt im Modus `absent`.
+Der neue Vollbuild `a8d38b97` bootet im separaten Profil tatsächlich mit
+`managed-v1`, SELinux Enforcing und bestätigtem Verity. Init startet den Broker,
+dieser bricht jedoch vor dem Anlegen seiner Zustandsdatei mit Exitcode 1 ab.
+Ein spezifischer AVC fehlt; seine bisherigen stderr-Diagnosen werden von
+Init verworfen. Damit ist weder ein produktiver Runtime-Start noch dessen
+Isolation nachgewiesen. Feste Android-Logmeldungen und die Korrektur der
+beobachteten Helfer-Eigentümerschaft `root:shell` sind als nächster Quellstand
+vorbereitet, noch nicht kompiliert oder im produktiven Dienst geprüft.
+
+Der Teststand aktiviert `managed-v1` nur mit den explizit geprüften
 Basis- und Kernel-Eingaben des Build-Workers. Eine normale Quellregistrierung
 entfernt diese Auswahl; ohne Basis bleiben Modus und Dienste inaktiv, mit Basis
 aber ohne ausgewählten Kernel bricht bereits die Produktkonfiguration ab.
