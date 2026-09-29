@@ -1,14 +1,17 @@
 # Erste AEGIS-Terminalintegration
 
-Stand 29. September 2026: Im Vollbuild `6a807692` sind zwei tatsächliche GNU-
+Stand 29. September 2026: Im Vollbuild `2f29f0ac` sind zwei tatsächliche GNU-
 Kontexte, AOSP-Anmeldung, Wechsel, Logout mit CE-Sperre und Dateierhalt nach
-Neustart geprüft. Ein teilweise nachträglicher Terminalwiderruf nach frischer
-Anmeldung bleibt offen. Details und Grenzen:
+Neustart geprüft. Beide ersten Anmeldungen und beide ersten Zugänge nach
+Reboot funktionieren ohne vorherigen Fehlversuch. Eine während der
+Passwortabfrage widerrufene Vorbereitung bleibt auch mit korrektem Passwort
+abgewiesen. Der frühere nachträgliche Terminalwiderruf wurde in diesem
+Durchlauf nicht beobachtet. Details und Grenzen:
 [GNU-Test](runtime-gnu-qemu-test.md); der frühere reine AOSP-Test bleibt im
 [CLI-Gasttest](identity-cli-qemu-test.md) dokumentiert. Paketverwaltung und
 verwaltete Benutzerlöschung fehlen weiterhin.
 
-## Vorbereitete Korrektur der Anmeldereihenfolge
+## Geprüfte Anmeldereihenfolge
 
 Der neue Quelltext trennt die Auswahl des Android-Anmeldeziels von der
 Passwortprüfung. Die bereits autorisierte Entwicklungskonsole wählt zuerst
@@ -36,10 +39,14 @@ wiederverwendet. Die bisherigen Widerrufe offener GNU-Terminals bleiben bestehen
 Sechs neue Komponententests betreffen Einmaligkeit, fremde/wiederverwendete
 Identitäten, Sperre, Benutzerstopp, Abbruch und konkurrierende Verwendung.
 Commit `2f29f0ac` ist auf `aegis-build` kompiliert und über GitHub übertragen;
-**68/68 Java-Komponententests bestehen** im lokalen QEMU. Der vollständige
-Build für die tatsächliche Dienstintegration läuft. Die Fixtures ersetzen
-weder die tatsächliche AOSP-Reihenfolge noch den Negativtest am gesperrten
-Benutzer oder eine reale Bildschirmsperre. [Komponentenbelege](component-tests.md).
+**68/68 Java-Komponententests bestehen** im lokalen QEMU. Zusätzlich wurde der
+vollständige Build mit installiertem Dienst geprüft: vor Passwortübermittlung
+unverändertes Ziel-CE und kein Kontext, verzögert stabile erste Anmeldungen vor
+und nach Reboot, falsches/altes Passwort bei gesperrtem CE und Verweigerung
+einer durch reale Bildschirmsperre widerrufenen Passwortabfrage. Offene GNU-
+Terminals werden bei Wechsel und Sperre weiterhin entzogen. Ein kompletter
+Zwei-Benutzer-Durchlauf ersetzt keine erschöpfende Konkurrenzprüfung.
+[Komponentenbelege](component-tests.md), [Dienstablauf](runtime-gnu-qemu-test.md).
 
 ## Erster Komponentenstand (25fde995)
 

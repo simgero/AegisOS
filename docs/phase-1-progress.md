@@ -4,7 +4,7 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Aktueller lokal geprüfter Kandidat: **`d44ccb33`**. Zwei persönliche
+Aktueller lokal geprüfter Kandidat: **`2f29f0ac`**. Zwei persönliche
 AOSP-Benutzer führen jetzt tatsächlich GNU/Linux-Programme in getrennten
 Kontexten aus. Geprüfte gegenseitige Datei- und Prozesszugriffe werden
 verhindert. Benutzerwechsel und Bildschirmsperre widerrufen offene
@@ -15,17 +15,19 @@ Android-/KeyMint-Paars bytegenau. Falsche und nach Passwortwechsel alte
 Passwörter entsperren die Daten nicht. Enforcing, FBE, authentifiziertes ADB
 und tatsächliches dm-verity bleiben bestätigt. Die zehn privaten Standardordner
 werden jetzt in echtem CE angelegt. Eigene Ordneränderungen und Konfiguration
-bleiben nach Kontextneustart und vollständigem Reboot erhalten, ohne den
-anderen Benutzer zu verändern. Der Passwortwechsel-Nachweis stammt aus dem
-vorherigen `6a807692`; er wurde in `d44ccb33` nicht wiederholt.
+bleiben nach erneuter Anmeldung und vollständigem Reboot erhalten, ohne den
+anderen Benutzer zu verändern. Passwortwechsel, altes Passwort vor und nach
+Reboot sowie echter GNU-Dateizugriff sind in diesem Image erneut geprüft.
 
-**Offen bleibt eine nachträgliche Terminal-Abmeldung bei manchen Wechseln zu
-vorher gestoppten Benutzern.** Eine frische zweite Anmeldung funktioniert.
-Der Fehler wurde nach dem Reboot von `d44ccb33` erneut beobachtet. Die neue
-Anmeldereihenfolge `2f29f0ac` wartet auf den abgeschlossenen Android-Wechsel,
-bevor die CLI das Passwort abfragt. Sie wird noch nicht als funktionierender
-Gesamtablauf ausgegeben. Der Resize-Treiber wurde dagegen korrigiert; beide
-tatsächlichen GNU-Größenrückmeldungen bestehen.
+**Die neue Anmeldereihenfolge ist nun im installierten Dienst geprüft.**
+Beide ersten Zugänge sowie beide ersten Anmeldungen nach Reboot funktionieren
+direkt, ohne vorgeschalteten Fehlversuch, mit verzögerter Sitzungsprüfung und
+echter GNU-Ausführung. Eine während der Passwortabfrage erfolgte Bildschirmsperre
+verwirft den Versuch: Auch das danach korrekte Passwort entsperrt CE nicht.
+Erst eine neue Anmeldung funktioniert. Der frühere nachträgliche Terminalwiderruf
+wurde in diesem Durchlauf nicht beobachtet; weitere Konkurrenz- und
+Dauerlastprüfungen bleiben offen. Beide tatsächlichen GNU-Größenrückmeldungen
+des korrigierten Resize-Treibers bestehen.
 Vollständiger Ablauf, genaue Grenzen und Prüfsummen:
 [GNU-Test mit zwei Benutzern](runtime-gnu-qemu-test.md).
 
@@ -33,9 +35,10 @@ Vollständiger Ablauf, genaue Grenzen und Prüfsummen:
 `6a807692`-Image. Die vier neuen Tests betreffen private Standardordner;
 deren reale CE-Provisionierung ist nun zusätzlich im Vollbuild bestätigt.
 **68/68 Java-Tests** des nachfolgenden `2f29f0ac` bestehen nach vollständiger
-Benutzerabmeldung im lokalen `d44ccb33`. Dessen vollständiger neuer Build
-läuft auf `aegis-build`; die neue Anmeldereihenfolge muss danach als
-installierter Dienst geprüft werden. [Komponentenbelege](component-tests.md).
+Benutzerabmeldung im lokalen `d44ccb33`. Der vollständige `2f29f0ac`-Build ist
+über GitHub verifiziert und dessen installierter Dienst im oben beschriebenen
+lokalen Ablauf geprüft. Diese Dienstprüfung ist keine erneute Ausführung der
+Komponentensuiten. [Komponentenbelege](component-tests.md).
 
 Der sichtbare Launcher bleibt beim geprüften Stand `2a766ab5`. Weitere
 Kandidaten werden auf Nutzerwunsch ohne sichtbares QEMU-Fenster geprüft.

@@ -6,7 +6,91 @@ Der Ablauf umfasst Benutzerwechsel, Bildschirmsperre, Logout, Passwortwechsel
 und den Neustart desselben Android-/KeyMint-Paars. **Dies ist eine begrenzte
 Funktionsabnahme; Phase 1 ist noch nicht vollständig implementiert.**
 
-## Ergänzung: private Home-Struktur im Vollbuild d44ccb33
+## Aktueller Nachweis: Anmeldereihenfolge im Vollbuild 2f29f0ac
+
+Der [Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T105434Z-2f29f0ac-44199b33)
+des Commits `2f29f0ace2a6164980621b87037f20df344a569f` wurde im neuen lokalen
+Profil `runtime-2f29f0ac` geprüft. UUID:
+`d6ad2cb7-6510-41c5-bd50-ca61c23eaa43`; AVB-Digest:
+`70bb9f4b1f11c7901535582ba55275118ce7c3ad796dfa7156a5559c8f63a0a1`.
+Kompilierung und verifizierter Artefakttransport erfolgten wieder über Builder
+und GitHub; der Mac führte ausschließlich den QEMU-Gast und den
+[wiederverwendbaren Testtreiber](runtime-gnu-test-driver.md) aus.
+
+**Beide ersten Anmeldungen funktionieren ohne vorherigen Fehl- oder
+Aufwärmversuch.** Alpha wird um 11:23:10 UTC, Beta um 11:24:21 angemeldet.
+Jeweils sechs Sekunden später ist dieselbe Sitzung weiterhin authentifiziert;
+danach bestehen Runtime-Start, Bash-Einstieg und eine verzögerte tatsächliche
+GNU-Ausführung. Vor jeder Passwortübermittlung wird separat geprüft: Die
+Auswahl des Android-Vordergrundziels verändert weder dessen gesperrten
+CE-Zustand noch den fehlenden GNU-Kontext.
+
+Die neue Vorbereitung schwächt den Widerruf nicht ab. Um 11:34:03 wird Alphas
+Passwortabfrage offengehalten. Die unabhängige Prüfung um 11:34:08 bestätigt
+`Asleep`, sicheren sichtbaren Keyguard, CE `[0]` und keinen Alpha-Kontext.
+Nach dem Aufwecken wird das **korrekte** Passwort an diese alte Abfrage
+übergeben: Der Dienst verweigert um 11:34:26 den Zugriff; CE bleibt `[0]`,
+`linux start` scheitert und die frühere GNU-Datei bleibt unlesbar. Erst eine
+neue Anmeldung ermöglicht wieder bytegleichen GNU-Zugriff.
+
+Zusätzlich wurden auf diesem Image ausgeführt:
+
+- Zwei persönliche AOSP-Benutzer, Adminanlage mit frischer Passwortprüfung,
+  genau zehn anfängliche Home-Verzeichnisse je Benutzer, echte GNU-Werkzeuge,
+  getrennte Namespaces, keine Capabilities, `NoNewPrivs=1`, Seccomp und eine
+  für normale Prozesse schreibgeschützte gemeinsame Basis.
+- Gegenseitige Dateilesen-/SIGSTOP-Verweigerung aus beiden GNU-Kontexten,
+  jeweils mit demselben unabhängig beobachteten, fortschreitenden Peer-Prozess.
+- Wechsel aus einer zweiten CLI in beide Richtungen sowie reale Bildschirmsperre:
+  aktive GNU-Terminals werden widerrufen, beide ursprünglichen Hintergrundjobs
+  laufen weiter. Logout beendet anschließend den zugehörigen Originalprozess,
+  entfernt den Kontext und sperrt CE. Betas Logout lässt Alpha weiterlaufen.
+- Falsches Passwort und Betas altes Passwort nach AOSP-Passwortwechsel werden
+  abgewiesen. CE bleibt für das Ziel gesperrt; Runtime-Start wird verweigert.
+  Das neue Passwort erlaubt dieselben GNU-Dateibytes.
+- Beide PTY-Größen, GNU-Exitcode `7` bis zum CLI-Prozess sowie benutzbare Shell
+  nach Ctrl-C. Letzteres ist weiterhin kein vollständiger Prozessgruppenbeweis.
+- Schutz des Testtreibers: Ein weiterer Start gegen vorhandene persönliche
+  Benutzer wird vor Erzeugung eines Ergebnisverzeichnisses abgewiesen.
+
+Um 11:35:35 beginnt der geordnete Neustart desselben Android-/KeyMint-Paars.
+Neue Boot-ID: `ea922388-da98-462b-82a9-2b8dd5bc261c` statt
+`10095fc9-103e-4c65-bf83-01031655482e`. AVB, Enforcing, FBE, authentifiziertes
+ADB und tatsächliches dm-verity bestehen erneut; anfangs ist nur CE `[0]`
+entsperrt. **Auch die erste Anmeldung jedes Benutzers nach diesem Reboot
+funktioniert direkt**, ohne vorgeschalteten falschen Passwortversuch. Die
+verzögerte Sitzungsprüfung und echte GNU-Dateizugriffe bestehen um 11:36:53
+beziehungsweise 11:37:27. Beide Dateien enthalten unverändert 1.024 Bytes:
+
+- Alpha: `781e14518b83ac90b9d710147f8bbdbde1ed9ad0ec4b0f46f3c3f68baebdba8f`.
+- Beta: `501866ee3e25790343de65e6251c4fa8b6052126a097aeaff37deb4d0f5cd28d`.
+
+Alphas eigene Ordneränderungen, Verknüpfung und Konfiguration bleiben erhalten;
+Beta behält seine separate unveränderte Ordnerstruktur. Frühere private
+Tmpfs-Proben sind verschwunden. Betas altes Passwort wird nach erneutem Logout
+auch nach dem Reboot abgewiesen, bei weiterhin gesperrtem Ziel-CE.
+
+Abschließend bestätigt ein unabhängiger Readback um 11:38:36 ausschließlich
+Benutzer 0 gestartet und CE-entsperrt, keine persönlichen Kontexte und
+`populated 0`. Die CLI ist geschlossen. Das sichtbare QEMU-Fenster wurde
+nicht geöffnet, der Launcher bleibt unverändert bei `foundation-2a766ab5`.
+
+Der frühere nachträgliche Anmeldewiderruf wurde in diesem vollständigen
+Durchlauf nicht beobachtet. Das ist ein Nachweis an einem frischen
+Zwei-Benutzer-Profil mit einem Reboot, keine erschöpfende Konkurrenz- oder
+Dauerlastprüfung. Pakettransaktionen, verwaltete Benutzerlöschung und umfassende
+IPC-/Systemaufrufprüfungen bleiben offen. Die separaten Komponentenbelege
+bleiben Java **68/68** auf `d44ccb33` und native **128/128** auf `6a807692`;
+sie werden nicht als erneute Komponentenausführung im neuen Image ausgegeben.
+
+Rohbelege unter `out/full-build-2f29f0ac/identity-test/`, einschließlich
+`inputs.json`, der Sperr-/Neustart-/Abschlussbelege und `SHA256SUMS`:
+
+- `events-accepted.json`: `7ed2ddebd85e8f86e836b551eca1f06de49c557831060cf3cea1113a96927d8a`.
+- `result.json`: `52c1342fe16d571086d1c78c6b0d2166ca517bd4150614be90c5e658467b236a`.
+- Ausgeführter Treiber: `e4a28e4d8ba603bc5c7d58d74f1227956d30f4777a8f53e115d5497b4d90aaa2`.
+
+## Historischer Nachweis: private Home-Struktur im Vollbuild d44ccb33
 
 Der [Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T101135Z-d44ccb33-f8bf03a3)
 des Commits `d44ccb3389889740f19373969a00216807b400a7` wurde am selben Tag

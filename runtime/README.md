@@ -86,7 +86,7 @@ Paketverwaltungsberechtigung.
 
 [Prozessaufseher](process-supervisor.md), [Mount-Helfer](namespace-setup.md),
 Broker und [SELinux-Anbindung](selinux-integration.md) sind im geprüften
-`d44ccb33` aktiviert. Je Benutzer bestehen eigene User-, Mount-, PID-, IPC-,
+`2f29f0ac` aktiviert. Je Benutzer bestehen eigene User-, Mount-, PID-, IPC-,
 UTS- und Netzwerk-Namespaces, private flüchtige Dateisysteme und persönliches
 AOSP-CE-Home. Tatsächliche GNU-Prozesse laufen mit getrennten Hostkennungen,
 null Capabilities, `NoNewPrivs=1` und Seccomp.
@@ -100,8 +100,9 @@ Der begrenzte Zwei-Benutzer-Nachweis umfasst tatsächlich geschriebene Dateien,
 gegenseitige verweigerte Zugriffe, Bildschirmsperre und Neustart desselben
 Android-/KeyMint-Paars. Vollständige Fehler- und Konkurrenzprüfungen bleiben offen.
 
-Als nächste Arbeit bleiben der zuverlässige erste Terminal-Login (Korrektur
-`2f29f0ac` besteht Komponenten-, noch keine vollständigen Diensttests),
+Die Korrektur der ersten Anmeldung `2f29f0ac` besteht inzwischen den realen
+Zwei-Benutzer-Dienstablauf einschließlich erster Zugänge nach Reboot und
+Verweigerung einer widerrufenen Passwortabfrage. Als nächste Arbeit bleiben
 verwaltete Benutzerlöschung vor Freigabe der AOSP-ID und gemeinsame/private
 Paketgenerationen mit frischer AOSP-Adminprüfung für beide Bereiche. Bei einer
 privaten Aktion bleibt der Zielbenutzer der authentifizierte Antragsteller,

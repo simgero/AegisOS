@@ -1,9 +1,9 @@
 # Persönlicher AOSP-CE-Speicher
 
-Stand 29. September 2026: **Im vollständigen `d44ccb33` auf lokalem Mac-QEMU
+Stand 29. September 2026: **Im vollständigen `2f29f0ac` auf lokalem Mac-QEMU
 mit zwei persönlichen Benutzern ausgeführt.** Der Broker verbindet AOSP-Anmeldung,
 CE-Prüfung, Mount-Helfer und SELinux. Die Bibliothek selbst ist weiterhin keine
-Identitätsautorität. Prüfumfang und noch offener Terminalwiderruf stehen im
+Identitätsautorität. Prüfumfang, korrigierte Anmeldereihenfolge und Grenzen stehen im
 [GNU-Test](../docs/runtime-gnu-qemu-test.md).
 
 ## Identitätsbindung und Herkunft

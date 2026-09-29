@@ -1,12 +1,14 @@
 # AOSP-Speicheroperationen und Runtime-Abbau
 
 Stand 29. September 2026: Die fünf AOSP-Hooks und der Controller sind im
-lokal getesteten Image `d44ccb33` mit `managed-v1` installiert. Zwei tatsächliche
+lokal getesteten Image `2f29f0ac` mit `managed-v1` installiert. Zwei tatsächliche
 GNU-Kontexte, Hintergrundbetrieb nach Benutzerwechsel und Bildschirmsperre,
 Abbau beider ursprünglicher Hintergrundprozesse bei Logout und unabhängige
 CE-Sperre sind geprüft. Die GNU-Dateien bleiben nach Neustart desselben
-Android-/KeyMint-Paars und eigener Anmeldung bytegleich. Der teilweise
-nachträgliche Widerruf einer frischen Terminalanmeldung bleibt offen.
+Android-/KeyMint-Paars und eigener Anmeldung bytegleich. Beide ersten
+Anmeldungen vor und nach Reboot funktionieren direkt. Der frühere nachträgliche
+Widerruf wurde mit korrigierter Anmeldereihenfolge nicht mehr beobachtet;
+Widerrufe bei tatsächlicher Sperre und Wechsel bleiben nachgewiesen.
 Paketoperationen und verwaltete Benutzerlöschung fehlen. Belege und Grenzen:
 [GNU-Test](../docs/runtime-gnu-qemu-test.md).
 
