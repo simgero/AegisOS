@@ -185,6 +185,9 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.assertIn('AegisRemovalFiles.commit(', source)
         self.assertIn('AegisRemovalFiles.delete(', source)
         self.assertIn('FileIntegrity.setUpFsVerity(mainPfd)', source)
+        for writable in ('mMainOutStream', 'mReserveOutStream'):
+            self.assertLess(source.index(writable + '.close();'),
+                            source.index('FileIntegrity.setUpFsVerity(mainPfd)'))
         self.assertIn('originalFailureHandling();', source)
 
 

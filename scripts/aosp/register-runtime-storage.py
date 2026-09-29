@@ -100,6 +100,12 @@ def patch_resilient(data):
         try {
             com.android.server.aegis.AegisRemovalFiles.commit(mFile, mTemporaryBackup,
                     mReserveCopy, mMainOutStream, mMainInStream, mReserveOutStream, mFileMode);
+            // fs-verity rejects enabling a file with a live writable descriptor.
+            // Retain only the two read descriptors, as AOSP's ordinary commit does.
+            mMainOutStream.close();
+            mMainOutStream = null;
+            mReserveOutStream.close();
+            mReserveOutStream = null;
             // Keep AOSP's best-effort fs-verity protection for both committed copies.
             try (ParcelFileDescriptor mainPfd = ParcelFileDescriptor.dup(mMainInStream.getFD());
                  ParcelFileDescriptor copyPfd = ParcelFileDescriptor.dup(mReserveInStream.getFD())) {
