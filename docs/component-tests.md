@@ -7,7 +7,8 @@ Am 29. September 2026 bestehen **113/113 native Tests**, ohne Filter oder
 authentifiziertem ADB. Die auf `aegis-build` erzeugten Komponenten stammen aus
 `a8d38b97b8e3c8fb15365327fdadb04506baa019`, Lauf
 `identity-20260929T000603Z-a8d38b97-WVXn2V`. Der
-[Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260929T001323Z-a8d38b97-a8d38b97-RodhFL)+wurde über GitHub übertragen und vor Ausführung auf seine Prüfsummen geprüft.
+[Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260929T001323Z-a8d38b97-a8d38b97-RodhFL)
+wurde über GitHub übertragen und vor Ausführung auf seine Prüfsummen geprüft.
 Das gebootete Image bleibt unverändert `2a766ab5`; keine Framework-Dateien
 wurden ersetzt. Dieser Lauf enthält keine erneute Java-Testausführung.
 

@@ -110,7 +110,8 @@ Die Bestandsaufnahme dort zeigt den Android-Cgroup-Elternbereich als
 Gerätetests und weiterhin zwingender Root-Eigentümerschaft privater Gruppen.
 Im Komponentenstand `a8d38b97` ist diese Korrektur nun kompiliert und lokal
 geprüft: **113/113 native Tests bestehen** auf dem unveränderten Image
-`2a766ab5`. Ein korrigierter Vollbuild ist gestartet. Produktive Domänen,
+`2a766ab5`. Der korrigierte Vollbuild
+`aosp-20260929T001619Z-a8d38b97-55707a05` ist gestartet. Produktive Domänen,
 Dienststart und echte GNU-Ausführung sind damit weiterhin nicht nachgewiesen.
 
 ## Erfüllung der fünf Ziele
