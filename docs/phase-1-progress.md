@@ -122,13 +122,19 @@ Fehlermeldungen gehen in Inits `/dev/null`-Standardfehlerkanal verloren.
 Dieser Kandidat ist deshalb **nicht als sichtbarer funktionierender Stand
 übernommen**. Echte GNU-Ausführung bleibt unbewiesen.
 
-Die nächste Quellkorrektur schreibt feste Phasen-/Errno-Diagnosen über das
+Quellstand `4e53dc18` schreibt feste Phasen-/Errno-Diagnosen über das
 bereits freigegebene Android-Logging; sie erweitert keine SELinux-Rechte.
 Außerdem verlangt die Helferprüfung nun die im Image beobachtete AOSP-
 Eigentümerschaft `root:shell` statt `root:root`, weiterhin mit exaktem Modus
 0755, Label und schreibgeschütztem EROFS. Dies ist ein separat belegter
 späterer Prüfkonflikt, **keine bestätigte Ursache des frühen Dienstabbruchs**.
-Kompilierung und erneuter Bootnachweis dieser Korrektur stehen noch aus.
+Diese Komponenten sind inzwischen auf dem Builder kompiliert und über GitHub
+verifiziert empfangen. Im unveränderten verwalteten Testimage `a8d38b97`
+bestehen erneut **113/113 native Tests** ohne Abwahl. Der Broker dieses Images
+bleibt gestoppt; die neuen produktiven Diagnosepfade und die Helferprüfung
+sind damit noch nicht ausgeführt. Der vollständige Image-Build
+`aosp-20260929T010358Z-4e53dc18-1c116294` ist gestartet; sein Bootnachweis
+steht aus.
 Bootbelege: `out/full-build-a8d38b97/boot-1/boot-health.json`.
 
 Das bisherige Profil wurde nach rund 73 Minuten geordnet heruntergefahren;
@@ -146,7 +152,7 @@ bisherige Android-/KeyMint-Paare bleiben erhalten.
 | --- | --- |
 | Stabiles, dauerhaftes QEMU | Gepaarte Android-/KeyMint-Persistenz und geordnete Neustarts nachgewiesen. Neues Image `2a766ab5` besteht alle 111 nativen und 62 Java-Tests einschließlich SMS-Konfiguration. Kein Telefonie-ANR im begrenzten ersten Beobachtungsintervall. Lesbares Bild und früherer QMP-Mausklick bestätigt; physische Mac-Eingabe, längere Stabilität, Stromausfall und Image-Migration offen. |
 | AEGIS-Benutzer und Anmeldung | Zwei-Benutzer-CLI-Test mit AOSP-Passwörtern, Wechsel, Passwortwechsel und Logout bestanden. Unterbrochene Ersteinrichtung, vollständige Admin-Negativtests, CLI-Löschung und ID-Wiederverwendung offen. Die bisherige Nachbereinigung nach Freigabe einer gelöschten AOSP-ID muss vor Löschungsfreigabe in den reservierten Plattform-Lebenszyklus verlegt werden. |
-| Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft; 113/113 native Tests des Komponentenstands `a8d38b97` bestehen auf Image `2a766ab5`. Der verwaltete Vollbuild bootet mit Enforcing und Verity, sein Broker bricht jedoch beim Start ab. Diagnose- und Helfer-Metadatenkorrektur vorbereitet. Aktiver Dienst, tatsächliche Domänenübergänge, CLI-PTY-Sitzung und wirkliche Linux-Ausführung bleiben unbewiesen. Das bisher geprüfte sichtbare Profil bleibt `absent`. |
+| Gemeinsame GNU/Linux-Runtime | Debian-Basis gebaut und im Image geprüft. Der verwaltete Vollbuild `a8d38b97` bootet mit Enforcing und Verity, sein Broker bricht jedoch beim Start ab. Diagnose- und Helfer-Metadatenkorrektur `4e53dc18` kompiliert; deren 113/113 native Tests bestehen auf diesem Image. Vollständiges korrigiertes Image und dessen Dienststart noch offen. Aktiver Dienst, tatsächliche Domänenübergänge, CLI-PTY-Sitzung und wirkliche Linux-Ausführung bleiben unbewiesen. Das bisher geprüfte sichtbare Profil bleibt `absent`. |
 | Pakete und Isolation | Pakettransaktionen und konsistente Aktivierung fehlen. Sowohl gemeinsame als auch private Pakete erfordern frische AOSP-Adminautorisierung. Persönliche Linux-Datei-/Prozessisolation muss mit zwei angemeldeten Benutzern geprüft werden. |
 | Gesamtablauf | Identitäts-/CE-Teil mit zwei Passwortbenutzern und Neustart nachgewiesen. Linux-Programme, Paketaktionen, Abbau aller Runtime-Ressourcen vor CE-Sperre und der vollständige integrierte Ablauf bleiben offen. |
 

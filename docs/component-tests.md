@@ -1,5 +1,28 @@
 # Komponentenläufe in lokalem QEMU
 
+## Komponentenstand 4e53dc18 auf dem verwalteten Testimage a8d38b97
+
+Am 29. September 2026 bestehen **113/113 native Tests** aus
+`4e53dc180da1129a06b7b670f364c5ab0cf90e72`, ohne Filter oder übersprungene
+Tests. Komponentenlauf `identity-20260929T005029Z-4e53dc18-mPGAUM` ist
+erfolgreich kompiliert; sein
+[Release](https://github.com/simgero/AegisOS/releases/tag/components-20260929T005737Z-4e53dc18-4e53dc18-3W0vyB)
+wurde über GitHub mit geprüften Artefakten übertragen. Das lokale Profil
+`runtime-a8d38b97` bootet mit authentifiziertem ADB, FBE, Verity und SELinux
+Enforcing. Es enthält keine persönlichen Benutzer; sein produktiver Broker
+ist nach dem bereits dokumentierten Startabbruch gestoppt.
+
+Die Tests prüfen weiterhin Entwicklungs-root-Fixtures mit eigenen temporären
+Ressourcen. Sie bestätigen auch nach Ergänzung der phasenbezogenen Diagnose
+das bisherige native Verhalten, nicht den Start des echten Dienstes, die
+Helferprüfung im Broker oder eine persönliche GNU-Sitzung. Das unveränderte
+Image enthält die neuen Broker-Diagnosen noch nicht. Java wurde in diesem
+Lauf nicht erneut getestet.
+
+- Rohbelege: `out/components-4e53dc18/native-tests/`.
+- Native-Log SHA-256: `56254b4ff8ae0b836193567f908409a7a267b4e4fabac352125822fe352c949f`.
+- Gastbeleg SHA-256: `38be475a91518d789ae8308dd1da275899c73b03d05df4898a265b22ea678051`.
+
 ## Komponentenstand a8d38b97 auf dem geprüften Image 2a766ab5
 
 Am 29. September 2026 bestehen **113/113 native Tests**, ohne Filter oder

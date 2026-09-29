@@ -13,8 +13,10 @@ dieser bricht jedoch vor dem Anlegen seiner Zustandsdatei mit Exitcode 1 ab.
 Ein spezifischer AVC fehlt; seine bisherigen stderr-Diagnosen werden von
 Init verworfen. Damit ist weder ein produktiver Runtime-Start noch dessen
 Isolation nachgewiesen. Feste Android-Logmeldungen und die Korrektur der
-beobachteten Helfer-Eigentümerschaft `root:shell` sind als nächster Quellstand
-vorbereitet, noch nicht kompiliert oder im produktiven Dienst geprüft.
+beobachteten Helfer-Eigentümerschaft `root:shell` sind als Quellstand `4e53dc18`
+kompiliert. Seine 113 nativen root-Fixture-Tests bestehen im unveränderten
+Testimage `a8d38b97`; der neue produktive Dienst und seine tatsächlichen
+Diagnosemeldungen sind damit weiterhin nicht geprüft.
 
 Der Teststand aktiviert `managed-v1` nur mit den explizit geprüften
 Basis- und Kernel-Eingaben des Build-Workers. Eine normale Quellregistrierung
