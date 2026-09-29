@@ -1,5 +1,10 @@
 # Terminalübergabe aus einem persönlichen Runtime-Kontext
 
+Die Sitzungskontrolle prüft beim periodischen Aufräumen zusätzlich die
+ursprüngliche Kernel-Prozessidentität. Ein fremder, länger lebender Binder
+als Lifetime-Objekt kann dadurch kein Terminal eines beendeten CLI-Prozesses
+offen halten. Ein lokaler Gerätetest dieses öffentlichen Pfads steht noch aus.
+
 ## Öffentliche CLI-Anbindung in Arbeit
 
 Die neue Quellfassung ergänzt `aegis linux shell` und einen pro CLI-Prozess,

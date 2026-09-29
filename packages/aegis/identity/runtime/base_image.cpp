@@ -4,6 +4,7 @@
 #include "base_image.h"
 #include <android-base/unique_fd.h>
 #include <json/json.h>
+#include <log/log.h>
 #include <openssl/sha.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -22,6 +23,7 @@
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
 #include <sys/xattr.h>
+#include <time.h>
 #include <unistd.h>
 #include <algorithm>
 #include <array>
@@ -36,6 +38,42 @@ constexpr size_t kMaxReceipt = 16384;
 constexpr char kImageLabel[] = "u:object_r:aegis_runtime_image_file:s0";
 constexpr char kBaseLabel[] = "u:object_r:aegis_runtime_base_file:s0";
 int fail(int error) { errno = error; return -1; }
+
+// Fixed startup phases only: never log credentials, paths supplied by a caller,
+// image contents or protocol payloads. Preserve the original failure errno.
+struct FailureTrace {
+    const char* phase;
+    bool complete = false;
+    ~FailureTrace() {
+        int saved = errno;
+        if (!complete) __android_log_print(ANDROID_LOG_ERROR, "AegisRuntimeBase",
+                "AEGIS_RUNTIME_BASE_FAILED: %s errno=%d", phase, saved);
+        errno = saved;
+    }
+};
+
+int64_t monotonic_ns() {
+    timespec now;
+    if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) return -1;
+    return static_cast<int64_t>(now.tv_sec) * 1000000000 + now.tv_nsec;
+}
+
+int open_loop_until(const char* path, int64_t deadline) {
+    // LOOP_CTL_GET_FREE can allocate a kernel device before ueventd has created
+    // its node. Wait only for that exact node, within one shared deadline for
+    // all allocation attempts. Never create a node or accept a fallback path.
+    for (;;) {
+        int64_t now = monotonic_ns();
+        if (now < 0) return -1;
+        if (now >= deadline) return fail(ETIMEDOUT);
+        int fd = open(path, O_RDWR | O_CLOEXEC | O_NOFOLLOW);
+        if (fd >= 0) return fd;
+        if (errno != ENOENT && errno != EINTR) return -1;
+        timespec pause = {.tv_sec = 0, .tv_nsec = static_cast<long>(
+                std::min<int64_t>(10000000, deadline - now))};
+        if (nanosleep(&pause, nullptr) < 0 && errno != EINTR) return -1;
+    }
+}
 
 bool bounded_nesting(const char* text, size_t length) {
     unsigned depth = 0;
@@ -117,20 +155,28 @@ int verified_image(int fd, const aegis_base_receipt& receipt, struct stat* outpu
 }
 
 int loop_for_image(int image, const struct stat& backing) {
+    FailureTrace trace{"open loop control"};
     unique_fd control(open("/dev/loop-control", O_RDWR | O_CLOEXEC | O_NOFOLLOW));
     if (control.get() < 0) return -1;
+    trace.phase = "validate loop control";
     struct stat st;
     if (fstat(control.get(), &st) < 0) return -1;
     if (!S_ISCHR(st.st_mode) || major(st.st_rdev) != 10 || minor(st.st_rdev) != 237
             || st.st_uid || (st.st_mode & 0022)) return fail(EPERM);
+    int64_t now = monotonic_ns();
+    if (now < 0) return -1;
+    const int64_t deadline = now + 2000000000;
     for (unsigned attempt = 0; attempt < 16; ++attempt) {
+        trace.phase = "allocate loop device";
         int number = ioctl(control.get(), LOOP_CTL_GET_FREE);
         if (number < 0) return -1;
         if (number > 1048575) return fail(EOVERFLOW);
         char path[64];
         snprintf(path, sizeof(path), "/dev/block/loop%d", number);
-        unique_fd loop(open(path, O_RDWR | O_CLOEXEC | O_NOFOLLOW));
+        trace.phase = "wait for loop node";
+        unique_fd loop(open_loop_until(path, deadline));
         if (loop.get() < 0) return -1;
+        trace.phase = "validate loop node";
         if (fstat(loop.get(), &st) < 0) return -1;
         if (!S_ISBLK(st.st_mode) || major(st.st_rdev) != 7
                 || minor(st.st_rdev) != static_cast<unsigned>(number)
@@ -138,6 +184,7 @@ int loop_for_image(int image, const struct stat& backing) {
         loop_config config = {};
         config.fd = static_cast<uint32_t>(image);
         config.info.lo_flags = LO_FLAGS_READ_ONLY | LO_FLAGS_AUTOCLEAR;
+        trace.phase = "configure loop image";
         if (ioctl(loop.get(), LOOP_CONFIGURE, &config) < 0) {
             if (errno == EBUSY) continue; // Never clear or adopt someone else's device.
             return -1;
@@ -145,6 +192,7 @@ int loop_for_image(int image, const struct stat& backing) {
         loop_info64 actual = {};
         uint64_t bytes = 0;
         int readonly = 0;
+        trace.phase = "verify configured loop image";
         if (ioctl(loop.get(), LOOP_GET_STATUS64, &actual) < 0
                 || ioctl(loop.get(), BLKGETSIZE64, &bytes) < 0
                 || ioctl(loop.get(), BLKROGET, &readonly) < 0) return -1;
@@ -154,6 +202,7 @@ int loop_for_image(int image, const struct stat& backing) {
                 || actual.lo_flags != (LO_FLAGS_READ_ONLY | LO_FLAGS_AUTOCLEAR)
                 || actual.lo_encrypt_type || actual.lo_encrypt_key_size
                 || bytes != kImageBytes || readonly != 1) return fail(EPROTO);
+        trace.complete = true;
         return loop.release();
     }
     return fail(EBUSY);
@@ -207,12 +256,15 @@ int aegis_base_parse_receipt(const char* json, size_t length, aegis_base_receipt
 }
 
 int aegis_base_open(void) {
+    FailureTrace trace{"initial credentials"};
     if (getuid() || geteuid() || getgid() || getegid()) return fail(EPERM);
+    trace.phase = "open immutable system_ext";
     unique_fd anchor(open("/system_ext", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
     if (anchor.get() < 0) return -1;
     struct stat st;
     struct statfs fs;
     struct statvfs flags;
+    trace.phase = "validate immutable system_ext";
     if (fstat(anchor.get(), &st) < 0 || fstatfs(anchor.get(), &fs) < 0
             || fstatvfs(anchor.get(), &flags) < 0) return -1;
     // This target deliberately supports only the product's readonly EROFS
@@ -220,9 +272,13 @@ int aegis_base_open(void) {
     // boundary; a self-consistent digest in a writable manifest is not enough.
     if (st.st_uid || st.st_gid || (st.st_mode & 0022) || fs.f_type != EROFS_SUPER_MAGIC_V1
             || !(flags.f_flag & ST_RDONLY)) return fail(EPERM);
+    trace.phase = "open verified receipt";
     unique_fd receipt(system_file(anchor.get(), "etc/aegis/runtime/generation.json", st));
+    if (receipt.get() < 0) return -1;
+    trace.phase = "open verified base image";
     unique_fd image(system_file(anchor.get(), "etc/aegis/runtime/base.ext4", st));
-    if (receipt.get() < 0 || image.get() < 0) return -1;
+    if (image.get() < 0) return -1;
+    trace.phase = "read receipt";
     struct stat receipt_stat;
     if (fstat(receipt.get(), &receipt_stat) < 0) return -1;
     if (receipt_stat.st_size <= 0 || receipt_stat.st_size > static_cast<off_t>(kMaxReceipt))
@@ -237,24 +293,32 @@ int aegis_base_open(void) {
     }
     aegis_base_receipt checked = {};
     struct stat backing;
-    if (aegis_base_parse_receipt(json.data(), used, &checked) < 0
-            || verified_image(image.get(), checked, &backing) < 0) return -1;
+    trace.phase = "parse receipt";
+    if (aegis_base_parse_receipt(json.data(), used, &checked) < 0) return -1;
+    trace.phase = "verify base bytes";
+    if (verified_image(image.get(), checked, &backing) < 0) return -1;
+    trace.phase = "readonly loop image";
     unique_fd loop(loop_for_image(image.get(), backing));
     if (loop.get() < 0) return -1;
+    trace.phase = "open ext4 context";
     unique_fd context(static_cast<int>(syscall(SYS_fsopen, "ext4", FSOPEN_CLOEXEC)));
     if (context.get() < 0) return -1;
     char source[64];
     snprintf(source, sizeof(source), "/proc/self/fd/%d", loop.get());
+    trace.phase = "configure readonly ext4 context";
     if (syscall(SYS_fsconfig, context.get(), FSCONFIG_SET_STRING, "source", source, 0) < 0
             || syscall(SYS_fsconfig, context.get(), FSCONFIG_SET_FLAG, "ro", nullptr, 0) < 0
             || syscall(SYS_fsconfig, context.get(), FSCONFIG_SET_FLAG, "noload", nullptr, 0) < 0
-            || syscall(SYS_fsconfig, context.get(), FSCONFIG_SET_STRING, "context", kBaseLabel, 0) < 0
-            || syscall(SYS_fsconfig, context.get(), FSCONFIG_CMD_CREATE, nullptr, nullptr, 0) < 0)
+            || syscall(SYS_fsconfig, context.get(), FSCONFIG_SET_STRING, "context", kBaseLabel, 0) < 0)
         return -1;
+    trace.phase = "create readonly ext4 superblock";
+    if (syscall(SYS_fsconfig, context.get(), FSCONFIG_CMD_CREATE, nullptr, nullptr, 0) < 0) return -1;
+    trace.phase = "detach readonly base mount";
     unique_fd mount(static_cast<int>(syscall(SYS_fsmount, context.get(), FSMOUNT_CLOEXEC,
         MOUNT_ATTR_RDONLY | MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV | MOUNT_ATTR_NOEXEC)));
     if (mount.get() < 0) return -1;
     struct stat loop_stat;
+    trace.phase = "validate detached base mount";
     if (fstat(mount.get(), &st) < 0 || fstat(loop.get(), &loop_stat) < 0
             || fstatfs(mount.get(), &fs) < 0 || fstatvfs(mount.get(), &flags) < 0) return -1;
     constexpr unsigned long required = ST_RDONLY | ST_NOSUID | ST_NODEV | ST_NOEXEC;
@@ -263,7 +327,9 @@ int aegis_base_open(void) {
             || (flags.f_flag & required) != required) return fail(EPROTO);
     // fsmount returns an O_PATH fd. Open the same root readably for xattrs and
     // callers; its path reference keeps this detached mount alive.
+    trace.phase = "open labeled detached root";
     unique_fd root(openat(mount.get(), ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
     if (root.get() < 0 || label(root.get(), kBaseLabel) < 0) return -1;
+    trace.complete = true;
     return root.release();
 }

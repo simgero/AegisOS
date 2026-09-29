@@ -207,6 +207,12 @@ public final class AegisIdentityService extends SystemService {
     }
 
     private void reapTerminals() {
+        for (Session session : sessions) {
+            // A caller-supplied lifetime Binder is not proof that the original
+            // kernel process still exists (it could refer to another process).
+            try { session.owner.requireAlive(); }
+            catch (SecurityException gone) { session.dispose(); }
+        }
         for (Session.PersonalTerminal terminal : terminals) {
             try {
                 if (!terminal.needsResult()) continue;

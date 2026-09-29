@@ -1,5 +1,29 @@
 # SELinux- und Init-Integration der Runtime
 
+## Aktueller Bootbefund: immutable Basis
+
+Das separat gepaarte Image `030dd177` bootet vollständig mit Enforcing,
+FBE und authentifiziertem ADB. Die vorherige `rootfs:dir mounton`-Korrektur
+lässt den Broker nun bis zur unveränderlichen Linux-Basis gelangen.
+Beim ersten Start meldet er dort `errno=2`. `/dev/block/loop94` ist danach
+vorhanden und unbenutzt. Ein einmaliger, kontrollierter Init-Neustart im
+Gast ohne persönliche Benutzer oder belegte Runtime-Kontexte gelangt bis
+zum ext4-Superblock, scheitert aber mit `errno=5`. Der Kernel meldet dazu:
+`kernel -> aegis_runtime_broker:fd use` verweigert beim Lesen von `base.ext4`.
+Belege: `out/full-build-030dd177/boot-1/boot-health.json` und
+`controlled-start.log`. Keine GNU-Sitzung wurde gestartet.
+
+Die nächste Quellfassung wartet höchstens zwei Sekunden insgesamt auf die
+exakte, vom Kernel zugewiesene Loop-Gerätedatei. Das berücksichtigt ueventds
+asynchrone Erzeugung, wie auch AOSPs `apexd_loop.cpp`. Andere Öffnungsfehler
+bleiben Fehler; es gibt weder selbst erzeugte Geräte noch Ersatzpfade.
+`LOOP_CONFIGURE`, Geräteidentität, Eigentümer, Readonly-/Autoclear-Flags und
+unveränderliche Image-Prüfung bleiben zwingend. Feste Diagnosephasen erhalten
+den ursprünglichen Fehlercode. Entsprechend AOSPs Kernel-/APEX-Regel wird
+nur dem Kernel die Benutzung der Broker-Deskriptoren und das Lesen des eigenen
+Image-Dateityps erlaubt. Die Korrektur ist noch nicht im Produktionspfad
+eines neuen Images geprüft; Kompilierung und kalter Gaststart stehen aus.
+
 Stand 29. September 2026: Die Policy und Komponenten von
 `6633a0862796d70304456c363158d133e9711513` wurden auf `aegis-build` erfolgreich
 kompiliert, einschließlich Neverallow-, API-Freeze-, Treble-, Kontext- und

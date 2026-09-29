@@ -106,6 +106,11 @@ allow aegis_runtime_broker aegis_runtime_cgroup:file rw_file_perms;
 
 # Startup validation of fixed immutable EROFS files and a readonly loop mount.
 r_dir_file(aegis_runtime_broker, aegis_runtime_image_file)
+# The loop driver's worker reads the broker-opened immutable backing file.
+# Same descriptor-use pattern as AOSP's kernel/apexd loopback integration;
+# no new write access, path traversal or permission for ordinary GNU programs.
+allow kernel aegis_runtime_broker:fd use;
+allow kernel aegis_runtime_image_file:file read;
 allow aegis_runtime_broker { aegis_runtime_setup_exec aegis_runtime_init_exec }:file r_file_perms;
 allow aegis_runtime_broker block_device:dir { getattr search };
 allow aegis_runtime_broker loop_control_device:chr_file rw_file_perms;

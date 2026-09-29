@@ -157,7 +157,7 @@ cc_library_static {
     static_libs: ["libbase", "libjsoncpp"],
     // Android intentionally provides libcrypto only as a shared FIPS module.
     // Keep that implementation; do not relax the static variant's visibility.
-    shared_libs: ["libcrypto"],
+    shared_libs: ["libcrypto", "liblog"],
     export_include_dirs: ["runtime"],
 }
 
