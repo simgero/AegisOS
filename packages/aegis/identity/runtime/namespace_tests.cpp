@@ -54,6 +54,17 @@ class RuntimeNamespace : public ::testing::Test {
         action.sa_handler = SIG_DFL;
         sigemptyset(&action.sa_mask);
         ASSERT_EQ(0, sigaction(SIGCHLD, &action, nullptr));
+        // Match production's explicit trusted startup handoff. Only this
+        // developer-root fixture opens /proc/1; the daemon inherits from init.
+        int user_ns = open("/proc/1/ns/user", O_RDONLY | O_CLOEXEC);
+        int pid_ns = open("/proc/1/ns/pid", O_RDONLY | O_CLOEXEC);
+        int mount_ns = open("/proc/1/ns/mnt", O_RDONLY | O_CLOEXEC);
+        int pinned = aegis_namespace_pin_host(user_ns, pid_ns, mount_ns);
+        int saved = errno;
+        if (user_ns >= 0) close(user_ns);
+        if (pid_ns >= 0) close(pid_ns);
+        if (mount_ns >= 0) close(mount_ns);
+        ASSERT_EQ(0, pinned) << strerror(saved);
         ASSERT_EQ(0, aegis_namespace_private_mounts()) << strerror(errno);
         char path[PATH_MAX];
         ssize_t n = readlink("/proc/self/exe", path, sizeof(path) - 1);
@@ -234,6 +245,29 @@ class RuntimeNamespace : public ::testing::Test {
     }
 };
 
+TEST_F(RuntimeNamespace, HostHandoffRejectsWrongHandlesWithoutLeakingOrReplacingPins) {
+    int user_ns = open("/proc/1/ns/user", O_RDONLY | O_CLOEXEC);
+    int pid_ns = open("/proc/1/ns/pid", O_RDONLY | O_CLOEXEC);
+    int mount_ns = open("/proc/1/ns/mnt", O_RDONLY | O_CLOEXEC);
+    int regular = open("/dev/null", O_RDONLY | O_CLOEXEC);
+    int changed = open("/proc/self/ns/mnt", O_RDONLY | O_CLOEXEC);
+    ASSERT_GE(user_ns, 0); ASSERT_GE(pid_ns, 0); ASSERT_GE(mount_ns, 0);
+    ASSERT_GE(regular, 0); ASSERT_GE(changed, 0);
+    int before = descriptors();
+    for (unsigned i = 0; i < 8; i++) {
+        EXPECT_EQ(-1, aegis_namespace_pin_host(-1, pid_ns, mount_ns));
+        EXPECT_EQ(-1, aegis_namespace_pin_host(regular, pid_ns, mount_ns));
+        EXPECT_EQ(-1, aegis_namespace_pin_host(pid_ns, user_ns, mount_ns));
+        EXPECT_EQ(-1, aegis_namespace_pin_host(user_ns, user_ns, mount_ns));
+        EXPECT_EQ(-1, aegis_namespace_pin_host(user_ns, pid_ns, changed));
+        EXPECT_EQ(0, aegis_namespace_pin_host(user_ns, pid_ns, mount_ns));
+        EXPECT_EQ(before, descriptors());
+        EXPECT_EQ(0, aegis_namespace_check_broker());
+    }
+    close(user_ns); close(pid_ns); close(mount_ns); close(regular); close(changed);
+    EXPECT_EQ(0, aegis_namespace_check_broker());
+}
+
 TEST_F(RuntimeNamespace, BrokerOwnsAPrivateMountNamespaceAndRefusesOtherNamespaces) {
     struct stat self, init;
     ASSERT_EQ(0, stat("/proc/self/ns/mnt", &self));
@@ -338,7 +372,15 @@ TEST_F(RuntimeNamespace, InheritedObserverCannotReleaseOrSignalAnotherContext) {
     pid_t observer = fork();
     ASSERT_GE(observer, 0);
     if (observer == 0) {
-        bool ok = aegis_namespace_private_mounts() == -1 && errno == EPERM;
+        int user_ns = open("/proc/1/ns/user", O_RDONLY | O_CLOEXEC);
+        int pid_ns = open("/proc/1/ns/pid", O_RDONLY | O_CLOEXEC);
+        int mount_ns = open("/proc/1/ns/mnt", O_RDONLY | O_CLOEXEC);
+        bool ok = user_ns >= 0 && pid_ns >= 0 && mount_ns >= 0;
+        ok &= aegis_namespace_pin_host(user_ns, pid_ns, mount_ns) == -1 && errno == EPERM;
+        if (user_ns >= 0) close(user_ns);
+        if (pid_ns >= 0) close(pid_ns);
+        if (mount_ns >= 0) close(mount_ns);
+        ok &= aegis_namespace_private_mounts() == -1 && errno == EPERM;
         ok &= aegis_namespace_resume(contexts[0]) == -1 && errno == EPERM;
         ok &= aegis_namespace_prepare(contexts[0]) == -1 && errno == EPERM;
         ok &= aegis_namespace_base_mount(contexts[0], -1) == -1 && errno == EPERM;

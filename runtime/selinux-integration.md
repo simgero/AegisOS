@@ -73,3 +73,33 @@ Der aktivierte Teststand wird erst nach Policy-Kompilierung in einem eigenen
 neuen QEMU-Profil geprüft. Noch erforderlich sind die tatsächlichen Domänenübergänge,
 Mount-/CE-/PTY-Zugriffe und Fehlerfälle einschließlich Benutzerisolation und
 vollständigem Abbau vor CE-Sperre. Ein erfolgreicher Compiler allein genügt nicht.
+# Init-Namespace-Übergabe nach dem verwalteten Bootversuch
+
+Das vollständige Image `4e53dc18` bootet im lokalen QEMU mit Enforcing und
+Verity. Der Init-gestartete Broker meldet im durchgehenden seriellen Log
+`AEGIS_RUNTIME_NAMESPACE_FAILED: open init proc directory errno=2`.
+Der Gast verwendet `/proc` mit `hidepid=invisible`. Die bisherigen Root-
+Gerätetests im Entwicklungsbereich konnten PID 1 lesen und deckten diese
+Produktionsgrenze nicht ab.
+
+Die vorbereitete Korrektur verwendet drei feste `file /proc/1/ns/... r`-
+Einträge im Init-Dienst. Der gepinnte AOSP-Init öffnet diese vor dem Fork,
+publiziert sie im Kind und wechselt anschließend zum Dienstprogramm.
+Der Broker akzeptiert ausschließlich die bekannten Deskriptoreinträge aus
+diesem Startpfad, prüft NSFS, Zugriffsmodus, Namespace-Art, eigene Namespace-
+Identität und die bisherigen Root-/Mapping-/Einzelthreadbedingungen. Er hält
+CLOEXEC-Kopien; ein Fork oder der Austausch einer einmal gebundenen Namespace-
+Identität kann keine neue Besitzerberechtigung erzeugen. Die private Mount-
+Namespace bleibt danach an ihren ursprünglichen Prozess gebunden.
+
+Ein NSFS-eigenes Genfs-Label ersetzt hier das zuvor beobachtete `unlabeled`
+für Kernel-Namespace-Objekte. Die Laufzeit erhält keine Leserechte auf
+allgemeine unbeschriftete Dateien. Init und Vold behalten ihren vorhandenen
+lesenden Namespace-Zugriff; die Runtime erhält nur die notwendigen Lese-
+und Typ-/Eigentümerabfragen. Ptrace auf Init, Readproc-Gruppenzugehörigkeit,
+Schreibzugriff auf Namespace-Objekte oder Abschalten von SELinux sind kein
+Bestandteil der Korrektur. Die bisherigen ungenutzten PID-1-Procrechte des
+Brokers entfallen.
+
+Kompilierung, vollständiger Image-Start mit der neuen Policy, persönliche
+Kontexte und GNU-Ausführung stehen für diese Korrektur noch aus.

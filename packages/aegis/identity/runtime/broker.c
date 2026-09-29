@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
+#include <limits.h>
 #include <linux/magic.h>
 #include <linux/openat2.h>
 #include <poll.h>
@@ -39,6 +40,40 @@ static void report_failure(const char *phase, int error) {
     __android_log_print(ANDROID_LOG_ERROR, "AegisRuntimeBroker",
                         "AEGIS_RUNTIME_BROKER_FAILED: %s errno=%d", phase, error);
     errno = error;
+}
+static int inherit_host_namespaces(void) {
+    /* Init's Descriptor::Publish sanitizes each non-alphanumeric byte to '_'.
+     * android_get_control_file uses realpath, which does not describe NSFS
+     * magic links. Parse only these fixed init entries, then validate the
+     * actual descriptors in pin_host. No caller-supplied paths or handles. */
+    static const char *const names[] = {
+        "ANDROID_FILE__proc_1_ns_user", "ANDROID_FILE__proc_1_ns_pid",
+        "ANDROID_FILE__proc_1_ns_mnt",
+    };
+    int descriptors[] = {-1, -1, -1};
+    int result = -1;
+    for (unsigned i = 0; i < 3; i++) {
+        const char *text = getenv(names[i]);
+        if (!text || !*text || strlen(text) > 10) { errno = EBADF; goto done; }
+        for (const char *p = text; *p; p++)
+            if (*p < '0' || *p > '9') { errno = EBADF; goto done; }
+        char *end;
+        errno = 0;
+        long value = strtol(text, &end, 10);
+        if (errno || *end || value < 3 || value > INT_MAX) { errno = EBADF; goto done; }
+        descriptors[i] = (int)value;
+        for (unsigned j = 0; j < i; j++)
+            if (descriptors[i] == descriptors[j]) { descriptors[i] = -1; errno = EBADF; goto done; }
+    }
+    if (getppid() != 1) { errno = EPERM; goto done; }
+    result = aegis_namespace_pin_host(descriptors[0], descriptors[1], descriptors[2]);
+done:;
+    int saved = errno;
+    for (unsigned i = 0; i < 3; i++) {
+        if (descriptors[i] >= 0) close(descriptors[i]);
+        unsetenv(names[i]);
+    }
+    return result < 0 ? fail(saved) : 0;
 }
 static uint64_t now_ns(void) {
     struct timespec now;
@@ -262,6 +297,10 @@ int main(int argc, char **argv) {
     sigemptyset(&action.sa_mask);
     if (sigaction(SIGCHLD, &action, NULL) < 0 || setgroups(0, NULL) < 0) {
         report_failure("initial process state", errno);
+        return 1;
+    }
+    if (inherit_host_namespaces() < 0) {
+        report_failure("init namespace handoff", errno);
         return 1;
     }
     if (aegis_namespace_check_broker() < 0) {

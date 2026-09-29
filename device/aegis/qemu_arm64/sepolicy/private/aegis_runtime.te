@@ -21,6 +21,21 @@ type aegis_runtime_devices_file, file_type;
 type aegis_runtime_scratch_file, file_type, coredomain_socket;
 type aegis_runtime_cgroup, fs_type;
 type aegis_runtime_socket, file_type, coredomain_socket;
+type aegis_runtime_namespace_file, fs_type;
+
+# Give NSFS its own label instead of granting the new owner access to generic
+# unlabeled files. Preserve the existing AOSP domains' already-authorized
+# read access to these formerly-unlabeled objects, without adding subjects.
+allow { init vold system_server installd } aegis_runtime_namespace_file:file { getattr open read };
+allow dex2oat aegis_runtime_namespace_file:file read;
+allow { aegis_runtime_broker aegis_runtime_setup aegis_runtime_init }
+    aegis_runtime_namespace_file:file { getattr open read ioctl };
+# NS_GET_NSTYPE; helpers additionally verify the owning user namespace.
+allowxperm aegis_runtime_broker aegis_runtime_namespace_file:file ioctl { 0xb703 };
+allowxperm { aegis_runtime_setup aegis_runtime_init }
+    aegis_runtime_namespace_file:file ioctl { 0xb701 0xb703 };
+allow aegis_runtime_program aegis_runtime_namespace_file:file getattr;
+neverallow aegis_runtime_domain aegis_runtime_namespace_file:file { write append map execute };
 
 # Private attributes are not general exceptions other domains can reuse.
 # All domains receive self:fork from AOSP; these guards close membership.
@@ -127,9 +142,8 @@ allow aegis_runtime_domain self:file r_file_perms;
 allow aegis_runtime_domain self:lnk_file r_file_perms;
 allow aegis_runtime_mount_domain selinuxfs:file r_file_perms;
 allow aegis_runtime_broker self:file { write ioctl };
-allow aegis_runtime_broker init:dir { getattr search };
-allow aegis_runtime_broker init:lnk_file r_file_perms;
-allow aegis_runtime_broker init:file read;
+# No /proc/1 lookup, ptrace permission or readproc group: initial namespace
+# handles come only from init's fixed service-file descriptors.
 allow aegis_runtime_broker self:user_namespace create;
 allow aegis_runtime_broker self:cap_userns { setuid setgid sys_admin };
 

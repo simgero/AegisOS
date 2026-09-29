@@ -137,6 +137,28 @@ sind damit noch nicht ausgeführt. Der vollständige Image-Build
 steht aus.
 Bootbelege: `out/full-build-a8d38b97/boot-1/boot-health.json`.
 
+Vollbuild `aosp-20260929T010358Z-4e53dc18-1c116294` ist inzwischen mit
+`UPLOAD_VERIFIED` abgeschlossen und über GitHub verifiziert empfangen.
+Das separate Profil `runtime-4e53dc18` bootet mit FBE, authentifiziertem ADB,
+SELinux Enforcing und tatsächlichen Verity-Tabellen. Die neue Bootdiagnose
+belegt den frühen Fehler: `open init proc directory errno=2`. Androids
+`/proc` ist mit `hidepid=invisible` eingehängt; der Broker erhält bewusst
+weder die Readproc-Gruppe noch Ptrace-Rechte. Der Dienst bleibt gestoppt.
+Beleg: `out/full-build-4e53dc18/boot-1/boot-health.json` sowie das durchgehende
+serielle Log. Das vorherige A8D-Testprofil wurde sauber und gepaart gestoppt.
+
+Die folgende Korrektur lässt Init seine drei festen User-/PID-/Mount-
+Namespace-Deskriptoren übergeben. Der Broker übernimmt geprüfte eigene
+Kopien, vergleicht Namespace-Art und Identität und bindet sie an seinen
+ursprünglichen Prozess. Die Prüfung öffnet `/proc/1` nicht mehr. NSFS bekommt
+ein eigenes SELinux-Label mit den benötigten Lese-/Metadatenrechten; allgemeiner
+Zugriff auf unbeschriftete Dateien wird nicht freigegeben. Init und Vold
+behalten das Lesen dieser Namespace-Handles. Ein neuer nativer Test prüft
+falsche Handles, unveränderliche Bindung und Deskriptorlecks; der vorhandene
+Fork-Test prüft nun auch die Abweisung einer erneuten Host-Bindung.
+**Diese Korrektur ist noch nicht kompiliert oder im produktiven Dienst geprüft.**
+Eine laufende GNU-Sitzung ist weiterhin nicht nachgewiesen.
+
 Das bisherige Profil wurde nach rund 73 Minuten geordnet heruntergefahren;
 Android meldet `Power down`, der KeyMint-Helfer bestätigt seinen sauberen
 Abschluss. Das durchgehend aufgezeichnete Log enthält in diesem begrenzten

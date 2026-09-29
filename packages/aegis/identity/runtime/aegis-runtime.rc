@@ -13,6 +13,11 @@ service aegis-runtime-broker /system_ext/bin/aegis-runtime-broker
     # Init uses the service domain for the socket's peer SID. The filesystem
     # endpoint independently gets aegis_runtime_socket from file_contexts.
     socket aegis_runtime seqpacket 0600 system system
+    # Fixed init-owned handles, opened before fork/exec. The broker compares
+    # their kinds and identity to its own namespaces before accepting work.
+    file /proc/1/ns/user r
+    file /proc/1/ns/pid r
+    file /proc/1/ns/mnt r
     disabled
     # A failed owner stays failed. No restart can imply successful CE cleanup.
     oneshot

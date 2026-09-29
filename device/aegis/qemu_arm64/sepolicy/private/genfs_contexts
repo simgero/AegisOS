@@ -1,1 +1,3 @@
 genfscon cgroup2 /aegis-runtime u:object_r:aegis_runtime_cgroup:s0
+# Namespace handles are kernel NSFS objects, not arbitrary unlabeled files.
+genfscon nsfs / u:object_r:aegis_runtime_namespace_file:s0

@@ -8,6 +8,16 @@
 extern "C" {
 #endif
 
+/* Trusted startup handoff, never a client IPC endpoint. Init preopens its
+ * user/PID/mount namespace handles before starting the broker. Copy and pin
+ * these exact NSFS descriptors; reject wrong kinds, mismatched namespaces,
+ * inherited process ownership or later replacement. No /proc/1 access and no
+ * ptrace permission are needed. Caller retains its descriptors. Repeated
+ * calls are allowed only with the same namespaces in the original process.
+ * Must precede every other namespace entry point. Device fixtures explicitly
+ * supply host handles too; there is no automatic privileged fallback. */
+int aegis_namespace_pin_host(int user_ns, int pid_ns, int mount_ns);
+
 /* Fixed host-process prerequisites shared with the daemon's startup guard. */
 int aegis_namespace_check_broker(void);
 

@@ -56,6 +56,8 @@ struct aegis_namespace {
 static int broker_mounts = -1;
 static pid_t broker_mounts_owner;
 static unsigned live_contexts;
+static int host_namespaces[3] = {-1, -1, -1};
+static pid_t host_namespaces_owner;
 
 static int denied(void) { errno = EPERM; return -1; }
 static int report_namespace_failure(const char *phase) {
@@ -86,10 +88,10 @@ static int text_at(int directory, const char *name, char *text, size_t capacity)
     return 0;
 }
 
-static int same_namespace(int a, int b, const char *name) {
+static int same_namespace(int self, int pinned, const char *name) {
     struct stat first, second;
     /* Namespace entries are kernel magic links, intentionally followed. */
-    if (fstatat(a, name, &first, 0) < 0 || fstatat(b, name, &second, 0) < 0) return -1;
+    if (fstatat(self, name, &first, 0) < 0 || fstat(pinned, &second) < 0) return -1;
     return first.st_dev == second.st_dev && first.st_ino == second.st_ino ? 0 : denied();
 }
 
@@ -101,7 +103,10 @@ static int initial_map(int self, const char *name) {
             && inside == 0 && outside == 0 && count == UINT32_MAX ? 0 : denied();
 }
 
-static int check_broker(int proc, pid_t pid) {
+static int check_process(int proc, pid_t pid, const int pinned[3], pid_t pinned_owner) {
+    if (pinned_owner != pid || pinned[0] < 0 || pinned[1] < 0 || pinned[2] < 0) {
+        denied(); return report_namespace_failure("host namespace ownership");
+    }
     uid_t r, e, s;
     gid_t gr, ge, gs;
     struct statfs fs;
@@ -118,21 +123,18 @@ static int check_broker(int proc, pid_t pid) {
     snprintf(number, sizeof(number), "%ld", (long)pid);
     int self = openat(proc, number, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (self < 0) return report_namespace_failure("open own proc directory");
-    const char *phase = "open init proc directory";
-    int init = openat(proc, "1", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    const char *phase = "compare pinned user namespace";
     int result = -1;
-    if (init < 0) goto done;
-    phase = "compare init user namespace";
-    if (same_namespace(self, init, "ns/user") < 0) goto done;
-    phase = "compare init PID namespace";
-    if (same_namespace(self, init, "ns/pid") < 0) goto done;
+    if (same_namespace(self, pinned[0], "ns/user") < 0) goto done;
+    phase = "compare pinned PID namespace";
+    if (same_namespace(self, pinned[1], "ns/pid") < 0) goto done;
     phase = "initial UID map";
     if (initial_map(self, "uid_map") < 0) goto done;
     phase = "initial GID map";
     if (initial_map(self, "gid_map") < 0) goto done;
     phase = "compare mount namespace";
     if (broker_mounts == -1) {
-        if (same_namespace(self, init, "ns/mnt") < 0) goto done;
+        if (same_namespace(self, pinned[2], "ns/mnt") < 0) goto done;
     } else {
         struct stat expected, current;
         if (broker_mounts < 0 || broker_mounts_owner != pid) { denied(); goto done; }
@@ -158,10 +160,55 @@ static int check_broker(int proc, pid_t pid) {
     else result = 0;
 done:;
     int saved = errno;
-    if (init >= 0) close(init);
     close(self);
     errno = saved;
     if (result < 0) return report_namespace_failure(phase);
+    return result;
+}
+
+static int check_broker(int proc, pid_t pid) {
+    return check_process(proc, pid, host_namespaces, host_namespaces_owner);
+}
+
+int aegis_namespace_pin_host(int user_ns, int pid_ns, int mount_ns) {
+    pid_t pid = (pid_t)syscall(SYS_getpid);
+    if (host_namespaces_owner && host_namespaces_owner != pid) return denied();
+    const int inputs[] = {user_ns, pid_ns, mount_ns};
+    const int kinds[] = {CLONE_NEWUSER, CLONE_NEWPID, CLONE_NEWNS};
+    int copies[] = {-1, -1, -1};
+    int proc = -1, result = -1;
+    for (unsigned i = 0; i < 3; i++) {
+        if (inputs[i] < 3) { errno = EBADF; goto done; }
+        copies[i] = fcntl(inputs[i], F_DUPFD_CLOEXEC, 3);
+        if (copies[i] < 0) goto done;
+        struct statfs fs;
+        struct stat candidate, previous;
+        int flags = fcntl(copies[i], F_GETFL);
+        if (flags < 0 || fstatfs(copies[i], &fs) < 0 || fstat(copies[i], &candidate) < 0)
+            goto done;
+        if ((flags & (O_ACCMODE | O_PATH)) != O_RDONLY || fs.f_type != NSFS_MAGIC
+                || ioctl(copies[i], NS_GET_NSTYPE) != kinds[i]) { denied(); goto done; }
+        if (host_namespaces_owner) {
+            if (fstat(host_namespaces[i], &previous) < 0) goto done;
+            if (candidate.st_dev != previous.st_dev || candidate.st_ino != previous.st_ino) {
+                denied(); goto done;
+            }
+        }
+    }
+    proc = open("/proc", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    if (proc < 0 || check_process(proc, pid, copies, pid) < 0) goto done;
+    if (!host_namespaces_owner) {
+        for (unsigned i = 0; i < 3; i++) {
+            host_namespaces[i] = copies[i]; copies[i] = -1;
+        }
+        host_namespaces_owner = pid;
+    }
+    result = 0;
+done:;
+    int saved = errno;
+    if (proc >= 0) close(proc);
+    for (unsigned i = 0; i < 3; i++) if (copies[i] >= 0) close(copies[i]);
+    errno = saved;
     return result;
 }
 
