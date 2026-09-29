@@ -1,5 +1,35 @@
 # Komponentenläufe in lokalem QEMU
 
+## Init-Namespace-Übergabe: Komponenten 3b350e74 auf Image 4e53dc18
+
+Am 29. September 2026 bestehen **114/114 native Tests in 18 Suiten**, ohne
+Filter oder übersprungene Tests. Lauf `identity-20260929T014019Z-3b350e74-FRvHfp`
+kompiliert die Komponenten und die NSFS-Policy erfolgreich; der
+[Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260929T014924Z-3b350e74-3b350e74-d9cLz4)
+wurde mit geprüften Artefakten über GitHub übertragen. Die neue Prüfung
+weist falsche, vertauschte oder ausgetauschte Namespace-Handles zurück und
+prüft die Freigabe temporärer Deskriptoren. Die positive wiederholte Übergabe
+derselben Identität besteht; der vorhandene Fork-Test weist eine erneute
+Besitzbindung im Kind zurück.
+
+Der Test lief im separaten lokalen Profil `runtime-4e53dc18`, mit Bootabschluss,
+authentifiziertem ADB und SELinux Enforcing. Eigene Test-Cgroups bleiben nicht
+zurück. Es gibt nur Systembenutzer 0; der produktive Broker dieses alten
+Images ist weiter gestoppt. Entwicklungs-root-Fixtures beweisen weder die
+neue NSFS-Policy im Gast noch den Init-gestarteten Dienst oder eine GNU-Sitzung.
+Unveränderte Java-Tests wurden nicht erneut ausgeführt.
+
+- Rohbelege: `out/components-3b350e74/native-tests/`.
+- Native-Log SHA-256: `5a9a08697c5b62c027d776dbcee4261623d7b2132055c0628ae7f57b73f13412`.
+- Gastbeleg SHA-256: `3ac12c40d8263be284d58182c688263fa969cea44f32191a184388727dbbc419`.
+
+Der folgende Image-Commit `afaf6462` ändert gegenüber diesen getesteten
+Komponenten ausschließlich die benannte Cgroup-Type-Transition samt
+Dateisystemzuordnung und deren Dokumentation. Native Quellen und Tests sind
+identisch. Die zusätzliche Policy muss im vollständigen Build kompiliert
+und mit dem tatsächlichen Dienst geprüft werden; sie ist kein Ergebnis
+dieses Komponentenlaufs.
+
 ## Komponentenstand 4e53dc18 auf dem verwalteten Testimage a8d38b97
 
 Am 29. September 2026 bestehen **113/113 native Tests** aus

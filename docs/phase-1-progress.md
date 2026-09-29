@@ -156,8 +156,14 @@ Zugriff auf unbeschriftete Dateien wird nicht freigegeben. Init und Vold
 behalten das Lesen dieser Namespace-Handles. Ein neuer nativer Test prüft
 falsche Handles, unveränderliche Bindung und Deskriptorlecks; der vorhandene
 Fork-Test prüft nun auch die Abweisung einer erneuten Host-Bindung.
-**Diese Korrektur ist noch nicht kompiliert oder im produktiven Dienst geprüft.**
-Eine laufende GNU-Sitzung ist weiterhin nicht nachgewiesen.
+Diese Korrektur ist unter `3b350e74` einschließlich der Policy kompiliert.
+Im unveränderten lokalen Image `4e53dc18` bestehen **114/114 native Tests**;
+der neue produktive Dienststart ist dadurch noch nicht geprüft. Die folgende
+Policy-Ergänzung `afaf6462` benennt zusätzlich den privaten Cgroup-Typ bereits
+bei der Verzeichniserstellung. Nur Policy und Dokumentation unterscheiden sich
+von den getesteten Komponenten; die nativen Quellen bleiben identisch.
+Ein vollständiger Build dieses Standes ist für den tatsächlichen Startnachweis
+erforderlich. Eine laufende GNU-Sitzung ist weiterhin nicht nachgewiesen.
 
 Das bisherige Profil wurde nach rund 73 Minuten geordnet heruntergefahren;
 Android meldet `Power down`, der KeyMint-Helfer bestätigt seinen sauberen
