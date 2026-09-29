@@ -183,7 +183,7 @@ cc_binary {
 cc_binary {
     name: "aegis-runtime-namespace-probe",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/namespace_probe.c", "runtime/package_policy_probe.c", "runtime/sandbox.c"],
+    srcs: ["runtime/namespace_probe.c", "runtime/package_policy_probe.c", "runtime/package_apt_probe.c", "runtime/sandbox.c"],
     static_executable: true,
     stl: "none",
 }

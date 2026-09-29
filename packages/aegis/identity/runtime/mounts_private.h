@@ -5,6 +5,7 @@
 /* Implementation-only. namespace.c supplies its own checked user-namespace
  * reference and selected user. Neither value comes from a CLI/client fd. */
 int aegis_clone_base_mount(int source, int userns, uint32_t user_id);
+int aegis_map_candidate_mount(int tree, int userns, uint32_t user_id);
 
 /* Fresh bounded tmpfs containing only fixed standard character devices,
  * private-mount placeholders and fixed proc/PTY links. No host /dev bind. */

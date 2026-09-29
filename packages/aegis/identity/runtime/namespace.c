@@ -647,6 +647,13 @@ int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_sou
     return aegis_clone_base_mount(verified_source_fd, context->userns, context->user_id);
 }
 
+int aegis_namespace_map_candidate(struct aegis_namespace *context, int candidate) {
+    if (still_waiting(context) < 0) return -1;
+    if (context->mapped != 1 || context->userns < 0) { errno = EAGAIN; return -1; }
+    if (aegis_map_candidate_mount(candidate, context->userns, context->user_id) < 0) return -1;
+    return still_waiting(context);
+}
+
 int aegis_namespace_home_mount(struct aegis_namespace *context, int create) {
     if (still_waiting(context) < 0) return -1;
     if (context->mapped != 1 || context->userns < 0) { errno = EAGAIN; return -1; }

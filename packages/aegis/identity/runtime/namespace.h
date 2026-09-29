@@ -118,6 +118,20 @@ int aegis_namespace_prepare(struct aegis_namespace *context);
  */
 int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_source_fd);
 
+/* Internal package staging only, NOT authorization or a production worker.
+ * After prepare(), before resume(): map an exclusively owned detached writable
+ * ext4 fsmount to this exact child. The caller has already copied and validated
+ * an inactive candidate OUTSIDE the admission gate. Never pass the active base,
+ * a personal home, an attached mount or a client-supplied descriptor.
+ * Input remains owned by caller; this MUTATES that mount in place and makes it
+ * executable/nosuid/nodev. Kernel rejects attached/already-IDmapped mounts.
+ * On any error discard the candidate; no restoration/retry is promised.
+ * All image/loop/mount refs must be lifecycle-owned before gate release, and
+ * eventually closed before CE locks. Production CE/SELinux wiring is pending.
+ */
+int aegis_namespace_map_candidate(struct aegis_namespace *context, int candidate);
+
+
 /* After prepare(), before resume(): resolve this context's immutable id+serial
  * against AOSP's existing internal-volume CE roots, optionally provision its
  * private home, and return a detached writable/nosuid/nodev/private mount fd.

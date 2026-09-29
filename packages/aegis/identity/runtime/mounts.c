@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/mount.h>
+#include <linux/magic.h>
 #include <linux/nsfs.h>
 #include <linux/sched.h>
 #include <stdint.h>
@@ -75,4 +76,38 @@ fail:;
     close(tree);
     errno = saved;
     return -1;
+}
+
+/* Exclusively owned writable candidate, not a clone of the active generation.
+ * IDMAP is accepted by the kernel only on a detached, previously unmapped
+ * mount. Mutation is one-way: a caller discards its candidate on ANY error. */
+int aegis_map_candidate_mount(int tree, int userns, uint32_t user_id) {
+    if (user_id < 10 || user_id >= 21473) { errno = EINVAL; return -1; }
+    struct stat before, after;
+    struct statfs fs;
+    struct statvfs flags;
+    int open_flags = fcntl(tree, F_GETFL);
+    if (open_flags < 0 || fstat(tree, &before) < 0 || fstatfs(tree, &fs) < 0
+            || fstatvfs(tree, &flags) < 0) return -1;
+    if (!(open_flags & O_PATH) || before.st_mode != (S_IFDIR | 0755)
+            || before.st_uid || before.st_gid || fs.f_type != EXT4_SUPER_MAGIC
+            || (flags.f_flag & (ST_NOSUID | ST_NODEV | ST_NOEXEC))
+                != (ST_NOSUID | ST_NODEV | ST_NOEXEC) || (flags.f_flag & ST_RDONLY)
+            || ioctl(userns, NS_GET_NSTYPE) != CLONE_NEWUSER) return denied();
+    struct mount_attr attributes = {
+        .attr_set = MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV | MOUNT_ATTR_IDMAP,
+        .attr_clr = MOUNT_ATTR_NOEXEC,
+        .propagation = MS_PRIVATE,
+        .userns_fd = (uint64_t)userns,
+    };
+    if (syscall(SYS_mount_setattr, tree, "", AT_EMPTY_PATH, &attributes, sizeof(attributes)) < 0)
+        return -1;
+    if (fstat(tree, &after) < 0 || fstatvfs(tree, &flags) < 0) return -1;
+    uint32_t root_id = user_id * AEGIS_PER_USER_RANGE + aegis_uid_extents[0].app_id;
+    if (after.st_uid != root_id || after.st_gid != root_id
+            || after.st_mode != before.st_mode || after.st_dev != before.st_dev
+            || after.st_ino != before.st_ino
+            || (flags.f_flag & (ST_NOSUID | ST_NODEV)) != (ST_NOSUID | ST_NODEV)
+            || (flags.f_flag & (ST_NOEXEC | ST_RDONLY))) { errno = EPROTO; return -1; }
+    return 0;
 }

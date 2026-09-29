@@ -4,6 +4,8 @@
 #include "namespace.h"
 #include "namespace_probe.h"
 #include "package_policy_probe.h"
+#include "package_apt_probe.h"
+#include "package_apt_fixture.h"
 #include "sandbox.h"
 #include <linux/capability.h>
 #include <linux/securebits.h>
@@ -250,6 +252,64 @@ class RuntimeNamespace : public ::testing::Test {
         }
     }
 };
+
+TEST_F(RuntimeNamespace, OfflineAptInstallsUpgradesAndPurgesCompleteCandidate) {
+    AptImageFixture fixture;
+    source = fixture.create();
+    ASSERT_GE(source, 0) << strerror(errno);
+    ASSERT_EQ(0, create(0, 10));
+    EXPECT_EQ(-1, aegis_namespace_map_candidate(contexts[0], source));
+    EXPECT_EQ(EAGAIN, errno);
+    ASSERT_EQ(0, aegis_namespace_prepare(contexts[0]));
+    // Wrong object and a second mapping attempt cannot turn the ordinary base
+    // or an already mapped candidate into another writable worker root.
+    EXPECT_EQ(-1, aegis_namespace_map_candidate(contexts[0], setup));
+    ASSERT_EQ(0, aegis_namespace_map_candidate(contexts[0], source)) << strerror(errno);
+    EXPECT_EQ(-1, aegis_namespace_map_candidate(contexts[0], source));
+    EXPECT_EQ(EPERM, errno);
+    mounts[0] = aegis_namespace_devices_mount(contexts[0]);
+    ASSERT_GE(mounts[0], 0) << strerror(errno);
+    ASSERT_EQ(0, aegis_namespace_resume(contexts[0]));
+    aegis_namespace_probe namespace_report = {};
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(namespace_report)), report(0, &namespace_report));
+    check(namespace_report, 10);
+    ASSERT_EQ(1, send(peers[0], "A", 1, MSG_NOSIGNAL));
+    uint32_t magic = 0x41505446;
+    iovec io = {&magic, sizeof(magic)};
+    alignas(cmsghdr) char control[CMSG_SPACE(2 * sizeof(int))] = {};
+    msghdr msg = {};
+    msg.msg_iov = &io;msg.msg_iovlen = 1;msg.msg_control = control;msg.msg_controllen = sizeof(control);
+    cmsghdr* header = CMSG_FIRSTHDR(&msg);
+    header->cmsg_level = SOL_SOCKET;header->cmsg_type = SCM_RIGHTS;header->cmsg_len = CMSG_LEN(2 * sizeof(int));
+    int fds[] = {source, mounts[0]};memcpy(CMSG_DATA(header), fds, sizeof(fds));
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(magic)), sendmsg(peers[0], &msg, MSG_NOSIGNAL));
+    pollfd ready = {peers[0], POLLIN, 0};
+    ASSERT_EQ(1, poll(&ready, 1, 90000));
+    aegis_apt_probe_result result = {};
+    ssize_t got = recv(peers[0], &result, sizeof(result), MSG_DONTWAIT | MSG_TRUNC);
+    aegis_child_exit exited = {};
+    ASSERT_EQ(0, aegis_namespace_wait(contexts[0], 5000, &exited));
+    // The child is dead before reading any of its logs/results through our own
+    // still-owned mount. Failure evidence stays in this unique fixture image.
+    std::string log = AptImageFixture::read(source, "var/log/aegis-package-test.log");
+    fprintf(stderr, "APT isolated candidate log:\n%s\n", log.c_str());
+    ASSERT_EQ(static_cast<ssize_t>(sizeof(result)), got);
+    ASSERT_EQ(0x41505452u, result.magic);
+    ASSERT_EQ(6u, result.phase) << "status=" << result.status << " errno=" << result.error;
+    ASSERT_EQ(0u, result.status);ASSERT_EQ(0u, result.error);
+    ASSERT_EQ(CLD_EXITED, exited.code);ASSERT_EQ(0, exited.status);
+    ASSERT_EQ("APT_INSTALL_UPGRADE_PURGE_OK\n", AptImageFixture::read(source, "var/log/aegis-package-test.complete"));
+    struct stat st;
+    ASSERT_EQ(0, fstatat(source, "var/lib/aegis-probe-owned", &st, AT_SYMLINK_NOFOLLOW));
+    EXPECT_EQ(1050042u, st.st_uid);EXPECT_EQ(1050042u, st.st_gid);
+    EXPECT_EQ(-1, fstatat(source, "usr/bin/aegis-probe-app", &st, AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT, errno);
+    EXPECT_EQ(-1, fstatat(source, "etc/aegis-probe.conf", &st, AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT, errno);
+    aegis_namespace_release(contexts[0]);contexts[0] = nullptr;
+    close(peers[0]);peers[0] = -1;
+    close(mounts[0]);mounts[0] = -1;
+    close(source);source = -1; // last mount ref before autoclear and fixture unlink
+    fixture.passed = !HasFailure();
+}
 
 TEST_F(RuntimeNamespace, PackageWorkerRightsSurviveExecWithoutHostOrMountAuthority) {
     ASSERT_EQ(0, create(0,10));ASSERT_EQ(0,aegis_namespace_resume(contexts[0]));
