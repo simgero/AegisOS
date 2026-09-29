@@ -1,5 +1,48 @@
 # Vollständige Paketgenerationen
 
+## Separater Schritt: AOSP-Passwortbestätigung ohne Anmeldung
+
+Der neue interne `AegisPackageCredentials`-Adapter wird von LockSettings in
+`LocalServices` registriert. Er hat keinen Binder-Endpunkt. Die Paket-CLI und
+der Broker rufen ihn noch nicht auf: Aktions-/Planbindung, anfordernde Sitzung,
+privater Eigentümer, CE-Lebenszyklus und der Paketarbeiter fehlen weiterhin.
+Ein erfolgreiches Ergebnis dieses Adapters allein darf keine Paketaktion starten.
+
+Die bestehende AOSP-Methode `verifyCredential` führt bei Erfolg auch
+`onCredentialVerified` aus und entsperrt damit Keystore, CE und den Benutzer.
+Der zusätzliche interne Pfad prüft stattdessen denselben vorhandenen
+LSKF-Protektor über `SyntheticPasswordManager.unlockLskfBasedProtector` und
+übergibt nur bereinigten Status beziehungsweise AOSPs Wiederholungsfrist.
+Er ruft keine Benutzer-/CE-/Keystore-Entsperrung auf und fordert keinen
+Gatekeeper-Passwort-Handle an. Erfolgsbenachrichtigungen einer Anmeldung,
+Escrow-Aktivierung und biometrische Entsperr-Nacharbeit entfallen. Der normale
+AOSP-Anmeldepfad bleibt unverändert.
+
+Dies ist **keine nebenwirkungsfreie Kryptoprüfung**: Die bestehende AOSP-Routine
+aktualisiert Gatekeeper-Hardware-Auth-Tokens und kann ihre eigenen Protektor-
+Metadaten nachführen oder neu einschreiben. AOSPs Hardware-Sperrzeiten gelten
+weiter; bei Sperrzeit wird weiterhin StrongAuth angefordert. Es gibt keine
+zweite Passwortdatenbank, eigenen Passwortvergleich oder neue Kryptographie.
+Synthetic Passwords, HATs und Handles werden nicht an den Adapter-Aufrufer
+ausgegeben oder als Paketberechtigung gespeichert.
+
+Der Adapter prüft vor und nach der Passwortprüfung Adminstatus, vollständigen
+persönlichen AOSP-Benutzertyp, Aktivierung, ID und Seriennummer sowie die
+passende Installations-/Entfernungsbeschränkung und `DISALLOW_APPS_CONTROL`.
+Er verbraucht das übergebene Credential auch bei Ablehnung am Prozesseingang.
+Nur system_server darf diesen Eingang nutzen; blockierende Passwortprüfungen
+auf dem Hauptthread sind ausgeschlossen. Ein späterer Koordinator muss
+zusätzlich Beschränkungen und Lebenszyklus **des Antragstellers** prüfen und
+das private Ziel aus dessen Sitzung ableiten, unabhängig vom bestätigenden Admin.
+
+Die Quellintegration verwendet Belegschema 6 und akzeptiert frühere bekannte
+Schemas unverändert zur kontrollierten Aktualisierung. Unbekannte Änderungen
+werden nicht übernommen. Die 14 neuen Gerätetests prüfen isolierte
+Benutzer-/Prüfantwort-Fixtures; sie authentifizieren keinen echten Benutzer und
+beweisen nicht die CE-Nebenwirkungen des neuen LockSettings-Pfads. Ein gebautes
+und gestartetes neues Systemimage samt echter AOSP-Bestätigung bleibt dafür
+erforderlich. Bis dahin wird der sichtbare, bekannte Startstand nicht ersetzt.
+
 ## Implementierungsschritt: Auswahl und unveränderliche Abbilder
 
 `package_store.{h,cpp}` implementiert einen internen Speicherbaustein. Er ist

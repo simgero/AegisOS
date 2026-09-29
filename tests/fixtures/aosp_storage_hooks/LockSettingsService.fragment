@@ -1,4 +1,11 @@
 // Inert source-integration fixture; production patches the complete pinned Git blob.
+    public LockSettingsService() {
+        LocalServices.addService(LockSettingsInternal.class, new LocalService());
+    }
+    private VerifyCredentialResponse doVerifyCredential(LockscreenCredential credential,
+            int userId, Object callback, int flags) {
+        originalCredentialVerificationAndUnlock();
+    }
     private void removeUser(@UserIdInt int userId) {
         originalBootAwareRemoval();
     }

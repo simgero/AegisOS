@@ -44,6 +44,7 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.removal_source = self.project / hooks.REMOVAL_SOURCE
         self.removal_source.write_bytes(b'inert checked-files fixture\n')
         (self.project / hooks.REMOVAL_DATA_SOURCE).write_bytes(b'inert checked-data fixture\n')
+        (self.project / hooks.PACKAGE_CREDENTIALS_SOURCE).write_bytes(b'inert package verifier fixture\n')
         for name, data in self.originals.items():
             destination = self.target(name)
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -190,7 +191,7 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.assertEqual(json.loads(marker.read_text()), legacy)
         self.target(hooks.RESILIENT).write_bytes(self.originals[hooks.RESILIENT])
         result = self.prepare()
-        self.assertEqual(result['schema'], 5)
+        self.assertEqual(result['schema'], 6)
         hooks.verify(self.aosp, result)
         self.assertEqual(self.target(hooks.REMOVAL_FILES).read_bytes(), self.removal_source.read_bytes())
         self.assertEqual(self.prepare(), result)
@@ -229,12 +230,12 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.assertFalse(self.target(hooks.REMOVAL_DATA).exists())
         self.assertEqual(json.loads(marker.read_text()), legacy)
         self.target(hooks.MANAGER).write_bytes(self.originals[hooks.MANAGER])
-        self.assertEqual(self.prepare()['schema'], 5)
+        self.assertEqual(self.prepare()['schema'], 6)
 
     def test_schema_three_migration_rejects_unowned_lock_settings_changes(self):
         receipt = self.prepare()
         old_inputs = hooks.SCHEMA_THREE_ORIGINALS
-        old_outputs = old_inputs | hooks.SOURCE_FILES.keys()
+        old_outputs = old_inputs | hooks.LEGACY_SOURCE_FILES.keys()
         legacy = {**receipt, 'schema': 3,
                   'inputs': {k: v for k, v in receipt['inputs'].items() if k in old_inputs},
                   'outputs': {k: v for k, v in receipt['outputs'].items() if k in old_outputs}}
@@ -247,12 +248,12 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.assertEqual(self.target(hooks.SYNTHETIC).read_bytes(), self.originals[hooks.SYNTHETIC])
         self.assertEqual(json.loads(marker.read_text()), legacy)
         self.target(hooks.LOCK_SETTINGS).write_bytes(self.originals[hooks.LOCK_SETTINGS])
-        self.assertEqual(self.prepare()['schema'], 5)
+        self.assertEqual(self.prepare()['schema'], 6)
 
     def test_schema_four_migration_rejects_unowned_biometric_changes_before_writing(self):
         receipt = self.prepare()
         old_inputs = hooks.SCHEMA_FOUR_ORIGINALS
-        old_outputs = old_inputs | hooks.SOURCE_FILES.keys()
+        old_outputs = old_inputs | hooks.LEGACY_SOURCE_FILES.keys()
         legacy = {**receipt, 'schema': 4,
                   'inputs': {k: v for k, v in receipt['inputs'].items() if k in old_inputs},
                   'outputs': {k: v for k, v in receipt['outputs'].items() if k in old_outputs}}
@@ -266,7 +267,48 @@ class StorageHookSourcesTests(unittest.TestCase):
                          self.originals[hooks.BIOMETRIC_REMOVAL])
         self.assertEqual(json.loads(marker.read_text()), legacy)
         self.target(hooks.FACE_RESPONSE).write_bytes(self.originals[hooks.FACE_RESPONSE])
-        self.assertEqual(self.prepare()['schema'], 5)
+        self.assertEqual(self.prepare()['schema'], 6)
+
+    def test_schema_five_migration_preserves_unowned_package_verifier(self):
+        receipt = self.prepare()
+        legacy = {**receipt, 'schema': 5, 'outputs': {
+            k: v for k, v in receipt['outputs'].items() if k != hooks.PACKAGE_CREDENTIALS}}
+        marker = self.aosp / hooks.MARKER
+        marker.write_text(json.dumps(legacy))
+        self.target(hooks.PACKAGE_CREDENTIALS).write_bytes(b'unrelated source')
+        with self.assertRaises(ValueError): self.prepare()
+        self.assertEqual(json.loads(marker.read_text()), legacy)
+        self.assertEqual(self.target(hooks.PACKAGE_CREDENTIALS).read_bytes(), b'unrelated source')
+        self.target(hooks.PACKAGE_CREDENTIALS).unlink()  # Only the test fixture just created here.
+        current = self.prepare()
+        self.assertEqual(current['schema'], 6)
+        hooks.verify(self.aosp, current)
+
+    def test_package_verification_is_local_and_keeps_existing_login_unchanged(self):
+        self.prepare()
+        source = self.target(hooks.LOCK_SETTINGS).read_text()
+        original = hooks.method(self.originals[hooks.LOCK_SETTINGS].decode(),
+                                '    private VerifyCredentialResponse doVerifyCredential(')
+        self.assertIn(original, source)
+        check = hooks.method(source, '    private VerifyCredentialResponse verifyAegisPackageCredential(')
+        self.assertIn('mSpManager.unlockLskfBasedProtector(', check)
+        self.assertIn('requireStrongAuth(STRONG_AUTH_REQUIRED_AFTER_LOCKOUT', check)
+        self.assertIn('notifyLockSettingsStateListeners(false, userId)', check)
+        self.assertNotIn('notifyLockSettingsStateListeners(true', check)
+        for call in ('unlockCeStorage(', 'unlockUser(', 'unlockKeystore(',
+                     'onCredentialVerified(', 'activateEscrowTokens(',
+                     'storeGatekeeperPasswordTemporarily(', 'addPendingLockoutResetForUser('):
+            self.assertNotIn(call, check)
+        self.assertIn('LocalServices.addService(com.android.server.aegis.AegisPackageCredentials.class', source)
+
+    def test_missing_local_service_anchor_rejects_all_integration_writes(self):
+        original = self.originals[hooks.LOCK_SETTINGS].replace(
+            b'LocalServices.addService(LockSettingsInternal.class', b'changedRegistration(')
+        self.originals[hooks.LOCK_SETTINGS] = original
+        self.pins['files'][hooks.LOCK_SETTINGS] = hooks.digest(original)
+        with self.assertRaises(ValueError): self.prepare()
+        self.assertFalse((self.aosp / 'out').exists())
+        self.assertFalse(self.target(hooks.PACKAGE_CREDENTIALS).exists())
 
     def test_empty_hal_completion_does_not_replace_generic_null_or_nonempty_handling(self):
         self.prepare()

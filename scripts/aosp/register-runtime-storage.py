@@ -34,7 +34,10 @@ SCHEMA_FOUR_ORIGINALS = SCHEMA_THREE_ORIGINALS | {LOCK_SETTINGS, SYNTHETIC, PROT
 BIOMETRIC_ORIGINALS = {BIOMETRIC_REMOVAL, FINGERPRINT_REMOVAL, FACE_REMOVAL,
                        FINGERPRINT_RESPONSE, FACE_RESPONSE}
 ORIGINAL_FILES = SCHEMA_FOUR_ORIGINALS | BIOMETRIC_ORIGINALS
-SOURCE_FILES = {BRIDGE: SOURCE, REMOVAL_FILES: REMOVAL_SOURCE, REMOVAL_DATA: REMOVAL_DATA_SOURCE}
+LEGACY_SOURCE_FILES = {BRIDGE: SOURCE, REMOVAL_FILES: REMOVAL_SOURCE, REMOVAL_DATA: REMOVAL_DATA_SOURCE}
+PACKAGE_CREDENTIALS = 'services/core/java/com/android/server/aegis/AegisPackageCredentials.java'
+PACKAGE_CREDENTIALS_SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisPackageCredentials.java'
+SOURCE_FILES = {**LEGACY_SOURCE_FILES, PACKAGE_CREDENTIALS: PACKAGE_CREDENTIALS_SOURCE}
 MARKER = 'out/aegis-runtime-storage/sources.json'
 PREFIX = 'com.android.server.aegis.AegisRuntimeStorage'
 
@@ -263,6 +266,65 @@ def patch_lock_settings(data):
     # Do not change early-boot/reused-user internal best-effort call sites.
     text = replace_once(text, '            LockSettingsService.this.removeUser(userId);',
                         '            LockSettingsService.this.removeUserChecked(userId);')
+    registration = '        LocalServices.addService(LockSettingsInternal.class, new LocalService());'
+    text = replace_once(text, registration, registration + '''
+        LocalServices.addService(com.android.server.aegis.AegisPackageCredentials.class,
+                new com.android.server.aegis.AegisPackageCredentials(
+                    new com.android.server.aegis.AegisPackageCredentials.Directory() {
+                        @Override public UserInfo user(int id) { return mUserManager.getUserInfo(id); }
+                        @Override public boolean restricted(int id, String restriction) {
+                            return mUserManager.hasUserRestriction(restriction, UserHandle.of(id));
+                        }
+                    }, (credential, id) -> {
+                        try { return verifyAegisPackageCredential(credential, id); }
+                        finally { scheduleGc(); }
+                    }));''')
+    credential_anchor = '    private void removeUser(@UserIdInt int userId) {\n'
+    text = replace_once(text, credential_anchor, '''    /**
+     * Fresh package confirmation through the existing AOSP password protector.
+     * Intentionally does NOT call doVerifyCredential/onCredentialVerified:
+     * those unlock Keystore, CE and the Android user, activate escrow, reset
+     * biometric lockout and notify success listeners. No GK handle is requested.
+     * This local service returns only sanitized status, never SP/HAT material.
+     */
+    private VerifyCredentialResponse verifyAegisPackageCredential(
+            LockscreenCredential credential, int userId) {
+        if (!mThirdPartyAppsStarted) {
+            throw new IllegalStateException("LockSettings password verification is not ready");
+        }
+        final VerifyCredentialResponse response;
+        synchronized (mSpManager) {
+            if (getCredentialType(userId) != LockPatternUtils.CREDENTIAL_TYPE_PASSWORD) {
+                throw new SecurityException("Personal administrator password required");
+            }
+            long protectorId = getCurrentLskfBasedProtectorId(userId);
+            AuthenticationResult result = mSpManager.unlockLskfBasedProtector(
+                    getGateKeeperService(), protectorId, credential, userId, null);
+            response = java.util.Objects.requireNonNull(result.gkResponse);
+            if (response.getResponseCode() == VerifyCredentialResponse.RESPONSE_OK
+                    && result.syntheticPassword == null) {
+                throw new IllegalStateException("AOSP protector was not verified");
+            }
+        }
+        if (response.getResponseCode() == VerifyCredentialResponse.RESPONSE_RETRY
+                && response.getTimeout() > 0) {
+            requireStrongAuth(STRONG_AUTH_REQUIRED_AFTER_LOCKOUT, userId);
+        }
+        // Preserve normal AOSP failure notifications and its HAL retry delay.
+        // Success cannot be used as a login/unlock notification by other services.
+        if (response.getResponseCode() != VerifyCredentialResponse.RESPONSE_OK) {
+            notifyLockSettingsStateListeners(false, userId);
+        }
+        if (response.getResponseCode() == VerifyCredentialResponse.RESPONSE_OK) {
+            return VerifyCredentialResponse.OK;
+        }
+        if (response.getResponseCode() == VerifyCredentialResponse.RESPONSE_RETRY) {
+            return VerifyCredentialResponse.fromTimeout(response.getTimeout());
+        }
+        return VerifyCredentialResponse.ERROR;
+    }
+
+''' + credential_anchor)
     anchor = '    private void removeUser(@UserIdInt int userId) {\n'
     addition = '''    private void removeUserChecked(@UserIdInt int userId) {
         synchronized (mUserCreationAndRemovalLock) {
@@ -683,16 +745,17 @@ def originals_from_git(base):
 
 def validate_record(record):
     schema = record.get('schema') if isinstance(record, dict) else None
-    if type(schema) is not int or schema not in (1, 2, 3, 4, 5):
+    if type(schema) is not int or schema not in (1, 2, 3, 4, 5, 6):
         raise ValueError('Invalid storage-source receipt schema')
     expected_inputs = {1: {STORAGE, USERS}, 2: {STORAGE, USERS, RESILIENT},
                        3: SCHEMA_THREE_ORIGINALS, 4: SCHEMA_FOUR_ORIGINALS}.get(schema, ORIGINAL_FILES)
     expected_outputs = {1: {STORAGE, USERS, BRIDGE},
                         2: {STORAGE, USERS, RESILIENT, BRIDGE, REMOVAL_FILES},
-                        3: SCHEMA_THREE_ORIGINALS | SOURCE_FILES.keys(),
-                        4: SCHEMA_FOUR_ORIGINALS | SOURCE_FILES.keys()}.get(
+                        3: SCHEMA_THREE_ORIGINALS | LEGACY_SOURCE_FILES.keys(),
+                        4: SCHEMA_FOUR_ORIGINALS | LEGACY_SOURCE_FILES.keys(),
+                        5: ORIGINAL_FILES | LEGACY_SOURCE_FILES.keys()}.get(
                                 schema, ORIGINAL_FILES | SOURCE_FILES.keys())
-    if (not isinstance(record, dict) or schema not in (1, 2, 3, 4, 5)
+    if (not isinstance(record, dict) or schema not in (1, 2, 3, 4, 5, 6)
             or record.get('status') != 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED'
             or record.get('aosp_tag') != 'android-16.0.0_r1'
             or not isinstance(record.get('inputs'), dict)
@@ -737,7 +800,7 @@ def prepare(project, aosp, originals=None, pins=None):
                FACE_REMOVAL: patch_aidl_removal(originals[FACE_REMOVAL]),
                FINGERPRINT_RESPONSE: patch_aidl_response(originals[FINGERPRINT_RESPONSE], 'FingerprintRemovalClient'),
                FACE_RESPONSE: patch_aidl_response(originals[FACE_RESPONSE], 'FaceRemovalClient'), **sources}
-    record = {'schema': 5, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
+    record = {'schema': 6, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
               'aosp_tag': pins['aosp_tag'], 'inputs': pins['files'],
               'bridge_sha256': digest(sources[BRIDGE]),
               'outputs': {name: digest(data) for name, data in outputs.items()}}
