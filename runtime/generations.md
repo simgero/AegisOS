@@ -1,9 +1,11 @@
 # Gemeinsame Softwaregeneration
 
-Stand: 28. September 2026. **Echtes Basis-Image auf `aegis-build` erfolgreich
-erzeugt, geprüft und im ausgelieferten Android-Image nachgewiesen; noch nicht
-in QEMU eingebunden.**
-`ro.aegis.runtime.mode=absent` bleibt unverändert.
+Stand 29. September 2026: **Die gepinnte gemeinsame Basis ist im vollständigen
+`d44ccb33` schreibgeschützt in zwei persönlichen GNU-Kontexten ausgeführt.**
+[GNU-Nachweis und Grenzen](../docs/runtime-gnu-qemu-test.md). Die folgenden
+Abschnitte dokumentieren das frühere Basisrezept und seine damaligen
+Prüfgrenzen; Statusnamen wie `BUILT_VERIFIED_NOT_MOUNTED` bleiben ausschließlich
+Aussagen dieses Buildschritts. Gemeinsame/private Pakettransaktionen fehlen.
 
 Lauf `runtime-base-20260928T145204Z-87ab3f54-WclcLl`, Commit
 `87ab3f54e52a3e312500011ab9f65278ac72ac0d`, Abschluss 14:53:38 UTC:

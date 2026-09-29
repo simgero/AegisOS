@@ -1,8 +1,10 @@
 # Persönlicher AOSP-CE-Speicher
 
-Stand: **Quelltext vorbereitet, noch nicht kompiliert oder im Gast ausgeführt.**
-Die Runtime bleibt deaktiviert. Diese Bibliothek ersetzt weder AOSP-Anmeldung
-noch den fehlenden Broker, Mount-Helfer oder die SELinux-Integration.
+Stand 29. September 2026: **Im vollständigen `d44ccb33` auf lokalem Mac-QEMU
+mit zwei persönlichen Benutzern ausgeführt.** Der Broker verbindet AOSP-Anmeldung,
+CE-Prüfung, Mount-Helfer und SELinux. Die Bibliothek selbst ist weiterhin keine
+Identitätsautorität. Prüfumfang und noch offener Terminalwiderruf stehen im
+[GNU-Test](../docs/runtime-gnu-qemu-test.md).
 
 ## Identitätsbindung und Herkunft
 
@@ -14,8 +16,10 @@ Der Broker muss trotzdem vor Wiederverwendung alle alten Prozesse, Mounts und
 Transaktionen nachweislich abbauen: die Linux-Hostkennung enthält keine Seriennummer.
 
 `aegis_namespace_home_mount` öffnet nach abgeschlossenen Maps und vor Exec-Freigabe
-das echte `/data`. Der Broker muss im initialen Android-User-, PID- **und**
-Mount-Namespace laufen. Kein Client kann einen Quellpfad oder eine alternative
+das echte `/data`. Der Broker muss im initialen Android-User- und PID-Namespace
+laufen. Zulässig ist ausschließlich der initiale Mount-Namespace oder die
+eigene ausdrücklich geprüfte private Kopie; deren Basisanker ersetzt `/data`
+nicht. Kein Client kann einen Quellpfad oder eine alternative
 Datenwurzel an diesen Einstiegspunkt übergeben. Unterhalb des offenen `/data`
 werden Verzeichnisse mit `openat2` verankert; Symlinks, magische Links, Ausbrüche
 und Mountwechsel werden abgewiesen. Vorerst wird nur interner Speicher unterstützt.
@@ -37,7 +41,7 @@ Sie erzeugt, exportiert, setzt oder entfernt keine CE-Schlüssel. Nur `PRESENT`
 wird akzeptiert, nicht `INCOMPLETELY_REMOVED`. **Schlüsselpräsenz beweist keine
 Anmeldung.** Frische AOSP-Authentifizierung, aktueller Benutzer plus Seriennummer,
 bestätigte CE-Entsperrung und eine Sperre gegen konkurrierenden Benutzerstopp,
-Löschung oder Logout bleiben Voraussetzungen des noch zu implementierenden Brokers.
+Löschung oder Logout bleiben Voraussetzungen der Broker-Zulassung.
 
 ## Kontrollierte Erstanlage
 
@@ -57,6 +61,10 @@ fremde oder unvollständige Daten werden niemals still übernommen, umbenannt,
 nachträglich umgeordnet oder gelöscht. Ein verbliebener Vorbereitungsordner
 führt zu einem sichtbaren Fehler und braucht eine gesonderte Wiederherstellung.
 Ein gültig abgeschlossener Bestand wird bei Wiederöffnung nur geprüft.
+Die zehn [Standardordner](aosp-storage-lifecycle.md#erstmalige-persönliche-home-struktur)
+entstehen ausschließlich im unveröffentlichten leeren Home. Eigene spätere
+Löschungen, Umbenennungen, Rechteänderungen und Verknüpfungen darunter werden
+nicht zurückgesetzt; dies wurde auch nach Reboot tatsächlich geprüft.
 
 Eigentümer, Rechte und Verschlüsselungsrichtlinie werden erneut geprüft; die
 offenen Verzeichnisse müssen weiterhin unter denselben Namen/Inodes erreichbar
@@ -67,16 +75,21 @@ abgewiesen, nicht beim nächsten Login heimlich repariert.
 ## Mount und Abbau
 
 Aus dem geprüften HOME entsteht ein nichtrekursiver detached Mount mit
-`nosuid`, `nodev` und privater Mountweitergabe. Er ist beschreibbar und erlaubt
-später eigene ausführbare Linux-Programme. Die Quelle bleibt unverändert.
+`nosuid`, `nodev` und privater Mountweitergabe. Er ist beschreibbar. Die aktuelle
+SELinux-Policy verbietet direkte Ausführung von Dateien aus beschreibbarem
+Home und Scratch, unabhängig von einem fehlenden `noexec`-Mountflag. Ausführbare
+private Paketgenerationen benötigen einen gesonderten autorisierten Pfad;
+dieser ist noch nicht implementiert. Die Mount-Erstellung ändert die Quelle nicht.
 **Keine zweite ID-Zuordnung:** persönliche Dateien tragen bereits die Host-UID/GID
 dieses AOSP-Benutzers. Der Shared-Base-Mount hat andere Eigentümersemantik.
 
 Der Aufrufer erhält einen eigenen `CLOEXEC`-Deskriptor. Bei Fehler werden alle
 hier geöffneten Referenzen geschlossen. Die Zehn-Sekunden-Startfrist des Kindes
 wird nicht verlängert; vor Rückgabe wird sein Zustand nochmals geprüft.
-Die Übergabe an den echten Mount-Helfer, `/home/user`-Einbindung, Rootwechsel und
-Sandbox bleiben offen. Erst danach dürfen persönliche Programme ausgeführt werden.
+Übergabe an den Mount-Helfer, `/home/user`-Einbindung, Rootwechsel und
+Sandbox wurden im persönlichen GNU-Pfad geprüft. Programme aus der geprüften
+gemeinsamen Softwarebasis laufen mit internem UID/GID 1000 und getrennten
+Hostkennungen; die CE-Prüfung allein garantiert das nicht.
 
 Bei Logout müssen **alle** Prozesse, offenen Dateien und extern gehaltenen
 CE-Mount-/Verzeichnisreferenzen enden, bevor AOSP den Schlüssel entfernt. Der
@@ -84,22 +97,24 @@ Kernel kann bei noch benutzten Dateien Schlüsselreste behalten. Weder das
 Schließen dieses einen Handles noch AOSPs Benutzerstatus allein beweist den
 vollständigen Ressourcenabbau und Schlüsselentzug.
 
-## Noch ausstehender Nachweis
+## Prüfungen und verbleibende Grenzen
 
 Fünf neue native Tests verwenden ausschließlich detached, unverschlüsselte
 Tmpfs-Textfixtures. Sie prüfen strikte Seriennummern, Nummernwiederverwendung,
 Symlink-/Pfadabweisung, fehlende Verschlüsselung, ungültige Identitäten und
 Deskriptorlecks. Vorhandene Namespace-Tests prüfen zusätzlich Seriennummern-
 Übergabe und die Verweigerung vor Maps, nach Prozessende und bei fremdem Besitzer.
-Zusammen mit [Gerätevorbereitung](private-devices.md) und
-[Startprotokoll](namespace-setup.md) sind inzwischen
-50 native Gerätetests vorbereitet, **keiner davon hier neu kompiliert
-oder ausgeführt**. Hosttests führen diesen nativen Code nicht aus.
+Diese und die späteren Layout-, Namespace- und Lebenszyklus-Fixtures sind
+Bestandteil der **128/128 nativen Gerätetests** von `d44ccb33`, ausgeführt
+im lokalen `6a807692`-Image. Hosttests führen diesen nativen Code nicht aus.
+[Komponentenbelege](../docs/component-tests.md).
 
-Erfolgreiche Anlage und Wiederöffnung auf echtem AOSP-CE, zwei getrennte Nutzer,
-falsche Passwörter, Schlüsselentzug bei offenen Referenzen, Abbrüche, Logout und
-Neustart müssen nach dem Server-Build im lokalen Android-QEMU geprüft werden.
-Die unverschlüsselten Negativfixtures beweisen diese Abläufe ausdrücklich nicht.
+Erfolgreiche Erststruktur und Wiederöffnung auf echtem AOSP-CE, getrennte Nutzer,
+unveränderte GNU-Dateien und Konfiguration nach Neustart sowie bestätigter
+Logout mit unlesbaren vorher geschriebenen Dateien sind zusätzlich im Vollbuild
+`d44ccb33` geprüft. Die unverschlüsselten Fixtures ersetzen diesen Nachweis nicht.
+Fehlerinjektion bei offenen Referenzen, alle konkurrierenden Speicheraktionen,
+verwaltete Benutzerlöschung und Pakettransaktionen bleiben ausstehend.
 
 Quellabgleich: Android 16 r1
 [UserDataPreparer](https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-16.0.0_r1/services/core/java/com/android/server/pm/UserDataPreparer.java),

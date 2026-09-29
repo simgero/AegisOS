@@ -1,8 +1,11 @@
 # Gemeinsame Debian-Basis
 
-Stand 28. September 2026: **Originalarchiv importiert und geprüft, noch keine
-ausführbare AEGIS-Runtime.** Kein Debian-Programm wurde dabei ausgeführt und
-kein Dateisystem auf dem Mac oder im Gast installiert.
+Stand 29. September 2026: **Gemeinsame Basis erzeugt, im Android-Image geprüft
+und in zwei persönlichen GNU-Kontexten im lokalen Mac-QEMU ausgeführt.**
+Der unten beschriebene Import selbst bleibt eine reine Datei-/Quellprüfung.
+Die anschließende Integration und ihre Grenzen stehen im
+[GNU-Test](../docs/runtime-gnu-qemu-test.md). Pakettransaktionen und verwaltete
+Benutzerlöschung sind noch nicht implementiert.
 
 ## Festgelegte Herkunft
 
@@ -73,61 +76,41 @@ falsche Architektur, aktive Linux-Credentials, fehlerhaften dpkg-Zustand,
 unsichere Archivnamen, Größenlimits, Abbruch und Erhalt vorhandener Dateien.
 Diese Tests starten kein Betriebssystem und prüfen keine Namespace-Isolation.
 
-Der erste [persönliche Prozessaufseher](process-supervisor.md) liegt inzwischen
-als nativer Quelltext vor: eigene PTYs, UID/GID-Wechsel, Einsammeln beendeter
-Prozesse und Kontextende bei Verlust des Kontrollkanals. Er ist noch nicht
-kompiliert oder aktiviert. Der [statische Mount-Helfer](namespace-setup.md)
-ist ebenfalls als ungeprüfter nativer Quelltext vorbereitet. AOSP-Broker,
-praktischer Mount-/Rootwechsel-Nachweis und SELinux-Anbindung fehlen weiterhin;
-daraus folgt noch keine ausführbare Runtime.
+## Integrierte Runtime und nächste Schritte
 
-Die [vorgeschaltete AOSP-Speicherkoordination](aosp-storage-lifecycle.md)
-ist ebenfalls als Quelltext vorbereitet. Sie definiert die bestätigte
-Ressourcenfreigabe vor Schlüsseloperationen; der dafür erforderliche
-Runtime-Controller fehlt noch. Der verwaltete Modus bleibt deaktiviert.
+Die gemeinsame [Softwaregeneration](generations.md) enthält den technischen
+NSS-Eintrag `runtime` mit internem UID/GID 1000. Persönliche Identitäten und
+Passwörter verwaltet ausschließlich AOSP. Die Basis ist für normale
+Runtime-Prozesse schreibgeschützt; ein vorhandenes `apt` erteilt keine
+Paketverwaltungsberechtigung.
 
-Die [Zugangsserialisierung](admission.md) ergänzt im Quelltext einen
-Widerruf vor und nach destruktiven Speicheroperationen sowie eine
-Seriennummernbindung. Der Adapter bleibt unregistriert, bis tatsächlicher
-Ressourcenabbau und die übrigen Lebenszykluspfade integriert sind.
+[Prozessaufseher](process-supervisor.md), [Mount-Helfer](namespace-setup.md),
+Broker und [SELinux-Anbindung](selinux-integration.md) sind im geprüften
+`d44ccb33` aktiviert. Je Benutzer bestehen eigene User-, Mount-, PID-, IPC-,
+UTS- und Netzwerk-Namespaces, private flüchtige Dateisysteme und persönliches
+AOSP-CE-Home. Tatsächliche GNU-Prozesse laufen mit getrennten Hostkennungen,
+null Capabilities, `NoNewPrivs=1` und Seccomp.
 
-## Vor dem ersten Runtime-Start noch erforderlich
+Die [AOSP-Speicherkoordination](aosp-storage-lifecycle.md) und
+[Zugangsserialisierung](admission.md) binden Starts und Abbau an Benutzer-ID
+und Seriennummer. Die vorhandenen AOSP-Speicherhooks warten vor ihren
+Schlüsseloperationen auf den Ressourcenabbau. Normale Benutzerwechsel dürfen
+Hintergrundkontexte erhalten; Logout verlangt bestätigten Stopp und CE-Sperre.
+Der begrenzte Zwei-Benutzer-Nachweis umfasst tatsächlich geschriebene Dateien,
+gegenseitige verweigerte Zugriffe, Bildschirmsperre und Neustart desselben
+Android-/KeyMint-Paars. Vollständige Fehler- und Konkurrenzprüfungen bleiben offen.
 
-Das [Buildrezept für eine gemeinsame Softwaregeneration](generations.md)
-ist jetzt vorbereitet. Eine reine Planung mit der echten Basis erfasst 78
-Pakete und 3.271 Einträge einschließlich des technischen NSS-Kontos. Ein
-ext4-Image wurde daraus bisher nicht erzeugt, veröffentlicht oder eingebunden.
+Als nächste Arbeit bleiben der zuverlässige erste Terminal-Login (Korrektur
+`2f29f0ac` besteht Komponenten-, noch keine vollständigen Diensttests),
+verwaltete Benutzerlöschung vor Freigabe der AOSP-ID und gemeinsame/private
+Paketgenerationen mit frischer AOSP-Adminprüfung für beide Bereiche. Bei einer
+privaten Aktion bleibt der Zielbenutzer der authentifizierte Antragsteller,
+auch wenn ein anderer Administrator zustimmt.
 
-1. Die [vorbereitete UID/GID-Zuordnung](uid-mapping.md) auf dem Builder gegen
-   sämtliche Produktkennungen prüfen und im Gast einrichten. Alle 38 Kennungen
-   der echten Basis sind abgedeckt; es gibt noch keinen Namespace oder Broker.
-   Die 18 technischen Debian-Konten sind keine AEGIS-Benutzer. Ihre Quell-IDs und
-   Archiv-Eigentümer dürfen nicht unverändert als Hostberechtigungen verwendet
-   werden. Der normale Prozess soll intern UID/GID 1000 sehen, mit einer eigenen
-   Hostkennung je AOSP-Benutzer. Ein generischer NSS-Eintrag für diese UID ist in
-   der Originalbasis noch nicht vorhanden.
-2. Auf dem Builder eine verwaltete, für normale Runtime-Prozesse schreibgeschützte
-   Generation mit dem vorbereiteten Rezept erzeugen. Die Originalbasis enthält
-   normale Debian-Set-ID-Dateien; das Rezept entfernt diese Rechte. Die Dateien
-   erteilen keine AOSP-Adminberechtigung. `nosuid`, `no_new_privs`, Capability- und
-   SELinux-Grenzen müssen vor dem Ausführen von Programmen durchgesetzt und
-   getestet werden. Der Import allein setzt diese Grenzen nicht.
-3. Den Kernel mit User-/Mount-/PID-/IPC-Unterstützung integrieren, pro Kontext
-   private temporäre Dateisysteme und IPC-/Netzwerkgrenzen schaffen sowie den
-   persönlichen CE-Speicher erst nach AOSP-Authentifizierung einbinden.
-4. Runtime-Starts, Shell-Zugriff, Prozessende und Mountabbau an die bestehende
-   AOSP-Identität mit `userId` **und** Seriennummer sowie deren Abmeldung binden.
-5. Gemeinsame/private Paketgenerationen und deren Transaktionen mit jeweils
-   frischer AOSP-Adminprüfung implementieren. Die Original-APT-Quellen zeigen
-   auf laufende Debian-Repositories; ein gepinntes Ausgangsarchiv allein pinnt
-   keine zukünftigen Installationen oder Updates. Jede Transaktion muss die
-   tatsächlich ausgewählten Paketversionen/Hashes erfassen und konsistent aktivieren.
-6. Erzeugte Artefakte mit Prüfsummen über AegisOS-GitHub-Releases transportieren
-   und den vollständigen Ablauf mit zwei Benutzern in QEMU nachweisen.
-
-Der AOSP-Quellsnapshot transportiert Pin, Importer, Generationsrezept und die
-explizite Auswahl eines abgeschlossenen Basislaufs. Der Vollbuild kann die
-geprüften Basisdateien dadurch in das Produkt aufnehmen und deren Nachweise
-über GitHub transportieren. Dieser Ablauf ist noch nicht auf dem Server
-ausgeführt und aktiviert keine Runtime. `ro.aegis.runtime.mode=absent` bleibt
-bis zur echten Broker-/Mount-/Lebenszyklus-Integration zutreffend.
+Die Original-APT-Quellen zeigen auf laufende Debian-Repositories. Das gepinnte
+Ausgangsarchiv pinnt keine späteren Installationen. Jede zukünftige Transaktion
+muss ausgewählte Versionen/Hashes, Abhängigkeiten, Datenbank, Konfiguration und
+technische Konten konsistent verwalten. Bereits laufende Kontexte müssen ihren
+bisherigen vollständigen Bestand behalten. Private Versionen dürfen durch ein
+gemeinsames Update nicht still überschrieben werden. Diese Anforderungen sind
+noch keine implementierte Paketverwaltung.
