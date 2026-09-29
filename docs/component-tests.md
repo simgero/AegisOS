@@ -1,14 +1,23 @@
-## Nächster Namespace-Komponentenstand
+## Geprüfter Namespace-Komponentenstand c0d8c16c
 
-Nach dem am 29. September 2026 fehlgeschlagenen Vollbuild `430f91da` ist die
-Ptrace-Freigabe entfernt. Der native Elternprozess erhält feste Proc-/NSFS-
-Referenzen vom eigenen noch gesperrten Clone; kein fremder PID-Pfad wird
-geöffnet. Zwei zusätzliche Gerätetests prüfen die Rücksetzung geerbten
-OOM-Schutzes sowie wiederholte Vorbereitung/Abbruch ohne Deskriptorverlust.
-Damit sind 124 native Tests vorbereitet, **noch nicht neu kompiliert oder
-bestanden**. Die bisherigen 122/122 belegen nur `ebf3610`. Die unveränderten
-Java-/JNI-Quellen behalten ihren separaten 62/62-Nachweis. Der reale Start
-unter der produktiven SELinux-Domäne braucht weiterhin ein neues Vollimage.
+Der Komponentenlauf `identity-20260929T064403Z-c0d8c16c-pQQoXM` ist kompiliert
+und über den GitHub-Release
+`components-20260929T065410Z-c0d8c16c-c0d8c16c-Dd980X` verifiziert übertragen.
+Im lokalen QEMU-Image `ebf3610` bestehen **124/124 native Tests** aus 19 Suiten
+in 10.909 ms. Die beiden neuen Tests bestätigen die Rücksetzung geerbten
+OOM-Schutzes vor Exec und wiederholte Vorbereitung/Abbruch ohne FD-Verlust.
+Auch die vollständigen UID-/GID-Maps und getrennten Namespaces bestehen.
+
+Der native Elternprozess erhält feste Proc-/NSFS-Referenzen vom eigenen noch
+gesperrten Clone. Die zusätzliche Ptrace-Freigabe ist entfernt; die AOSP-
+Neverallow- und Kompatibilitätsprüfungen bestehen im Komponentenbuild. Die
+Root-Fixtures ersetzen weiterhin keinen produktiven SELinux-Startnachweis.
+Die unveränderten Java-/JNI-Quellen behalten den separaten 62/62-Nachweis.
+
+Belege: `out/components-c0d8c16c/component-tests/result.json`, `native.log`
+(SHA-256 `85bc9b6ab74169f4d8a94b200b10c66bd91e12a7e5babd0769a3611b763238e2`)
+und `guest.txt`. GNU-Ausführung über AOSP-Anmeldung sowie ein vollständiger
+neuer Boot sind noch offen.
 
 # Komponentenläufe in lokalem QEMU
 

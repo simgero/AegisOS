@@ -80,7 +80,8 @@ class Parts(io.RawIOBase):
         super().close()
 
 
-def extract(parts, images):
+def extract(parts, images, reuse_images=None):
+    writer = tool("aegis_image_io", "local_image_io.py").ImageWriter
     images.mkdir(mode=0o700)
     files = {}
     total = 0
@@ -98,18 +99,18 @@ def extract(parts, images):
             # Do not restore archive ownership, modes, links or extended metadata.
             # Even ELF-looking files remain nonexecutable host data.
             path = images / name
-            with archive.extractfile(member) as source, path.open("xb") as target:
-                path.chmod(0o600)
+            seed = reuse_images / name if reuse_images else None
+            if seed is not None and not seed.exists() and not seed.is_symlink():
+                seed = None
+            with archive.extractfile(member) as source, writer(path, member.size, seed) as target:
                 remaining = member.size
-                digest = hashlib.sha256()
                 while remaining:
                     data = source.read(min(1024 * 1024, remaining))
                     if not data:
                         raise ValueError("Truncated image archive member")
                     target.write(data)
-                    digest.update(data)
                     remaining -= len(data)
-            files[name] = {"size": member.size, "sha256": digest.hexdigest()}
+                files[name] = target.finish()
     if not REQUIRED <= files.keys() or any(files[name]["size"] == 0 for name in REQUIRED):
         raise ValueError("Missing required Android images")
     return files
@@ -161,18 +162,24 @@ def check_receipts(download, images, files):
     return checked
 
 
-def prepare(download, output, commit):
+def prepare(download, output, commit, reuse_prepared=None):
     download, output = Path(download).absolute(), Path(output).absolute()
     if (not re.fullmatch(r"[0-9a-f]{40}", commit) or download.resolve() != download
             or output.resolve() != output or output.exists()):
         raise ValueError("Require an exact commit and a new, non-symlink output path")
+    reuse_images = None
+    if reuse_prepared is not None:
+        seed = Path(reuse_prepared).absolute()
+        reuse_images = seed / "images"
+        if seed.resolve() != seed or reuse_images.resolve() != reuse_images or not reuse_images.is_dir():
+            raise ValueError("Reuse requires an existing non-symlink prepared image directory")
     verifier = tool("aegis_local_release", "fetch-release.py")
     verifier.verify(download)
     manifest = fingerprint(download / "SHA256SUMS")
     if (download / "builder-commit.txt").read_text().strip() != commit:
         raise ValueError("Release belongs to another build commit")
     output.mkdir(mode=0o700)
-    files = extract(sorted(download.glob("images.tar.xz.part-*")), output / "images")
+    files = extract(sorted(download.glob("images.tar.xz.part-*")), output / "images", reuse_images)
     inputs = check_receipts(download, output / "images", files)
     # Detect changed downloads before publishing a success receipt. A failed
     # output remains for diagnosis, never suitable for resuming or booting.
@@ -193,8 +200,10 @@ def main():
     parser.add_argument("download", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--build-commit", required=True)
+    parser.add_argument("--reuse-prepared", type=Path,
+                        help="APFS clone old image files, then verify every byte against the new archive")
     args = parser.parse_args()
-    report = prepare(args.download, args.output, args.build_commit)
+    report = prepare(args.download, args.output, args.build_commit, args.reuse_prepared)
     print(report["status"] + ": " + str(args.output.resolve()))
     print("AVB verification and a fresh paired QEMU profile are still required.")
 

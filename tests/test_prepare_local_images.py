@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tarfile
 import tempfile
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -71,6 +72,20 @@ class PreparationTests(unittest.TestCase):
         self.archive([hidden])
         self.run_prepare()
         self.assertEqual((self.output / "images/.copied_headers_list").read_bytes(), b"XX")
+
+    @unittest.skipUnless(sys.platform == "darwin", "Real macOS clone API test")
+    def test_reused_images_are_independent_and_checked_against_new_archive(self):
+        self.archive()
+        self.run_prepare()
+        seed = self.output
+        original = seed / 'images/boot.img'
+        original.write_bytes(b'wrong old bytes and a stale tail')
+        target = self.root / 'reused'
+        report = prepare.prepare(self.download, target, COMMIT, seed)
+        self.assertEqual((target / 'images/boot.img').read_bytes(), b'fixture')
+        self.assertEqual(original.read_bytes(), b'wrong old bytes and a stale tail')
+        self.assertNotEqual(original.stat().st_ino, (target / 'images/boot.img').stat().st_ino)
+        self.assertEqual(report['files']['boot.img']['sha256'], hashlib.sha256(b'fixture').hexdigest())
 
     def test_wrong_commit_or_corrupt_asset_creates_no_output(self):
         self.archive()

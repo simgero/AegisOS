@@ -63,8 +63,9 @@ Die bisherigen Einmal-Schreibvorgänge, exakte Map-Rückprüfung, OOM-Rücksetzu
 Ausführungssperre und Pidfd-Abbau bleiben erhalten. Alle temporären Referenzen
 werden geschlossen; nur der verifizierte Namespace bleibt bis zum Abbau.
 Ein explizites Neverallow umfasst jetzt beide Capability-Klassen. Die neue
-Fassung benötigt einen neuen Komponentenbuild, tatsächliche lokale
-Gerätetests sowie einen vollständigen Boot mit der Broker-Domäne. Root-Fixtures
+Fassung `c0d8c16c` ist inzwischen kompiliert; alle AOSP-Neverallow- und
+Kompatibilitätsprüfungen sowie 124/124 native Tests im lokalen QEMU bestehen.
+Ein vollständiger Boot mit dem neuen Broker bleibt erforderlich. Root-Fixtures
 allein beweisen weiterhin nicht den produktiven SELinux-Pfad.
 
 Die fünf Initialisierungszugriffe wechseln in dasselbe Init-Taskprofil, vor

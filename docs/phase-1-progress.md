@@ -13,8 +13,9 @@ privaten Cgroup; deren Grenzen und Labels sind bestätigt. Die AOSP-Anmeldung
 funktioniert, der persönliche Linux-Start scheitert nun an einer
 Capability-Prüfung im neuen Benutzer-Namespace. Kontextabbau und anschließende
 Abmeldung sind bestätigt; **GNU-Ausführung bleibt unbewiesen**. Vollbuild `430f91da` wurde von AOSPs Ptrace-Neverallow abgewiesen. Die nächste
-native Korrektur verwendet private Kind-Referenzen ohne Ptrace-Freigabe;
-Kompilierung und Gastnachweis stehen aus. Details und offene Boot-AVCs stehen in der
+native Korrektur `c0d8c16c` verwendet private Kind-Referenzen ohne Ptrace-Freigabe.
+Sie ist kompiliert und besteht 124/124 native Tests auf dem lokalen `ebf3610`-
+Gast; der vollständige neue Boot und produktive Start bleiben offen. Details und offene Boot-AVCs stehen in der
 [Runtime-Policy](../runtime/selinux-integration.md).
 Der sichtbare Launcher bleibt unverändert. Weitere Kandidaten werden auf
 Nutzerwunsch ohne sichtbares QEMU-Fenster geprüft.
