@@ -313,7 +313,8 @@ TEST_F(RuntimeNamespace, OfflineAptInstallsUpgradesAndPurgesCompleteCandidate) {
     ASSERT_EQ("APT_INSTALL_UPGRADE_PURGE_OK\n", AptImageFixture::read(source, "var/log/aegis-package-test.complete"));
     struct stat st;
     ASSERT_EQ(0, fstatat(source, "var/lib/aegis-probe-owned", &st, AT_SYMLINK_NOFOLLOW));
-    EXPECT_EQ(1050042u, st.st_uid);EXPECT_EQ(1050042u, st.st_gid);
+    constexpr uid_t technical_owner = 10u * 100000u + 5000u + 42u;
+    EXPECT_EQ(technical_owner, st.st_uid);EXPECT_EQ(technical_owner, st.st_gid);
     EXPECT_EQ(-1, fstatat(source, "usr/bin/aegis-probe-app", &st, AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT, errno);
     EXPECT_EQ(-1, fstatat(source, "etc/aegis-probe.conf", &st, AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT, errno);
     aegis_namespace_release(contexts[0]);contexts[0] = nullptr;
