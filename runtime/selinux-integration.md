@@ -103,3 +103,12 @@ Brokers entfallen.
 
 Kompilierung, vollständiger Image-Start mit der neuen Policy, persönliche
 Kontexte und GNU-Ausführung stehen für diese Korrektur noch aus.
+
+Bei der nachfolgenden Prüfung des gepinnten Kernelpfads `may_create()` fällt
+eine weitere Startvoraussetzung auf: Vor dem tatsächlichen Genfs-Lookup wird
+das Anlegen des Cgroup-Verzeichnisses gegen dessen Type-Transition geprüft.
+Eine ausschließlich benannte Transition für `aegis-runtime` und die Zuordnung
+des privaten Typs zum Cgroup2-Dateisystem ergänzen deshalb die Policy.
+Dies erlaubt weder beliebige Android-Cgroup-Verzeichnisse noch Schreiben
+globaler Controllerdateien. Die Änderung betrifft keine nativen Quelltexte;
+ihre Kompilierung und der tatsächliche Brokerstart bleiben nachzuweisen.

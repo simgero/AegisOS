@@ -96,6 +96,11 @@ allow aegis_runtime_broker self:capability {
 # Private cgroup subtree; root controller settings and Android groups stay read-only.
 allow aegis_runtime_broker cgroup_v2:dir { getattr search open read write add_name };
 allow aegis_runtime_broker cgroup_v2:file r_file_perms;
+# mkdir is checked against its type transition before genfs lookup of the new
+# inode. Name only this one aggregate; never allow creating arbitrary Android
+# cgroup_v2 directories. The children inherit our private type.
+type_transition aegis_runtime_broker cgroup_v2:dir aegis_runtime_cgroup "aegis-runtime";
+allow aegis_runtime_cgroup cgroup_v2:filesystem associate;
 allow aegis_runtime_broker aegis_runtime_cgroup:dir create_dir_perms;
 allow aegis_runtime_broker aegis_runtime_cgroup:file rw_file_perms;
 
