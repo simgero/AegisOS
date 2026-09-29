@@ -231,3 +231,164 @@ TEST_F(RuntimePackagePublisher, CancelDuringObservedCopyReapsChildAndRetainsOldS
     // not activated. This is process cancellation, not a physical power failure.
 }
 } // namespace
+
+#include "broker_owner_package.h"
+namespace {
+class RuntimePackageBroker : public RuntimePackagePublisher {
+ protected:
+    aegis_broker_owner* broker=nullptr;
+    bool renamed=false;
+    uint64_t Deadline() {
+        timespec now={};if(clock_gettime(CLOCK_MONOTONIC,&now)<0)return 0;
+        return uint64_t{now.tv_sec}*1000000000+now.tv_nsec+5000000000;
+    }
+    void SetUp() override {
+        RuntimePackagePublisher::SetUp();if(HasFatalFailure())return;
+        request.job=0;
+        ASSERT_EQ(0,aegis_broker_owner_create(parent.get(),parent.get(),parent.get(),parent.get(),&broker));
+    }
+    void TearDown() override {
+        if(renamed)EXPECT_EQ(0,renameat(parent.get(),"held-by-test",parent.get(),"u10-s42"));
+        if(broker) {
+            EXPECT_EQ(0,aegis_broker_owner_stop_all(broker,Deadline())) << strerror(errno);
+            EXPECT_EQ(0,aegis_broker_owner_release(&broker)) << strerror(errno);
+        }
+        RuntimePackagePublisher::TearDown();
+    }
+    int Prepare(uint64_t* id,uint32_t user=10,int groups=-2) {
+        request.requester=user;
+        return BrokerPreparePublication(broker,request,groups==-2?parent.get():groups,
+            store.get(),source.get(),helper.get(),Deadline(),id);
+    }
+    int Run(uint64_t id,uint32_t user=10) {
+        return BrokerStartPublication(broker,user,42,id,request.plan_sha256,Deadline());
+    }
+    int Apply(uint16_t operation,uint32_t user,uint32_t serial,aegis_broker_state* state) {
+        aegis_broker_request call={};call.magic=AEGIS_BROKER_MAGIC;call.version=AEGIS_BROKER_VERSION;
+        call.operation=operation;call.sequence=operation==AEGIS_BROKER_HELLO?1:2;
+        call.deadline_ns=Deadline();call.user=user;call.serial=serial;
+        return aegis_broker_owner_apply(broker,&call,state);
+    }
+    void Completed(uint64_t id,uint32_t user,PackagePublicationResult* result) {
+        PublicationState state=PublicationState::Running;
+        for(int i=0;i<5000;++i) {
+            int polled=BrokerPollPublication(broker,user,42,id,request.plan_sha256,&state,result);
+            ASSERT_EQ(0,polled) << strerror(errno);
+            if(state==PublicationState::Complete)return;
+            usleep(1000);
+        }
+        FAIL() << "Owned publication did not complete";
+    }
+};
+TEST_F(RuntimePackageBroker, StopUserReleasesOnlyItsPreparationsAndIdsNeverRecycle) {
+    int baseline=Descriptors();uint64_t a=0,b=0;
+    ASSERT_EQ(0,Prepare(&a,10));ASSERT_EQ(0,Prepare(&b,11));EXPECT_GT(b,a);
+    EXPECT_EQ(baseline+8,Descriptors());
+    EXPECT_EQ(-1,aegis_broker_owner_release(&broker));EXPECT_EQ(EBUSY,errno);
+    aegis_broker_state state=AEGIS_BROKER_ABSENT;
+    ASSERT_EQ(0,Apply(AEGIS_BROKER_STATUS,10,42,&state));EXPECT_EQ(AEGIS_BROKER_SEALED,state);
+    ASSERT_EQ(0,Apply(AEGIS_BROKER_STOP_USER,10,0,&state));EXPECT_EQ(AEGIS_BROKER_ABSENT,state);
+    EXPECT_EQ(baseline+4,Descriptors());
+    EXPECT_EQ(-1,Run(a,10));EXPECT_EQ(ENOENT,errno);
+    PublicationState phase=PublicationState::Complete;PackagePublicationResult result{PackagePublish::Confirmed,77};
+    ASSERT_EQ(0,BrokerPollPublication(broker,11,42,b,request.plan_sha256,&phase,&result));
+    EXPECT_EQ(PublicationState::Prepared,phase);EXPECT_EQ(77,result.error);
+    uint64_t c=0;ASSERT_EQ(0,Prepare(&c,10));EXPECT_GT(c,b);
+    ASSERT_EQ(0,aegis_broker_owner_stop_all(broker,0));EXPECT_EQ(baseline,Descriptors());
+}
+TEST_F(RuntimePackageBroker, ExactRequesterSerialPlanAndSingleStartBindActualPublication) {
+    uint64_t id=0;ASSERT_EQ(0,Prepare(&id));
+    EXPECT_EQ(-1,Run(id,11));EXPECT_EQ(ESTALE,errno);
+    EXPECT_EQ(-1,BrokerStartPublication(broker,10,43,id,request.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
+    EXPECT_EQ(-1,BrokerStartPublication(broker,10,42,id,std::string(64,'f'),Deadline()));EXPECT_EQ(ESTALE,errno);
+    ASSERT_EQ(0,Run(id));EXPECT_EQ(-1,Run(id));EXPECT_EQ(EALREADY,errno);
+    PackagePublicationResult result;Completed(id,10,&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(PackagePublish::Confirmed,result.publication);Selection("complete generation");
+    EXPECT_EQ(-1,Run(id));EXPECT_EQ(ENOENT,errno);
+}
+TEST_F(RuntimePackageBroker, PreparationOwnsItsFdsAndIdleReapingClosesThem) {
+    uint64_t id=0;ASSERT_EQ(0,Prepare(&id));source.reset();store.reset();
+    ASSERT_EQ(0,Run(id));
+    bool removed=false;
+    for(int i=0;i<5000;++i) {
+        ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
+        struct stat st={};
+        if(fstatat(parent.get(),"u10-s42",&st,AT_SYMLINK_NOFOLLOW)<0&&errno==ENOENT) { removed=true;break; }
+        usleep(1000);
+    }
+    ASSERT_TRUE(removed);PackagePublicationResult result;Completed(id,10,&result);
+    ASSERT_FALSE(HasFatalFailure());EXPECT_EQ(PackagePublish::Confirmed,result.publication);
+    store.reset(openat(directory.get(),"store",O_RDONLY|O_DIRECTORY|O_CLOEXEC));
+    Selection("complete generation");
+}
+TEST_F(RuntimePackageBroker, FailedStartKeepsPartialOwnershipAndBlocksAdmissionUntilStopped) {
+    int baseline=Descriptors();uint64_t id=0;ASSERT_EQ(0,Prepare(&id,10,store.get()));
+    EXPECT_EQ(-1,Run(id));EXPECT_EQ(EPERM,errno);
+    EXPECT_EQ(-1,aegis_broker_owner_release(&broker));EXPECT_EQ(EBUSY,errno);
+    aegis_broker_state state=AEGIS_BROKER_READY;
+    EXPECT_EQ(-1,Apply(AEGIS_BROKER_START,10,42,&state));EXPECT_EQ(EBUSY,errno);EXPECT_EQ(AEGIS_BROKER_SEALED,state);
+    ASSERT_EQ(0,Apply(AEGIS_BROKER_STOP_USER,11,0,&state));
+    EXPECT_EQ(-1,aegis_broker_owner_release(&broker));EXPECT_EQ(EBUSY,errno);
+    ASSERT_EQ(0,Apply(AEGIS_BROKER_STOP_USER,10,0,&state));EXPECT_EQ(AEGIS_BROKER_ABSENT,state);
+    EXPECT_EQ(baseline,Descriptors());
+}
+TEST_F(RuntimePackageBroker, UserStopReapsPublicationWithoutCancellingOtherUsersPreparation) {
+    uint64_t a=0,b=0;ASSERT_EQ(0,Prepare(&a,10));ASSERT_EQ(0,Run(a,10));ASSERT_EQ(0,Prepare(&b,11));
+    aegis_broker_state state;ASSERT_EQ(0,Apply(AEGIS_BROKER_STOP_USER,10,0,&state));EXPECT_EQ(AEGIS_BROKER_ABSENT,state);
+    struct stat st={};EXPECT_EQ(-1,fstatat(parent.get(),"u10-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    PublicationState phase=PublicationState::Complete;PackagePublicationResult result;
+    ASSERT_EQ(0,BrokerPollPublication(broker,11,42,b,request.plan_sha256,&phase,&result));
+    EXPECT_EQ(PublicationState::Prepared,phase);
+    EXPECT_EQ(-1,BrokerCancelPublication(broker,10,42,b,request.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
+    ASSERT_EQ(0,BrokerCancelPublication(broker,11,42,b,request.plan_sha256,Deadline()));
+    Completed(b,11,&result);ASSERT_FALSE(HasFatalFailure());EXPECT_EQ(PackagePublish::Rejected,result.publication);
+}
+TEST_F(RuntimePackageBroker, HelloClearsPreparedAndRunningWorkBeforeAbsence) {
+    int baseline=Descriptors();uint64_t a=0,b=0;
+    ASSERT_EQ(0,Prepare(&a,10));ASSERT_EQ(0,Run(a,10));ASSERT_EQ(0,Prepare(&b,11));
+    aegis_broker_state state;ASSERT_EQ(0,Apply(AEGIS_BROKER_HELLO,0,0,&state));
+    EXPECT_EQ(AEGIS_BROKER_ABSENT,state);EXPECT_EQ(baseline,Descriptors());
+    EXPECT_EQ(-1,Run(a,10));EXPECT_EQ(ENOENT,errno);EXPECT_EQ(-1,Run(b,11));EXPECT_EQ(ENOENT,errno);
+    uint64_t c=0;ASSERT_EQ(0,Prepare(&c));EXPECT_GT(c,b);
+}
+TEST_F(RuntimePackageBroker, CleanupFaultRetainsItsOwnerButDoesNotAbandonOtherJobs) {
+    uint64_t a=0,b=0;ASSERT_EQ(0,Prepare(&a,10));ASSERT_EQ(0,Run(a,10));
+    ASSERT_EQ(0,Prepare(&b,11));ASSERT_EQ(0,Run(b,11));
+    // Fault only this fixture's first owned group name. Its retained inode and
+    // pidfd remain owned; the second group must still be stopped/reaped.
+    ASSERT_EQ(0,renameat(parent.get(),"u10-s42",parent.get(),"held-by-test"));renamed=true;
+    EXPECT_EQ(-1,aegis_broker_owner_stop_all(broker,0));
+    EXPECT_TRUE(errno==ETIMEDOUT||errno==ENOENT) << strerror(errno);
+    EXPECT_EQ(-1,aegis_broker_owner_release(&broker));EXPECT_EQ(EBUSY,errno);
+    uint64_t replacement=0;EXPECT_EQ(-1,Prepare(&replacement,10));EXPECT_EQ(EBUSY,errno);
+    // The global stop may already have consumed b after confirmed teardown.
+    // If it retained an in-flight kill, finish that same handle, without a new job.
+    for(int i=0;i<5000;++i) {
+        struct stat st={};
+        if(fstatat(parent.get(),"u11-s42",&st,AT_SYMLINK_NOFOLLOW)<0&&errno==ENOENT)break;
+        (void)aegis_broker_owner_reap_publications(broker);
+        usleep(1000);
+    }
+    struct stat st={};EXPECT_EQ(-1,fstatat(parent.get(),"u11-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    EXPECT_EQ(0,fstatat(parent.get(),"held-by-test",&st,AT_SYMLINK_NOFOLLOW));
+    ASSERT_EQ(0,renameat(parent.get(),"held-by-test",parent.get(),"u10-s42"));renamed=false;
+    ASSERT_EQ(0,aegis_broker_owner_stop_all(broker,Deadline()));
+    EXPECT_EQ(-1,fstatat(parent.get(),"u10-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+}
+TEST_F(RuntimePackageBroker, PreparationsAreBoundedAndForkCannotUseTheOwnersJobs) {
+    int baseline=Descriptors();uint64_t first=0;
+    for(uint32_t user=10;user<26;++user) { uint64_t id=0;ASSERT_EQ(0,Prepare(&id,user));if(user==10)first=id; }
+    uint64_t extra=0;EXPECT_EQ(-1,Prepare(&extra,26));EXPECT_EQ(ENOSPC,errno);EXPECT_EQ(0u,extra);
+    pid_t child=fork();ASSERT_GE(child,0);
+    if(!child) {
+        bool denied=aegis_broker_owner_stop_all(broker,0)==-1&&errno==EPERM;
+        denied=denied&&aegis_broker_owner_reap_publications(broker)==-1&&errno==EPERM;
+        PublicationState state;PackagePublicationResult result;
+        denied=denied&&BrokerPollPublication(broker,10,42,first,request.plan_sha256,&state,&result)==-1&&errno==EPERM;
+        denied=denied&&BrokerCancelPublication(broker,10,42,first,request.plan_sha256,0)==-1&&errno==EPERM;
+        _exit(denied?0:90);
+    }
+    int status=0;ASSERT_EQ(child,waitpid(child,&status,0));ASSERT_TRUE(WIFEXITED(status));EXPECT_EQ(0,WEXITSTATUS(status));
+    ASSERT_EQ(0,aegis_broker_owner_stop_all(broker,0));EXPECT_EQ(baseline,Descriptors());
+}
+} // namespace

@@ -4,6 +4,11 @@
 #include "broker_owner.h"
 #include "context.h"
 #include "control.h"
+#include "broker_owner_package.h"
+#include <android-base/unique_fd.h>
+#include <array>
+#include <memory>
+#include <new>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -13,6 +18,18 @@
 #include <unistd.h>
 
 #define MAX_CONTEXTS 16
+#define MAX_PUBLICATIONS 16
+using android::base::unique_fd;
+using namespace aegis;
+struct publication_slot {
+    PackagePublication plan;
+    std::array<unique_fd,4> inputs;
+    PackagePublisher* publisher = nullptr;
+    PublicationState state = PublicationState::Prepared;
+    PackagePublicationResult result;
+    void close_inputs() { for(auto& fd:inputs)fd.reset(); }
+    bool resources() const { return state==PublicationState::Prepared || publisher; }
+};
 struct slot {
     uint32_t user, serial;
     struct aegis_context *context;
@@ -22,7 +39,8 @@ struct aegis_broker_owner {
     pid_t process;
     int inputs[4];
     struct slot slots[MAX_CONTEXTS];
-    uint64_t next_command;
+    uint64_t next_command, next_publication;
+    std::array<std::unique_ptr<publication_slot>,MAX_PUBLICATIONS> publications;
 };
 
 static int fail(int error) { errno = error; return -1; }
@@ -59,7 +77,7 @@ int aegis_broker_owner_create(int parent_fd, int base_fd, int setup_fd, int init
                               struct aegis_broker_owner **output) {
     if (!output || *output) return fail(EINVAL);
     if (root_main() < 0) return -1;
-    struct aegis_broker_owner *owner = calloc(1, sizeof(*owner));
+    struct aegis_broker_owner *owner = new(std::nothrow) aegis_broker_owner{};
     if (!owner) return -1;
     for (unsigned i = 0; i < 4; i++) owner->inputs[i] = -1;
     int sources[] = {parent_fd, base_fd, setup_fd, init_fd};
@@ -68,7 +86,7 @@ int aegis_broker_owner_create(int parent_fd, int base_fd, int setup_fd, int init
         if (owner->inputs[i] < 0) {
             int error = errno;
             for (unsigned j = 0; j < 4; j++) if (owner->inputs[j] >= 0) close(owner->inputs[j]);
-            free(owner);
+            delete owner;
             return fail(error);
         }
     }
@@ -77,8 +95,47 @@ int aegis_broker_owner_create(int parent_fd, int base_fd, int setup_fd, int init
     return 0;
 }
 
+// No public wire package command calls these APIs yet. Once registered here,
+// however, package resources participate in the SAME production STOP/HELLO/
+// disconnect path as runtime contexts. Only exact completed teardown is absent.
+static int publication_guard(struct aegis_broker_owner* owner,uint32_t user,uint32_t serial) {
+    for(const auto& slot:owner->publications)if(slot && slot->resources() && slot->plan.requester==user) {
+        if(slot->plan.serial!=serial)return fail(ESTALE);
+        if(slot->state==PublicationState::Sealed)return fail(EBUSY);
+    }
+    return 0;
+}
+static bool publication_resources(struct aegis_broker_owner* owner,uint32_t user) {
+    for(const auto& slot:owner->publications)
+        if(slot && slot->resources() && slot->plan.requester==user)return true;
+    return false;
+}
+static int reap_publication(publication_slot& slot,int wait) {
+    if(!slot.publisher)return 0;
+    PackagePublicationResult result;
+    if(PackagePublisherFinish(&slot.publisher,slot.state==PublicationState::Sealed,wait,&result)<0)
+        return -1;
+    slot.close_inputs();slot.result=result;slot.state=PublicationState::Complete;
+    return 0;
+}
+static void seal_publications(struct aegis_broker_owner* owner,uint32_t user) {
+    for(auto& slot:owner->publications) {
+        if(!slot || (user && slot->plan.requester!=user))continue;
+        if(slot->state==PublicationState::Prepared) {
+            slot->close_inputs();slot->result={PackagePublish::Rejected,ECANCELED};
+            slot->state=PublicationState::Complete;
+        } else if(slot->publisher) {
+            slot->state=PublicationState::Sealed;
+            (void)PackagePublisherCancel(slot->publisher);
+        }
+    }
+}
+
 static int stop(struct aegis_broker_owner *owner, uint32_t user, uint64_t deadline) {
     int error = 0;
+    // Signal EVERY matching publisher before the first potentially blocking
+    // context/child wait. A timeout never leaves later jobs unvisited.
+    seal_publications(owner,user);
     for (unsigned i = 0; i < MAX_CONTEXTS; i++) {
         struct slot *slot = &owner->slots[i];
         if (!slot->context || (user && slot->user != user)) continue;
@@ -91,6 +148,13 @@ static int stop(struct aegis_broker_owner *owner, uint32_t user, uint64_t deadli
         } else {
             memset(slot, 0, sizeof(*slot));
         }
+    }
+    for(auto& slot:owner->publications) {
+        if(!slot || (user && slot->plan.requester!=user))continue;
+        int left=remaining_ms(deadline);
+        if(left<0) { if(!error)error=errno;left=0; }
+        if(reap_publication(*slot,left)<0) { if(!error)error=errno; }
+        else slot.reset(); // No resources remain. IDs are never recycled.
     }
     return error ? fail(error) : 0;
 }
@@ -124,6 +188,7 @@ int aegis_broker_owner_apply(struct aegis_broker_owner *owner,
         *state = AEGIS_BROKER_ABSENT;
         return 0;
     }
+    if(publication_guard(owner,request->user,request->serial)<0)return -1;
     struct slot *empty = NULL;
     for (unsigned i = 0; i < MAX_CONTEXTS; i++) {
         struct slot *slot = &owner->slots[i];
@@ -138,7 +203,7 @@ int aegis_broker_owner_apply(struct aegis_broker_owner *owner,
         return 0;
     }
     if (request->operation == AEGIS_BROKER_STATUS) {
-        *state = AEGIS_BROKER_ABSENT;
+        *state = publication_resources(owner,request->user) ? AEGIS_BROKER_SEALED : AEGIS_BROKER_ABSENT;
         return 0;
     }
     if (!empty) return fail(ENOSPC);
@@ -165,8 +230,9 @@ int aegis_broker_owner_release(struct aegis_broker_owner **output) {
     struct aegis_broker_owner *owner = *output;
     if (owned(owner) < 0) return -1;
     for (unsigned i = 0; i < MAX_CONTEXTS; i++) if (owner->slots[i].context) return fail(EBUSY);
+    for(const auto& slot:owner->publications)if(slot && slot->resources())return fail(EBUSY);
     for (unsigned i = 0; i < 4; i++) close(owner->inputs[i]);
-    free(owner); *output = NULL;
+    delete owner; *output = NULL;
     return 0;
 }
 
@@ -182,6 +248,7 @@ static struct slot *terminal_slot(struct aegis_broker_owner *owner,
     header.operation = AEGIS_BROKER_START;
     uint64_t previous = header.sequence > 1 ? header.sequence - 1 : 0;
     if (aegis_broker_parse(&header, sizeof(header), previous, now, &checked) < 0) return NULL;
+    if(publication_guard(owner,request->user,request->serial)<0)return NULL;
     for (unsigned i = 0; i < MAX_CONTEXTS; i++) {
         struct slot *slot = &owner->slots[i];
         if (!slot->context || slot->user != request->user) continue;
@@ -242,3 +309,118 @@ int aegis_broker_owner_result(struct aegis_broker_owner *owner,
     }
     return fail(ENOENT);
 }
+
+int aegis_broker_owner_reap_publications(struct aegis_broker_owner* owner) {
+    if(owned(owner)<0)return -1;
+    int error=0;
+    for(auto& slot:owner->publications)if(slot && slot->publisher) {
+        if(reap_publication(*slot,0)<0 && errno!=ETIMEDOUT) {
+            if(!error)error=errno;
+            slot->state=PublicationState::Sealed;
+            (void)PackagePublisherCancel(slot->publisher);
+        }
+    }
+    return error ? fail(error) : 0;
+}
+
+namespace aegis {
+namespace {
+int admission(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t deadline) {
+    if(owned(owner)<0)return -1;
+    if(user<10 || user>=21473 || serial>INT32_MAX)return fail(EINVAL);
+    int left=remaining_ms(deadline);if(left<0)return -1;if(!left)return fail(ETIMEDOUT);
+    if(publication_guard(owner,user,serial)<0)return -1;
+    for(const auto& context:owner->slots)if(context.context && context.user==user) {
+        if(context.serial!=serial)return fail(ESTALE);
+        if(aegis_context_channel(context.context)<0)return fail(EBUSY);
+    }
+    return 0;
+}
+publication_slot* find(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                       uint64_t job,const std::string& plan) {
+    if(owned(owner)<0)return nullptr;
+    for(auto& slot:owner->publications)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial || slot->plan.plan_sha256!=plan) {
+            fail(ESTALE);return nullptr;
+        }
+        return slot.get();
+    }
+    fail(ENOENT);return nullptr;
+}
+}
+int BrokerPreparePublication(aegis_broker_owner* owner,const PackagePublication& request,
+                             int groups,int store,int source,int helper,uint64_t deadline,uint64_t* job) {
+    if(!job || *job || request.job)return fail(EINVAL);
+    if(admission(owner,request.requester,request.serial,deadline)<0)return -1;
+    if(owner->next_publication==INT64_MAX)return fail(EOVERFLOW);
+    PackagePublication plan=request;plan.job=owner->next_publication+1;
+    if(PackagePublicationCheck(plan)<0)return -1;
+    std::unique_ptr<publication_slot>* empty=nullptr;
+    for(auto& slot:owner->publications) {
+        if(!slot) { if(!empty)empty=&slot;continue; }
+        if(slot->resources() && slot->plan.requester==request.requester)return fail(EBUSY);
+    }
+    if(!empty)return fail(ENOSPC);
+    auto prepared=std::unique_ptr<publication_slot>(new(std::nothrow) publication_slot);
+    if(!prepared)return fail(ENOMEM);
+    prepared->plan=std::move(plan);
+    int fds[]={groups,store,source,helper};
+    for(unsigned i=0;i<4;++i) {
+        prepared->inputs[i].reset(fcntl(fds[i],F_DUPFD_CLOEXEC,3));
+        if(!prepared->inputs[i].ok())return -1;
+    }
+    // No child or persistent changes yet. Failed preparation drops its copies.
+    if(remaining_ms(deadline)<=0)return fail(ETIMEDOUT);
+    *job=++owner->next_publication;*empty=std::move(prepared);
+    return 0;
+}
+int BrokerStartPublication(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                           uint64_t job,const std::string& plan,uint64_t deadline) {
+    auto* slot=find(owner,user,serial,job,plan);if(!slot)return -1;
+    if(slot->state!=PublicationState::Prepared)return fail(EALREADY);
+    if(admission(owner,user,serial,deadline)<0)return -1;
+    // This consumes the preparation even on failure. Every partial child/FD
+    // remains in the pre-registered slot before caller admission is released.
+    slot->state=PublicationState::Running;
+    int result=PackagePublisherStart(slot->inputs[0].get(),slot->inputs[1].get(),
+        slot->inputs[2].get(),slot->inputs[3].get(),slot->plan,&slot->publisher);
+    int error=errno;slot->close_inputs();
+    if(result<0) {
+        if(slot->publisher) { slot->state=PublicationState::Sealed;(void)PackagePublisherCancel(slot->publisher); }
+        else { slot->state=PublicationState::Complete;slot->result={PackagePublish::Rejected,error}; }
+        return fail(error);
+    }
+    if(remaining_ms(deadline)<=0) {
+        slot->state=PublicationState::Sealed;(void)PackagePublisherCancel(slot->publisher);
+        return fail(ETIMEDOUT);
+    }
+    return 0;
+}
+int BrokerPollPublication(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                          uint64_t job,const std::string& plan,PublicationState* state,
+                          PackagePublicationResult* result) {
+    if(!state || !result)return fail(EINVAL);
+    auto* slot=find(owner,user,serial,job,plan);if(!slot)return -1;
+    if(slot->publisher && reap_publication(*slot,0)<0 && errno!=ETIMEDOUT)return -1;
+    *state=slot->state;
+    if(slot->state==PublicationState::Complete) {
+        *result=slot->result;
+        for(auto& entry:owner->publications)if(entry.get()==slot) { entry.reset();break; }
+    }
+    return 0;
+}
+int BrokerCancelPublication(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                            uint64_t job,const std::string& plan,uint64_t deadline) {
+    auto* slot=find(owner,user,serial,job,plan);if(!slot)return -1;
+    int left=remaining_ms(deadline),error=left<0?errno:0;
+    // Invalid/expired time still seals and requests this exact owned job's stop.
+    if(slot->state==PublicationState::Prepared) {
+        slot->close_inputs();slot->state=PublicationState::Complete;
+        slot->result={PackagePublish::Rejected,ECANCELED};
+    } else if(slot->publisher) {
+        slot->state=PublicationState::Sealed;(void)PackagePublisherCancel(slot->publisher);
+        if(reap_publication(*slot,left<0?0:left)<0)return -1;
+    }
+    return error ? fail(error) : 0;
+}
+} // namespace aegis

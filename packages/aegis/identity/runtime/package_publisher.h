@@ -18,6 +18,12 @@ struct PackagePublicationResult {
 };
 struct PackagePublisher;
 
+// Bounded validation only, without file access, hashing or allocation of a job.
+int PackagePublicationCheck(const PackagePublication& request);
+// Request both cgroup and stable-child termination without waiting. This is
+// never teardown confirmation; Finish remains mandatory even after an error.
+int PackagePublisherCancel(PackagePublisher* publisher);
+
 // All FDs originate from the trusted broker, never a CLI. The caller verifies
 // immutable helper provenance, source semantics, store anchoring, fresh AOSP
 // approval and (for private scope) CE/serial. Use a separate private memory-

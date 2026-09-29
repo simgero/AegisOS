@@ -84,7 +84,7 @@ kann. Ein Fehler darf weder `READY` noch erfolgreiches `ABSENT` behaupten.
 
 ## Native Ressourcenverwaltung
 
-`broker_owner.c` besitzt bis zu 16 persönliche Kontextplätze und eigene
+`broker_owner.cpp` besitzt bis zu 16 persönliche Kontextplätze und eigene
 CLOEXEC-Kopien der vertrauenswürdigen Basis-/Helfer-/Cgroup-Deskriptoren.
 Besitz ist an die tatsächliche Kernel-Prozess-ID und den Hauptthread gebunden;
 Bionics nach direktem Clone geerbter PID-Cache genügt nicht.
@@ -96,6 +96,31 @@ Besitzer entfernt werden. Der globale Stopp besucht nach Fehlern oder Ablauf
 der Wartefrist weiterhin alle Plätze, um sämtliche Kontrollkanäle zu sperren
 und Beendigung anzufordern. Freigeben ist erst ohne jeden verbliebenen Kontext
 möglich. AOSP-Schlüsselsperrung bleibt ein zusätzlicher, separater Schritt.
+
+Zusätzlich hält derselbe Besitzer bis zu 16 vorbereitete oder gestartete
+Paketveröffentlichungen. Vorbereitungen besitzen bereits ihre benötigten
+FD-Kopien und werden beim Benutzerstopp ebenfalls geschlossen. Die internen
+Auftragsnummern werden je Besitzer erzeugt und nicht wiederverwendet. Start,
+Status und gezielter Abbruch verlangen dieselbe ID, Seriennummer und denselben
+Plan-Digest. Ein fehlgeschlagener Teilstart bleibt registriert. Solange sein
+Abbau unbestätigt ist, sind neue Runtime-/Paketstarts dieses Benutzers gesperrt.
+
+`STOP_USER`, `HELLO` und der globale Stopppfad schließen jetzt auch diese
+Ressourcen ein. Zunächst wird allen betroffenen Publishern Beendigung signalisiert;
+erst danach beginnen die begrenzten Warte-/Abbauschritte. Fehler bei einem
+Auftrag überspringen keine anderen Aufträge. Ein bestätigtes `ABSENT` setzt
+vollständigen Kontext- **und** Paketabbau voraus. Der Daemon räumt beendete
+Publisher außerdem ohne abwartenden CLI-Client auf. Antworten zur eigentlichen
+Veröffentlichung bleiben von dieser Ressourcenbestätigung getrennt.
+
+Noch offen sind die Verbindung des vertrauenswürdigen Planers und der frischen
+AOSP-Freigabe mit diesen internen Eingängen sowie Paket-Cgroup-/SELinux-/CE-
+Bootstrap, APT und öffentliche Paketbefehle. Der private Socket akzeptiert
+weiterhin keine eingehenden FDs oder Paketoperationen. Vorbereitungen dürfen
+einen Verbindungs-/Besitzerwechsel nicht überleben; die spätere Java-Anbindung
+muss sie dabei widerrufen. Der neue Besitzerpfad ist noch nicht im laufenden
+Systemserver/Daemon des bisherigen Vollimages installiert. Kompilierung und
+acht direkte native Besitzer-/Lifecycle-Tests stehen für diesen Stand aus.
 
 ## Vorbereiteter Dienststart und Wiederherstellung
 

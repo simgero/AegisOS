@@ -7,7 +7,8 @@ extern "C" {
 
 /* Single-threaded host-root owner behind the authenticated AOSP connection.
  * Owns up to 16 personal context slots and duplicates its trusted input FDs.
- * Not an auth endpoint or package owner. Bootstrap MUST verify the
+ * Owns prepared/running package publications too; not an auth endpoint.
+ * Bootstrap MUST verify the
  * immutable generation/helpers and recover stale cgroups before construction.
  * No API accepts a CLI path, password or caller-supplied process identifier.
  */
@@ -19,7 +20,8 @@ int aegis_broker_owner_create(int parent_fd, int base_fd, int setup_fd, int init
  * and enforced per-connection sequence ordering. AOSP admission/CE serialization
  * remains held by that peer. Success writes ABSENT/READY/SEALED as appropriate;
  * failure leaves *state=SEALED and retains ALL incomplete cleanup ownership.
- * HELLO stops all predecessor contexts before acknowledging a new connection.
+ * HELLO stops all predecessor contexts AND package resources before acknowledging
+ * a new connection. STOP_USER is absent only after both are fully released.
  * STOP_USER covers every retained serial for the numeric userId.
  */
 int aegis_broker_owner_apply(struct aegis_broker_owner *owner,
@@ -41,7 +43,11 @@ int aegis_broker_owner_result(struct aegis_broker_owner *owner,
                               const struct aegis_broker_request *request,
                               uint64_t command, int *wait_status, int *exited);
 
-/* On disconnect/shutdown: visit EVERY context, including after a timeout, so
+/* Nonblocking housekeeping of owned publication children; never authenticates
+ * a caller or confirms CE eviction. Incomplete cleanup remains owned. */
+int aegis_broker_owner_reap_publications(struct aegis_broker_owner *owner);
+
+/* On disconnect/shutdown: visit EVERY context/publication, including after a timeout, so
  * all channels seal and termination is requested. One total wait deadline;
  * expired deadline means no waiting, never unconditional success.
  */

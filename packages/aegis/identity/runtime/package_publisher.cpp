@@ -136,6 +136,18 @@ PackagePublicationResult Response(PackagePublisher* p,const aegis_child_exit& ex
 }
 } // namespace
 
+int PackagePublicationCheck(const PackagePublication& request) {
+    wire::Request message={};return Encode(request,&message) ? 0 : Fail(EINVAL);
+}
+int PackagePublisherCancel(PackagePublisher* p) {
+    if(!Owned(p))return -1;
+    int error=0;
+    if(p->group && aegis_memory_group_kill_and_wait(p->group,0)<0 && errno!=ETIMEDOUT)
+        error=errno;
+    if(p->child && aegis_child_request_stop(p->child)<0 && !error)error=errno;
+    return error ? Fail(error) : 0;
+}
+
 int PackagePublisherStart(int groups,int store,int source,int helper,
                           const PackagePublication& request,PackagePublisher** output) {
     if(!output || *output)return Fail(EINVAL);
@@ -177,12 +189,8 @@ int PackagePublisherFinish(PackagePublisher** pointer,bool cancel,int timeout_ms
     if(!pointer || !*pointer || !result || timeout_ms<0 || timeout_ms>10000)return Fail(EINVAL);
     auto* p=*pointer;if(!Owned(p))return -1;
     int64_t start=Now();
-    if(cancel) {
-        // Both signals are attempted even if the other fails or no wait budget
-        // remains. Completion still requires the checked steps below.
-        if(p->group)(void)aegis_memory_group_kill_and_wait(p->group,0);
-        if(p->child)(void)aegis_child_request_stop(p->child);
-    }
+    // A signal failure does not bypass the completion checks or abandon work.
+    if(cancel)(void)PackagePublisherCancel(p);
     if(start<0)return -1;
     int64_t deadline=start+timeout_ms;
     aegis_child_exit exit={};

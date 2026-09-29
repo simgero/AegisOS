@@ -1,5 +1,34 @@
 # Vollständige Paketgenerationen
 
+## Gemeinsamer Ressourcenbesitzer und Abmeldung
+
+Der native Brokerbesitzer verwaltet jetzt auch Vorbereitungen und laufende
+Veröffentlichungen. Seine tatsächlichen `STOP_USER`-/`HELLO`-/Abschaltpfade
+besuchen Paketarbeiten mit derselben Benutzerkennung und schließen ihre
+FDs vor bestätigtem `ABSENT`. Ein Fehler beim Aufräumen eines Auftrags lässt
+andere Aufträge nicht aus. Teilstarts bleiben gesperrt und registriert.
+Der produktive Broker-Loop erhält außerdem nicht blockierendes Reaping;
+ein verschwundener CLI-Client muss seine Paketarbeit nicht selbst aufräumen.
+
+Vorbereitungen kopieren den vollständigen Auftrag und vertrauenswürdige FDs
+unter der vorhandenen AOSP-Zulassung. Der Aufrufer muss seine eigenen FDs vor
+Freigabe des Gates schließen. IDs werden vom Besitzer vergeben und innerhalb
+seiner Laufzeit nicht wiederverwendet. Start und Abbruch eines falschen
+Benutzers, einer anderen Seriennummer oder eines anderen Plans greifen nicht
+auf den Auftrag zu. Eine gültige Startübergabe verbraucht die Vorbereitung.
+Fertige Antworten enthalten keine offenen privaten Deskriptoren; ein passendes
+Poll konsumiert sie. Die feste Kapazität beträgt 16 Plätze und höchstens einen
+aktiven Auftrag je Antragsteller. Gemeinsame Store-Schreiber werden zusätzlich
+vom bereits implementierten Store serialisiert.
+
+Diese Änderungen sind direkt in die native Besitzlogik eingebunden, aber noch
+nicht im bisher laufenden Vollimage installiert. Acht zusätzliche Gerätetests
+sind vorbereitet. Der tatsächliche AOSP-Logout mit privatem CE und laufendem
+APT bleibt offen. Ebenso fehlen native Planung, der öffentliche Paketkanal,
+Java-Anbindung mit Verbindungswiderruf und die produktive Cgroup-/SELinux-
+Einrichtung für den Publisher. Es wird keine funktionierende Paket-CLI behauptet.
+[Native Steuerung](broker-control.md).
+
 ## Eigener Prozess für die Veröffentlichung
 
 `PackagePublisher` startet jetzt einen separat verwalteten Prozess für Hashen,

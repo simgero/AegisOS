@@ -215,6 +215,9 @@ static int serve(int listener, int signals, struct aegis_broker_owner *owner) {
             if (info.ssi_signo != SIGCHLD) { result = 0; break; }
             // The context owner alone consumes waitid(P_PIDFD) child status.
         }
+        // Close completed publication resources even if the original client
+        // never polls its result. Cleanup failure takes the common stop path.
+        if (aegis_broker_owner_reap_publications(owner) < 0) break;
         uint64_t now = now_ns();
         if (!now) break;
         if (peer >= 0 && ((events[1].revents & (POLLHUP | POLLRDHUP | POLLERR | POLLNVAL))

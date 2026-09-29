@@ -136,10 +136,9 @@ cc_library_static {
 cc_library_static {
     name: "libaegis-runtime-broker-owner",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/broker_owner.c"],
-    static_libs: ["libaegis-runtime-context", "libaegis-runtime-broker-protocol"],
+    srcs: ["runtime/broker_owner.cpp"],
+    static_libs: ["libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-package-publisher", "libbase"],
     export_include_dirs: ["runtime"],
-    stl: "none",
 }
 
 // Immutable system_ext base validation and detached readonly mount; not yet

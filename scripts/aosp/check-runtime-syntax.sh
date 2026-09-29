@@ -70,7 +70,7 @@ commands = {}
 for source, template in (('exec.c', 'context.c'), ('context.c', 'context.c'),
                          ('ce.c', 'context.c'), ('ce_tests.cpp', 'setup_tests.cpp'),
                          ('exec_tests.cpp', 'setup_tests.cpp'), ('broker.c', 'broker.c'),
-                         ('broker_owner.c', 'context.c'), ('broker_protocol.c', 'context.c'),
+                         ('broker_owner.cpp', 'setup_tests.cpp'), ('broker_protocol.c', 'context.c'),
                          ('broker_protocol_tests.cpp', 'setup_tests.cpp'),
                          ('memory_group_tests.cpp', 'setup_tests.cpp')):
     commands[source] = rules[template] + [str(project / 'packages/aegis/identity/runtime' / source)]
