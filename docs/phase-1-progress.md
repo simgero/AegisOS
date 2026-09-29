@@ -11,17 +11,19 @@ Eigentümer-/Basisbindung, Parallelität und Fehlerfällen. Die echte APT-Ausfü
 produktive AOSP-Adminfreigabe und Broker-/CE-Anbindung fehlen weiterhin.
 [Nachweis und noch offene Integration](../runtime/package-transactions.md).
 
-Für die Passwortbestätigung ist ein zusätzlicher interner AOSP-Adapter
-implementiert und auf dem Server kompiliert. Komponentenstand `28811521`
-besteht **105/105 Java-Tests**, darunter 14 neue isolierte Policy-Fixtures.
+Für die Passwortbestätigung sind der interne AOSP-Adapter und die einmalige
+Bindung an Paketaktion, Antragsteller und privates Ziel implementiert und auf
+dem Server kompiliert. Komponentenstand `09b10fd7` besteht **119/119 Java-Tests**,
+darunter 14 isolierte Passwort-Policy- und 14 neue Koordinator-Fixtures. Auch
+bei Bestätigung durch einen anderen Admin bleibt der Antragsteller Eigentümer.
 Der Adapter vermeidet im Quellpfad die anschließende Benutzer-/CE-Entsperrung;
 das ist noch nicht mit echten Adminpasswörtern im neuen Vollsystem geprüft.
-Die Bindung an Paketaktion, Antragsteller und privates Ziel sowie der eigentliche
-Paketarbeiter fehlen weiterhin. [Belege und Grenzen](component-tests.md).
+Die produktive Dienstanbindung, der native Planer und Paketarbeiter sowie die
+CLI fehlen weiterhin. [Belege und Grenzen](component-tests.md).
 
 Neuester lokal gestarteter Vollbuild: **`927cf51d`**, mit Enforcing, FBE,
 authentifiziertem ADB und tatsächlichem dm-verity. Im separaten Gast bestehen
-nun **105/105 Java-Tests** aus Komponentenstand `28811521`, einschließlich der drei
+nun **119/119 Java-Tests** aus Komponentenstand `09b10fd7`, einschließlich der drei
 Prüfungen des echten AOSP-Allocators in isolierten App-Fixtures. Gelöschte
 Kennungen bleiben darin während desselben Systemserver-Laufs reserviert,
 auch wenn der Nummernraum erschöpft ist. Die echten Benutzer- und

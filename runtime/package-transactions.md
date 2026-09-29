@@ -41,6 +41,13 @@ Rückkehr auf gemeinsame Versionen enthalten. Die neuen Koordinatortests
 verwenden kontrollierte Authority-/Handoff-Fixtures; sie ersetzen keine echten
 Adminpasswörter, Paketinstallationen oder Abmeldungen während APT.
 
+Stand `09b10fd7` ist auf dem Server kompiliert und im unveränderten lokalen
+`927cf51d`-Gast geprüft: **119/119 Java-Tests** bestehen am 29. September 2026
+um 18:27:09 UTC, einschließlich der 14 neuen Koordinator-Fixtures. Benutzer-,
+CE- und Kontextbestand bleiben identisch; Enforcing und Broker laufen weiter.
+Die oben beschriebenen Grenzen zur realen Dienst-/Arbeiteranbindung gelten
+weiterhin. [Vollständiger Nachweis](../docs/component-tests.md).
+
 ## Separater Schritt: AOSP-Passwortbestätigung ohne Anmeldung
 
 Der neue interne `AegisPackageCredentials`-Adapter wird von LockSettings in
@@ -194,8 +201,9 @@ Am 29. September 2026 um 16:31:01 UTC besteht die komplette native Suite in
 `984f23bd-607e-4a6d-8c08-7ae91bccd4f5`. Vorher und nachher bestehen nur
 Benutzer/CE-Schlüsselverzeichnisse 0; es gibt keine persönlichen Kontexte.
 Enforcing und der unverändert laufende produktive Broker sind bestätigt.
-Der Broker enthält diesen neuen Baustein noch nicht. Die unveränderten
-Java-Quellen behalten den separaten 91er-Nachweis von `be9d0d54` im selben Gast.
+Der Broker enthält diesen neuen Baustein noch nicht. Zum Zeitpunkt dieses
+nativen Laufs bestand der separate 91er-Java-Nachweis von `be9d0d54`;
+der neuere 119er-Java-Lauf ist oben getrennt belegt.
 
 Der erste Versuch scheiterte bereits beim Übertragen der Testprogramme: Das
 als Root angelegte Ziel war für den authentifizierten ADB-Shellbenutzer nicht

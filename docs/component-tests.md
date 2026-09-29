@@ -1,3 +1,49 @@
+## Einmalige Paketbestätigung und Übergabe: 09b10fd7
+
+Der auf `aegis-build` kompilierte und über GitHub verifizierte
+[Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T182444Z-09b10fd7-09b10fd7-Yk6W4s)
+aus Commit `09b10fd73bd980c9134ba250cc42e8ac6e6ca378` besteht am
+29. September 2026 um **18:27:09 UTC alle 119/119 Java-Gerätetests** in
+9,183 Sekunden, ohne Abwahl oder übersprungene Tests. Alle bisherigen
+105 Tests und die 14 neuen Koordinatortests wurden ausgeführt.
+
+Geprüft sind die unveränderliche Zuordnung zum Antragsteller statt zum
+bestätigenden Admin, expliziter privater/gemeinsamer Bereich, frische Prüfung
+aller sechs Aktions-/Bereichskombinationen, Passwortablehnung und Sperrfrist,
+Widerruf vor/während/nach Bestätigung sowie geänderter Antragstellerzustand.
+Eine Vorbereitung lässt sich nicht zweimal übernehmen. Ein paralleler
+Verlierer kann den Auftrag des Gewinners nicht abbrechen. Unklare Antworten
+nach begonnener Übergabe bleiben ausdrücklich unbestätigt; der zugehörige
+Abbruch wird angefordert, ohne erfolgreichen Abbau oder Rollback zu behaupten.
+
+**Kontrollierte Authority-/Handoff-Fixtures, keine Paketinstallation:**
+Die Tests führen weder echte Adminpasswortprüfung noch APT aus und starten
+keinen nativen Paketarbeiter. Der echte `AospPackageAuthority`-Adapter ist
+kompiliert, aber noch nicht im installierten Dienst verbunden. Der Gast
+verwendet weiterhin Vollimage `927cf51d`; der neue LockSettings-Pfad läuft
+noch nicht in dessen Systemserver. Kein neuer CE-Unlock-/Worker-Abbruchnachweis.
+[Implementierung und offene Integration](../runtime/package-transactions.md).
+
+Profil `d68845b3-62a9-4181-a7cd-c0f0a8e7d316`, unveränderte Boot-ID
+`984f23bd-607e-4a6d-8c08-7ae91bccd4f5`. Vorher und nachher ausschließlich
+Benutzer und Schlüsselverzeichnisse 0, CE 0 entsperrt, keine persönlichen
+Kontexte; Enforcing und laufender Broker sind erneut bestätigt. Native Quellen
+sind seit `8e1c2228` unverändert und behalten dessen 138er-Nachweis. Der
+sichtbare Launcher und sämtliche bisherigen Profilpaare bleiben unverändert.
+
+Bestätigter Lauf `identity-20260929T181947Z-09b10fd7-r9WPkv`, InvocationID
+`b745d032ad554041a782568769fb257a`. Die erste lokale Release-Abfrage schlug
+nach bestätigt abgeschlossenem Export fehl. Derselbe veröffentlichte Release
+wurde anschließend mit passendem Commit und vollständigen Prüfsummen geladen;
+Build und Export wurden nicht wiederholt.
+Belege unter `out/components-09b10fd7/component-tests/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `java.log` | `7094d0114034b43203388dae46fe3877a9b372af807d78ddae1f3d16de89ddfa` |
+| identische `before.json` / `after.json` | `0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3` |
+| installiertes APK | `0bf75fd6f2718459ecb41f0aa19ea4305f6476ca104f034a2a6a656ebc0f29b1` |
+
 ## Interne Paket-Passwortprüfung: 28811521
 
 Der auf `aegis-build` kompilierte und über GitHub verifizierte
