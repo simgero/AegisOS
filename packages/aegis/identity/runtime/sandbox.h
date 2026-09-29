@@ -17,6 +17,7 @@ int aegis_limit_supervisor(void);
 int aegis_limit_shell(void);
 /* Package-worker PID1 only, AFTER trusted setup has detached Android's root,
  * provided an exclusively owned candidate and verified its SELinux domain.
+ * Requires explicit package preparation with the exact map and setgroups=allow.
  * Keeps only mapped CHOWN/DAC_OVERRIDE/FOWNER/FSETID/SETUID/SETGID across exec.
  * This grants no host capabilities, AOSP authority, mounts or package approval.
  * Drops all other bounding bits, locks root/ambient escalation, sets NNP and

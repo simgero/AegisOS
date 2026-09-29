@@ -1,3 +1,82 @@
+## Echter Offline-APT-Durchlauf: fddf9563
+
+Der auf `aegis-build` kompilierte und über GitHub verifizierte
+[Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T202813Z-fddf9563-fddf9563-PEiJmo)
+aus Commit `fddf956306c05bc556c5ec54c56909d041d8500b` besteht am
+29. September 2026 um **20:29:33 UTC alle 158/158 nativen Gerätetests** aus
+23 Suiten in 21,213 Sekunden, ohne übersprungene Tests. Der neue tatsächliche
+APT-Durchlauf benötigt 6,462 Sekunden.
+
+Die Probe kopiert die im gestarteten System verifizierte Debian-Basis in ein
+neues eigenes ext4-Abbild unter `/data/local/tmp`. Hash und Größe müssen zum
+unveränderlichen Systembeleg passen. Kopie und beschreibbarer Mount entstehen
+vor dem begrenzten Namespace-Start. Nur der explizite Paketkontext kann diesen
+noch unverbundenen Kandidaten auf seine eigenen UID/GID-Bereiche abbilden.
+Ein normaler Runtime-Kontext darf das nicht; der abgewiesene Versuch lässt den
+Kandidaten unverändert. Paketkontexte dürfen keinen persönlichen HOME-Mount
+anfordern. Die unveränderliche Basis wird nicht beschreibbar gemacht.
+
+Nach Abhängen der Android-Wurzel läuft das echte **APT 3.0.3 / dpkg 1.22.22**
+mit den begrenzten sechs Capabilities. Der Test erzeugt zwei synthetische lokale
+Pakete mit einer genauen Versionsabhängigkeit, stellt ihre Archive im eigenen
+Cache bereit und verwendet ausschließlich leere Paketquellen sowie
+`--no-download`. Er bestätigt:
+
+- Installation und tatsächliche Ausführung von Version 1 samt Bibliotheksdatei.
+- Gemeinsames Update beider Pakete auf Version 2 mit passenden dpkg-Versionen.
+- Erhalt einer absichtlich geänderten Konfigurationsdatei mit `--force-confold`.
+- Ausführung von preinst, postinst, prerm und postrm in den erwarteten Phasen.
+- Technischen Dateibesitz 42:42 innerhalb des Kandidaten, außerhalb korrekt als
+  1005042:1005042 sichtbar. Der vom Skript erzeugte Datenordner bleibt eigens für
+  diese Eigentümerprüfung erhalten; Purge ist keine Löschung sämtlicher Appdaten.
+- Purge beider Pakete, verschwundene Programm-/Bibliotheks-/Konfigurationsdateien
+  und einen leeren `dpkg --audit`-Befund.
+
+APT benötigt technische Zusatzgruppen auch beim Prüfen lokaler Archive.
+Dafür erhält ausschließlich die explizite Paketvorbereitung `setgroups=allow`
+mit denselben drei begrenzten GID-Abbildungen. Der reale Rechte-/Exec-Test
+bestätigt Gruppen 42 und 65534; GID 1001 ist nicht abgebildet und wird abgewiesen,
+ohne die vorherige Gruppenliste zu ändern. Nach UID-Wechsel fehlen auch die
+Rechte für weitere Gruppenänderungen. Normale Runtime-Vorbereitung und -Sitzung
+behalten `setgroups=deny`; ihre bisherigen Tests bestehen weiterhin. Die sechs
+Capability-Mengen, No-new-privileges, NOROOT-/Ambient-Sperren und Mount-/Namespace-
+Filter werden nicht erweitert. Der Paketarbeiter erhält keine zusätzliche
+Host-Benutzergruppe. [APT-Quellstelle](https://raw.githubusercontent.com/Debian/apt/3.0.3/apt-pkg/contrib/fileutl.cc).
+
+**Nachweisgrenze:** Dies ist eine native Entwicklerprobe mit einer eigenen
+Imagekopie und synthetischen Paketen, noch kein produktiver Paketendpunkt.
+Es gibt keine Repository-/Signaturprüfung, echte AOSP-Adminbestätigung, private
+CE-Paketablage, produktive Paketarbeiter-SELinux-Domäne, brokerregistrierte
+APT-Ressourcen oder Veröffentlichung/Aktivierung dieses Kandidaten. Der aktuelle
+native Besitzer verwaltet separat getestete Veröffentlichungsprozesse; der
+APT-Arbeiter muss noch denselben Abmelde-/Abbruchlebenszyklus erhalten.
+Zwei persönliche Paketbereiche, gemeinsame Updates/Rebase, reale Abmeldung
+während APT und ein neu gestartetes integriertes Vollimage bleiben offen.
+
+Der lokale Gast bleibt `927cf51d`, Profil `d68845b3-62a9-4181-a7cd-c0f0a8e7d316`, Boot-ID
+`984f23bd-607e-4a6d-8c08-7ae91bccd4f5`. Benutzer-/CE-/Schlüsselverzeichnis-/Kontextbestand sind identisch;
+Enforcing, Broker und dieselbe Boot-ID sind bestätigt. Der erfolgreiche eigene
+Kandidat wird erst nach Kindende und Schließen aller eigenen Mountreferenzen
+entfernt; drei frühere fehlgeschlagene Fixture-Abbilder bleiben als Belege stehen.
+Sichtbarer Launcher und sämtliche Daten-/KeyMint-Profilpaare werden nicht ersetzt.
+Die 119 Java-Tests von `09b10fd7` gelten für unveränderte Quellen und wurden nicht
+wiederholt. Buildlauf `identity-20260929T202723Z-fddf9563-z85XvY`, InvocationID `d8e6588aabdd45cb84833feceb123c85`.
+
+Frühere Durchläufe: `be0a9ace` scheiterte an CLOEXEC auf bereits passend
+nummerierten Standarddeskriptoren; `140ff98e` erreichte die echte APT-Auflösung
+und zeigte die benötigten Gruppenwechsel; `85a2cb2d` bestand die neue Rechteprobe,
+benötigte für `--no-download` aber bereits gefüllte Archivcache-Dateien.
+`b3479b93` wurde kompiliert, nach Fund einer falschen erwarteten Eigentümerzahl
+jedoch nicht ausgeführt. Diese Zahl ist nun aus der festen Abbildung berechnet.
+Es wurde keine Sandbox deaktiviert und kein fehlgeschlagener Test ausgelassen.
+
+Lokale Belege unter `out/components-fddf9563/component-tests/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `native.log` | `68e3d978b4aa5bad347f0c9c94826ebc40935960ecafcc4b1da02732e426d328` |
+| identische `before.json` / `after.json` | `0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3` |
+
 ## Rechte des Paketarbeiters: ac01f261
 
 Der auf `aegis-build` kompilierte und über GitHub verifizierte

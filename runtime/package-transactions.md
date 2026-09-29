@@ -1,5 +1,33 @@
 # Vollständige Paketgenerationen
 
+## Tatsächlicher APT-Lauf im vollständigen Kandidaten
+
+Stand `fddf9563` besteht am 29. September 2026 um 20:29:33 UTC alle
+**158/158 nativen Tests** im lokalen Mac-QEMU. Das echte Debian-APT/dpkg
+installiert zwei voneinander abhängige Offline-Testpakete in einer eigenen
+beschreibbaren ext4-Kopie, aktualisiert beide, erhält eine geänderte Konfiguration
+und entfernt Pakete und Konfiguration wieder. Paketskripte und technischer
+Dateibesitz werden tatsächlich geprüft. [Beleg und Grenzen](../docs/component-tests.md).
+
+Die explizite Paketvorbereitung erlaubt nur Gruppenwechsel innerhalb derselben
+festen UID/GID-Abbildung; normale Sitzungen behalten ihre Gruppensperre.
+Paketkontexte erhalten keinen persönlichen HOME-Mount. Nur sie dürfen einen
+exklusiven, noch nicht verbundenen Kandidaten beschreibbar abbilden; eine
+normale Runtime-Vorbereitung kann das nicht. Der Kandidat entsteht vollständig
+vor dem kurzen Namespace-Gate. Die neue Abbildungsfunktion authentifiziert weder
+AOSP noch Quellen oder Eigentum; dies bleibt Aufgabe des vertrauenswürdigen
+Ressourcenbesitzers. Bei Teilfehlern muss der Kandidat verworfen werden.
+
+**Nächste produktive Verbindung:** Eigener begrenzter, beim Broker registrierter
+APT-Arbeiter mit einer genauen SELinux-Domäne und vollständigem FD-/Loop-/Mount-
+Besitz; vertrauenswürdige Auflösung und eingefrorene, verifizierte Paketquellen;
+Bindung an frische AOSP-Adminfreigabe und privaten Antragsteller/CE; semantische
+Validierung, Veröffentlichung und Auswahl ganzer Generationen. Dazu kommen
+Verbindungswiderruf, Abbruch/Logout während APT und gemeinsame/private Rebase-
+Konflikte. Die Probe aktiviert keine Paket-CLI und integriert APT noch nicht in
+den vorhandenen Veröffentlichungsbesitzer. Ein neues Vollimage und reale
+Benutzer-/CE-Nachweise bleiben erforderlich.
+
 ## Begrenzte Rechte für den isolierten Paketarbeiter
 
 Die interne Funktion `aegis_limit_package_worker` erhält im eigenen, exakt
