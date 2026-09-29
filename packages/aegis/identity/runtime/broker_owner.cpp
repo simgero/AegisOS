@@ -561,7 +561,11 @@ int BrokerCancelExecution(aegis_broker_owner* owner,uint32_t user,uint32_t seria
     auto* slot=find_execution(owner,user,serial,job,plan);if(!slot)return -1;
     int left=remaining_ms(deadline),error=left<0?errno:0;
     // Invalid/expired time still seals and requests this exact owned job's stop.
-    if(slot->state==PublicationState::Prepared) {
+    if(slot->state==PublicationState::Complete) {
+        // Completed APT is still an inactive candidate. A later cancellation
+        // before result collection must also revoke its validation handoff.
+        slot->result.outcome=PackageExecutionOutcome::Failed;slot->result.error=ECANCELED;
+    } else if(slot->state==PublicationState::Prepared) {
         slot->close_inputs();slot->state=PublicationState::Complete;
         slot->result={PackageExecutionOutcome::Failed,0,ECANCELED};
     } else if(slot->executor) {

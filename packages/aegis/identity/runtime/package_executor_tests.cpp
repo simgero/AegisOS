@@ -103,6 +103,10 @@ class RuntimePackageExecutor : public ::testing::Test {
     }
     void Archives(int version,bool waiting=false) {
         plan.archives=true;plan.items.clear();
+        for(const char* name:{"var/cache","var/cache/apt","var/cache/apt/archives"}) {
+            int made=mkdirat(candidate.get(),name,0755);
+            ASSERT_TRUE(made==0 || errno==EEXIST) << strerror(errno);
+        }
         for(const char* kind:{"lib","app"}) {
             std::string name="aegis-exec-"+std::string(kind)+"_"+std::to_string(version)+"_all.deb";
             std::string path="var/cache/apt/archives/"+name;
@@ -164,10 +168,15 @@ TEST(PackageExecutionPlan, RejectsOptionsPathsNulDuplicateAndUnboundedInputs) {
     p.items={std::string("app.deb\0",8)};EXPECT_EQ(-1,PackageExecutionCheck(p));
     p.items={"app.deb","app.deb"};EXPECT_EQ(-1,PackageExecutionCheck(p));
     p.items={"app"};p.archives=false;EXPECT_EQ(0,PackageExecutionCheck(p));
+    for(const char* name:{"app+","app-"}) { p.items={name};EXPECT_EQ(-1,PackageExecutionCheck(p)); }
+    p.items={"app"};
     p.job=0;EXPECT_EQ(-1,PackageExecutionCheck(p));p.job=1;p.requester=0;EXPECT_EQ(-1,PackageExecutionCheck(p));
 }
 TEST_F(RuntimePackageExecutor, ExecutesActualInstallUpgradeRemoveAndClosesOwnedReferences) {
-    Archives(1);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
+    Archives(1);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,WriteAt(candidate.get(),"var/log/aegis-package-1.log","previous-generation-log-must-not-survive\n"));
+    Completed();ASSERT_FALSE(HasFailure());
+    EXPECT_EQ(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-package-1.log").find("previous-generation-log"));
     EXPECT_EQ("1\n",AptImageFixture::read(candidate.get(),"usr/share/aegis-exec-library"));
     struct stat st;ASSERT_EQ(0,fstatat(candidate.get(),"var/lib/aegis-exec-owned",&st,AT_SYMLINK_NOFOLLOW));
     EXPECT_EQ(10u*100000u+5000u+42u,st.st_uid);EXPECT_EQ(st.st_uid,st.st_gid);
@@ -193,6 +202,18 @@ TEST_F(RuntimePackageExecutor, CancelsObservedMaintainerScriptAndReapsWholeGroup
     EXPECT_EQ(PackageExecutionOutcome::Unconfirmed,result.outcome);EXPECT_EQ(nullptr,worker);EXPECT_EQ(before,CountFDs());
     EXPECT_EQ(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-exec-script").find("done\n"));
 }
+TEST_F(RuntimePackageExecutor, CancellationAfterNaturalExitNeverReturnsCandidateForValidation) {
+    Archives(1);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,Start()) << strerror(errno);
+    bool exited=false;
+    for(unsigned i=0;i<900;i++) {
+        if(AptImageFixture::read(parent.get(),"cgroup.events").find("populated 0\n")!=std::string::npos) { exited=true;break; }
+        usleep(10000);
+    }
+    ASSERT_TRUE(exited);ASSERT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-exec-script").find("done\n"));
+    ASSERT_EQ(0,PackageExecutorCancel(worker));
+    PackageExecutionResult result;ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(ECANCELED,result.error);
+}
 TEST_F(RuntimePackageExecutor, PartialStartRetainsCgroupAndDescriptorsUntilFinish) {
     Archives(1);ASSERT_FALSE(HasFatalFailure());int before=CountFDs();helper.reset();before--;
     EXPECT_EQ(-1,Start());ASSERT_NE(nullptr,worker);
@@ -208,6 +229,10 @@ TEST_F(RuntimePackageExecutor, ProductionEntryRejectsDeveloperTestDomain) {
 }
 TEST_F(RuntimePackageExecutor, BrokerBindsApprovalAndUserStopCancelsActualAptOnlyForRequester) {
     Archives(1,true);Broker();ASSERT_FALSE(HasFatalFailure());uint64_t first=Prepared(),other=Prepared(11);ASSERT_FALSE(HasFailure());
+    PackagePublication duplicate;duplicate.requester=10;duplicate.serial=42;duplicate.plan_sha256=plan.plan_sha256;
+    uint64_t duplicate_id=0;
+    EXPECT_EQ(-1,BrokerPreparePublication(broker,duplicate,parent.get(),stage.get(),candidate.get(),helper.get(),Deadline(),&duplicate_id));
+    EXPECT_EQ(EBUSY,errno);EXPECT_EQ(0u,duplicate_id);
     EXPECT_EQ(-1,BrokerStartExecution(broker,10,43,first,plan.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
     EXPECT_EQ(-1,BrokerStartExecution(broker,10,42,first,std::string(64,'b'),Deadline()));EXPECT_EQ(ESTALE,errno);
     ASSERT_EQ(0,BrokerStartExecution(broker,10,42,first,plan.plan_sha256,Deadline())) << strerror(errno);
@@ -233,4 +258,20 @@ TEST_F(RuntimePackageExecutor, BrokerReapsCompletedAptAndReturnsNeedsValidationO
     EXPECT_EQ(0,result.status);EXPECT_EQ(0,result.error);
     EXPECT_EQ(-1,BrokerPollExecution(broker,10,42,job,plan.plan_sha256,&state,&result));EXPECT_EQ(ENOENT,errno);
 }
+TEST_F(RuntimePackageExecutor, BrokerCancellationRevokesAlreadyCollectedWorkerCompletion) {
+    Archives(1);Broker();ASSERT_FALSE(HasFatalFailure());uint64_t job=Prepared();ASSERT_FALSE(HasFailure());
+    ASSERT_EQ(0,BrokerStartExecution(broker,10,42,job,plan.plan_sha256,Deadline())) << strerror(errno);
+    bool exited=false;
+    for(unsigned i=0;i<900;i++) {
+        if(AptImageFixture::read(parent.get(),"cgroup.events").find("populated 0\n")!=std::string::npos) { exited=true;break; }
+        usleep(10000);
+    }
+    ASSERT_TRUE(exited);ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
+    ASSERT_EQ(0,BrokerCancelExecution(broker,10,42,job,plan.plan_sha256,Deadline()));
+    PublicationState state=PublicationState::Running;PackageExecutionResult result;
+    ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.plan_sha256,&state,&result));
+    EXPECT_EQ(PublicationState::Complete,state);EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);
+    EXPECT_EQ(ECANCELED,result.error);
+}
+
 } // namespace

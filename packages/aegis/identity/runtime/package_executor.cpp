@@ -22,7 +22,7 @@ struct PackageExecutor {
     aegis_memory_group* group = nullptr;
     aegis_namespace* context = nullptr;
     aegis_package_execution_request request = {};
-    bool ready = false, spawned = false;
+    bool ready = false, spawned = false, cancelled = false;
 };
 namespace {
 int Fail(int error) { errno = error;return -1; }
@@ -85,6 +85,7 @@ int PackageExecutionCheck(const PackageExecution& plan) {
 }
 int PackageExecutorCancel(PackageExecutor* p) {
     if (!Owned(p)) return -1;
+    p->cancelled = true;
     int error = 0;
     if (p->context && aegis_namespace_stop(p->context) < 0) error = errno;
     if (p->group && aegis_memory_group_kill_and_wait(p->group, 0) < 0 && errno != ETIMEDOUT && !error) error = errno;
@@ -151,7 +152,8 @@ int PackageExecutorFinish(PackageExecutor** pointer, bool cancel, int timeout,
         aegis_package_execution_reply reply;
         if (Reply(p, AEGIS_PACKAGE_EXEC_DONE, 0, &reply) == 0) {
             observed.status = reply.status;observed.error = reply.error;
-            observed.outcome = reply.status || reply.error ? PackageExecutionOutcome::Failed : PackageExecutionOutcome::NeedsValidation;
+            observed.outcome = reply.status || reply.error || p->cancelled ? PackageExecutionOutcome::Failed : PackageExecutionOutcome::NeedsValidation;
+            if (p->cancelled && !observed.error) observed.error = ECANCELED;
         } else observed.error = errno;
     }
     if (p->context) aegis_namespace_release(p->context);

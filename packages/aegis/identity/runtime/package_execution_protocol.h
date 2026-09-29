@@ -50,6 +50,9 @@ static inline int aegis_package_item(const char name[AEGIS_PACKAGE_EXEC_NAME], u
                 && ((c >= 'A' && c <= 'Z') || c == '_' || c == '~' || c == ':' || c == '%')) continue;
         return 0;
     }
+    // APT interprets a trailing +/- as an action override. Until the planner
+    // supplies an unambiguous qualified form, reject those package names.
+    if (kind == AEGIS_PACKAGE_REMOVE && (name[length - 1] == '+' || name[length - 1] == '-')) return 0;
     return kind == AEGIS_PACKAGE_REMOVE || (length > 4 && !strcmp(name + length - 4, ".deb"));
 }
 static inline int aegis_package_execution_valid(const struct aegis_package_execution_request *r) {

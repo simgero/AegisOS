@@ -225,8 +225,11 @@ static _Noreturn void apt(const struct aegis_package_execution_request *r) {
     int in = open("/dev/null", O_RDONLY | O_CLOEXEC);
     int root = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     char name[128];snprintf(name, sizeof(name), "var/log/aegis-package-%llu.log", (unsigned long long)r->job);
-    int log = root < 0 ? -1 : regular_at(root, name, O_CREAT | O_EXCL | O_WRONLY, 0600);
+    int log = root < 0 ? -1 : regular_at(root, name, O_CREAT | O_WRONLY, 0600);
     if (in != 0 || root < 0 || log < 0) _exit(126);
+    // IDs may start again after a broker reboot. Only this inactive copy is
+    // writable; reject links/foreign ownership BEFORE replacing an old log.
+    if (fchmod(log, 0600) < 0 || ftruncate(log, 0) < 0) _exit(126);
     // Close root before replacing stdio; it can occupy slot 1.
     close(root);
     if (dup2(log, 1) < 0 || dup2(log, 2) < 0) _exit(126);
@@ -251,36 +254,42 @@ static _Noreturn void apt(const struct aegis_package_execution_request *r) {
                    "DEBIAN_FRONTEND=noninteractive", NULL};
     execve(args[0], args, env);_exit(127);
 }
+static int setup_failed(const struct aegis_package_execution_request *request) {
+    int error = errno > 0 && errno <= 4095 ? errno : EIO;
+    if (aegis_package_execution_valid(request))
+        (void)reply(request, AEGIS_PACKAGE_EXEC_READY, 0, (uint32_t)error);
+    return 125;
+}
 int aegis_package_execute(uint32_t user, uint32_t serial) {
     if (aegis_check_package_namespaces(user) < 0) return 78;
     int fds[3] = {-1, -1, -1};
     struct aegis_package_execution_request request = {0};
-    if (syscall(SYS_close_range, 4u, UINT_MAX, 0u) < 0 || clearenv() < 0) return 125;
+    if (syscall(SYS_close_range, 4u, UINT_MAX, 0u) < 0 || clearenv() < 0) return setup_failed(&request);
     close(0);close(1);close(2);umask(022);
     struct sigaction action = {.sa_handler = expired};sigemptyset(&action.sa_mask);
-    if (sigaction(SIGALRM, &action, NULL) < 0) return 125;
+    if (sigaction(SIGALRM, &action, NULL) < 0) return setup_failed(&request);
     alarm(10);
     if (aegis_package_execution_receive(3, user, serial, fds, &request) < 0
             || directory(fds[0], EXT4_SUPER_MAGIC, ST_NOSUID | ST_NODEV, ST_RDONLY | ST_NOEXEC) < 0
             || directory(fds[1], TMPFS_MAGIC, ST_RDONLY | ST_NOSUID | ST_NOEXEC, ST_NODEV) < 0
-            || construct(fds[0], fds[1]) < 0) return 125;
+            || construct(fds[0], fds[1]) < 0) return setup_failed(&request);
     for (int i = 0; i < 3; i++) close(fds[i]);
     if (syscall(SYS_close_range, 4u, UINT_MAX, 0u) < 0
             || syscall(SYS_pivot_root, ".", ".") < 0 || umount2(".", MNT_DETACH) < 0
-            || chdir("/") < 0 || readback() < 0) return 125;
+            || chdir("/") < 0 || readback() < 0) return setup_failed(&request);
     int root = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (root < 0) return 125;
+    if (root < 0) return setup_failed(&request);
     if (request.kind == AEGIS_PACKAGE_ARCHIVES) for (unsigned i = 0; i < request.count; i++) {
         char path[AEGIS_PACKAGE_EXEC_NAME + 32];
         snprintf(path, sizeof(path), "var/cache/apt/archives/%s", request.items[i]);
         int archive = regular_at(root, path, O_RDONLY, 0);
-        if (archive < 0) return 125;
+        if (archive < 0) return setup_failed(&request);
         close(archive);
     }
     int empty = open("/run/aegis-empty.list", O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC, 0644);
-    if (empty < 0 || mkdir("/run/aegis-empty.d", 0755) < 0) return 125;
+    if (empty < 0 || mkdir("/run/aegis-empty.d", 0755) < 0) return setup_failed(&request);
     close(empty);
-    if (aegis_limit_package_worker(user) < 0 || reply(&request, AEGIS_PACKAGE_EXEC_READY, 0, 0) < 0) return 125;
+    if (aegis_limit_package_worker(user) < 0 || reply(&request, AEGIS_PACKAGE_EXEC_READY, 0, 0) < 0) return setup_failed(&request);
     alarm(0);
     pid_t child = fork();
     if (!child) apt(&request);
