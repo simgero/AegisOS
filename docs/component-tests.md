@@ -1,3 +1,35 @@
+## Paket-Store: 8e1c2228
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260929T162856Z-8e1c2228-8e1c2228-OrbqxJ)
+aus Commit `8e1c222825b48a6167d174d68e4afae111487e72` besteht am
+29. September 2026 um 16:31:01 UTC im lokalen `927cf51d`-Gast **138/138
+native Tests** aus 20 Suiten in 15.076 ms, ohne Abwahl oder übersprungene Tests.
+Alle zehn neuen Tests für atomare Paketgenerationen bestehen (119 ms).
+Der vollständige bisherige native Umfang wurde erneut ausgeführt.
+
+Geprüft werden vollständige Auswahl, erhaltene offene alte Referenzen,
+Reopen, private Basisbindung, falsche Eigentümer/Seriennummern, bereits vor
+Beginn gesetztes Abbruchsignal, beschädigte Quellen/Metadaten, konkurrierende
+Schreiber, Symlink-/Hardlink-Ablehnung, unausgewählte Reste und Prozessbindung.
+Die Fixtures enthalten kleine inerte Textdateien in `/data/local/tmp`.
+APT, persönliche CE-Paketstores, Adminfreigaben, Abbruch während des Kopierens,
+fsync-Fehler nach Umbenennung und Stromausfall sind nicht damit nachgewiesen.
+Der Baustein ist noch nicht in den installierten Broker eingebunden.
+
+Profil `d68845b3-62a9-4181-a7cd-c0f0a8e7d316`, Boot-ID
+`984f23bd-607e-4a6d-8c08-7ae91bccd4f5`; Vorher-/Nachherzustand des echten
+Benutzer-, Schlüsselverzeichnis- und Runtime-Bestands ist identisch.
+Enforcing bleibt aktiv. Der erste Versuch endete vor Testbeginn wegen einer
+ADB-Staging-Berechtigung; nur die lokale Übertragungsvorbereitung wurde
+korrigiert, ohne Neubuild oder Lockerung der Produkt-Policy.
+
+Belege: `out/components-8e1c2228/component-tests-attempt2/`, Log-SHA-256
+`71fb61d07b4ad333690ad61be630877150fc78ad345a369078cf7f484490067d`;
+Vorher und nachher jeweils
+`0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3`.
+Die unveränderten Java-Quellen behalten den separaten 91er-Nachweis unten.
+Weitere Integration: [Pakettransaktionen](../runtime/package-transactions.md).
+
 ## AOSP-Allocator im lokalen Gast: be9d0d54
 
 Der auf `aegis-build` kompilierte und über GitHub geprüfte

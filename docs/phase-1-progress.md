@@ -4,6 +4,13 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
+Für die Paketverwaltung ist jetzt ein interner Speicherbaustein für vollständige
+Generationen implementiert. Komponentenstand `8e1c2228` besteht **138/138
+native Gasttests**, darunter zehn neue Prüfungen von atomarer Auswahl,
+Eigentümer-/Basisbindung, Parallelität und Fehlerfällen. Die echte APT-Ausführung,
+frische AOSP-Adminfreigabe und produktive Broker-/CE-Anbindung fehlen weiterhin.
+[Nachweis und noch offene Integration](../runtime/package-transactions.md).
+
 Neuester lokal gestarteter Vollbuild: **`927cf51d`**, mit Enforcing, FBE,
 authentifiziertem ADB und tatsächlichem dm-verity. Im separaten Gast bestehen
 **91/91 Java-Tests** aus Komponentenstand `be9d0d54`, einschließlich drei
