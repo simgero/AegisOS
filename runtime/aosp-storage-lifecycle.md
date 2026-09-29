@@ -195,7 +195,7 @@ private Zusatzvolumes verhindern die Löschung. Diese Änderungen sind noch
 kein realer Nachweis für Fehlerbehandlung, Wiederanlauf oder ID-Wiederverwendung.
 Verwaltete CLI-Benutzerlöschung bleibt durch `requireRuntimeAbsent()` gesperrt.
 
-Der folgende Quellstand ergänzt noch ungeprüfte Bestätigungen in AOSPs
+Der folgende Quellstand ergänzt Bestätigungen in AOSPs
 `LockSettingsService`, `SyntheticPasswordManager` und `SyntheticPasswordCrypto`:
 fehlgeschlagene Keystore-Löschung, GateKeeper-Rückrufe oder Inventarlesefehler
 behalten die Benutzerreservierung. Protector- und Profilalias-Löschung prüft
@@ -212,7 +212,15 @@ Für Benutzer mit vorhandener Weaver-Zustandsdatei wird die Löschung vor dem
 Protectorabbau abgewiesen, bis ein bestätigender Weaver-Pfad implementiert ist.
 Die beiden bisherigen QEMU-Testbenutzer haben keine solchen Zustandsdateien.
 Fünf zusätzliche Android-Tests prüfen die Inventarlesefunktion; insgesamt
-88 Java-Tests sind für den neuen Stand vorgesehen, noch nicht ausgeführt.
+88 Java-Tests bestehen im
+[Komponentenstand 2e27713e](https://github.com/simgero/AegisOS/releases/tag/components-20260929T124701Z-2e27713e-2e27713e-tJgUtD)
+im lokalen Gast `2f29f0ac` (0,430 s). Protokoll SHA-256:
+`442387962fe5b54fe4b24515ab0b48b897bcfafc7f0385f2ff31af5d7bfec204`.
+Die neuen Plattformpfade sind auf `aegis-build` kompiliert, aber noch nicht im
+Gast installiert oder als tatsächliche Benutzerlöschung nachgewiesen. Boot-
+Wiederherstellung und vorbereitete Benutzer verwenden eigene Arbeitsthreads,
+damit das Warten auf Biometrie-Rückmeldungen deren Handler nicht blockiert.
+Ein vollständiges Image für diesen Stand folgt hinter diesen Komponentenprüfungen.
 
 Die folgende Prüfliste erklärt die abgedeckten Quellpfade und die noch
 ausstehenden Systemtests. Sie ist kein bestandener Löschtest:
