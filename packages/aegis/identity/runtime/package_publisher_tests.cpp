@@ -50,7 +50,7 @@ class RuntimePackagePublisher : public ::testing::Test {
     PackagePublisher* jobs[2]={nullptr,nullptr};
     std::string group_name,path;
     PackagePublication request;
-    bool created=false;
+    bool created=false,helper_copy_created=false;
     void SetUp() override {
         ASSERT_EQ(0u,getuid());ASSERT_EQ(0u,getgid());ASSERT_EQ(0,setgroups(0,nullptr));
         struct sigaction action={};action.sa_handler=SIG_DFL;sigemptyset(&action.sa_mask);
@@ -123,7 +123,8 @@ class RuntimePackagePublisher : public ::testing::Test {
                 ASSERT_TRUE(S_ISREG(st.st_mode));ASSERT_EQ(0u,st.st_uid);
                 EXPECT_EQ(0,unlinkat(store.get(),item->d_name,0));
             }
-            closedir(entries);store.reset();source.reset();
+            closedir(entries);store.reset();source.reset();helper.reset();
+            if(helper_copy_created)EXPECT_EQ(0,unlinkat(directory.get(),"helper-copy",0));
             EXPECT_EQ(0,unlinkat(directory.get(),"source",0));
             EXPECT_EQ(0,unlinkat(directory.get(),"store",AT_REMOVEDIR));
             directory.reset();EXPECT_EQ(0,rmdir(path.c_str()));
@@ -136,6 +137,37 @@ TEST_F(RuntimePackagePublisher, PublishesWithActualChildAndClosesOwnedDescriptor
     PackagePublicationResult result;ASSERT_EQ(0,Finish(0,&result)) << strerror(errno);
     EXPECT_EQ(nullptr,jobs[0]);EXPECT_EQ(PackagePublish::Confirmed,result.publication);
     EXPECT_EQ(0,result.error);EXPECT_EQ(before,Descriptors());Selection("complete generation");
+}
+TEST_F(RuntimePackagePublisher, SystemHelperGroupAllowedButDataAndOtherGroupsRejected) {
+    // Mutate only a newly owned copy, never the shared staged executable.
+    unique_fd copy(openat(directory.get(),"helper-copy",O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC|O_NOFOLLOW,0700));
+    ASSERT_TRUE(copy.ok());helper_copy_created=true;
+    std::array<char,16384> bytes={};off_t offset=0;
+    for(;;) {
+        ssize_t count=TEMP_FAILURE_RETRY(pread(helper.get(),bytes.data(),bytes.size(),offset));
+        ASSERT_GE(count,0);if(count==0)break;
+        for(ssize_t written=0;written<count;) {
+            ssize_t n=TEMP_FAILURE_RETRY(write(copy.get(),bytes.data()+written,count-written));
+            ASSERT_GT(n,0);written+=n;
+        }
+        offset+=count;
+    }
+    ASSERT_EQ(0,fchown(copy.get(),0,2000));ASSERT_EQ(0,fchmod(copy.get(),0755));
+    ASSERT_EQ(0,fsync(copy.get()));copy.reset();
+    helper.reset(openat(directory.get(),"helper-copy",O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(helper.ok());
+    int before=Descriptors();
+    ASSERT_EQ(0,Start()) << strerror(errno);PackagePublicationResult result;
+    ASSERT_EQ(0,Finish(0,&result)) << strerror(errno);
+    ASSERT_EQ(PackagePublish::Confirmed,result.publication);Selection("complete generation");
+    EXPECT_EQ(before,Descriptors());request.job=2;
+    ASSERT_EQ(0,fchown(helper.get(),0,2001));
+    EXPECT_EQ(-1,Start());EXPECT_EQ(EPERM,errno);EXPECT_EQ(nullptr,jobs[0]);
+    ASSERT_EQ(0,fchown(helper.get(),0,2000));
+    ASSERT_EQ(0,fchown(source.get(),0,2000));
+    EXPECT_EQ(-1,Start());EXPECT_EQ(EPERM,errno);EXPECT_EQ(nullptr,jobs[0]);
+    ASSERT_EQ(0,fchown(source.get(),0,0));ASSERT_EQ(0,fchown(store.get(),0,2000));
+    EXPECT_EQ(-1,Start());EXPECT_EQ(EPERM,errno);EXPECT_EQ(nullptr,jobs[0]);
+    ASSERT_EQ(0,fchown(store.get(),0,0));EXPECT_EQ(before,Descriptors());
 }
 TEST_F(RuntimePackagePublisher, ChildUsesOwnedCopiesWhenCallerClosesSourceAndDirectory) {
     ASSERT_EQ(0,Start()) << strerror(errno);source.reset();store.reset();
@@ -240,7 +272,7 @@ class RuntimePackageBroker : public RuntimePackagePublisher {
     bool renamed=false;
     uint64_t Deadline() {
         timespec now={};if(clock_gettime(CLOCK_MONOTONIC,&now)<0)return 0;
-        return uint64_t{now.tv_sec}*1000000000+now.tv_nsec+5000000000;
+        return static_cast<uint64_t>(now.tv_sec)*1000000000+now.tv_nsec+5000000000;
     }
     void SetUp() override {
         RuntimePackagePublisher::SetUp();if(HasFatalFailure())return;

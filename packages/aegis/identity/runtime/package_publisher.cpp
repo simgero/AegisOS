@@ -68,7 +68,10 @@ bool Encode(const PackagePublication& value,wire::Request* out) {
 bool File(int fd,mode_t type,bool executable) {
     struct stat st={};int flags=fcntl(fd,F_GETFL);
     if(flags<0 || fstat(fd,&st)<0)return false;
-    if((st.st_mode&S_IFMT)!=type || st.st_uid || st.st_gid
+    // AOSP installs trusted system executables as root:shell (2000). The
+    // caller still pins helper provenance; store/source must stay root:root.
+    bool trusted_group=st.st_gid==0 || (executable && st.st_gid==2000);
+    if((st.st_mode&S_IFMT)!=type || st.st_uid || !trusted_group
        || (st.st_mode&07022) || (flags&(O_ACCMODE|O_PATH))!=O_RDONLY
        || (executable && (st.st_mode&0555)!=0555)) { Fail(EPERM);return false; }
     if(executable) {
