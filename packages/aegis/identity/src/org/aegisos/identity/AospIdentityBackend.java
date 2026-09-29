@@ -252,24 +252,43 @@ public final class AospIdentityBackend {
         }
     }
 
-    /** Verifies even an already-unlocked target. Foreground state grants no authority. */
-    public synchronized State authenticate(UserKey key, LockscreenCredential credential,
-            boolean bringToForeground) throws RemoteException {
+    /**
+     * Selects a personal Android login target before the CLI asks for a password.
+     * This grants no personal identity, does not verify credentials or call vold,
+     * and does not start a GNU context. The system service must additionally wait
+     * for ActivityManagerInternal's completed switch, not only the early userId.
+     */
+    public synchronized void selectLoginTarget(UserKey key) throws RemoteException {
+        long identity = Binder.clearCallingIdentity();
+        try {
+            workerThread();
+            requireCurrent(key);
+            if (locks.getCredentialType(key.id) != LockPatternUtils.CREDENTIAL_TYPE_PASSWORD) {
+                throw new SecurityException("Target AOSP user has no password credential");
+            }
+            if (!activity.switchUser(key.id)) {
+                throw new IllegalStateException("AOSP refused the login target");
+            }
+            requireCurrent(key);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
+     * Verifies even an already-unlocked target. This never initiates a foreground
+     * transition after verification; the terminal prepares that before password
+     * input. Foreground state itself grants no personal authority.
+     */
+    public synchronized State authenticate(UserKey key, LockscreenCredential credential)
+            throws RemoteException {
         long identity = Binder.clearCallingIdentity();
         try (LockscreenCredential owned = credential) {
             workerThread();
             verify(key, owned);
-            if (bringToForeground) {
-                if (!activity.switchUser(key.id)) {
-                    throw new IllegalStateException("AOSP refused the user switch");
-                }
-                await(key, () -> activity.getCurrentUserId() == key.id,
-                        "AOSP user switch was not confirmed");
-            }
             State resultState = state(key);
             if (!resultState.enabled || resultState.partial
-                    || !resultState.running || !resultState.ceUnlocked
-                    || (bringToForeground && !resultState.foreground)) {
+                    || !resultState.running || !resultState.ceUnlocked) {
                 throw new IllegalStateException("AOSP user state changed during authentication");
             }
             return resultState;

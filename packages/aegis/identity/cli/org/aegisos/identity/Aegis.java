@@ -102,6 +102,7 @@ public final class Aegis {
                 case "login":
                 case "switch": {
                     exact(args, 2);
+                    session.prepareLogin(args[1]);
                     byte[] password = password("Passwort: ");
                     try { System.out.println(session.login(args[1], password)); }
                     finally { wipe(password); }

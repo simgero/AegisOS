@@ -1,12 +1,45 @@
 # Erste AEGIS-Terminalintegration
 
-Stand 28. September 2026: **Im Vollbuild `25fde995` installiert und mit zwei
-persönlichen Benutzern in lokalem QEMU geprüft.** Ersteinrichtung, Anmeldung,
-Benutzerwechsel, Passwortwechsel, Abmeldung und geordneter Neustart sind über
-die echte CLI nachgewiesen; Details und Grenzen stehen im
-[CLI-Gasttest](identity-cli-qemu-test.md). Linux-Runtime und Paketverwaltung fehlen.
+Stand 29. September 2026: Im Vollbuild `6a807692` sind zwei tatsächliche GNU-
+Kontexte, AOSP-Anmeldung, Wechsel, Logout mit CE-Sperre und Dateierhalt nach
+Neustart geprüft. Ein teilweise nachträglicher Terminalwiderruf nach frischer
+Anmeldung bleibt offen. Details und Grenzen:
+[GNU-Test](runtime-gnu-qemu-test.md); der frühere reine AOSP-Test bleibt im
+[CLI-Gasttest](identity-cli-qemu-test.md) dokumentiert. Paketverwaltung und
+verwaltete Benutzerlöschung fehlen weiterhin.
 
-## Vorbereitete Komponenten
+## Vorbereitete Korrektur der Anmeldereihenfolge
+
+Der neue Quelltext trennt die Auswahl des Android-Anmeldeziels von der
+Passwortprüfung. Die bereits autorisierte Entwicklungskonsole wählt zuerst
+den persönlichen Vordergrundbenutzer, entsprechend einer Auswahl auf dem
+Android-Anmeldebildschirm. Der Dienst wartet begrenzt, bis AOSPs
+`getCurrentAndTargetUserIds()` das Ziel als aktuellen Benutzer und keinen
+laufenden Wechsel mehr meldet. Die frühe Änderung von `getCurrentUserId()`
+allein genügt nicht. Erst danach fordert die CLI das Passwort an.
+
+Diese Auswahl gewährt keine persönliche Sitzung, keine Adminrolle, keinen
+GNU-Start und keinen zusätzlichen CE-Zugriff. Ein falsches Passwort kann
+daher das bereits sichtbare Android-Anmeldeziel gewechselt haben, muss aber
+dessen gesperrte Daten und Runtime unzugänglich lassen. Ein zuvor bereits
+entsperrter anderer Benutzer darf weiter im Hintergrund laufen. Normale Apps
+und Runtime-Prozesse erhalten keinen Zugriff auf diese Entwicklungsschnittstelle.
+
+Die Vorbereitung ist an die ursprüngliche Terminalsitzung, Benutzer-ID,
+Seriennummer und aktuelle Widerrufszähler gebunden und nur einmal nutzbar.
+Sperre, Benutzerstopp oder Sitzungsende verwerfen sie. Nach der Passworteingabe
+folgt eine frische AOSP-Prüfung; die endgültige Bindung verlangt weiterhin
+unveränderte Widerrufszähler, bestätigtes CE und den abgeschlossenen richtigen
+Vordergrundwechsel. Kein alter Passwortnachweis wird nach einer Sperre
+wiederverwendet. Die bisherigen Widerrufe offener GNU-Terminals bleiben bestehen.
+
+Sechs neue Komponententests betreffen Einmaligkeit, fremde/wiederverwendete
+Identitäten, Sperre, Benutzerstopp, Abbruch und konkurrierende Verwendung.
+**Dieser Quellstand ist noch nicht kompiliert oder im vollständigen Image
+geprüft.** Die Fixtures ersetzen weder die tatsächliche AOSP-Reihenfolge noch
+den Negativtest am gesperrten Benutzer oder eine reale Bildschirmsperre.
+
+## Erster Komponentenstand (25fde995)
 
 - `aegis-identity-core`: Adapter zu AOSP für persönliche Benutzer, Passwörter,
   Entsperrung und bestätigten Android-Benutzerstopp.
@@ -26,13 +59,16 @@ die echte CLI nachgewiesen; Details und Grenzen stehen im
   Alle 52 Java-Gerätetests einschließlich der vier Produktkonfigurationstests
   bestehen im vollständig gestarteten Image `25fde995`.
 
-Die erste CLI unterstützt im Quelltext `setup`, `user list`, `user add`,
+Die erste CLI unterstützte im Quelltext `setup`, `user list`, `user add`,
 `user remove`, `login`, `switch`, `passwd`, `status` und den bestätigten
 Android-Logout im ausdrücklich runtimefreien Build. Benutzeranlage und Löschung
 fordern für jede Aktion erneut das Passwort des angemeldeten AOSP-Administrators.
-Alle `linux`- und Paketoperationen fehlen noch und werden nicht als erfolgreich
-ausgegeben. Löschung, unterbrochene Ersteinrichtung und vollständige
-Admin-Negativtests sind noch nicht als reale CLI-Abläufe nachgewiesen.
+In diesem historischen Stand fehlten die `linux`-Operationen. Inzwischen
+sind `linux start|status|shell|stop` integriert und tatsächlich geprüft.
+Paketoperationen fehlen weiterhin; die Entfernung verwalteter Benutzer ist
+ausdrücklich gesperrt, bis AOSPs vollständige Löschung vor ID-Freigabe
+integriert ist. Unterbrochene Ersteinrichtung und vollständige Admin-Negativtests
+sind noch nicht als reale CLI-Abläufe nachgewiesen.
 
 ## Sitzung gehört zum aufrufenden Terminal
 

@@ -20,4 +20,7 @@ interface IAegisSession {
     String linuxStatus();
     String linuxStop();
     IAegisTerminal linuxShell(int rows, int columns);
+    // Selects only the Android login target; grants neither identity nor CE access.
+    // The CLI requests the password only after this preparation completes.
+    void prepareLogin(String name);
 }

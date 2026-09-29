@@ -2,6 +2,7 @@ package org.aegisos.identity;
 
 import android.content.Context;
 import android.app.KeyguardManager;
+import android.app.ActivityManagerInternal;
 import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -13,12 +14,16 @@ import android.os.PowerManager;
 import android.os.RemoteException;
 import android.os.ServiceSpecificException;
 import android.os.SystemProperties;
+import android.os.SystemClock;
+import android.os.UserHandle;
+import android.util.Pair;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
 
 import com.android.internal.widget.LockscreenCredential;
 import com.android.server.SystemService;
+import com.android.server.LocalServices;
 import com.android.server.aegis.AegisRuntimeStorage;
 
 import java.nio.CharBuffer;
@@ -51,6 +56,7 @@ public final class AegisIdentityService extends SystemService {
     private final Set<Session.PersonalTerminal> terminals = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<Integer, AtomicLong> revocations = new ConcurrentHashMap<>();
     private final AtomicLong interactiveEpoch = new AtomicLong();
+    private ActivityManagerInternal activityInternal;
     private AospIdentityBackend backend;
     private RuntimeBrokerConnection runtime;
     private RuntimeAdmission admission;
@@ -82,6 +88,8 @@ public final class AegisIdentityService extends SystemService {
             throw new IllegalStateException("Unknown runtime lifecycle mode");
         }
         backend = new AospIdentityBackend(getContext());
+        activityInternal = java.util.Objects.requireNonNull(
+                LocalServices.getService(ActivityManagerInternal.class));
         publishBinderService(SERVICE_NAME, new IAegisIdentity.Stub() {
             @Override public IAegisSession openSession(IBinder clientLifetime)
                     throws RemoteException {
@@ -146,7 +154,10 @@ public final class AegisIdentityService extends SystemService {
 
     private void revokeInteractive() {
         interactiveEpoch.incrementAndGet();
-        for (Session session : sessions) session.selection.set(null);
+        for (Session session : sessions) {
+            session.selection.set(null);
+            session.discardLoginPreparation();
+        }
         for (Session.PersonalTerminal terminal : terminals) {
             try { terminal.closeChannel(); }
             catch (RuntimeException failure) { /* Registered owner retries; CE barrier stays strict. */ }
@@ -181,6 +192,11 @@ public final class AegisIdentityService extends SystemService {
     private void revokeTerminalBindings(int userId) {
         revocations.computeIfAbsent(userId, ignored -> new AtomicLong()).incrementAndGet();
         for (Session session : sessions) {
+            LoginPreparation preparing = session.loginPreparation.get();
+            if (preparing != null && preparing.user.id == userId) {
+                preparing.revoke();
+                session.loginPreparation.compareAndSet(preparing, null);
+            }
             Selection selected = session.selection.get();
             if (selected != null && selected.user.id == userId) {
                 // A concurrent switch to another user must not be cleared by
@@ -245,6 +261,7 @@ public final class AegisIdentityService extends SystemService {
         private final IBinder lifetime;
         private volatile boolean alive = true;
         private final AtomicReference<Selection> selection = new AtomicReference<>();
+        private final AtomicReference<LoginPreparation> loginPreparation = new AtomicReference<>();
         private final AtomicReference<PersonalTerminal> currentTerminal = new AtomicReference<>();
 
         Session(CallerProcess owner, IBinder lifetime) {
@@ -315,22 +332,94 @@ public final class AegisIdentityService extends SystemService {
             };
         }
 
+        private void discardLoginPreparation() {
+            LoginPreparation previous = loginPreparation.getAndSet(null);
+            if (previous != null) previous.revoke();
+        }
+
+        private void requireCompletedForeground(AospIdentityBackend.UserKey target)
+                throws RemoteException {
+            Pair<Integer, Integer> foreground = activityInternal.getCurrentAndTargetUserIds();
+            AospIdentityBackend.State state = backend.state(target);
+            if (foreground.first != target.id || foreground.second != UserHandle.USER_NULL
+                    || !state.user.equals(target) || !state.enabled || state.partial
+                    || !state.running || !state.foreground) {
+                throw new SecurityException("Android login target is not stable");
+            }
+        }
+
+        @Override public void prepareLogin(String name) {
+            checked(() -> {
+                requireInteractive();
+                discardLoginPreparation();
+                AospIdentityBackend.UserKey target = backend.resolveName(name);
+                selection.set(null);
+                closeCurrentTerminal();
+                // This is Android's login-target selection, before any password
+                // input or personal authority. It may show the target's keyguard.
+                backend.selectLoginTarget(target);
+                long deadline = SystemClock.elapsedRealtime() + 30_000;
+                while (true) {
+                    requireOwner();
+                    requireInteractive();
+                    AospIdentityBackend.State state = backend.state(target);
+                    if (!state.enabled || state.partial) {
+                        throw new SecurityException("Login target changed");
+                    }
+                    Pair<Integer, Integer> foreground = activityInternal.getCurrentAndTargetUserIds();
+                    if (foreground.first == target.id && foreground.second == UserHandle.USER_NULL
+                            && state.running && state.foreground) break;
+                    if (SystemClock.elapsedRealtime() >= deadline
+                            || Thread.currentThread().isInterrupted()) {
+                        throw new IllegalStateException("Android user switch was not completed");
+                    }
+                    SystemClock.sleep(25);
+                }
+                long interaction = interactiveEpoch.get();
+                long revision = epoch(target.id);
+                LoginPreparation ready = new LoginPreparation(target, interaction, revision);
+                loginPreparation.set(ready);
+                try {
+                    requireCompletedForeground(target);
+                    requireInteractive();
+                    if (interaction != interactiveEpoch.get() || revision != epoch(target.id)
+                            || loginPreparation.get() != ready) {
+                        throw new SecurityException("Login target was revoked");
+                    }
+                } catch (RemoteException | RuntimeException failure) {
+                    ready.revoke();
+                    loginPreparation.compareAndSet(ready, null);
+                    throw failure;
+                }
+                return null;
+            });
+        }
+
         @Override public String login(String name, byte[] password) {
             try {
                 return checked(() -> {
                     requireInteractive();
                     long interactionBefore = interactiveEpoch.get();
+                    LoginPreparation prepared = loginPreparation.getAndSet(null);
+                    if (prepared == null) {
+                        throw new SecurityException("Prepare login before entering credentials");
+                    }
                     AospIdentityBackend.UserKey target = backend.resolveName(name);
                     long before = epoch(target.id);
+                    prepared.claim(target, interactionBefore, before);
+                    requireCompletedForeground(target);
                     RuntimeAdmission.AuthenticationAttempt attempt = admission == null ? null
                             : admission.beforeAuthentication(target.id, target.serial);
                     AospIdentityBackend.State state;
                     try {
                         // No runtime gate is held across LockSettings/UserManager/vold.
                         try (LockscreenCredential credential = credential(password)) {
-                            state = backend.authenticate(target, credential, true);
+                            // The expected switch/keyguard transition happened before
+                            // password input. No cached proof survives a later lock.
+                            state = backend.authenticate(target, credential);
                         }
                         requireOwner();
+                        requireCompletedForeground(target);
                         if (interactiveEpoch.get() != interactionBefore || epoch(target.id) != before || !state.user.equals(target)
                                 || !state.enabled || state.partial || !state.running || !state.ceUnlocked) {
                             throw new IllegalStateException("User changed during authentication");
@@ -772,6 +861,7 @@ public final class AegisIdentityService extends SystemService {
         private void dispose() {
             alive = false;
             selection.set(null);
+            discardLoginPreparation();
             sessions.remove(this);
             try {
                 closeCurrentTerminal();
