@@ -112,7 +112,13 @@ static int empty_directory(int parent, const char *name) {
 
 
 static int construct(int root, int devices) {
-    if (attach(root, AT_FDCWD, "/mnt") < 0 || empty_directory(root, "sys") < 0
+    // The initial Android root is trusted. Anchor it explicitly: the strict
+    // BENEATH helper intentionally rejects absolute paths, even /mnt.
+    int host = open("/", O_PATH | O_DIRECTORY | O_CLOEXEC);
+    if (host < 0) return -1;
+    int attached = attach(root, host, "mnt");
+    int saved = errno;close(host);errno = saved;
+    if (attached < 0 || empty_directory(root, "sys") < 0
             || attach(devices, root, "dev") < 0) return -1;
     const struct parameter proc[] = {{"hidepid", "2"}, {"subset", "pid"}};
     const struct parameter pts[] = {{"newinstance", NULL}, {"gid", "5"}, {"mode", "0620"},
