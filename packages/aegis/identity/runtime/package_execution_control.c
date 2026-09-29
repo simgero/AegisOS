@@ -58,9 +58,14 @@ int aegis_package_execution_receive(int fd, uint32_t user, uint32_t serial,
     struct msghdr msg = {.msg_iov = &io, .msg_iovlen = 1,
         .msg_control = extra.bytes, .msg_controllen = sizeof(extra.bytes)};
     ssize_t n = recvmsg(fd, &msg, MSG_DONTWAIT | MSG_TRUNC | MSG_CMSG_CLOEXEC);
+    if (n < 0) return -1;
     int count = 0, headers = 0, bad = 0;
     for (struct cmsghdr *c = CMSG_FIRSTHDR(&msg); c; c = CMSG_NXTHDR(&msg, c)) {
         headers++;
+        unsigned char *end = (unsigned char *)msg.msg_control + msg.msg_controllen;
+        if (c->cmsg_len < CMSG_LEN(0) || c->cmsg_len > (size_t)(end - (unsigned char *)c)) {
+            bad = 1;break;
+        }
         if (c->cmsg_level != SOL_SOCKET || c->cmsg_type != SCM_RIGHTS || c->cmsg_len < CMSG_LEN(0)) {
             bad = 1;continue;
         }

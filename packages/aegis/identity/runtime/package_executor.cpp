@@ -62,9 +62,16 @@ int Reply(PackageExecutor* p, uint32_t phase, int timeout, aegis_package_executi
     msghdr msg = {};msg.msg_iov = &io;msg.msg_iovlen = 1;
     msg.msg_control = controls;msg.msg_controllen = sizeof(controls);
     ssize_t n = recvmsg(p->channel.get(), &msg, MSG_DONTWAIT | MSG_TRUNC | MSG_CMSG_CLOEXEC);
+    if (n < 0) return -1;
     bool extra = false;
     for (cmsghdr* c = CMSG_FIRSTHDR(&msg); c; c = CMSG_NXTHDR(&msg, c)) {
         extra = true;
+        // On EOF some kernels leave the input control capacity unchanged.
+        // Bionic's CMSG_NXTHDR does not advance for a zero-length header.
+        // Bound every header before advancing, also for rejected packets.
+        auto* end = reinterpret_cast<unsigned char*>(msg.msg_control) + msg.msg_controllen;
+        if (c->cmsg_len < CMSG_LEN(0)
+                || c->cmsg_len > static_cast<size_t>(end - reinterpret_cast<unsigned char*>(c))) break;
         if (c->cmsg_level == SOL_SOCKET && c->cmsg_type == SCM_RIGHTS && c->cmsg_len >= CMSG_LEN(0)) {
             for (size_t i = 0; i < (c->cmsg_len - CMSG_LEN(0)) / sizeof(int); i++) {
                 int fd;memcpy(&fd, CMSG_DATA(c) + i * sizeof(fd), sizeof(fd));close(fd);
