@@ -1,3 +1,44 @@
+## AOSP-Allocator im lokalen Gast: be9d0d54
+
+Der auf `aegis-build` kompilierte und über GitHub geprüfte
+[Komponentenstand be9d0d54](https://github.com/simgero/AegisOS/releases/tag/components-20260929T160444Z-be9d0d54-be9d0d54-9d2hw4)
+besteht am 29. September 2026 um 16:05:32 UTC **91/91 Java-Tests** in
+12,518 Sekunden, ohne Abwahl oder übersprungene Tests. Der lokale Mac-QEMU
+verwendet das [Vollimage 927cf51d](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T153553Z-927cf51d-17d08c57),
+Profil `d68845b3-62a9-4181-a7cd-c0f0a8e7d316`, Boot-ID
+`984f23bd-607e-4a6d-8c08-7ae91bccd4f5`. Enforcing, FBE, authentifiziertes ADB
+und tatsächliches dm-verity für System und System-Extension sind bestätigt.
+
+Das APK bindet erstmals `services.core` ein. Die drei zusätzlichen Tests
+verwenden den tatsächlich integrierten `UserManagerService` in einem eigenen
+App-Cache und dessen prozesslokale Tabellen. Eine freie Kennung bleibt
+verfügbar; ein erschöpfter Nummernraum und das Überschreiten der bisherigen
+Liste zuletzt gelöschter Kennungen führen zu keiner Wiedervergabe.
+Wiederholte Vergabeversuche bauen die Reservierungen nicht ab.
+Der vollständige bisherige Java-Umfang wurde wegen der geänderten APK-Bindung
+ebenfalls neu ausgeführt.
+
+Dies verändert nicht den echten Benutzerbestand des Systemservers.
+Vorher und nachher bestehen ausschließlich Benutzer/CE-Schlüsselverzeichnisse
+0, nur Benutzer 0 läuft, und es gibt keine privaten Runtime-Kontexte.
+Das Plattform-Quellinventar des Komponentenrelease stimmt exakt mit dem
+Vollimage überein. Die unveränderten nativen Quellen behalten ihren separat
+geprüften 128er-Nachweis; sie wurden hier nicht erneut ausgeführt.
+
+Belege unter `out/components-be9d0d54/component-tests/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `java.log` | `e63a631bda6d1ae04400e0f1eb50bc4bc6f8760453726337e56c60f125757fb4` |
+| identische `before.json` / `after.json` | `0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3` |
+| installiertes Test-APK | `9eee6a2cd7f657174df4e2a138118ff60e4db0f2803088456119d41f1462361f` |
+
+Das ist ein Test des echten Allocatorcodes in isolierten Fixtures, kein
+erschöpfter produktiver Benutzerbestand. CLI-Löschberechtigungen und
+Pakettransaktionen sind dadurch nicht geprüft. Der sichtbare Launcher wurde
+nicht geändert; der neue Gast läuft ohne Fenster, bisherige Profilpaare
+bleiben erhalten.
+
 ## Anmeldevorbereitung: 2f29f0ac
 
 Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260929T104228Z-2f29f0ac-2f29f0ac-QdCsAG)

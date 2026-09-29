@@ -4,7 +4,16 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Neuester lokal geprüfter Vollbuild: **`73ddcb61`**. Die gezielte
+Neuester lokal gestarteter Vollbuild: **`927cf51d`**, mit Enforcing, FBE,
+authentifiziertem ADB und tatsächlichem dm-verity. Im separaten Gast bestehen
+**91/91 Java-Tests** aus Komponentenstand `be9d0d54`, einschließlich drei
+Prüfungen des echten AOSP-Allocators in isolierten App-Fixtures. Gelöschte
+Kennungen bleiben darin während desselben Systemserver-Laufs reserviert,
+auch wenn der Nummernraum erschöpft ist. Die echten Benutzer- und
+Schlüsselverzeichnisse bleiben unverändert. [Belege und Grenzen](component-tests.md).
+Dieser Lauf ist keine erneute Prüfung des vollständigen persönlichen Ablaufs.
+
+Der jüngste tatsächliche Plattform-Löschtest verwendet **`73ddcb61`**. Die gezielte
 SELinux-Korrektur ermöglicht jetzt den vollständigen AOSP-Abbau eines privaten
 GNU-Benutzers. Ein absichtlich vor dem Schlüsselabbau gestörter Löschvorgang
 behält seine Kennung reserviert und wird nach Neustart desselben Profilpaars
