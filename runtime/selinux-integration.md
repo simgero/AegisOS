@@ -1,5 +1,20 @@
 # SELinux- und Init-Integration der Runtime
 
+## Privaten CE-Baum durch AOSP entfernen
+
+Der lokale vollständige Build `760474df` erreicht beim echten Entfernen eines
+persönlichen GNU-Benutzers den AOSP-Speicherabbau. Dieser scheitert unter
+Enforcing an `vold_prepare_subdirs aegis_runtime_home_file:dir getattr`;
+der Benutzer bleibt richtigerweise partiell und seine Kennung reserviert.
+[Ablauf, belegte Auswirkungen und Grenzen](aosp-storage-lifecycle.md).
+
+Die folgende Policy ergänzt ausschließlich Baumdurchlauf, `rmdir` und
+`unlink` für den vorhandenen AOSP-Bereinigungsdienst auf unserem dedizierten
+Home-Typ. Sie erlaubt weder Inhaltlesen/-schreiben noch Erstellen, Relabeln
+oder zusätzliche Capabilities. `neverallow` begrenzt diese Erweiterung.
+Das ist noch kein Kompilierungs- oder Löschtestnachweis; ein neuer vollständiger
+Build und die erneute lokale Prüfung sind erforderlich.
+
 ## Tatsächliche GNU-Ausführung in 6a807692
 
 Der vollständige Build `aosp-20260929T092225Z-6a807692-0febd375` enthält

@@ -26,6 +26,15 @@ type aegis_runtime_owner_cgroup, fs_type;
 type aegis_runtime_socket, file_type, coredomain_socket;
 type aegis_runtime_namespace_file, fs_type;
 
+# AOSP removes CE subdirectories after stopping the user and destroying keys.
+# Permit its existing dedicated cleaner to unlink our private tree, including
+# names that are now encrypted. It receives no file-content or creation access.
+allow vold_prepare_subdirs aegis_runtime_home_file:dir { getattr open read search write remove_name rmdir };
+allow vold_prepare_subdirs aegis_runtime_home_file:{ file lnk_file fifo_file sock_file } { getattr unlink };
+neverallow vold_prepare_subdirs aegis_runtime_home_file:dir { create add_name setattr relabelfrom relabelto mounton ioctl };
+neverallow vold_prepare_subdirs aegis_runtime_home_file:file { create open read write append map execute execute_no_trans link rename setattr ioctl };
+neverallow vold_prepare_subdirs aegis_runtime_home_file:{ lnk_file fifo_file sock_file } { create read write append setattr link rename };
+
 # Give NSFS its own label instead of granting the new owner access to generic
 # unlabeled files. Preserve the existing AOSP domains' already-authorized
 # read access to these formerly-unlabeled objects, without adding subjects.

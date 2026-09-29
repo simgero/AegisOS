@@ -1,5 +1,55 @@
 # AOSP-Speicheroperationen und Runtime-Abbau
 
+## Leere Biometrie bestätigt, privater Abbau noch verweigert: 760474df
+
+Der vollständige [Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T134115Z-760474df-4114780f)
+ist auf dem Builder und nach dem GitHub-Download verifiziert. Profil
+`1d116bce-a5cd-462b-92ed-47391c7f90ae`, Boot
+`71e454f3-53a5-41e1-aeb0-81ad638bb1e1`, AVB-Digest
+`7cccb2eb16084e9a23bb082adf6a4cb4151964affb6600767799e970f7b300cd`
+bootet mit Enforcing, FBE, sicherem ADB und tatsächlichem dm-verity.
+Beide ersten AOSP-Anmeldungen und tatsächliche GNU-Dateien/-Hintergrundprozesse
+funktionieren. Das sichtbare Profil wurde nicht ersetzt.
+
+Beim Entfernen Betas (`11/11`) am 29. September um 14:17:09 UTC bestätigt der
+Fingerprint-Client die tatsächliche leere HAL-Antwort erfolgreich. LockSettings
+gelangt nun über beide Biometrieprüfungen hinaus; der frühere Timeout ist damit
+im realen Gast behoben. Danach scheitert der AOSP-Datenabbau: SELinux verweigert
+`vold_prepare_subdirs` das `getattr` auf einer verschlüsselten Verzeichnisbenennung
+mit Typ `aegis_runtime_home_file`. Sein `rm` scheitert, vold meldet
+`/data/misc_ce/11` als nichtleer und die geprüfte Framework-Finalisierung behält
+um 14:17:10.554 UTC den partiellen Datensatz samt Seriennummer reserviert.
+
+Betas ursprünglicher Prozess `5957`, Startzeit `18962`, und sein Kontext sind
+weg; CE ist gesperrt. CE-/DE-Schlüsselverzeichnisse und die übrigen geprüften
+Datenverzeichnisse fehlen; Runtime-CE-Reste sowie primäre und Reserve-XML bleiben.
+Eine doppelte öffentliche Löschanforderung gibt dieselbe Kennung nicht frei.
+Alphas ursprünglicher Prozess `4883`, Startzeit `11708`, läuft weiter und seine
+1024 GNU-geschriebenen Bytes bleiben identisch. Alpha wird danach regulär
+abgemeldet; sein Prozess verschwindet und AOSP bestätigt ausschließlich CE `[0]`.
+Das Paar bleibt als Fehlernachweis erhalten. Es wurden keine Schlüssel gelesen,
+Reste erzwungen gelöscht oder Benutzer-Metadaten zurückgesetzt.
+
+Die folgende, **noch nicht kompilierte oder im Gast geprüfte Policy-Korrektur**
+gibt ausschließlich dem vorhandenen `vold_prepare_subdirs` das Durchlaufen und
+Entfernen dieses dedizierten privaten Baums. Normale Dateien, Verknüpfungen,
+FIFOs und Socket-Dateien erhalten nur `getattr`/`unlink`; die Verzeichnisse
+zusätzlich die benötigten Lese-/Durchlauf-/Entfernungsrechte. Inhaltszugriff,
+Erstellung und Relabeln werden durch `neverallow` ausgeschlossen. Keine neue
+Capability, keine Lockerung für normale GNU-Prozesse und kein nachträglicher
+privilegierter Ersatz-Löschpfad werden eingeführt. 18 Hostprüfungen zur
+Quellintegration und zu Build-Eingaben bestehen; die echte Policy-Kompilierung
+und der erneute Systemtest stehen noch aus.
+
+Belege: `out/full-build-760474df/removal-test/`; `beta.json` SHA-256
+`17c195a508551e9e638bb0351e011429df087710fff831fbe1834a68ca3a27f0`,
+gezielter SELinux-/Bereinigungsauszug `beta-subdirs-focused.log`
+`c691b0e8e76690fa58d2a6ffc2bcbaf0cc5597dda3e9069b4e8eb7aefab67a26`.
+Künstlicher Inventarfehler und Neustart-Wiederherstellung wurden wegen dieses
+realen Fehlers nicht ausgeführt. Verwaltete CLI-Löschung bleibt gesperrt;
+Adminfreigabe, echte verspätete Rückmeldungen und ID-Wiederverwendung sind
+weiterhin nicht abgenommen.
+
 ## Gasttest der reservierten Löschung: 2e27713e
 
 Der vollständige [Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T124901Z-2e27713e-10dee9cb)
