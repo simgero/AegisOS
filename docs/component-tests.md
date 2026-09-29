@@ -1,5 +1,30 @@
 # Komponentenläufe in lokalem QEMU
 
+## Private Cgroup-Delegation: ebf3610
+
+Am 29. September 2026 bestehen **122/122 native Tests aus 19 Suiten**
+des Commits `ebf3610430ac22b98b515528edf156dd9e2c3465` im lokalen
+QEMU-Image `d308ea6a`, ohne Filter oder übersprungene Tests. Der
+[Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260929T052635Z-ebf36104-ebf36104-hF9HrH)
+ist über GitHub geprüft empfangen. Die sechs zusätzlichen Tests prüfen
+die private Delegation mit getrenntem Broker-Zweig, falsche Platzierung und
+Grenzen, fremde Zweige, fehlende Delegation sowie die Lebensdauer des
+gehaltenen `cgroup.procs`-Deskriptors.
+
+Der bestehende AOSP-Testbenutzer 10 war dabei gestoppt und CE gesperrt;
+der bisherige Runtime-Kontext war entfernt. Die Tests verwenden eigene
+temporäre Cgroups und keine produktiven Benutzerkontexte.
+**Diese Root-Fixtures beweisen noch nicht die neue Init-Platzierung oder
+SELinux-Policy im vollständigen Image und keine GNU-Ausführung.** Die
+62/62 Java-Tests aus `026665fb` werden für unveränderte Java-/JNI-Quellen
+weiterverwendet. Der nachfolgende vollständige Build
+`aosp-20260929T053136Z-ebf36104-d60e8839` ist gestartet; sein Ergebnis
+und sein tatsächlicher Bootnachweis stehen aus.
+
+- Rohbelege: `out/components-ebf3610/component-tests/`.
+- Native-Log SHA-256: `500c2814b41901fcf6a694018a0e1f0ff02a4c6038328a246051432dfb6c1fb9`.
+- Gastbeleg SHA-256: `02f8c665bb9d0c4d44f124eb977bc5d8183fbb526a7a53620138ab12f1390182`.
+
 ## Mount-Besitz nach vollständigem Boot von a187a309
 
 Build [`aosp-20260929T034544Z-a187a309-0129b0ef`](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T034544Z-a187a309-0129b0ef)

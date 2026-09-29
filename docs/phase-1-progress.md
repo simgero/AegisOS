@@ -4,7 +4,16 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Aktueller Nachweisstand: Das vollständige Image `d308ea6a` ist mit
+Aktueller Komponentenstand: **122/122 native Tests aus `ebf3610` bestehen**
+im lokalen QEMU-Image `d308ea6a`. Die neue private Cgroup-Delegation und
+ihre sechs zusätzlichen Regressionstests sind auf `aegis-build` kompiliert
+und über GitHub geprüft übertragen. Der vollständige Build
+`aosp-20260929T053136Z-ebf36104-d60e8839` läuft; die neue Init-Platzierung,
+SELinux-Integration und GNU-Ausführung sind noch nicht im vollständigen
+Image nachgewiesen. Der sichtbare Launcher bleibt unverändert. Weitere
+Kandidaten werden auf Nutzerwunsch ohne sichtbares QEMU-Fenster geprüft.
+
+Aktueller vollständiger Bootnachweis: Das Image `d308ea6a` ist mit
 `UPLOAD_VERIFIED` über GitHub übertragen und bootet im getrennten lokalen
 Testprofil mit Enforcing, FBE, authentifiziertem ADB und tatsächlichem
 dm-verity. Der Init-gestartete Broker erreicht erstmals
