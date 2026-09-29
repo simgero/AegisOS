@@ -5,6 +5,8 @@
 #include "context.h"
 #include "control.h"
 #include "broker_owner_package.h"
+#include "ce_private.h"
+#include "namespace.h"
 #include <android-base/unique_fd.h>
 #include <array>
 #include <memory>
@@ -434,9 +436,18 @@ execution_slot* find_execution(aegis_broker_owner* owner,uint32_t user,uint32_t 
     fail(ENOENT);return nullptr;
 }
 }
-int BrokerPreparePublication(aegis_broker_owner* owner,const PackagePublication& request,
-                             int groups,int store,int source,int helper,uint64_t deadline,uint64_t* job) {
-    if(!job || *job || request.job)return fail(EINVAL);
+static int personal_area(uint32_t user,uint32_t serial) {
+    // Namespace provenance is pinned by init, never selected by a CLI. The
+    // authenticated id+serial is the REQUESTER, never the approving admin.
+    if(aegis_namespace_check_broker()<0)return -1;
+    unique_fd data(open("/data",O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC));
+    if(!data.ok())return -1;
+    return aegis_ce_open_packages(data.get(),user,serial,1);
+}
+static int prepare_publication(aegis_broker_owner* owner,const PackagePublication& request,
+                               int groups,int store,int source,int helper,uint64_t deadline,
+                               uint64_t* job,bool personal_ce) {
+    if(!job || *job || request.job || (personal_ce && !request.personal))return fail(EINVAL);
     if(admission(owner,request.requester,request.serial,deadline)<0)return -1;
     if(capacity(owner,request.requester)<0)return -1;
     if(owner->next_publication==INT64_MAX)return fail(EOVERFLOW);
@@ -455,13 +466,40 @@ int BrokerPreparePublication(aegis_broker_owner* owner,const PackagePublication&
     prepared->plan=std::move(plan);
     int fds[]={groups,store,source,helper};
     for(unsigned i=0;i<4;++i) {
+        if(personal_ce && i==1)continue;
         prepared->inputs[i].reset(fcntl(fds[i],F_DUPFD_CLOEXEC,3));
         if(!prepared->inputs[i].ok())return -1;
     }
-    // No child or persistent changes yet. Failed preparation drops its copies.
     if(remaining_ms(deadline)<=0)return fail(ETIMEDOUT);
     *job=++owner->next_publication;*empty=std::move(prepared);
+    auto& slot=**empty;
+    // Register before opening any CE reference or creating package metadata.
+    // Every error consumes this job and retains a collectable failed result.
+    if(personal_ce) {
+        int error=0;
+        {
+            unique_fd area(personal_area(request.requester,request.serial));
+            if(!area.ok())error=errno;
+            else {
+                slot.inputs[1].reset(aegis_ce_package_store(area.get(),request.requester,request.serial));
+                if(!slot.inputs[1].ok())error=errno;
+            }
+        }
+        if(!error && remaining_ms(deadline)<=0)error=ETIMEDOUT;
+        if(error) {
+            slot.close_inputs();slot.state=PublicationState::Complete;
+            slot.result={PackagePublish::Rejected,error};return fail(error);
+        }
+    }
     return 0;
+}
+int BrokerPreparePublication(aegis_broker_owner* owner,const PackagePublication& request,
+                             int groups,int store,int source,int helper,uint64_t deadline,uint64_t* job) {
+    return prepare_publication(owner,request,groups,store,source,helper,deadline,job,false);
+}
+int BrokerPreparePersonalPublication(aegis_broker_owner* owner,const PackagePublication& request,
+                                     int groups,int source,int helper,uint64_t deadline,uint64_t* job) {
+    return prepare_publication(owner,request,groups,-1,source,helper,deadline,job,true);
 }
 int BrokerStartPublication(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                            uint64_t job,const std::string& plan,uint64_t deadline) {
@@ -512,9 +550,9 @@ int BrokerCancelPublication(aegis_broker_owner* owner,uint32_t user,uint32_t ser
     }
     return error ? fail(error) : 0;
 }
-int BrokerPrepareCandidate(aegis_broker_owner* owner,const PackagePreparation& request,
-                           int groups,int stage,int source,int prepare_helper,int execute_helper,
-                           const std::vector<int>& archives,uint64_t deadline,uint64_t* job) {
+static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation& request,
+                              int groups,int stage,int source,int prepare_helper,int execute_helper,
+                              const std::vector<int>& archives,uint64_t deadline,uint64_t* job,bool personal_ce) {
     if(!job || *job || request.execution.job)return fail(EINVAL);
     const auto& identity=request.execution;
     if(admission(owner,identity.requester,identity.serial,deadline)<0 || capacity(owner,identity.requester)<0)return -1;
@@ -528,14 +566,24 @@ int BrokerPrepareCandidate(aegis_broker_owner* owner,const PackagePreparation& r
     if(!prepared)return fail(ENOMEM);
     prepared->plan=preparation.execution;prepared->state=PublicationState::Preparing;
     prepared->inputs[0].reset(fcntl(groups,F_DUPFD_CLOEXEC,3));
-    prepared->inputs[1].reset(fcntl(stage,F_DUPFD_CLOEXEC,3));
+    if(!personal_ce)prepared->inputs[1].reset(fcntl(stage,F_DUPFD_CLOEXEC,3));
     prepared->inputs[3].reset(fcntl(execute_helper,F_DUPFD_CLOEXEC,3));
-    if(!prepared->inputs[0].ok() || !prepared->inputs[1].ok() || !prepared->inputs[3].ok())return -1;
+    if(!prepared->inputs[0].ok() || (!personal_ce && !prepared->inputs[1].ok()) || !prepared->inputs[3].ok())return -1;
     if(remaining_ms(deadline)<=0)return fail(ETIMEDOUT);
     *job=++owner->next_publication;*empty=std::move(prepared);auto& slot=**empty;
-    // Register BEFORE starting the child, including every partial failure.
-    int started=PackagePreparerStart(groups,stage,source,prepare_helper,archives,preparation,&slot.preparer);
-    int error=started<0 ? errno : 0;
+    // Register BEFORE any private CE reference, disk mutation or child.
+    int error=0;
+    if(personal_ce) {
+        unique_fd area(personal_area(identity.requester,identity.serial));
+        if(!area.ok())error=errno;
+        else {
+            slot.inputs[1].reset(aegis_ce_new_package_stage(area.get(),identity.requester,identity.serial,*job));
+            if(!slot.inputs[1].ok())error=errno;
+        }
+    }
+    if(!error && remaining_ms(deadline)<=0)error=ETIMEDOUT;
+    if(!error && PackagePreparerStart(groups,slot.inputs[1].get(),source,prepare_helper,archives,
+                                     preparation,&slot.preparer)<0)error=errno;
     if(!error && remaining_ms(deadline)<=0)error=ETIMEDOUT;
     if(error) {
         if(slot.preparer) { slot.state=PublicationState::Sealed;(void)PackagePreparerCancel(slot.preparer); }
@@ -544,6 +592,18 @@ int BrokerPrepareCandidate(aegis_broker_owner* owner,const PackagePreparation& r
         return fail(error);
     }
     return 0;
+}
+int BrokerPrepareCandidate(aegis_broker_owner* owner,const PackagePreparation& request,
+                           int groups,int stage,int source,int prepare_helper,int execute_helper,
+                           const std::vector<int>& archives,uint64_t deadline,uint64_t* job) {
+    return prepare_candidate(owner,request,groups,stage,source,prepare_helper,execute_helper,
+                             archives,deadline,job,false);
+}
+int BrokerPreparePersonalCandidate(aegis_broker_owner* owner,const PackagePreparation& request,
+                                   int groups,int source,int prepare_helper,int execute_helper,
+                                   const std::vector<int>& archives,uint64_t deadline,uint64_t* job) {
+    return prepare_candidate(owner,request,groups,-1,source,prepare_helper,execute_helper,
+                             archives,deadline,job,true);
 }
 int BrokerPrepareExecution(aegis_broker_owner* owner,const PackageExecution& request,
                              int groups,int stage,int candidate,int helper,uint64_t deadline,uint64_t* job) {

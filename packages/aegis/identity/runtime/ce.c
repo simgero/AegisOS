@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/random.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/syscall.h>
@@ -224,7 +225,64 @@ done:;
     return result;
 }
 
-int aegis_ce_open_home(int data, uint32_t user_id, uint32_t serial, int create) {
+/* These broker-only directories are siblings of HOME, never exported into
+ * an ordinary runtime. AOSP owns the containing fscrypt policy and key. */
+static const char package_name[] = "packages";
+static const char package_pending[] = ".packages-preparing";
+static const char *const package_children[] = {"store", "staging"};
+
+static int package_layout(int fd, const char *owner,
+                           const struct fscrypt_policy_v2 *expected) {
+    if (check_anchor(fd, owner, expected) < 0) return -1;
+    for (unsigned i = 0; i < sizeof(package_children) / sizeof(package_children[0]); i++) {
+        int child = aegis_ce_open_directory(fd, package_children[i]);
+        if (child < 0) return -1;
+        int ok = check_anchor(child, owner, expected), saved = errno;
+        close(child);
+        if (ok < 0) return reject(saved);
+    }
+    return 0;
+}
+
+static int provision_packages(int anchor, const char *owner,
+                               const struct fscrypt_policy_v2 *expected) {
+    if (mkdirat(anchor, package_pending, 0700) < 0) return -1;
+    int pending = aegis_ce_open_directory(anchor, package_pending);
+    if (pending < 0) return -1;
+    int result = -1;
+    if (metadata(pending, 0, 0, 0700) < 0 || no_acl(pending) < 0
+            || matching_policy(pending, expected) < 0
+            || fsetxattr(pending, owner_attribute, owner, strlen(owner), XATTR_CREATE) < 0)
+        goto done;
+    for (unsigned i = 0; i < sizeof(package_children) / sizeof(package_children[0]); i++) {
+        const char *name = package_children[i];
+        if (mkdirat(pending, name, 0700) < 0) goto done;
+        int child = aegis_ce_open_directory(pending, name);
+        if (child < 0) goto done;
+        int ok = metadata(child, 0, 0, 0700) == 0 && no_acl(child) == 0
+                && matching_policy(child, expected) == 0
+                && fsetxattr(child, owner_attribute, owner, strlen(owner), XATTR_CREATE) == 0
+                && check_anchor(child, owner, expected) == 0
+                && fsync(child) == 0 && still_named(pending, name, child) == 0;
+        int saved = errno;
+        close(child);
+        if (!ok) { errno = saved; goto done; }
+    }
+    if (package_layout(pending, owner, expected) < 0 || fsync(pending) < 0
+            || key_present(pending, expected) < 0
+            || still_named(anchor, package_pending, pending) < 0
+            || syscall(SYS_renameat2, anchor, package_pending, anchor, package_name,
+                       RENAME_NOREPLACE) < 0 || fsync(anchor) < 0) goto done;
+    result = 0;
+done:;
+    int saved = errno;
+    close(pending);
+    errno = saved;
+    /* Never adopt, repair or delete an interrupted preparation. */
+    return result;
+}
+
+static int open_private(int data, uint32_t user_id, uint32_t serial, int create, int packages) {
     if (user_id < 10 || user_id >= 21473 || serial > INT32_MAX || (create != 0 && create != 1))
         return reject(EINVAL);
     uint32_t uid = home_uid(user_id);
@@ -233,7 +291,7 @@ int aegis_ce_open_home(int data, uint32_t user_id, uint32_t serial, int create) 
     snprintf(system_path, sizeof(system_path), "system_ce/%u", user_id);
     snprintf(misc_path, sizeof(misc_path), "misc_ce/%u", user_id);
     snprintf(owner, sizeof(owner), "1:%u:%u", user_id, serial);
-    int system = -1, misc = -1, anchor = -1, home = -1, result = -1;
+    int system = -1, misc = -1, anchor = -1, home = -1, area = -1, result = -1;
     struct fscrypt_policy_v2 expected;
     system = aegis_ce_open_directory(data, system_path);
     if (system < 0 || metadata(system, AID_SYSTEM, AID_SYSTEM, 0770) < 0
@@ -258,14 +316,104 @@ int aegis_ce_open_home(int data, uint32_t user_id, uint32_t serial, int create) 
             || still_named(misc, anchor_name, anchor) < 0 || still_named(anchor, "home", home) < 0
             || aegis_ce_require_serial(system, serial) < 0
             || matching_policy(system, &expected) < 0 || key_present(home, &expected) < 0) goto done;
-    result = home;
-    home = -1;
+    if (packages) {
+        if (absent(anchor, package_pending) < 0) goto done;
+        area = aegis_ce_open_directory(anchor, package_name);
+        if (area < 0 && errno == ENOENT && create) {
+            if (provision_packages(anchor, owner, &expected) < 0) goto done;
+            area = aegis_ce_open_directory(anchor, package_name);
+        }
+        if (area < 0 || package_layout(area, owner, &expected) < 0
+                || still_named(anchor, package_name, area) < 0
+                || still_named(data, system_path, system) < 0
+                || still_named(data, misc_path, misc) < 0
+                || still_named(misc, anchor_name, anchor) < 0
+                || aegis_ce_require_serial(system, serial) < 0
+                || matching_policy(system, &expected) < 0 || key_present(area, &expected) < 0)
+            goto done;
+        result = area;
+        area = -1;
+    } else {
+        result = home;
+        home = -1;
+    }
 done:;
     int saved = errno;
     if (system >= 0) close(system);
     if (misc >= 0) close(misc);
     if (anchor >= 0) close(anchor);
     if (home >= 0) close(home);
+    if (area >= 0) close(area);
+    errno = saved;
+    return result;
+}
+
+int aegis_ce_open_home(int data, uint32_t user_id, uint32_t serial, int create) {
+    return open_private(data, user_id, serial, create, 0);
+}
+
+int aegis_ce_open_packages(int data, uint32_t user_id, uint32_t serial, int create) {
+    return open_private(data, user_id, serial, create, 1);
+}
+
+/* Only accept an already anchored package root within the SAME lifecycle
+ * admission. This check cannot establish provenance of an arbitrary fd. */
+static int package_owner(int packages, uint32_t user_id, uint32_t serial,
+                          char owner[64], struct fscrypt_policy_v2 *expected) {
+    if (user_id < 10 || user_id >= 21473 || serial > INT32_MAX) return reject(EINVAL);
+    snprintf(owner, 64, "1:%u:%u", user_id, serial);
+    if (policy(packages, expected) < 0 || package_layout(packages, owner, expected) < 0)
+        return -1;
+    return key_present(packages, expected);
+}
+
+int aegis_ce_package_store(int packages, uint32_t user_id, uint32_t serial) {
+    char owner[64];
+    struct fscrypt_policy_v2 expected;
+    if (package_owner(packages, user_id, serial, owner, &expected) < 0) return -1;
+    int store = aegis_ce_open_directory(packages, "store");
+    if (store < 0) return -1;
+    if (check_anchor(store, owner, &expected) < 0
+            || still_named(packages, "store", store) < 0 || key_present(store, &expected) < 0) {
+        int saved = errno; close(store); return reject(saved);
+    }
+    return store;
+}
+
+int aegis_ce_new_package_stage(int packages, uint32_t user_id, uint32_t serial, uint64_t job) {
+    if (!job || job > INT64_MAX) return reject(EINVAL);
+    char owner[64];
+    struct fscrypt_policy_v2 expected;
+    if (package_owner(packages, user_id, serial, owner, &expected) < 0) return -1;
+    int staging = aegis_ce_open_directory(packages, "staging");
+    if (staging < 0) return -1;
+    int stage = -1, result = -1;
+    unsigned char random[16];
+    char hex[33], name[80];
+    if (check_anchor(staging, owner, &expected) < 0
+            || still_named(packages, "staging", staging) < 0) goto done;
+    /* Jobs are monotone only within one owner. A kernel-generated nonce also
+     * prevents adopting a directory left by an earlier broker lifetime. */
+    ssize_t n;
+    do { n = getrandom(random, sizeof(random), GRND_NONBLOCK); } while (n < 0 && errno == EINTR);
+    if (n != (ssize_t)sizeof(random)) { if (n >= 0) errno = EIO; goto done; }
+    for (unsigned i = 0; i < sizeof(random); i++) snprintf(hex + i * 2, 3, "%02x", random[i]);
+    snprintf(name, sizeof(name), "job-%llu-%s", (unsigned long long)job, hex);
+    if (mkdirat(staging, name, 0700) < 0) goto done;
+    stage = aegis_ce_open_directory(staging, name);
+    if (stage < 0 || metadata(stage, 0, 0, 0700) < 0 || no_acl(stage) < 0
+            || matching_policy(stage, &expected) < 0
+            || fsetxattr(stage, owner_attribute, owner, strlen(owner), XATTR_CREATE) < 0
+            || check_anchor(stage, owner, &expected) < 0 || fsync(stage) < 0
+            || fsync(staging) < 0 || still_named(staging, name, stage) < 0
+            || still_named(packages, "staging", staging) < 0 || key_present(stage, &expected) < 0)
+        goto done;
+    result = stage;
+    stage = -1;
+done:;
+    int saved = errno;
+    if (stage >= 0) close(stage);
+    close(staging);
     errno = saved;
     return result;
 }

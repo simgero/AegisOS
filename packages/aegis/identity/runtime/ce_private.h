@@ -15,6 +15,19 @@ extern "C" {
  */
 int aegis_ce_open_home(int data_fd, uint32_t user_id, uint32_t serial, int create);
 
+/* Broker-owned package storage, sibling of HOME, using the same authoritative
+ * AOSP serial/policy/present-key and immutable owner checks. Packages, store
+ * and staging are root:root0700; never mount these into an ordinary session.
+ * No caller-chosen paths. Interrupted creation is preserved and rejected.
+ * The caller MUST hold lifecycle admission, register returned references with
+ * STOP_USER, and close every copy/mount/loop before releasing CE. These APIs
+ * do not authenticate, issue keys or validate package semantics/approval. */
+int aegis_ce_open_packages(int data_fd, uint32_t user_id, uint32_t serial, int create);
+/* packages comes only from the above function, in the SAME admission. */
+int aegis_ce_package_store(int packages, uint32_t user_id, uint32_t serial);
+/* Creates a new empty directory; no reuse, repair or cleanup of old jobs. */
+int aegis_ce_new_package_stage(int packages, uint32_t user_id, uint32_t serial, uint64_t job);
+
 /* Strictly reads AOSP's existing user.serial; never repairs or creates it. */
 int aegis_ce_require_serial(int directory, uint32_t serial);
 

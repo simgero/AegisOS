@@ -209,6 +209,9 @@ TEST_F(RuntimeCe, PlausibleDirectoryNamesAndSerialDoNotSubstituteForEncryption) 
         int home = aegis_ce_open_home(root, 10, 1234, 1);
         EXPECT_EQ(-1, home);
         if (home >= 0) close(home);
+        int packages = aegis_ce_open_packages(root, 10, 1234, 1);
+        EXPECT_EQ(-1, packages);
+        if (packages >= 0) close(packages);
     }
     struct stat st;
     EXPECT_EQ(-1, fstatat(misc, "aegis", &st, AT_SYMLINK_NOFOLLOW)); EXPECT_EQ(ENOENT, errno);
@@ -237,6 +240,53 @@ TEST_F(RuntimeCe, InvalidIdentitiesAndUnencryptedMountSourcesCannotLeakViews) {
     }
     EXPECT_EQ(0, fstatvfs(root, &after));
     EXPECT_EQ(original.f_flag, after.f_flag);
+    EXPECT_EQ(before, fd_count());
+}
+
+TEST_F(RuntimeCe, PackageOwnerMetadataCannotSubstituteForEncryptedStorage) {
+    ASSERT_EQ(0, fsetxattr(root, "user.aegis.owner", "1:10:42", 7, XATTR_CREATE));
+    ASSERT_EQ(0, mkdirat(root, "store", 0700));
+    ASSERT_EQ(0, mkdirat(root, "staging", 0700));
+    int store = aegis_ce_open_directory(root, "store");
+    int staging = aegis_ce_open_directory(root, "staging");
+    ASSERT_GE(store, 0); ASSERT_GE(staging, 0);
+    ASSERT_EQ(0, fsetxattr(store, "user.aegis.owner", "1:10:42", 7, XATTR_CREATE));
+    ASSERT_EQ(0, fsetxattr(staging, "user.aegis.owner", "1:10:42", 7, XATTR_CREATE));
+    int marker = openat(store, "keep", O_RDWR|O_CREAT|O_EXCL|O_CLOEXEC, 0600);
+    ASSERT_GE(marker, 0);
+    ASSERT_EQ(4, write(marker, "keep", 4));
+    int before = fd_count();
+    for (unsigned i = 0; i < 16; i++) {
+        int opened = aegis_ce_package_store(root, 10, 42);
+        EXPECT_EQ(-1, opened); if (opened >= 0) close(opened);
+        int job = aegis_ce_new_package_stage(root, 10, 42, i + 1);
+        EXPECT_EQ(-1, job); if (job >= 0) close(job);
+    }
+    char data[4]; ASSERT_EQ(4, pread(marker, data, 4, 0)); EXPECT_EQ(0, memcmp(data, "keep", 4));
+    int scan = aegis_ce_open_directory(staging, "."); ASSERT_GE(scan, 0);
+    DIR* entries = fdopendir(scan); ASSERT_NE(nullptr, entries);
+    while (auto* entry = readdir(entries))
+        EXPECT_TRUE(!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."));
+    EXPECT_EQ(0, closedir(entries));
+    EXPECT_EQ(before, fd_count());
+    close(marker); close(store); close(staging);
+}
+
+TEST_F(RuntimeCe, InvalidPackageIdentitiesAndJobsAreRejectedBeforeCreatingStorage) {
+    int before = fd_count();
+    for (uint32_t user : {0u, 9u, 21473u, UINT32_MAX}) {
+        EXPECT_EQ(-1, aegis_ce_open_packages(root, user, 42, 1)); EXPECT_EQ(EINVAL, errno);
+        EXPECT_EQ(-1, aegis_ce_package_store(root, user, 42)); EXPECT_EQ(EINVAL, errno);
+        EXPECT_EQ(-1, aegis_ce_new_package_stage(root, user, 42, 1)); EXPECT_EQ(EINVAL, errno);
+    }
+    EXPECT_EQ(-1, aegis_ce_open_packages(root, 10, UINT32_MAX, 1)); EXPECT_EQ(EINVAL, errno);
+    EXPECT_EQ(-1, aegis_ce_open_packages(root, 10, 42, 2)); EXPECT_EQ(EINVAL, errno);
+    EXPECT_EQ(-1, aegis_ce_package_store(root, 10, UINT32_MAX)); EXPECT_EQ(EINVAL, errno);
+    EXPECT_EQ(-1, aegis_ce_new_package_stage(root, 10, 42, 0)); EXPECT_EQ(EINVAL, errno);
+    EXPECT_EQ(-1, aegis_ce_new_package_stage(root, 10, 42, UINT64_MAX)); EXPECT_EQ(EINVAL, errno);
+    struct stat st;
+    EXPECT_EQ(-1, fstatat(root, "packages", &st, AT_SYMLINK_NOFOLLOW)); EXPECT_EQ(ENOENT, errno);
+    EXPECT_EQ(-1, fstatat(root, "staging", &st, AT_SYMLINK_NOFOLLOW)); EXPECT_EQ(ENOENT, errno);
     EXPECT_EQ(before, fd_count());
 }
 

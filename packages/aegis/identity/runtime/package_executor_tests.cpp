@@ -426,6 +426,41 @@ TEST(PackagePreparationPlan, RequiresBoundedImageAndOneDigestPerExactArchive) {
     p.execution.archives=false;p.execution.items={"app"};EXPECT_EQ(-1,PackagePreparationCheck(p));
     p.archives.clear();EXPECT_EQ(0,PackagePreparationCheck(p));
 }
+TEST_F(RuntimePackagePreparation, MissingAospCeConsumesPrivateJobWithoutFdsOrChild) {
+    // Read-only prerequisite: never synthesize or touch a live AOSP user root.
+    struct stat st;ASSERT_EQ(-1,lstat("/data/system_ce/21472",&st));ASSERT_EQ(ENOENT,errno);
+    ASSERT_EQ(0,aegis_broker_owner_create(parent.get(),source.get(),execute_helper.get(),execute_helper.get(),&broker));
+    plan.execution.requester=21472;plan.execution.serial=INT32_MAX;plan.execution.job=0;
+    int before=CountFDs();
+    ASSERT_EQ(-1,BrokerPreparePersonalCandidate(broker,plan,parent.get(),source.get(),prepare_helper.get(),
+                                               execute_helper.get(),Fds(),Deadline(),&job));
+    ASSERT_EQ(ENOENT,errno);ASSERT_GT(job,0u);EXPECT_EQ(before,CountFDs());
+    PublicationState state;PackageExecutionResult result;
+    EXPECT_EQ(-1,BrokerPollExecution(broker,21472,42,job,plan.execution.plan_sha256,&state,&result));
+    EXPECT_EQ(ESTALE,errno);
+    ASSERT_EQ(0,BrokerPollExecution(broker,21472,INT32_MAX,job,plan.execution.plan_sha256,&state,&result));
+    EXPECT_EQ(PublicationState::Complete,state);EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);
+    EXPECT_EQ(ENOENT,result.error);EXPECT_EQ(before,CountFDs());
+    EXPECT_EQ("populated 0\nfrozen 0\n",AptImageFixture::read(parent.get(),"cgroup.events"));
+    EXPECT_EQ(-1,lstat("/data/misc_ce/21472",&st));EXPECT_EQ(ENOENT,errno);
+}
+TEST_F(RuntimePackagePreparation, PrivatePublicationRejectsSharedScopeAndMissingAospCe) {
+    struct stat st;ASSERT_EQ(-1,lstat("/data/system_ce/21472",&st));ASSERT_EQ(ENOENT,errno);
+    ASSERT_EQ(0,aegis_broker_owner_create(parent.get(),source.get(),execute_helper.get(),execute_helper.get(),&broker));
+    PackagePublication p;p.requester=21472;p.serial=INT32_MAX;p.plan_sha256=plan.execution.plan_sha256;
+    p.create=true;p.candidate={plan.image.sha256,"",plan.image.bytes};
+    int before=CountFDs();
+    ASSERT_EQ(-1,BrokerPreparePersonalPublication(broker,p,parent.get(),source.get(),execute_helper.get(),Deadline(),&job));
+    EXPECT_EQ(EINVAL,errno);EXPECT_EQ(0u,job);EXPECT_EQ(before,CountFDs());
+    p.personal=true;p.candidate.shared_base_sha256=plan.image.sha256;
+    ASSERT_EQ(-1,BrokerPreparePersonalPublication(broker,p,parent.get(),source.get(),execute_helper.get(),Deadline(),&job));
+    ASSERT_EQ(ENOENT,errno);ASSERT_GT(job,0u);EXPECT_EQ(before,CountFDs());
+    PublicationState state;PackagePublicationResult result;
+    ASSERT_EQ(0,BrokerPollPublication(broker,p.requester,p.serial,job,p.plan_sha256,&state,&result));
+    EXPECT_EQ(PublicationState::Complete,state);EXPECT_EQ(PackagePublish::Rejected,result.publication);
+    EXPECT_EQ(ENOENT,result.error);EXPECT_EQ(before,CountFDs());
+    EXPECT_EQ(-1,lstat("/data/misc_ce/21472",&st));EXPECT_EQ(ENOENT,errno);
+}
 TEST_F(RuntimePackagePreparation, CopiedAndVerifiedArchivesExecuteThroughRealApt) {
     int before=CountFDs();Ready();ASSERT_FALSE(HasFatalFailure());EXPECT_EQ(before+1,CountFDs());
     for(size_t i=0;i<archives.size();++i) {

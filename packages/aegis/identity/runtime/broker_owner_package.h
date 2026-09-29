@@ -48,6 +48,20 @@ int BrokerCancelPublication(aegis_broker_owner* owner,uint32_t user,uint32_t ser
 int BrokerPrepareCandidate(aegis_broker_owner* owner,const PackagePreparation& plan,
                            int groups,int stage,int source,int prepare_helper,int execute_helper,
                            const std::vector<int>& archives,uint64_t deadline,uint64_t* job);
+// CE-anchored variants for private scope. Open only fixed /data beneath
+// init-pinned host namespaces, verify AOSP system_ce serial + matching live
+// fscrypt-v2 policy, and register BEFORE creating/opening private storage.
+// No external stage/store fd or path, and no separate administrator identity.
+// Failed CE admission after registration returns a nonzero consumed job;
+// the normal matching poll/cancel/STOP_USER paths own that failed result.
+// AOSP session/lifecycle admission and fresh approval obligations above remain.
+int BrokerPreparePersonalCandidate(aegis_broker_owner* owner,const PackagePreparation& plan,
+                                   int groups,int source,int prepare_helper,int execute_helper,
+                                   const std::vector<int>& archives,uint64_t deadline,uint64_t* job);
+// Requires request.personal=true. Store initialization is still an explicit
+// plan.create operation performed by the separately authorized publisher.
+int BrokerPreparePersonalPublication(aegis_broker_owner* owner,const PackagePublication& request,
+                                     int groups,int source,int helper,uint64_t deadline,uint64_t* job);
 int BrokerPrepareExecution(aegis_broker_owner* owner,const PackageExecution& request,
                            int groups,int stage,int candidate,int helper,uint64_t deadline,uint64_t* job);
 int BrokerStartExecution(aegis_broker_owner* owner,uint32_t user,uint32_t serial,

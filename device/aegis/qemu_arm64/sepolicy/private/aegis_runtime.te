@@ -17,6 +17,8 @@ type aegis_runtime_image_file, file_type, system_file_type;
 type aegis_runtime_base_file, fs_type, contextmount_type;
 type aegis_runtime_state_file, file_type, data_file_type, core_data_file_type;
 type aegis_runtime_home_file, file_type, data_file_type, core_data_file_type;
+# Broker-only CE package backing files, never ordinary HOME or session mounts.
+type aegis_package_private_file, file_type, data_file_type, core_data_file_type;
 type aegis_runtime_devices_file, file_type;
 type aegis_runtime_scratch_file, file_type, coredomain_socket;
 type aegis_runtime_cgroup, fs_type;
@@ -29,11 +31,11 @@ type aegis_runtime_namespace_file, fs_type;
 # AOSP removes CE subdirectories after stopping the user and destroying keys.
 # Permit its existing dedicated cleaner to unlink our private tree, including
 # names that are now encrypted. It receives no file-content or creation access.
-allow vold_prepare_subdirs aegis_runtime_home_file:dir { getattr open read search write remove_name rmdir };
-allow vold_prepare_subdirs aegis_runtime_home_file:{ file lnk_file fifo_file sock_file } { getattr unlink };
-neverallow vold_prepare_subdirs aegis_runtime_home_file:dir { create add_name setattr relabelfrom relabelto mounton ioctl };
-neverallow vold_prepare_subdirs aegis_runtime_home_file:file { create open read write append map execute execute_no_trans link rename setattr ioctl };
-neverallow vold_prepare_subdirs aegis_runtime_home_file:{ lnk_file fifo_file sock_file } { create read write append setattr link rename };
+allow vold_prepare_subdirs { aegis_runtime_home_file aegis_package_private_file }:dir { getattr open read search write remove_name rmdir };
+allow vold_prepare_subdirs { aegis_runtime_home_file aegis_package_private_file }:{ file lnk_file fifo_file sock_file } { getattr unlink };
+neverallow vold_prepare_subdirs { aegis_runtime_home_file aegis_package_private_file }:dir { create add_name setattr relabelfrom relabelto mounton ioctl };
+neverallow vold_prepare_subdirs { aegis_runtime_home_file aegis_package_private_file }:file { create open read write append map execute execute_no_trans link rename setattr ioctl };
+neverallow vold_prepare_subdirs { aegis_runtime_home_file aegis_package_private_file }:{ lnk_file fifo_file sock_file } { create read write append setattr link rename };
 
 # Give NSFS its own label instead of granting the new owner access to generic
 # unlabeled files. Preserve the existing AOSP domains' already-authorized
@@ -102,11 +104,18 @@ allow aegis_runtime_broker aegis_runtime_state_file:dir rw_dir_perms;
 allow aegis_runtime_broker aegis_runtime_state_file:file create_file_perms;
 type_transition aegis_runtime_broker system_data_file:dir aegis_runtime_home_file ".aegis-preparing";
 allow aegis_runtime_broker aegis_runtime_home_file:dir create_dir_perms;
+type_transition aegis_runtime_broker aegis_runtime_home_file:dir aegis_package_private_file ".packages-preparing";
+allow aegis_runtime_broker aegis_package_private_file:dir create_dir_perms;
+# No raw package bytes are mapped/executed by the broker or ordinary runtime.
+neverallow { aegis_runtime_setup aegis_runtime_init aegis_runtime_program }
+    aegis_package_private_file:dir { open read search write add_name remove_name };
+neverallow { aegis_runtime_broker aegis_runtime_setup aegis_runtime_init aegis_runtime_program }
+    aegis_package_private_file:file { execute execute_no_trans map };
 allow aegis_runtime_broker aegis_runtime_home_file:filesystem { getattr remount };
 # CE policy/key status is read-only; no key creation/removal ioctl is granted.
-allowxperm aegis_runtime_broker { system_data_file aegis_runtime_home_file }:dir ioctl { 0x6616 0x661a };
+allowxperm aegis_runtime_broker { system_data_file aegis_runtime_home_file aegis_package_private_file }:dir ioctl { 0x6616 0x661a };
 neverallowxperm aegis_runtime_broker { data_file_type -system_data_file
-    -aegis_runtime_home_file }:dir ioctl { FS_IOC_GET_ENCRYPTION_KEY_STATUS };
+    -aegis_runtime_home_file -aegis_package_private_file }:dir ioctl { FS_IOC_GET_ENCRYPTION_KEY_STATUS };
 allow aegis_runtime_broker self:capability {
     chown dac_override dac_read_search fowner kill setgid setuid sys_admin mknod
 };

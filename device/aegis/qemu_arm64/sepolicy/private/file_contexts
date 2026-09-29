@@ -5,3 +5,4 @@
 /data/misc/aegis-runtime(/.*)? u:object_r:aegis_runtime_state_file:s0
 /data/misc_ce/[0-9]+/(aegis|\.aegis-preparing)(/.*)? u:object_r:aegis_runtime_home_file:s0
 /dev/socket/aegis_runtime u:object_r:aegis_runtime_socket:s0
+/data/misc_ce/[0-9]+/aegis/(packages|\.packages-preparing)(/.*)? u:object_r:aegis_package_private_file:s0
