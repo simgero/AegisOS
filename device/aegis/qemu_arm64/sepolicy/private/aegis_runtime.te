@@ -52,6 +52,12 @@ init_daemon_domain(aegis_runtime_broker)
 domain_auto_trans(aegis_runtime_broker, aegis_runtime_setup_exec, aegis_runtime_setup)
 domain_auto_trans(aegis_runtime_setup, aegis_runtime_init_exec, aegis_runtime_init)
 domain_auto_trans(aegis_runtime_init, aegis_runtime_base_file, aegis_runtime_program)
+# Both static helpers are pinned on the immutable Android system mount. After
+# entering the child's user namespace, mnt_may_suid treats that foreign mount
+# as nosuid, including the retained init executable after pivot_root. Permit
+# only the fixed helper transitions; never execute either in the old domain.
+allow aegis_runtime_broker aegis_runtime_setup:process2 nosuid_transition;
+allow aegis_runtime_setup aegis_runtime_init:process2 nosuid_transition;
 # The supervisor deliberately sets no_new_privs and the base remains nosuid.
 # This transition grants no capabilities or Android management access.
 allow aegis_runtime_init aegis_runtime_program:process2 { nnp_transition nosuid_transition };
@@ -183,7 +189,9 @@ allow aegis_runtime_broker self:file { write ioctl };
 # inode references and user-namespace fd through a private inherited socket.
 # Parent map opens traverse only its own fd table, never another PID's proc.
 allow aegis_runtime_broker self:user_namespace create;
-allow aegis_runtime_broker self:cap_userns { setuid setgid sys_admin };
+# pidfd_send_signal on the broker's own mapped child checks CAP_KILL in the
+# child's user namespace. The host capability does not cover this LSM class.
+allow aegis_runtime_broker self:cap_userns { kill setuid setgid sys_admin };
 neverallow aegis_runtime_broker self:global_capability_class_set sys_ptrace;
 neverallow aegis_runtime_broker init:process ptrace;
 
@@ -205,13 +213,18 @@ allow aegis_runtime_init { aegis_runtime_base_file aegis_runtime_home_file
 allow aegis_runtime_init aegis_runtime_devices_file:lnk_file r_file_perms;
 allow aegis_runtime_init aegis_runtime_devices_file:chr_file rw_file_perms;
 allow aegis_runtime_init devpts:dir r_dir_perms;
-allow aegis_runtime_setup devpts:chr_file getattr;
-allow aegis_runtime_init devpts:chr_file rw_file_perms;
-allowxperm aegis_runtime_init devpts:chr_file ioctl unpriv_tty_ioctls;
 create_pty(aegis_runtime_init)
+# The fresh devpts mount creates its ptmx inode in setup, before init creates
+# a slave. Both ends use the private type; no general Android devpts access.
+type_transition aegis_runtime_setup devpts:chr_file aegis_runtime_init_devpts;
+allow aegis_runtime_setup aegis_runtime_init_devpts:chr_file getattr;
+allowxperm aegis_runtime_init aegis_runtime_init_devpts:chr_file ioctl { TIOCGPTN TIOCSPTLCK };
 allow { aegis_runtime_broker system_server aegis_runtime_program } aegis_runtime_init:fd use;
 allow { aegis_runtime_broker system_server aegis_runtime_program } aegis_runtime_init_devpts:chr_file rw_file_perms;
 allowxperm { aegis_runtime_broker system_server aegis_runtime_program } aegis_runtime_init_devpts:chr_file ioctl unpriv_tty_ioctls;
+# Validate the slave's mapped owner through the received master descriptor.
+# 0x5441 is TIOCGPTPEER in the pinned kernel; AOSP has no named ioctl macro.
+allowxperm aegis_runtime_broker aegis_runtime_init_devpts:chr_file ioctl { TIOCGPTN 0x5441 };
 
 # GNU programs see only their pivoted root, private namespaces and CE HOME.
 # There is no permission to mutate the shared software or execute writable data.

@@ -4,21 +4,22 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Aktueller Kandidat: **`ba081a55`**, vollständig gebaut, über GitHub verifiziert
+Aktueller Kandidat: **`eb0ba22d`**, vollständig gebaut, über GitHub verifiziert
 übertragen und im separaten lokalen Profil ohne sichtbares Fenster gestartet.
 Enforcing, FBE, authentifiziertes ADB und tatsächliches dm-verity sind bestätigt.
-Der Init-gestartete Broker läuft in seiner privaten Cgroup mit den erwarteten
-Labels und Grenzen. Die fünf bisherigen Init-`create`-AVCs sind behoben; die
-vollständige Bootprüfung findet keine Runtime-AVCs.
+Die private Cgroup-Delegation und der Boot ohne Runtime-AVCs bestehen. Auch die
+korrigierte erste ADB-Einrichtung funktioniert direkt.
 
-AOSP-Anlage und Anmeldung des ersten Testadministrators funktionieren. Ein
-falsches Passwort wird abgewiesen. Der persönliche Linux-Start scheitert noch:
-Die neue Geräte-Tmpfs-Wurzel trägt das allgemeine Label `tmpfs`, weil die
-Typübergänge bislang nur `file`, nicht `dir`, erfassen. Der Start wird gesperrt;
-`linux stop`, AOSP-Abmeldung, CE-Sperre und leere Kontext-Cgroup sind bestätigt.
-**Eine GNU-Sitzung wurde weiterhin nicht ausgeführt.** Die gezielte Ergänzung
-der Verzeichnisklasse ist vorbereitet und benötigt einen neuen vollständigen
-Build samt produktivem Startnachweis. Details: [Runtime-Policy](../runtime/selinux-integration.md).
+AOSP-Anlage und Anmeldung des ersten Testadministrators funktionieren; ein
+falsches Passwort wird abgewiesen. Der persönliche Linux-Start scheitert noch
+am SELinux-Übergang vom Broker zum Setup-Helfer auf einem für den neuen
+User-Namespace fremden System-Mount. Die vorige Tmpfs-Wurzelverweigerung tritt
+nicht mehr auf. Anschließend sind `linux stop`, AOSP-Abmeldung, CE-Sperre und
+leere Kontext-Cgroup bestätigt. **Eine GNU-Sitzung wurde weiterhin nicht
+ausgeführt.** Eine gezielte Korrektur der beiden Helferübergänge, der
+Pidfd-Bereinigung und des privaten Terminaltyps ist vorbereitet. Sie benötigt
+einen neuen vollständigen Build samt produktivem Startnachweis.
+Details: [Runtime-Policy](../runtime/selinux-integration.md).
 
 **124/124 native Tests** aus `c0d8c16c` bestehen auf dem vorherigen lokalen
 `ebf3610`-Image. Die nativen Quellen sind im Kandidaten unverändert.

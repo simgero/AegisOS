@@ -1,5 +1,58 @@
 # SELinux- und Init-Integration der Runtime
 
+## Vollständiger Boot und persönlicher Start in eb0ba22d
+
+Build `aosp-20260929T074031Z-eb0ba22d-f143a89d` ist mit `UPLOAD_VERIFIED`
+veröffentlicht. Das getrennte Profil `de199957-af99-4599-8011-1bdd70a021c7`
+bootet mit Enforcing, FBE, authentifiziertem ADB, tatsächlichem dm-verity und
+korrekter privater Cgroup-Delegation. Die ADB-Einrichtung funktioniert direkt.
+Die frühere Tmpfs-Wurzelverweigerung tritt beim persönlichen Start nicht mehr
+auf. Bootbelege: `out/full-build-eb0ba22d/boot-1/`.
+
+Nach AOSP-Anlage und Anmeldung scheitert `linux start` um 08:05:28 UTC am
+Übergang `broker -> setup`, Klasse `process2`, Recht `nosuid_transition`.
+Die zusätzliche `execute_no_trans`-Verweigerung ist der verweigerte Rückfall
+in die alte Domäne, keine Aufforderung, diesen Rückfall zu erlauben.
+Bei der anschließenden Bereinigung fehlt dem Broker `self:cap_userns kill`.
+`linux stop` um 08:06:10 und `logout` um 08:10:22 bestätigen dennoch den
+vollständigen Abbau und die CE-Sperre. Das unabhängige Readback um 08:11:27
+bestätigt nur Benutzer 0 gestartet/CE-offen, `populated 0` und die entfernte
+Gruppe `u10-s10`. Belege: `out/full-build-eb0ba22d/identity-test/`, einschließlich
+Prüfsummen. **Noch keine GNU-Ausführung.**
+
+Der gepinnte Kernel `50eb8d5d443b43f38d6e72f005f1b8601ac88a05` behandelt in
+`fs/namespace.c:mnt_may_suid` fremde Mounts als nosuid. Dies betrifft den
+unveränderlichen System-Mount nach Eintritt in den Kind-User-Namespace und
+auch den gehaltenen Init-Code-Deskriptor nach `pivot_root`.
+`security/selinux/hooks.c:check_nnp_nosuid` prüft die jeweilige feste
+Domänenpaarung; bei verweigertem automatischem Übergang setzt der Exec-Hook
+die alte Domäne zurück. Die Korrektur erlaubt daher ausschließlich
+`broker -> setup` und `setup -> init` mit `nosuid_transition`. Sie erlaubt
+keinen `execute_no_trans`-Rückfall, keine dynamischen Übergänge und keine
+zusätzlichen Fähigkeiten gewöhnlicher GNU-Prozesse.
+
+`kernel/signal.c:kill_ok_by_cred` prüft beim Signal an das UID-gemappte Kind
+`CAP_KILL` in dessen User-Namespace. Die bestehende Host-Capability umfasst
+diese SELinux-Klasse nicht. Die ergänzte Broker-Freigabe gilt für
+`cap_userns kill`; der native Pfad bleibt auf den eigenen bestätigten Pidfd
+beschränkt und verwendet weder fremde PID-Auflösung noch Ptrace.
+
+Die Quellprüfung des nachfolgenden Terminalpfads zeigt zwei weitere präzise
+Lücken: `fs/devpts/inode.c:mknod_ptmx` erzeugt den Master beim Mount durch
+Setup; erst die Slave-Erzeugung erfolgt als Init. Beide müssen den privaten
+Typ `aegis_runtime_init_devpts` tragen. Der neue Setup-Typübergang und sein
+reines `getattr`-Readback ersetzen die bisherigen allgemeinen Devpts-Rechte.
+Init erhält auf dem privaten Typ `TIOCGPTN` und `TIOCSPTLCK`; der Broker erhält
+für die Eigentümerprüfung `TIOCGPTN` und `TIOCGPTPEER` (0x5441, im gepinnten
+Kernel definiert, ohne AOSP-Makro). Diese Befehle fehlen in AOSPs
+`unpriv_tty_ioctls`. `TIOCSTI` bleibt für alle Domänen auf diesem Typ verboten.
+Dies ist vorerst Quellbegründung, kein beobachteter Terminalerfolg.
+
+Die tatsächliche Android-Wurzel ist EROFS; Setup besitzt bereits das
+Unmount-Recht für `labeledfs`. Eine zusätzliche Rootfs-Freigabe wird nicht
+auf Verdacht erteilt. Native und Java-Quellen bleiben unverändert. Neuer
+Policy-Build und lokaler produktiver Startnachweis sind erforderlich.
+
 ## Vollständiger Boot und persönlicher Start in ba081a55
 
 Build `aosp-20260929T070023Z-ba081a55-79212b67` ist mit `UPLOAD_VERIFIED`
