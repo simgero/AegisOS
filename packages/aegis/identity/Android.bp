@@ -54,19 +54,13 @@ android_test {
     name: "AegisIdentityTests",
     manifest: "tests/AndroidManifest.xml",
     srcs: ["tests/src/**/*.java"],
-    static_libs: ["aegis-identity-core", "aegis-runtime-storage-gate", "androidx.test.runner", "androidx.test.ext.junit"],
+    // Use the actually integrated platform implementation for allocator tests.
+    // services.core already contains our storage bridge, so do not also link
+    // a second copy of the platform sources into this APK.
+    static_libs: ["aegis-identity-core", "services.core", "androidx.test.runner", "androidx.test.ext.junit"],
     platform_apis: true,
     certificate: "platform",
     test_suites: ["device-tests"],
-}
-
-// The production source is installed into pinned services.core by the source
-// integrator. This noninstalled library gives device tests their own copy.
-java_library {
-    name: "aegis-runtime-storage-gate",
-    srcs: ["platform/**/*.java"],
-    libs: ["framework"],
-    installable: false,
 }
 
 // Explicit component targets and the checked managed-runtime product only.

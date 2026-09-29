@@ -26,6 +26,19 @@ Verwaltete CLI-Löschung bleibt gesperrt. Die Änderung behauptet weder synchron
 StrongAuth-Aufräumarbeiten noch eine umfassende Prüfung fremder nativer Dienste
 über einen Systemserver-Neustart hinweg.
 
+Für die gezielte Gastprüfung sind drei Instrumentierungstests vorbereitet:
+eine tatsächlich freie Lücke, ein erschöpfter Nummernraum mit mehr entfernten
+IDs als der bisherigen Recent-Liste und ausschließlich entfernte persönliche
+IDs. Wiederholte Vergabeversuche dürfen Reservierungen nicht abbauen.
+`AegisIdentityTests` bindet dafür den tatsächlich integrierten `services.core`
+ein, einschließlich der bisherigen AEGIS-Speicherklassen, ohne zweite Kopie
+dieser Klassen. Die Fixture verwendet wie AOSPs ursprünglicher Recycling-Test
+einen prozesslokalen `UserManagerService` mit eigenem App-Cache-Verzeichnis.
+Sie bearbeitet ausschließlich dessen Testtabellen und erzeugt keine echten
+persönlichen AOSP-Benutzer oder Schlüssel. Die Tests sind vorbereitet, aber
+noch nicht auf Android kompiliert oder ausgeführt; der komplette bisherige
+Java-Testumfang muss wegen des geänderten Test-APKs erneut laufen.
+
 ## Plattformlöschung, Wiederherstellung und neue Identität: 73ddcb61
 
 Der vollständige [Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T142612Z-73ddcb61-404e18ff)
