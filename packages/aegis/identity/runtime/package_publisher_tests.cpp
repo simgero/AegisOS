@@ -269,7 +269,8 @@ namespace {
 class RuntimePackageBroker : public RuntimePackagePublisher {
  protected:
     aegis_broker_owner* broker=nullptr;
-    bool renamed=false;
+    unique_fd fault_group;
+    bool ownership_fault=false;
     uint64_t Deadline() {
         timespec now={};if(clock_gettime(CLOCK_MONOTONIC,&now)<0)return 0;
         return static_cast<uint64_t>(now.tv_sec)*1000000000+now.tv_nsec+5000000000;
@@ -280,7 +281,8 @@ class RuntimePackageBroker : public RuntimePackagePublisher {
         ASSERT_EQ(0,aegis_broker_owner_create(parent.get(),parent.get(),parent.get(),parent.get(),&broker));
     }
     void TearDown() override {
-        if(renamed)EXPECT_EQ(0,renameat(parent.get(),"held-by-test",parent.get(),"u10-s42"));
+        if(ownership_fault)EXPECT_EQ(0,fchown(fault_group.get(),0,0));
+        fault_group.reset();
         if(broker) {
             EXPECT_EQ(0,aegis_broker_owner_stop_all(broker,Deadline())) << strerror(errno);
             EXPECT_EQ(0,aegis_broker_owner_release(&broker)) << strerror(errno);
@@ -390,11 +392,14 @@ TEST_F(RuntimePackageBroker, HelloClearsPreparedAndRunningWorkBeforeAbsence) {
 TEST_F(RuntimePackageBroker, CleanupFaultRetainsItsOwnerButDoesNotAbandonOtherJobs) {
     uint64_t a=0,b=0;ASSERT_EQ(0,Prepare(&a,10));ASSERT_EQ(0,Run(a,10));
     ASSERT_EQ(0,Prepare(&b,11));ASSERT_EQ(0,Run(b,11));
-    // Fault only this fixture's first owned group name. Its retained inode and
-    // pidfd remain owned; the second group must still be stopped/reaped.
-    ASSERT_EQ(0,renameat(parent.get(),"u10-s42",parent.get(),"held-by-test"));renamed=true;
+    // cgroup v2 forbids rename. Fault only the first owned test group's GID;
+    // its retained inode/pidfd must remain tracked while the second is reaped.
+    fault_group.reset(openat(parent.get(),"u10-s42",O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW));
+    ASSERT_TRUE(fault_group.ok());struct stat original={};ASSERT_EQ(0,fstat(fault_group.get(),&original));
+    ASSERT_EQ(0u,original.st_uid);ASSERT_EQ(0u,original.st_gid);
+    ASSERT_EQ(0,fchown(fault_group.get(),0,1)) << strerror(errno);ownership_fault=true;
     EXPECT_EQ(-1,aegis_broker_owner_stop_all(broker,0));
-    EXPECT_TRUE(errno==ETIMEDOUT||errno==ENOENT) << strerror(errno);
+    EXPECT_TRUE(errno==ETIMEDOUT||errno==EPERM) << strerror(errno);
     EXPECT_EQ(-1,aegis_broker_owner_release(&broker));EXPECT_EQ(EBUSY,errno);
     uint64_t replacement=0;EXPECT_EQ(-1,Prepare(&replacement,10));EXPECT_EQ(EBUSY,errno);
     // The global stop may already have consumed b after confirmed teardown.
@@ -406,8 +411,9 @@ TEST_F(RuntimePackageBroker, CleanupFaultRetainsItsOwnerButDoesNotAbandonOtherJo
         usleep(1000);
     }
     struct stat st={};EXPECT_EQ(-1,fstatat(parent.get(),"u11-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
-    EXPECT_EQ(0,fstatat(parent.get(),"held-by-test",&st,AT_SYMLINK_NOFOLLOW));
-    ASSERT_EQ(0,renameat(parent.get(),"held-by-test",parent.get(),"u10-s42"));renamed=false;
+    ASSERT_EQ(0,fstatat(parent.get(),"u10-s42",&st,AT_SYMLINK_NOFOLLOW));
+    EXPECT_EQ(original.st_ino,st.st_ino);EXPECT_EQ(original.st_dev,st.st_dev);EXPECT_EQ(1u,st.st_gid);
+    ASSERT_EQ(0,fchown(fault_group.get(),0,0));ownership_fault=false;fault_group.reset();
     ASSERT_EQ(0,aegis_broker_owner_stop_all(broker,Deadline()));
     EXPECT_EQ(-1,fstatat(parent.get(),"u10-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
 }
