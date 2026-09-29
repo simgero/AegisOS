@@ -129,7 +129,7 @@ Java_org_aegisos_identity_TerminalNative_readInput(JNIEnv* env, jclass, jint max
     if (count == 0) return nullptr;
     jbyteArray result = env->NewByteArray(static_cast<jsize>(count));
     if (result) env->SetByteArrayRegion(result, 0, static_cast<jsize>(count), bytes);
-    explicit_bzero(bytes, sizeof(bytes));
+    memset_explicit(bytes, 0, sizeof(bytes));
     return result;
 }
 
