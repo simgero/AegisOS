@@ -289,7 +289,7 @@ class RuntimePackagePreparation : public ::testing::Test {
  protected:
     unique_fd root,stage,source,prepare_helper,execute_helper,cgroups,parent,mount;
     std::vector<unique_fd> archives;
-    std::vector<std::string> archive_names;
+    std::vector<std::string> archive_names,stages;
     PackagePreparation plan;
     PackagePreparer* worker=nullptr;
     aegis_broker_owner* broker=nullptr;
@@ -314,7 +314,7 @@ class RuntimePackagePreparation : public ::testing::Test {
         ASSERT_EQ(0,WriteAt(parent.get(),"cgroup.subtree_control","+memory\n",0));
         char path[]="/data/local/tmp/aegis-preparation-XXXXXX";ASSERT_NE(nullptr,mkdtemp(path));directory=path;
         root.reset(open(path,O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(root.ok());
-        ASSERT_EQ(0,mkdirat(root.get(),"stage",0700));stage.reset(openat(root.get(),"stage",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(stage.ok());
+        ASSERT_EQ(0,mkdirat(root.get(),"stage",0700));stages.push_back("stage");stage.reset(openat(root.get(),"stage",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(stage.ok());
         prepare_helper=Helper("aegis-package-prepare");execute_helper=Helper("aegis-package-execute-probe");
         ASSERT_TRUE(prepare_helper.ok());ASSERT_TRUE(execute_helper.ok());
         source.reset(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(source.ok());
@@ -324,7 +324,7 @@ class RuntimePackagePreparation : public ::testing::Test {
         plan.image={expected.bytes,expected.sha256};plan.execution.requester=10;plan.execution.serial=42;
         plan.execution.job=1;plan.execution.plan_sha256=std::string(64,'d');
         for(const char* kind:{"lib","app"}) {
-            auto deb=Deb(kind,1);auto hash=InputHash(deb);std::string name="aegis-prep-"+std::string(kind)+"-"+hash+".deb";
+            auto deb=Deb(kind,1);auto hash=InputHash(deb);std::string name="aegis-exec-"+std::string(kind)+"_1_all.deb";
             ASSERT_EQ(0,WriteAt(root.get(),name.c_str(),deb));archive_names.push_back(name);
             archives.emplace_back(openat(root.get(),name.c_str(),O_RDONLY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(archives.back().ok());
             plan.archives.push_back({deb.size(),hash});plan.execution.items.push_back(name);
@@ -352,6 +352,21 @@ class RuntimePackagePreparation : public ::testing::Test {
             if(state==PublicationState::Preparing)usleep(10000);
         }
         ASSERT_EQ(PublicationState::Prepared,state)<<result.error;
+    }
+    void ReusePreparedImage() {
+        unique_fd image_root(openat(mount.get(),".",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(image_root.ok());
+        ASSERT_EQ(0,syncfs(image_root.get()));image_root.reset();mount.reset();NoLoop();ASSERT_FALSE(HasFailure());
+        source.reset(openat(stage.get(),"candidate.ext4",O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(source.ok());
+        struct stat st;ASSERT_EQ(0,fstat(source.get(),&st));SHA256_CTX hash;ASSERT_EQ(1,SHA256_Init(&hash));
+        std::array<unsigned char,128*1024> buffer;
+        for(off_t at=0;at<st.st_size;) {
+            ssize_t n=TEMP_FAILURE_RETRY(pread(source.get(),buffer.data(),buffer.size(),at));ASSERT_GT(n,0);
+            ASSERT_EQ(1,SHA256_Update(&hash,buffer.data(),n));at+=n;
+        }
+        unsigned char digest[32];char hex[65];ASSERT_EQ(1,SHA256_Final(digest,&hash));
+        for(unsigned i=0;i<32;++i)snprintf(hex+2*i,3,"%02x",digest[i]);plan.image={static_cast<uint64_t>(st.st_size),hex};
+        ASSERT_EQ(0,mkdirat(root.get(),"stage-again",0700));stages.push_back("stage-again");
+        stage.reset(openat(root.get(),"stage-again",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(stage.ok());plan.execution.job++;
     }
     int Stop() {
         aegis_broker_request r={};r.magic=AEGIS_BROKER_MAGIC;r.version=AEGIS_BROKER_VERSION;
@@ -385,12 +400,16 @@ class RuntimePackagePreparation : public ::testing::Test {
         archives.clear();source.reset();
         if(!HasFailure() && stage.ok()) {
             // Only this test's newly exclusive stage; preserve all failures.
-            for(const char* name:{"candidate.ext4","request","marker"}) {
+            stage.reset();
+            for(const auto& stage_name:stages) {
+              stage.reset(openat(root.get(),stage_name.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(stage.ok());
+              for(const char* name:{"candidate.ext4","request","marker"}) {
                 struct stat st;if(fstatat(stage.get(),name,&st,AT_SYMLINK_NOFOLLOW)<0) { EXPECT_EQ(ENOENT,errno);continue; }
                 ASSERT_TRUE(S_ISREG(st.st_mode));ASSERT_EQ(0u,st.st_uid);ASSERT_EQ(1u,st.st_nlink);
                 EXPECT_EQ(0,unlinkat(stage.get(),name,0));
             }
-            stage.reset();EXPECT_EQ(0,unlinkat(root.get(),"stage",AT_REMOVEDIR));
+              stage.reset();EXPECT_EQ(0,unlinkat(root.get(),stage_name.c_str(),AT_REMOVEDIR));
+            }
             for(const auto& name:archive_names)EXPECT_EQ(0,unlinkat(root.get(),name.c_str(),0));
             if(source_created)EXPECT_EQ(0,unlinkat(root.get(),"source",0));
             root.reset();EXPECT_EQ(0,rmdir(directory.c_str()));
@@ -415,7 +434,8 @@ TEST_F(RuntimePackagePreparation, CopiedAndVerifiedArchivesExecuteThroughRealApt
     }
     ASSERT_EQ(0,PackageExecutorStart(parent.get(),stage.get(),mount.get(),execute_helper.get(),plan.execution,Deadline(),&executor))<<strerror(errno);
     PackageExecutionResult result;ASSERT_EQ(0,PackageExecutorFinish(&executor,false,9000,&result));
-    ASSERT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome)<<result.error;
+    ASSERT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome)<<"status="<<result.status<<" errno="<<result.error
+        <<AptImageFixture::read(mount.get(),("var/log/aegis-package-"+std::to_string(plan.execution.job)+".log").c_str());
     EXPECT_EQ("1\n",AptImageFixture::read(mount.get(),"usr/share/aegis-exec-library"));
     EXPECT_EQ("#!/bin/sh\necho app-1\n",AptImageFixture::read(mount.get(),"usr/bin/aegis-exec-app"));
     EXPECT_NE(std::string::npos,AptImageFixture::read(mount.get(),"var/log/aegis-exec-script").find("postinst-1"));
@@ -434,6 +454,23 @@ TEST_F(RuntimePackagePreparation, BrokerRetainsSameJobThroughPreparationAndApt) 
     }
     EXPECT_EQ(PublicationState::Complete,state);EXPECT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome);
     EXPECT_EQ(0,result.error);NoLoop();
+}
+TEST_F(RuntimePackagePreparation, ExistingVerifiedArchivesCanBeUsedAgain) {
+    Ready();ASSERT_FALSE(HasFatalFailure());ReusePreparedImage();ASSERT_FALSE(HasFatalFailure());
+    Ready();ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,PackageExecutorStart(parent.get(),stage.get(),mount.get(),execute_helper.get(),plan.execution,Deadline(),&executor));
+    PackageExecutionResult result;ASSERT_EQ(0,PackageExecutorFinish(&executor,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome);EXPECT_EQ(0,result.error);
+    EXPECT_EQ("1\n",AptImageFixture::read(mount.get(),"usr/share/aegis-exec-library"));
+}
+TEST_F(RuntimePackagePreparation, ChangedCachedArchiveIsRejectedWithoutReplacement) {
+    Ready();ASSERT_FALSE(HasFatalFailure());
+    std::string path="var/cache/apt/archives/"+archive_names[0];
+    ASSERT_EQ(0,WriteAt(mount.get(),path.c_str(),"changed-cache\n",O_TRUNC));
+    ReusePreparedImage();ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,Start());PackagePreparationResult result;int candidate=-1;
+    ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,&result,&candidate));
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(ESTALE,result.error);EXPECT_EQ(-1,candidate);NoLoop();
 }
 TEST_F(RuntimePackagePreparation, WrongImageHashCannotProduceMount) {
     plan.image.sha256=std::string(64,'0');ASSERT_EQ(0,Start());PackagePreparationResult result;int candidate=-1;

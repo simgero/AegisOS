@@ -13,7 +13,11 @@ struct PackageExecution {
     uint64_t job = 0;
     std::string plan_sha256;
     bool archives = true;
-    // Archives: exact prepared archive basenames in candidate's own APT cache.
+    // Archives: exact APT-canonical archive basenames in candidate's own cache.
+    // The trusted planner resolves these from package/version/architecture:
+    // --no-download requires the canonical cache entry even for absolute .deb
+    // arguments. A hash-based renaming alone is insufficient for APT.
+    // Each archive is separately pinned by preparation's content hash.
     // Otherwise package names to remove. Updates/private fallbacks are resolved
     // by the trusted planner into exact archives, never an implicit online run.
     std::vector<std::string> items;

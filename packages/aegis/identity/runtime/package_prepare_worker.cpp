@@ -73,7 +73,7 @@ int Copy(int source,int output,const wire::Input& expected) {
         ssize_t n=TEMP_FAILURE_RETRY(pread(source,buffer.data(),size,offset));
         if(n<=0)return n<0 ? -1 : Fail(EIO);
         if(!SHA256_Update(&hash,buffer.data(),n))return Fail(EIO);
-        if(Write(output,buffer.data(),n)<0)return -1;offset+=n;
+        if(output>=0 && Write(output,buffer.data(),n)<0)return -1;offset+=n;
     }
     unsigned char digest[32];char hex[65];
     if(!SHA256_Final(digest,&hash))return Fail(EIO);
@@ -83,7 +83,7 @@ int Copy(int source,int output,const wire::Input& expected) {
        || before.st_size!=after.st_size || before.st_mtim.tv_sec!=after.st_mtim.tv_sec
        || before.st_mtim.tv_nsec!=after.st_mtim.tv_nsec || before.st_ctim.tv_sec!=after.st_ctim.tv_sec
        || before.st_ctim.tv_nsec!=after.st_ctim.tv_nsec)return Fail(ESTALE);
-    return fsync(output);
+    return output>=0 ? fsync(output) : 0;
 }
 int64_t Now() {
     timespec t;if(clock_gettime(CLOCK_MONOTONIC,&t)<0)return -1;
@@ -148,10 +148,16 @@ int Prepare(const wire::Request& request) {
             cache=std::move(next);
         }
         for(unsigned i=0;i<request.execution.count;++i) {
-            // Planner must use unique content-addressed names; existing cache
-            // entries are never truncated or silently treated as verified.
+            // A previous complete generation may already contain this exact
+            // archive. Verify BOTH pinned input and cached contents; never
+            // truncate, follow a link, or silently reuse an unverified file.
             unique_fd output(At(cache.get(),request.execution.items[i],O_WRONLY|O_CREAT|O_EXCL,0644));
-            if(!output.ok() || Copy(wire::kArchive+i,output.get(),request.archives[i])<0)return -1;
+            if(!output.ok()) {
+                if(errno!=EEXIST)return -1;
+                unique_fd cached(At(cache.get(),request.execution.items[i],O_RDONLY));
+                if(!cached.ok() || Copy(wire::kArchive+i,-1,request.archives[i])<0
+                   || Copy(cached.get(),-1,request.archives[i])<0)return -1;
+            } else if(Copy(wire::kArchive+i,output.get(),request.archives[i])<0)return -1;
         }
         if(fsync(cache.get())<0)return -1;
     }
