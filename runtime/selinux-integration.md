@@ -1,5 +1,30 @@
 # SELinux- und Init-Integration der Runtime
 
+## Tatsächliche GNU-Ausführung in 6a807692
+
+Der vollständige Build `aosp-20260929T092225Z-6a807692-0febd375` enthält
+ausschließlich die gezielte zusätzliche Verknüpfungsfreigabe des Aufsehers
+für die unveränderliche Basis. Er wurde über GitHub verifiziert übertragen
+und im separaten lokalen Profil `8b1e5ec2-3bae-4601-b8ef-eb8f156867d4`
+getestet. Enforcing, FBE, sicheres ADB und tatsächliches dm-verity bestehen.
+
+Alpha und Beta starten tatsächliche Bash-Sitzungen in
+`u:r:aegis_runtime_program:s0`, mit interner UID/GID 1000 und verschiedenen
+Host-Zuordnungen. Der produktive PTY-/Exec-Übergang funktioniert. Geprüfte
+fremde Datei- und Prozesszugriffe werden in beiden Richtungen verhindert;
+die unabhängigen Positivkontrollen bestätigen den weiterhin laufenden
+fremden Prozess. Benutzerwechsel und Bildschirmsperre widerrufen die aktive
+PTY, aber nicht die Hintergrundkontexte. Logout entfernt die zugehörigen
+Kontexte und sperrt CE. Beide GNU-Dateien überstehen den Neustart desselben
+Profils mit erhaltenem KeyMint-Zustand bytegenau.
+
+Keine zusätzliche FSETID-, Ptrace- oder allgemeine Cgroup-Freigabe wurde
+dafür eingeführt. Drei nachträgliche Terminalwiderrufe nach frischer Anmeldung
+bleiben als funktionaler Fehler offen; erneute Anmeldung funktioniert.
+Diese Tests sind keine vollständige Isolationsexpertise und decken noch
+keine Pakettransaktionen oder Benutzerlöschung ab. Genaue Versionen,
+Beobachtungen, Grenzen und Prüfsummen: [GNU-Test](../docs/runtime-gnu-qemu-test.md).
+
 ## Persönlicher Kontext startet in 4366aa25; Bash noch nicht
 
 Build `aosp-20260929T085012Z-4366aa25-7160e5c0` wurde mit `UPLOAD_VERIFIED`

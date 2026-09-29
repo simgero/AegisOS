@@ -1,14 +1,14 @@
 # AOSP-Speicheroperationen und Runtime-Abbau
 
 Stand 29. September 2026: Die fünf AOSP-Hooks und der Controller sind im
-lokal getesteten Image `4366aa25` mit `managed-v1` installiert. Enforcing,
-FBE, der private Broker und ein tatsächlich gestarteter persönlicher Aufseher
-sind bestätigt. Die Bash-Sitzung scheitert noch an der Basis-Verknüpfung;
-der Korrekturbuild läuft. Persönlicher Kontextstopp, AOSP-Logout, CE-Sperre
-und entfernte Cgroup sind danach unabhängig geprüft. GNU-Ausführung und
-integrierte Mehrbenutzerisolation bleiben unbewiesen. Paketoperationen und
-verwaltete Benutzerlöschung fehlen. Aktuelle Belege:
-[Runtime-Policy](selinux-integration.md).
+lokal getesteten Image `6a807692` mit `managed-v1` installiert. Zwei tatsächliche
+GNU-Kontexte, Hintergrundbetrieb nach Benutzerwechsel und Bildschirmsperre,
+Abbau beider ursprünglicher Hintergrundprozesse bei Logout und unabhängige
+CE-Sperre sind geprüft. Die GNU-Dateien bleiben nach Neustart desselben
+Android-/KeyMint-Paars und eigener Anmeldung bytegleich. Der teilweise
+nachträgliche Widerruf einer frischen Terminalanmeldung bleibt offen.
+Paketoperationen und verwaltete Benutzerlöschung fehlen. Belege und Grenzen:
+[GNU-Test](../docs/runtime-gnu-qemu-test.md).
 
 ## Erstmalige persönliche Home-Struktur
 
@@ -31,8 +31,10 @@ zurückgesetzt. Die Layout-Hilfsfunktion lehnt nichtleere und nichtprivate
 Staging-Verzeichnisse ab; sie ist keine Authentisierung und kein CE-Nachweis.
 Vier zusätzliche native Tmpfs-Tests decken Eigentümerzuordnung, genaue
 Erststruktur, Verweigerung bei bestehenden Daten/Verknüpfungen und ungültige
-Identitäten beziehungsweise Staging-Metadaten ab. **Kompilierung, Ausführung
-dieser Tests und erstmalige reale CE-Provisionierung stehen noch aus.**
+Identitäten beziehungsweise Staging-Metadaten ab. Kompiliert auf `aegis-build`
+und lokal ausgeführt bestehen im Stand `d44ccb33` **128/128 native Tests**.
+**Die erstmalige reale CE-Provisionierung im neuen vollständigen Image steht
+noch aus**; die Layout-Fixtures verwenden unverschlüsseltes Tmpfs.
 
 ## Warum eine vorgeschaltete Sperre erforderlich ist
 

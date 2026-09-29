@@ -4,31 +4,31 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Aktueller Kandidat: **`4366aa25`**, vollständig gebaut, über GitHub verifiziert
-übertragen und im separaten lokalen Profil ohne sichtbares Fenster gestartet.
-Enforcing, FBE, authentifiziertes ADB und tatsächliches dm-verity sind bestätigt.
-Die private Cgroup-Delegation und der Boot ohne Runtime-AVCs bestehen.
+Aktueller lokal geprüfter Kandidat: **`6a807692`**. Zwei persönliche
+AOSP-Benutzer führen jetzt tatsächlich GNU/Linux-Programme in getrennten
+Kontexten aus. Geprüfte gegenseitige Datei- und Prozesszugriffe werden
+verhindert. Benutzerwechsel und Bildschirmsperre widerrufen offene
+Terminalkanäle, lassen die beobachteten Hintergrundprozesse aber weiterlaufen.
+Vollständige Abmeldung beendet die zugehörigen Prozesse und sperrt CE.
+Die von GNU geschriebenen Dateien überstehen den Neustart desselben
+Android-/KeyMint-Paars bytegenau. Falsche und nach Passwortwechsel alte
+Passwörter entsperren die Daten nicht. Enforcing, FBE, authentifiziertes ADB
+und tatsächliches dm-verity bleiben bestätigt.
 
-AOSP-Anlage und Anmeldung des ersten Testadministrators funktionieren. Nach
-einem falschen Passwort bleiben seine CE-Daten nach unabhängigem Readback
-gesperrt. `linux start` erreicht erstmals `runtime=ready`; der tatsächliche
-Aufseher läuft in `aegis_runtime_init`, mit persönlichem UID/GID-Mapping und
-zugeordneter Kontext-Cgroup. Die vorherige Home-Mount-Empfangssperre ist behoben.
+**Offen bleibt eine nachträgliche Terminal-Abmeldung bei manchen Wechseln zu
+vorher gestoppten Benutzern.** Eine frische zweite Anmeldung funktioniert.
+Der betreffende Keyguard-/Wechselablauf wird weiter untersucht; die Prüfung
+wird nicht als störungsfreier Anmeldeablauf ausgegeben. Auch der Resize-
+Testtreiber benötigt eine Korrektur seines Host-Signals und Prompt-Parsers.
+Vollständiger Ablauf, genaue Grenzen und Prüfsummen:
+[GNU-Test mit zwei Benutzern](runtime-gnu-qemu-test.md).
 
-`linux shell` scheitert anschließend beim Lesen der Verknüpfung `/bin` in der
-unveränderlichen Debian-Basis. **Eine GNU-Sitzung wurde weiterhin nicht
-ausgeführt.** Die gezielte Freigabe `init base:lnk_file { getattr read }` ist
-vorbereitet. Zwei nicht abbrechende `setup:cap_userns fsetid`-Verweigerungen
-wurden ebenfalls aufgezeichnet; dafür wird kein zusätzliches Recht erteilt.
-Stopp, AOSP-Abmeldung, CE-Sperre und entfernte Kontext-Cgroup sind unabhängig
-bestätigt. Neuer Build und GNU-Ausführungsnachweis bleiben erforderlich.
-Details: [Runtime-Policy](../runtime/selinux-integration.md).
-
-**124/124 native Tests** aus `c0d8c16c` bestehen auf dem vorherigen lokalen
-`ebf3610`-Image. Die nativen Quellen sind im Kandidaten unverändert.
-**62/62 Java-Tests** aus `026665fb` gelten weiterhin für unveränderte Java-/JNI-
-Quellen. Komponentenprüfungen ersetzen den noch ausstehenden produktiven
-GNU-Start nicht. Belege: [Komponententests](component-tests.md).
+**128/128 native Tests** des nachfolgenden Komponentenstands `d44ccb33`
+bestehen auf diesem lokalen Image. Die vier neuen Tests betreffen die
+Erstanlage privater Standardordner mit gemapptem Eigentümer. Der vollständige
+Build läuft; die tatsächliche CE-Provisionierung dieser Ordner ist noch nicht
+geprüft. **62/62 Java-Tests** aus `026665fb` bleiben für unveränderte Java-/JNI-
+Quellen gültig. [Komponentenbelege](component-tests.md).
 
 Der sichtbare Launcher bleibt beim geprüften Stand `2a766ab5`. Weitere
 Kandidaten werden auf Nutzerwunsch ohne sichtbares QEMU-Fenster geprüft.
@@ -59,9 +59,9 @@ Quellstände, keine gemeinsam abgenommene Runtime. Nachweise und Rohlogs:
 
 Die gemeinsame Debian-13.7-ARM64-Basis enthält 78 Pakete in einem 256-MiB-
 ext4-Image. Zwei Builds waren bytegleich; Metadaten und Dateibytes sowie die
-Kopie innerhalb von `super.img` wurden geprüft. **Eine echte Debian-Sitzung
-wurde noch nicht gestartet.** Kernel, Namespace-/UID-, Mount- und
-Speichergruppenbausteine sind Voraussetzungen, kein Ersatz dafür.
+Kopie innerhalb von `super.img` wurden geprüft. Die tatsächliche Nutzung dieser Basis ist inzwischen im
+[GNU-Test mit zwei Benutzern](runtime-gnu-qemu-test.md) nachgewiesen. Frühere
+Komponentenläufe allein erbrachten diesen Ausführungsnachweis nicht.
 
 ## Aktuelle Builds und nächste Prüfung
 

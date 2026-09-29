@@ -1,3 +1,30 @@
+## Private Home-Erststruktur: d44ccb33
+
+Der auf `aegis-build` kompilierte Stand
+`d44ccb3389889740f19373969a00216807b400a7` wurde über den verifizierten
+[Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260929T095219Z-d44ccb33-d44ccb33-8tJnOs)
+auf den Mac übertragen. Im lokalen QEMU-Image `6a807692`, nach vollständiger
+Abmeldung beider Testbenutzer und unabhängig bestätigter CE-Sperre, bestehen
+**128/128 native Tests aus 19 Suiten** in 10.884 ms, ohne Abwahl oder
+übersprungene Tests.
+
+Die vier zusätzlichen Home-Tests prüfen die genaue Erststruktur und gemappte
+Eigentümer, Ablehnung vorhandener Dateien und Verknüpfungen ohne Überschreiben,
+ungültige Identitäten sowie falsche Staging-Metadaten. Wiederholte Anlage
+setzt private Änderungen nicht zurück. Die Quellen für Java/JNI sind gegenüber
+`026665fb` unverändert; deren separater 62/62-Nachweis wurde nicht neu ausgeführt.
+
+Diese Root-Fixtures verwenden unverschlüsseltes Tmpfs. Der installierte
+Broker in `6a807692` enthält die Home-Erweiterung noch nicht. Reale erstmalige
+CE-Provisionierung und GNU-Zugriff erfordern den neuen vollständigen Build.
+Die tatsächlichen GNU-/Logout-/Persistenztests von `6a807692` sind separat
+im [Zwei-Benutzer-Test](runtime-gnu-qemu-test.md) dokumentiert.
+
+Belege: `out/components-d44ccb33/component-tests/result.json`, `native.log`
+(SHA-256 `2d414ed52823bfa0a5555e461fbb942c8dea6be58025f9e709f15bfd4ed1f431`)
+und `guest.txt`
+(`8287f250f529f940326af62f01d1d96f789c56f1bdc0165cb84bb444bc70cec7`).
+
 ## Geprüfter Namespace-Komponentenstand c0d8c16c
 
 Der Komponentenlauf `identity-20260929T064403Z-c0d8c16c-pQQoXM` ist kompiliert
