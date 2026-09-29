@@ -12,7 +12,7 @@ import sys
 import tarfile
 import tempfile
 
-PROFILE = "aegis-qemu-arm64-components-v3"
+PROFILE = "aegis-qemu-arm64-components-v4"
 SCOPE = "COMPILED_NOT_INSTALLED_OR_TESTED"
 ASSETS = {"components.tar.gz", "components.json", "SHA256SUMS"}
 MODULES = {
@@ -36,6 +36,7 @@ MODULES = {
     "data/nativetest64/AegisRuntimeNativeTests/aegis-package-publish": 0o755,
     "data/nativetest64/AegisRuntimeNativeTests/aegis-package-execute": 0o755,
     "data/nativetest64/AegisRuntimeNativeTests/aegis-package-execute-probe": 0o755,
+    "data/nativetest64/AegisRuntimeNativeTests/aegis-package-prepare": 0o755,
 }
 METADATA = (
     "project-commit.txt", "status", "SHA256SUMS", "source-files.json",

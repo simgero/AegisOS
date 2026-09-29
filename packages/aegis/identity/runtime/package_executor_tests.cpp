@@ -11,6 +11,8 @@
 #include <grp.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <sys/inotify.h>
+#include <poll.h>
 #include <time.h>
 #include <memory>
 using namespace aegis;
@@ -276,4 +278,226 @@ TEST_F(RuntimePackageExecutor, BrokerCancellationRevokesAlreadyCollectedWorkerCo
     EXPECT_EQ(ECANCELED,result.error);
 }
 
+} // namespace
+
+namespace {
+std::string InputHash(const std::string& value) {
+    unsigned char sha[32];char hex[65];SHA256(reinterpret_cast<const unsigned char*>(value.data()),value.size(),sha);
+    for(unsigned i=0;i<32;++i)snprintf(hex+i*2,3,"%02x",sha[i]);return hex;
+}
+class RuntimePackagePreparation : public ::testing::Test {
+ protected:
+    unique_fd root,stage,source,prepare_helper,execute_helper,cgroups,parent,mount;
+    std::vector<unique_fd> archives;
+    std::vector<std::string> archive_names;
+    PackagePreparation plan;
+    PackagePreparer* worker=nullptr;
+    aegis_broker_owner* broker=nullptr;
+    PackageExecutor* executor=nullptr;
+    std::string directory,group;
+    bool group_created=false,source_created=false;
+    uint64_t job=0;
+    unique_fd Helper(const char* name) {
+        char path[4096];ssize_t n=readlink("/proc/self/exe",path,sizeof(path)-1);
+        if(n<0)return unique_fd();path[n]=0;std::string text(path);text.resize(text.find_last_of('/')+1);text+=name;
+        return unique_fd(open(text.c_str(),O_RDONLY|O_NOFOLLOW|O_CLOEXEC));
+    }
+    void SetUp() override {
+        ASSERT_EQ(0u,getuid());ASSERT_EQ(0,setgroups(0,nullptr));
+        struct sigaction a={};a.sa_handler=SIG_DFL;sigemptyset(&a.sa_mask);ASSERT_EQ(0,sigaction(SIGCHLD,&a,nullptr));
+        unique_fd u(open("/proc/1/ns/user",O_RDONLY|O_CLOEXEC)),p(open("/proc/1/ns/pid",O_RDONLY|O_CLOEXEC)),m(open("/proc/1/ns/mnt",O_RDONLY|O_CLOEXEC));
+        ASSERT_EQ(0,aegis_namespace_pin_host(u.get(),p.get(),m.get()));
+        cgroups.reset(open("/sys/fs/cgroup",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(cgroups.ok());
+        group="aegis-preparation-test-"+std::to_string(getpid());ASSERT_EQ(0,mkdirat(cgroups.get(),group.c_str(),0700));group_created=true;
+        parent.reset(openat(cgroups.get(),group.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(parent.ok());
+        ASSERT_EQ(0,fchown(parent.get(),0,0));ASSERT_EQ(0,fchmod(parent.get(),0700));
+        ASSERT_EQ(0,WriteAt(parent.get(),"cgroup.subtree_control","+memory\n",0));
+        char path[]="/data/local/tmp/aegis-preparation-XXXXXX";ASSERT_NE(nullptr,mkdtemp(path));directory=path;
+        root.reset(open(path,O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(root.ok());
+        ASSERT_EQ(0,mkdirat(root.get(),"stage",0700));stage.reset(openat(root.get(),"stage",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(stage.ok());
+        prepare_helper=Helper("aegis-package-prepare");execute_helper=Helper("aegis-package-execute-probe");
+        ASSERT_TRUE(prepare_helper.ok());ASSERT_TRUE(execute_helper.ok());
+        source.reset(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(source.ok());
+        unique_fd receipt(open("/system_ext/etc/aegis/runtime/generation.json",O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(receipt.ok());
+        std::array<char,16385> data;ssize_t n=read(receipt.get(),data.data(),data.size());ASSERT_GT(n,0);
+        aegis_base_receipt expected={};ASSERT_EQ(0,aegis_base_parse_receipt(data.data(),n,&expected));
+        plan.image={expected.bytes,expected.sha256};plan.execution.requester=10;plan.execution.serial=42;
+        plan.execution.job=1;plan.execution.plan_sha256=std::string(64,'d');
+        for(const char* kind:{"lib","app"}) {
+            auto deb=Deb(kind,1);auto hash=InputHash(deb);std::string name="aegis-prep-"+std::string(kind)+"-"+hash+".deb";
+            ASSERT_EQ(0,WriteAt(root.get(),name.c_str(),deb));archive_names.push_back(name);
+            archives.emplace_back(openat(root.get(),name.c_str(),O_RDONLY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(archives.back().ok());
+            plan.archives.push_back({deb.size(),hash});plan.execution.items.push_back(name);
+        }
+    }
+    std::vector<int> Fds() { std::vector<int> out;for(const auto& fd:archives)out.push_back(fd.get());return out; }
+    int Start() { return PackagePreparerStart(parent.get(),stage.get(),source.get(),prepare_helper.get(),Fds(),plan,&worker); }
+    void Ready() {
+        ASSERT_EQ(0,Start())<<strerror(errno);PackagePreparationResult result;int fd=-1;
+        ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,&result,&fd))<<strerror(errno);mount.reset(fd);
+        ASSERT_EQ(PackagePreparationOutcome::Prepared,result.outcome)<<result.error;ASSERT_TRUE(mount.ok());
+    }
+    void Broker() {
+        ASSERT_EQ(0,aegis_broker_owner_create(parent.get(),source.get(),execute_helper.get(),execute_helper.get(),&broker));
+        plan.execution.job=0;
+        ASSERT_EQ(0,BrokerPrepareCandidate(broker,plan,parent.get(),stage.get(),source.get(),prepare_helper.get(),
+                                          execute_helper.get(),Fds(),Deadline(),&job))<<strerror(errno);
+        ASSERT_GT(job,0u);
+    }
+    void AwaitPrepared() {
+        PublicationState state=PublicationState::Preparing;PackageExecutionResult result;
+        for(unsigned i=0;i<900 && state==PublicationState::Preparing;++i) {
+            ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
+            ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));
+            if(state==PublicationState::Preparing)usleep(10000);
+        }
+        ASSERT_EQ(PublicationState::Prepared,state)<<result.error;
+    }
+    int Stop() {
+        aegis_broker_request r={};r.magic=AEGIS_BROKER_MAGIC;r.version=AEGIS_BROKER_VERSION;
+        r.operation=AEGIS_BROKER_STOP_USER;r.user=10;r.deadline_ns=Deadline();r.sequence=3;
+        aegis_broker_state state=AEGIS_BROKER_SEALED;int value=aegis_broker_owner_apply(broker,&r,&state);
+        if(!value)EXPECT_EQ(AEGIS_BROKER_ABSENT,state);return value;
+    }
+    int MatchingLoops() {
+        struct stat target;if(fstatat(stage.get(),"candidate.ext4",&target,AT_SYMLINK_NOFOLLOW)<0)return -1;
+        DIR* entries=opendir("/sys/block");if(!entries)return -1;int count=0;
+        while(auto* entry=readdir(entries)) {
+            if(strncmp(entry->d_name,"loop",4))continue;
+            std::string path="/dev/block/"+std::string(entry->d_name);unique_fd loop(open(path.c_str(),O_RDONLY|O_CLOEXEC|O_NOFOLLOW));
+            if(!loop.ok())continue;loop_info64 info={};
+            if(ioctl(loop.get(),LOOP_GET_STATUS64,&info)==0 && info.lo_device==static_cast<uint64_t>(target.st_dev)
+               && info.lo_inode==target.st_ino)++count;
+        }
+        closedir(entries);return count;
+    }
+    void NoLoop() {
+        int found=-1;for(unsigned i=0;i<200;++i) { found=MatchingLoops();if(found==0)break;usleep(10000); }
+        EXPECT_EQ(0,found);
+    }
+    void TearDown() override {
+        if(broker) { EXPECT_EQ(0,aegis_broker_owner_stop_all(broker,Deadline()));EXPECT_EQ(0,aegis_broker_owner_release(&broker)); }
+        if(executor) { PackageExecutionResult result;EXPECT_EQ(0,PackageExecutorFinish(&executor,true,9000,&result)); }
+        if(worker) { PackagePreparationResult result;int fd=-1;EXPECT_EQ(0,PackagePreparerFinish(&worker,true,9000,&result,&fd));if(fd>=0)close(fd); }
+        mount.reset();
+        if(parent.ok())EXPECT_EQ("populated 0\nfrozen 0\n",AptImageFixture::read(parent.get(),"cgroup.events"));
+        parent.reset();if(group_created)EXPECT_EQ(0,unlinkat(cgroups.get(),group.c_str(),AT_REMOVEDIR));
+        archives.clear();source.reset();
+        if(!HasFailure() && stage.ok()) {
+            // Only this test's newly exclusive stage; preserve all failures.
+            for(const char* name:{"candidate.ext4","request","marker"}) {
+                struct stat st;if(fstatat(stage.get(),name,&st,AT_SYMLINK_NOFOLLOW)<0) { EXPECT_EQ(ENOENT,errno);continue; }
+                ASSERT_TRUE(S_ISREG(st.st_mode));ASSERT_EQ(0u,st.st_uid);ASSERT_EQ(1u,st.st_nlink);
+                EXPECT_EQ(0,unlinkat(stage.get(),name,0));
+            }
+            stage.reset();EXPECT_EQ(0,unlinkat(root.get(),"stage",AT_REMOVEDIR));
+            for(const auto& name:archive_names)EXPECT_EQ(0,unlinkat(root.get(),name.c_str(),0));
+            if(source_created)EXPECT_EQ(0,unlinkat(root.get(),"source",0));
+            root.reset();EXPECT_EQ(0,rmdir(directory.c_str()));
+        } else if(!directory.empty())fprintf(stderr,"Preparation fixture preserved: %s\n",directory.c_str());
+    }
+};
+TEST(PackagePreparationPlan, RequiresBoundedImageAndOneDigestPerExactArchive) {
+    PackagePreparation p;p.execution={10,42,1,std::string(64,'a'),true,{"a.deb"}};
+    p.image={4096,std::string(64,'b')};p.archives={{128,std::string(64,'c')}};
+    ASSERT_EQ(0,PackagePreparationCheck(p));p.archives.clear();EXPECT_EQ(-1,PackagePreparationCheck(p));
+    p.archives={{128,std::string(64,'c')}};p.image.bytes=4097;EXPECT_EQ(-1,PackagePreparationCheck(p));
+    p.image.bytes=uint64_t{32}*1024*1024*1024+4096;EXPECT_EQ(-1,PackagePreparationCheck(p));
+    p.image.bytes=4096;p.archives[0].sha256="invalid";EXPECT_EQ(-1,PackagePreparationCheck(p));
+    p.execution.archives=false;p.execution.items={"app"};EXPECT_EQ(-1,PackagePreparationCheck(p));
+    p.archives.clear();EXPECT_EQ(0,PackagePreparationCheck(p));
+}
+TEST_F(RuntimePackagePreparation, CopiedAndVerifiedArchivesExecuteThroughRealApt) {
+    int before=CountFDs();Ready();ASSERT_FALSE(HasFatalFailure());EXPECT_EQ(before+1,CountFDs());
+    for(size_t i=0;i<archives.size();++i) {
+        auto data=AptImageFixture::read(mount.get(),("var/cache/apt/archives/"+archive_names[i]).c_str());
+        EXPECT_EQ(plan.archives[i].sha256,InputHash(data));
+    }
+    ASSERT_EQ(0,PackageExecutorStart(parent.get(),stage.get(),mount.get(),execute_helper.get(),plan.execution,Deadline(),&executor))<<strerror(errno);
+    PackageExecutionResult result;ASSERT_EQ(0,PackageExecutorFinish(&executor,false,9000,&result));
+    ASSERT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome)<<result.error;
+    EXPECT_EQ("1\n",AptImageFixture::read(mount.get(),"usr/share/aegis-exec-library"));
+    EXPECT_EQ("#!/bin/sh\necho app-1\n",AptImageFixture::read(mount.get(),"usr/bin/aegis-exec-app"));
+    EXPECT_NE(std::string::npos,AptImageFixture::read(mount.get(),"var/log/aegis-exec-script").find("postinst-1"));
+    struct stat st;ASSERT_EQ(0,fstatat(mount.get(),"var/lib/aegis-exec-owned",&st,AT_SYMLINK_NOFOLLOW));
+    EXPECT_EQ(1005042u,st.st_uid);mount.reset();EXPECT_EQ(before,CountFDs());NoLoop();
+}
+TEST_F(RuntimePackagePreparation, BrokerRetainsSameJobThroughPreparationAndApt) {
+    Broker();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(-1,BrokerStartExecution(broker,10,43,job,plan.execution.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
+    AwaitPrepared();ASSERT_FALSE(HasFatalFailure());EXPECT_EQ(1,MatchingLoops());
+    ASSERT_EQ(0,BrokerStartExecution(broker,10,42,job,plan.execution.plan_sha256,Deadline()))<<strerror(errno);
+    PublicationState state=PublicationState::Running;PackageExecutionResult result;
+    for(unsigned i=0;i<900 && state!=PublicationState::Complete;++i) {
+        ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));
+        if(state!=PublicationState::Complete)usleep(10000);
+    }
+    EXPECT_EQ(PublicationState::Complete,state);EXPECT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome);
+    EXPECT_EQ(0,result.error);NoLoop();
+}
+TEST_F(RuntimePackagePreparation, WrongImageHashCannotProduceMount) {
+    plan.image.sha256=std::string(64,'0');ASSERT_EQ(0,Start());PackagePreparationResult result;int candidate=-1;
+    ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,&result,&candidate));
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(ESTALE,result.error);EXPECT_EQ(-1,candidate);NoLoop();
+}
+TEST_F(RuntimePackagePreparation, WrongArchiveHashCannotProduceMount) {
+    plan.archives[0].sha256=std::string(64,'0');ASSERT_EQ(0,Start());PackagePreparationResult result;int candidate=-1;
+    ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,&result,&candidate));
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(ESTALE,result.error);EXPECT_EQ(-1,candidate);NoLoop();
+}
+TEST_F(RuntimePackagePreparation, ExistingStageIsNeverAdoptedOrOverwritten) {
+    ASSERT_EQ(0,WriteAt(stage.get(),"marker","preserved\n"));ASSERT_EQ(0,Start());PackagePreparationResult result;int candidate=-1;
+    ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,&result,&candidate));
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(EEXIST,result.error);EXPECT_EQ(-1,candidate);
+    EXPECT_EQ("preserved\n",AptImageFixture::read(stage.get(),"marker"));
+    struct stat st;EXPECT_EQ(-1,fstatat(stage.get(),"candidate.ext4",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+}
+TEST_F(RuntimePackagePreparation, StopClosesQueuedMountBeforeAnyHandoff) {
+    Broker();ASSERT_FALSE(HasFatalFailure());bool done=false;
+    for(unsigned i=0;i<900;++i) {
+        if(AptImageFixture::read(parent.get(),"cgroup.events").find("populated 0\n")!=std::string::npos) { done=true;break; }
+        usleep(10000);
+    }
+    ASSERT_TRUE(done);ASSERT_EQ(1,MatchingLoops());ASSERT_EQ(0,Stop());NoLoop();
+    PublicationState state;PackageExecutionResult result;
+    EXPECT_EQ(-1,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));EXPECT_EQ(ENOENT,errno);
+}
+TEST_F(RuntimePackagePreparation, PreparedMountStaysOwnedUntilUserStop) {
+    Broker();ASSERT_FALSE(HasFatalFailure());AwaitPrepared();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(1,MatchingLoops());EXPECT_EQ(-1,aegis_broker_owner_release(&broker));EXPECT_EQ(EBUSY,errno);
+    ASSERT_EQ(0,Stop());NoLoop();
+}
+TEST_F(RuntimePackagePreparation, StopDuringObservedCopyReapsWorkerAndRetainsPartialEvidence) {
+    constexpr size_t total=512u*1024u*1024u;
+    unique_fd writable(openat(root.get(),"source",O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC,0600));ASSERT_TRUE(writable.ok());source_created=true;
+    ASSERT_EQ(0,ftruncate(writable.get(),total));ASSERT_EQ(0,fsync(writable.get()));writable.reset();
+    source.reset(openat(root.get(),"source",O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(source.ok());
+    SHA256_CTX hash;ASSERT_EQ(1,SHA256_Init(&hash));std::array<unsigned char,128*1024> zero={};
+    for(size_t i=0;i<total;i+=zero.size())ASSERT_EQ(1,SHA256_Update(&hash,zero.data(),zero.size()));
+    unsigned char bytes[32];char digest[65];ASSERT_EQ(1,SHA256_Final(bytes,&hash));
+    for(unsigned i=0;i<32;++i)snprintf(digest+2*i,3,"%02x",bytes[i]);plan.image={total,digest};
+    unique_fd notify(inotify_init1(IN_CLOEXEC|IN_NONBLOCK));ASSERT_TRUE(notify.ok());
+    ASSERT_GE(inotify_add_watch(notify.get(),(directory+"/stage").c_str(),IN_MODIFY),0);
+    Broker();ASSERT_FALSE(HasFatalFailure());unique_fd own(openat(parent.get(),"u10-s42",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(own.ok());
+    bool modified=false;
+    for(unsigned i=0;i<100 && !modified;++i) {
+        pollfd ready={notify.get(),POLLIN,0};ASSERT_GE(poll(&ready,1,50),0);
+        alignas(inotify_event) char events[4096];ssize_t n=read(notify.get(),events,sizeof(events));
+        if(n<0) { ASSERT_EQ(EAGAIN,errno);continue; }
+        for(size_t at=0;at+sizeof(inotify_event)<=static_cast<size_t>(n);) {
+            auto* event=reinterpret_cast<inotify_event*>(events+at);
+            if(event->len && !strcmp(event->name,"candidate.ext4"))modified=true;
+            at+=sizeof(*event)+event->len;
+        }
+    }
+    ASSERT_TRUE(modified);ASSERT_EQ(0,WriteAt(own.get(),"cgroup.freeze","1\n",0));bool frozen=false;
+    for(unsigned i=0;i<500;++i) { if(AptImageFixture::read(own.get(),"cgroup.events").find("frozen 1\n")!=std::string::npos) { frozen=true;break; }usleep(10000); }
+    ASSERT_TRUE(frozen);struct stat partial;ASSERT_EQ(0,fstatat(stage.get(),"candidate.ext4",&partial,AT_SYMLINK_NOFOLLOW));
+    ASSERT_GT(partial.st_size,0);ASSERT_LT(static_cast<uint64_t>(partial.st_size),total);
+    PublicationState state;PackageExecutionResult result;
+    ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));EXPECT_EQ(PublicationState::Preparing,state);
+    ASSERT_EQ(0,Stop())<<strerror(errno);EXPECT_EQ(0,MatchingLoops());
+    struct stat after;ASSERT_EQ(0,fstatat(stage.get(),"candidate.ext4",&after,AT_SYMLINK_NOFOLLOW));
+    EXPECT_EQ(partial.st_size,after.st_size);
+}
 } // namespace

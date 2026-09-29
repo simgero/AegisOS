@@ -137,7 +137,7 @@ cc_library_static {
     name: "libaegis-runtime-broker-owner",
     defaults: ["aegis-runtime-native-defaults"],
     srcs: ["runtime/broker_owner.cpp"],
-    static_libs: ["libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-package-publisher", "libaegis-package-executor", "libbase"],
+    static_libs: ["libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libbase"],
     export_include_dirs: ["runtime"],
 }
 
@@ -176,7 +176,7 @@ cc_binary {
     static_libs: ["libaegis-runtime-broker-owner", "libaegis-runtime-broker-cgroup",
                   "libaegis-runtime-base", "libaegis-runtime-context",
                   "libaegis-runtime-namespace", "libaegis-runtime-child",
-                  "libaegis-runtime-broker-protocol", "libaegis-package-publisher", "libaegis-package-executor", "libbase", "libjsoncpp"],
+                  "libaegis-runtime-broker-protocol", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libbase", "libjsoncpp"],
 }
 
 // Inert trusted probe for device tests; never a production setup helper.
@@ -218,6 +218,22 @@ cc_library_static {
     export_include_dirs: ["runtime"],
 }
 
+// Trusted asynchronous copying/staging, never runs package code.
+cc_library_static {
+    name: "libaegis-package-preparer",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/package_preparer.cpp"],
+    static_libs: ["libaegis-runtime-namespace", "libaegis-runtime-child", "libaegis-package-executor", "libbase"],
+    export_include_dirs: ["runtime"],
+}
+cc_binary {
+    name: "aegis-package-prepare",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/package_prepare_worker.cpp"],
+    static_libs: ["libbase"],
+    shared_libs: ["libcrypto", "liblog"],
+}
+
 // Fixed-command APT worker. Production entry is fail-closed until the exact
 // package SELinux domain is integrated into a full image. Probe is test-only.
 cc_library_static {
@@ -248,10 +264,10 @@ cc_test {
     defaults: ["aegis-runtime-native-defaults"],
     srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/memory_group_tests.cpp", "runtime/broker_protocol_tests.cpp", "runtime/base_image_tests.cpp", "runtime/ce_tests.cpp", "runtime/setup_tests.cpp", "runtime/exec_tests.cpp", "runtime/package_store_tests.cpp", "runtime/package_publisher_tests.cpp", "runtime/package_executor_tests.cpp", "runtime/setup_control.c", "runtime/control.c", "runtime/sandbox.c"],
     header_libs: ["libcutils_headers"],
-    static_libs: ["libaegis-runtime-child", "libaegis-runtime-namespace", "libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-runtime-broker-owner", "libaegis-runtime-base", "libaegis-runtime-broker-cgroup", "libaegis-package-store", "libaegis-package-publisher", "libaegis-package-executor", "libbase", "libjsoncpp"],
+    static_libs: ["libaegis-runtime-child", "libaegis-runtime-namespace", "libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-runtime-broker-owner", "libaegis-runtime-base", "libaegis-runtime-broker-cgroup", "libaegis-package-store", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libbase", "libjsoncpp"],
     // The test process uses the same system libcrypto as the broker. The
     // namespace setup/init/probe helpers remain separate static executables.
     shared_libs: ["libcrypto", "liblog"],
-    data_bins: ["aegis-runtime-init", "aegis-runtime-namespace-probe", "aegis-runtime-setup", "aegis-package-publish", "aegis-package-execute", "aegis-package-execute-probe"],
+    data_bins: ["aegis-runtime-init", "aegis-runtime-namespace-probe", "aegis-runtime-setup", "aegis-package-publish", "aegis-package-execute", "aegis-package-execute-probe", "aegis-package-prepare"],
     test_suites: ["device-tests"],
 }
