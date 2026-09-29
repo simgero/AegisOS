@@ -25,6 +25,12 @@ def main():
     if not 1024<=port<=65535:parser.error('Invalid ADB port')
     console=(args.run/'console-path.txt').read_text().strip()
 
+    # This dedicated development console has no interactive human editor.
+    # mksh's per-character redraw of long public-key/bridge commands can
+    # exceed the bounded console deadline during first boot. Keep the shell
+    # and completion checks, but disable its interactive line editing.
+    execute(console, 'set +o emacs; set +o vi')
+
     def guest(command):
         return execute(console,'su 0 sh -c '+shlex.quote('set -e; '+command))
 

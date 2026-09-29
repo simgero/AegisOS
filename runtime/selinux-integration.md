@@ -1,5 +1,45 @@
 # SELinux- und Init-Integration der Runtime
 
+## Vollständiger Boot und persönlicher Start in ba081a55
+
+Build `aosp-20260929T070023Z-ba081a55-79212b67` ist mit `UPLOAD_VERIFIED`
+veröffentlicht. Alle Assets, AVB und die lokal erzeugte Platte sind geprüft.
+Profil `d13333cc-ccd5-4803-83e9-a1e91c56caad` bootet ohne Fenster mit Enforcing,
+FBE, authentifiziertem ADB und tatsächlichem dm-verity. Alle privaten
+Cgroup-Werte und Labels sind bestätigt; die Init-`create`-AVCs treten nicht
+mehr auf. Bootbelege: `out/full-build-ba081a55/boot-1/boot-health.json`
+und `delegation-check.json`.
+
+Der erste persönliche Benutzer wird durch AOSP angelegt; falsches Passwort
+wird abgewiesen, korrektes Passwort entsperrt CE. `linux start` um 07:33:34 UTC
+scheitert an `aegis_runtime_broker tmpfs:dir read` für die neue Wurzel-Inode 1.
+Der Kontext wird gesperrt. `linux stop` um 07:34:11 und `logout` um 07:34:25 UTC
+bestätigen Abbau und CE-Sperre. Unabhängiges Readback bestätigt ausschließlich
+Benutzer 0 gestartet/CE-offen, `populated 0` und entfernte Gruppe `u10-s10`.
+Belege: `out/full-build-ba081a55/identity-test/`. **Keine GNU-Ausführung.**
+
+Der gepinnte Kernel entscheidet in `security/selinux/hooks.c:1500` bei
+`SECURITY_FS_USE_TRANS` anhand der tatsächlichen Inode-Klasse. Die Wurzel
+einer neuen Tmpfs ist `dir`; die vorhandenen Übergänge `tmpfs:file` erfassen
+sie nicht. `devices.c` öffnet diese eigene, noch nicht eingehängte Wurzel
+lesend, um ausschließlich die sechs festen Zeichengeräte, drei Verzeichnisse
+und fünf Links einzurichten. Die Kernel-Erzeugungsprüfung für Kinder verwendet
+anschließend den Typ des Elternverzeichnisses (`selinux_determine_inode_label`).
+
+Die Korrektur ergänzt bei den vorhandenen Übergängen von Broker und Setup
+jeweils ausschließlich die Klasse `dir`. Neue Tmpfs-Wurzeln erhalten damit die
+schon vorgesehenen privaten Geräte-/Scratch-Labels. Sie erteilt keine neuen
+Lese- oder Schreibrechte auf generisches Tmpfs, keine Ptrace-Rechte und keine
+Ausnahme von AOSP-Neverallows. Native und Java-Implementierung bleiben
+unverändert. Die Korrektur ist vorbereitet; Kompilierung und vollständiger
+produktiver Startnachweis bleiben erforderlich.
+
+Die erste ADB-Einrichtung erreichte beim langen öffentlichen Schlüsselbefehl
+das Konsolenzeitlimit; der Befehl wurde später mit Exit 0 bestätigt.
+Abschalten der interaktiven mksh-Zeilenbearbeitung an der dedizierten
+Entwicklungskonsole erlaubt die unveränderte authentifizierte Einrichtung.
+`connect-local-adb.py` führt dies nun vor seinen Konsolenbefehlen aus.
+
 ## Vollständiger Boot und persönlicher Start in ebf3610
 
 Build `aosp-20260929T053136Z-ebf36104-d60e8839` ist mit

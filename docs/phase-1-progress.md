@@ -4,49 +4,33 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Aktueller Nachweisstand: **122/122 native Tests aus `ebf3610` bestehen**
-im lokalen QEMU-Image `d308ea6a`. Auch der vollständige Build
-`aosp-20260929T053136Z-ebf36104-d60e8839` ist inzwischen verifiziert
-veröffentlicht und bootet in einem eigenen lokalen Profil mit Enforcing,
-FBE, authentifiziertem ADB und dm-verity. Der Broker läuft in der vorgesehenen
-privaten Cgroup; deren Grenzen und Labels sind bestätigt. Die AOSP-Anmeldung
-funktioniert, der persönliche Linux-Start scheitert nun an einer
-Capability-Prüfung im neuen Benutzer-Namespace. Kontextabbau und anschließende
-Abmeldung sind bestätigt; **GNU-Ausführung bleibt unbewiesen**. Vollbuild `430f91da` wurde von AOSPs Ptrace-Neverallow abgewiesen. Die nächste
-native Korrektur `c0d8c16c` verwendet private Kind-Referenzen ohne Ptrace-Freigabe.
-Sie ist kompiliert und besteht 124/124 native Tests auf dem lokalen `ebf3610`-
-Gast; der vollständige neue Boot und produktive Start bleiben offen. Details und offene Boot-AVCs stehen in der
-[Runtime-Policy](../runtime/selinux-integration.md).
-Der sichtbare Launcher bleibt unverändert. Weitere Kandidaten werden auf
-Nutzerwunsch ohne sichtbares QEMU-Fenster geprüft.
+Aktueller Kandidat: **`ba081a55`**, vollständig gebaut, über GitHub verifiziert
+übertragen und im separaten lokalen Profil ohne sichtbares Fenster gestartet.
+Enforcing, FBE, authentifiziertes ADB und tatsächliches dm-verity sind bestätigt.
+Der Init-gestartete Broker läuft in seiner privaten Cgroup mit den erwarteten
+Labels und Grenzen. Die fünf bisherigen Init-`create`-AVCs sind behoben; die
+vollständige Bootprüfung findet keine Runtime-AVCs.
 
-Aktueller vollständiger Bootnachweis: Das Image `d308ea6a` ist mit
-`UPLOAD_VERIFIED` über GitHub übertragen und bootet im getrennten lokalen
-Testprofil mit Enforcing, FBE, authentifiziertem ADB und tatsächlichem
-dm-verity. Der Init-gestartete Broker erreicht erstmals
-`AEGIS_RUNTIME_BROKER_LISTENING` in seiner eigenen SELinux-Domäne. Die
-Korrektur erhält den ursprünglichen `fsmount`-Besitzer bis zur privaten
-Einbindung der Basis. **116/116 native Gerätetests bestehen** auf dem
-vorherigen Image `a187a309`, einschließlich der Fehlerreproduktion und des
-echten Basisöffners bis zum persönlichen Mount-Klon.
+AOSP-Anlage und Anmeldung des ersten Testadministrators funktionieren. Ein
+falsches Passwort wird abgewiesen. Der persönliche Linux-Start scheitert noch:
+Die neue Geräte-Tmpfs-Wurzel trägt das allgemeine Label `tmpfs`, weil die
+Typübergänge bislang nur `file`, nicht `dir`, erfassen. Der Start wird gesperrt;
+`linux stop`, AOSP-Abmeldung, CE-Sperre und leere Kontext-Cgroup sind bestätigt.
+**Eine GNU-Sitzung wurde weiterhin nicht ausgeführt.** Die gezielte Ergänzung
+der Verzeichnisklasse ist vorbereitet und benötigt einen neuen vollständigen
+Build samt produktivem Startnachweis. Details: [Runtime-Policy](../runtime/selinux-integration.md).
 
-Im neuen vollständigen Image wurde der erste AOSP-Testadministrator angelegt;
-falsches Passwort wird abgewiesen, korrektes Passwort entsperrt CE. Der
-persönliche Linux-Start scheitert jedoch an der Cgroup-Zuweisung. Der Kontext
-wird als `sealed` gemeldet, anschließend durch `linux stop` bestätigt abgebaut.
-**GNU-Ausführung bleibt unbewiesen.** Der genaue Befund und die zusätzliche
-Kernel-Anforderung an den gemeinsamen Cgroup-Vorfahren stehen in der
-[Runtime-Policy](../runtime/selinux-integration.md#persönlicher-start-in-d308ea6a).
-Die **62/62 Java-Tests** des Stands
-`026665fb` auf Image `030dd177` gelten weiterhin für unveränderte Java-/JNI-
-Quellen. Öffentliche CLI-Negativtests und die verdeckte
-Passworteingabe samt Strg+C-Wiederherstellung bestehen im vollständigen Image
-`026665fb`; echte GNU-Sitzungs- und Rohmodusprüfungen fehlen weiterhin.
-Details stehen in
-[Komponententests](component-tests.md) und
-[Runtime-Policy](../runtime/selinux-integration.md). Der sichtbare geprüfte
-Launcher bleibt bis zur Abnahme beim Stand `2a766ab5`; bisherige gekoppelte
-Android-/KeyMint-Profile und deren Basisdateien bleiben erhalten.
+**124/124 native Tests** aus `c0d8c16c` bestehen auf dem vorherigen lokalen
+`ebf3610`-Image. Die nativen Quellen sind im Kandidaten unverändert.
+**62/62 Java-Tests** aus `026665fb` gelten weiterhin für unveränderte Java-/JNI-
+Quellen. Komponentenprüfungen ersetzen den noch ausstehenden produktiven
+GNU-Start nicht. Belege: [Komponententests](component-tests.md).
+
+Der sichtbare Launcher bleibt beim geprüften Stand `2a766ab5`. Weitere
+Kandidaten werden auf Nutzerwunsch ohne sichtbares QEMU-Fenster geprüft.
+Bisherige gekoppelte Android-/KeyMint-Profile und alle gebundenen Basisdateien
+bleiben erhalten. Pakettransaktionen und Entfernung verwalteter Benutzer sind
+noch nicht umgesetzt.
 
 ## Bestätigte Nachweise
 

@@ -147,9 +147,12 @@ allow aegis_runtime_broker rootfs:dir mounton;
 allow aegis_runtime_broker tmpfs:dir mounton;
 r_dir_file(aegis_runtime_mount_domain, aegis_runtime_base_file)
 
-# Fresh tmpfs inodes receive private labels via fs_use_trans; none is executable.
-type_transition aegis_runtime_broker tmpfs:file aegis_runtime_devices_file;
-type_transition aegis_runtime_setup tmpfs:file aegis_runtime_scratch_file;
+# fs_use_trans selects a transition using the actual inode class. A new
+# tmpfs root is a directory; a file-only rule leaves that root labeled tmpfs.
+# Children inherit the private directory type through normal inode creation.
+# Neither private tmpfs type is executable.
+type_transition aegis_runtime_broker tmpfs:{ dir file } aegis_runtime_devices_file;
+type_transition aegis_runtime_setup tmpfs:{ dir file } aegis_runtime_scratch_file;
 allow aegis_runtime_mount_domain tmpfs:filesystem { mount remount unmount };
 allow aegis_runtime_broker aegis_runtime_devices_file:dir create_dir_perms;
 allow aegis_runtime_broker aegis_runtime_devices_file:chr_file { create setattr getattr };
