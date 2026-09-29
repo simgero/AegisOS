@@ -175,10 +175,15 @@ allow aegis_runtime_domain self:file r_file_perms;
 allow aegis_runtime_domain self:lnk_file r_file_perms;
 allow aegis_runtime_mount_domain selinuxfs:file r_file_perms;
 allow aegis_runtime_broker self:file { write ioctl };
-# No /proc/1 lookup, ptrace permission or readproc group: initial namespace
-# handles come only from init's fixed service-file descriptors.
+# No /proc/1 lookup or readproc group: initial namespace handles come only from
+# init's fixed service-file descriptors. cap_ptrace_access_check() separately
+# checks CAP_SYS_PTRACE in our gated clone's NEW user namespace when reading
+# its proc metadata. SELinux uses cap_userns there, not the host capability
+# class. Native code retains its parent-owned pidfd and never accepts a PID.
 allow aegis_runtime_broker self:user_namespace create;
-allow aegis_runtime_broker self:cap_userns { setuid setgid sys_admin };
+allow aegis_runtime_broker self:cap_userns { setuid setgid sys_admin sys_ptrace };
+neverallow aegis_runtime_broker self:capability sys_ptrace;
+neverallow aegis_runtime_broker init:process ptrace;
 
 # Trusted, inherited descriptor-only setup/supervision protocol; no named socket.
 allow { aegis_runtime_setup aegis_runtime_init } aegis_runtime_broker:fd use;

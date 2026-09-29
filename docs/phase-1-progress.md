@@ -4,14 +4,19 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Aktueller Komponentenstand: **122/122 native Tests aus `ebf3610` bestehen**
-im lokalen QEMU-Image `d308ea6a`. Die neue private Cgroup-Delegation und
-ihre sechs zusätzlichen Regressionstests sind auf `aegis-build` kompiliert
-und über GitHub geprüft übertragen. Der vollständige Build
-`aosp-20260929T053136Z-ebf36104-d60e8839` läuft; die neue Init-Platzierung,
-SELinux-Integration und GNU-Ausführung sind noch nicht im vollständigen
-Image nachgewiesen. Der sichtbare Launcher bleibt unverändert. Weitere
-Kandidaten werden auf Nutzerwunsch ohne sichtbares QEMU-Fenster geprüft.
+Aktueller Nachweisstand: **122/122 native Tests aus `ebf3610` bestehen**
+im lokalen QEMU-Image `d308ea6a`. Auch der vollständige Build
+`aosp-20260929T053136Z-ebf36104-d60e8839` ist inzwischen verifiziert
+veröffentlicht und bootet in einem eigenen lokalen Profil mit Enforcing,
+FBE, authentifiziertem ADB und dm-verity. Der Broker läuft in der vorgesehenen
+privaten Cgroup; deren Grenzen und Labels sind bestätigt. Die AOSP-Anmeldung
+funktioniert, der persönliche Linux-Start scheitert nun an einer
+Capability-Prüfung im neuen Benutzer-Namespace. Kontextabbau und anschließende
+Abmeldung sind bestätigt; **GNU-Ausführung bleibt unbewiesen**. Die nächste
+enge Policy-/Init-Korrektur und die noch offenen Boot-AVCs stehen in der
+[Runtime-Policy](../runtime/selinux-integration.md).
+Der sichtbare Launcher bleibt unverändert. Weitere Kandidaten werden auf
+Nutzerwunsch ohne sichtbares QEMU-Fenster geprüft.
 
 Aktueller vollständiger Bootnachweis: Das Image `d308ea6a` ist mit
 `UPLOAD_VERIFIED` über GitHub übertragen und bootet im getrennten lokalen

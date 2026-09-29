@@ -1,5 +1,58 @@
 # SELinux- und Init-Integration der Runtime
 
+## Vollständiger Boot und persönlicher Start in ebf3610
+
+Build `aosp-20260929T053136Z-ebf36104-d60e8839` ist mit
+`UPLOAD_VERIFIED` veröffentlicht. Alle 21 Assets und die AVB-Kette sind
+lokal geprüft. Das eigene Profil `86e85222-c404-496e-89a5-96bf40b319ea`
+bootet mit Enforcing, FBE, authentifiziertem ADB und tatsächlichem dm-verity.
+Der Init-gestartete Broker meldet `AEGIS_RUNTIME_BROKER_LISTENING` und liegt
+in Cgroup v2 unter `/aegis-runtime/broker`. Eigentümer, Modi, private Labels,
+Controller und sämtliche Delegations-/Kontextgrenzen sind aus dem Gast
+zurückgelesen. Die alte Cgroup-Schreibverweigerung tritt beim Startversuch
+nicht mehr auf.
+
+Die erste Auswertung scheiterte an zwei Annahmen des Prüfskripts: Der
+SELinux-Prozesskontext enthält ein abschließendes NUL, und `/proc/PID/cgroup`
+enthält neben der relevanten v2-Zeile auch Androids Legacy-Controller. Diese
+Auswertung ist korrigiert; die tatsächliche Gastkonfiguration wurde dafür
+nicht verändert. Fünf Init-`create`-AVCs bleiben dokumentiert, obwohl die
+erwarteten Werte gesetzt sind. Der Kandidat ist damit noch nicht abgenommen.
+
+AOSP legt Testadministrator 10/Seriennummer 10 an. Das falsche Passwort wird
+abgewiesen, das richtige entsperrt CE. `linux start` am 29. September um
+06:03:15 UTC scheitert anschließend an
+`aegis_runtime_broker self:cap_userns sys_ptrace`. `linux status` meldet
+`sealed`. Um 06:04:27 UTC bestätigt `linux stop` den Abbau; nach erneuter
+Anmeldung bestätigt `logout` Benutzerstopp und CE-Sperre. **GNU wurde noch
+nicht ausgeführt.** Belege liegen unter `out/full-build-ebf3610/boot-1/`
+und `out/full-build-ebf3610/identity-test/`.
+
+Der gepinnte Kernel `50eb8d5d443b43f38d6e72f005f1b8601ac88a05` prüft in
+`security/commoncap.c:cap_ptrace_access_check` bei unterschiedlichen
+User-Namespaces `ns_capable(child_cred->user_ns, CAP_SYS_PTRACE)`. Der
+Namespace-Eigentümer im unmittelbaren Eltern-Namespace erfüllt die
+Capability-Prüfung in `cap_capable`; SELinux prüft zusätzlich `cap_userns`.
+`selinux_capable` verwendet die Host-Klasse `capability` ausschließlich für
+`init_user_ns`. Der native Pfad öffnet die Proc-Metadaten seines per Pidfd
+gehaltenen, noch gesperrten Kindes zur Einrichtung und Prüfung der ID-Maps.
+
+Die folgende Policy ergänzt nur die namensraumbezogene Prüfung für den
+Broker. Explizite Neverallows verbieten dessen Host-`sys_ptrace` und Ptrace
+auf Init; Dienst-Capability-Liste und Readproc-Zugehörigkeit bleiben unverändert.
+Diese Regel allein bindet die Berechtigung nicht an eine einzelne PID: Der
+Kernel prüft die Namespace-Autorität, und der native Besitzerpfad begrenzt die
+Operation auf sein eigenes Kind. Ein vollständiger neuer Gastnachweis steht aus.
+
+Die fünf Initialisierungszugriffe wechseln in dasselbe Init-Taskprofil, vor
+dessen abschließender PID-Zuweisung. Der gepinnte
+`WriteFileAction::WriteValueToFile` öffnet vorhandene Dateien mit
+`O_WRONLY | O_CLOEXEC`; Inits `write` verwendet zusätzlich `O_CREAT` und
+`O_TRUNC`. So entfällt der unnötige Erzeugungsversuch ohne neue
+Dateierzeugungsrechte oder unterdrückte Audits. Die native Prüfung aller
+Werte vor jeder Kontextbereinigung bleibt zwingend. Auch diese Änderung
+bedarf noch der Kompilierung und des vollständigen Bootnachweises.
+
 ## Persönlicher Start in d308ea6a
 
 Der vollständige Build `aosp-20260929T042930Z-d308ea6a-57b5567f` wurde am

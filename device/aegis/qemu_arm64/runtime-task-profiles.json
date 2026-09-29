@@ -6,6 +6,51 @@
         {
           "Name": "WriteFile",
           "Params": {
+            "FilePath": "/sys/fs/cgroup/aegis-runtime/cgroup.max.depth",
+            "ProcFilePath": "/sys/fs/cgroup/aegis-runtime/cgroup.max.depth",
+            "Value": "2",
+            "LogFailures": "true"
+          }
+        },
+        {
+          "Name": "WriteFile",
+          "Params": {
+            "FilePath": "/sys/fs/cgroup/aegis-runtime/cgroup.max.descendants",
+            "ProcFilePath": "/sys/fs/cgroup/aegis-runtime/cgroup.max.descendants",
+            "Value": "18",
+            "LogFailures": "true"
+          }
+        },
+        {
+          "Name": "WriteFile",
+          "Params": {
+            "FilePath": "/sys/fs/cgroup/aegis-runtime/cgroup.subtree_control",
+            "ProcFilePath": "/sys/fs/cgroup/aegis-runtime/cgroup.subtree_control",
+            "Value": "+memory",
+            "LogFailures": "true"
+          }
+        },
+        {
+          "Name": "WriteFile",
+          "Params": {
+            "FilePath": "/sys/fs/cgroup/aegis-runtime/broker/cgroup.max.depth",
+            "ProcFilePath": "/sys/fs/cgroup/aegis-runtime/broker/cgroup.max.depth",
+            "Value": "0",
+            "LogFailures": "true"
+          }
+        },
+        {
+          "Name": "WriteFile",
+          "Params": {
+            "FilePath": "/sys/fs/cgroup/aegis-runtime/broker/cgroup.max.descendants",
+            "ProcFilePath": "/sys/fs/cgroup/aegis-runtime/broker/cgroup.max.descendants",
+            "Value": "0",
+            "LogFailures": "true"
+          }
+        },
+        {
+          "Name": "WriteFile",
+          "Params": {
             "FilePath": "/sys/fs/cgroup/aegis-runtime/broker/cgroup.procs",
             "ProcFilePath": "/sys/fs/cgroup/aegis-runtime/broker/cgroup.procs",
             "Value": "<pid>",

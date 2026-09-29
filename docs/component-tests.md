@@ -18,8 +18,13 @@ temporäre Cgroups und keine produktiven Benutzerkontexte.
 SELinux-Policy im vollständigen Image und keine GNU-Ausführung.** Die
 62/62 Java-Tests aus `026665fb` werden für unveränderte Java-/JNI-Quellen
 weiterverwendet. Der nachfolgende vollständige Build
-`aosp-20260929T053136Z-ebf36104-d60e8839` ist gestartet; sein Ergebnis
-und sein tatsächlicher Bootnachweis stehen aus.
+`aosp-20260929T053136Z-ebf36104-d60e8839` ist inzwischen mit
+`UPLOAD_VERIFIED` veröffentlicht und im eigenen lokalen Profil gebootet.
+Die private Cgroup-Delegation ist tatsächlich eingerichtet. Der persönliche
+Start scheitert nach erfolgreicher AOSP-Anmeldung an einer namespacelokalen
+Capability-Prüfung; fünf Init-AVCs bleiben offen. Der komplette Befund steht
+in der [Runtime-Policy](../runtime/selinux-integration.md). Dies ist noch kein
+GNU-Ausführungs- oder Isolationsnachweis.
 
 - Rohbelege: `out/components-ebf3610/component-tests/`.
 - Native-Log SHA-256: `500c2814b41901fcf6a694018a0e1f0ff02a4c6038328a246051432dfb6c1fb9`.

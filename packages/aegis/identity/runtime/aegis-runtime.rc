@@ -7,12 +7,9 @@ on post-fs-data && property:ro.aegis.runtime.mode=managed-v1
     # The empty parent is the common ancestor checked by CLONE_INTO_CGROUP.
     # Workload recovery/limits affect only the separate contexts branch.
     mkdir /sys/fs/cgroup/aegis-runtime 0700 root root
-    write /sys/fs/cgroup/aegis-runtime/cgroup.max.depth 2
-    write /sys/fs/cgroup/aegis-runtime/cgroup.max.descendants 18
-    write /sys/fs/cgroup/aegis-runtime/cgroup.subtree_control +memory
     mkdir /sys/fs/cgroup/aegis-runtime/broker 0700 root root
-    write /sys/fs/cgroup/aegis-runtime/broker/cgroup.max.depth 0
-    write /sys/fs/cgroup/aegis-runtime/broker/cgroup.max.descendants 0
+    # The service task profile writes existing kernel controls without O_CREAT
+    # before assigning its PID. The broker verifies all limits before recovery.
     start aegis-runtime-broker
 
 service aegis-runtime-broker /system_ext/bin/aegis-runtime-broker
