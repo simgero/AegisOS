@@ -48,6 +48,22 @@ Betrieb und keine Regeländerung im laufenden Gast. Die neue Policy braucht
 einen weiteren vollständigen Build und Bootnachweis; Native-/Java-Quellen und
 Tests bleiben identisch. Rohbeleg: `out/full-build-026665fb/boot-1/boot-health.json`.
 
+Im laufenden vollständigen Image `026665fb` wurden zusätzlich die tatsächliche
+CLI und JNI-Passworteingabe geprüft. Ein unbekannter persönlicher Benutzer
+bleibt abgewiesen und das Terminal unauthentifiziert; der zufällige Testwert
+wird nicht zurückgeschrieben und fehlt in den drei erfassten Gastlogs.
+`linux start`, `status`, `stop` und `shell` werden ohne Anmeldung zurückgewiesen.
+Ein separater Strg+C-Test an der aktiven Passwortabfrage bestätigt identische
+Termios-Werte vor und nach der CLI sowie deren Exitcode 130. Der umgebende
+su/ADB-Prozess erhält dasselbe PTY-Signal und endet ebenfalls mit 130; die
+erste Testfassung hatte dort fälschlich 0 erwartet. Der korrigierte Test prüft
+weiterhin den separat gemeldeten CLI-Exitcode und die exakte Wiederherstellung.
+Es wurden keine persönlichen Benutzer angelegt. Das sind öffentliche
+Negativ-/Passwortmodus-Tests, kein AOSP-Passwortnachweis und kein GNU-Rohmodus-,
+Terminalwiderrufs- oder Isolationsnachweis. Belege:
+`out/full-build-026665fb/identity-test/negative-result.json` und
+`interrupted-password.json` im selben Verzeichnis.
+
 ## Init-Namespace-Übergabe: Komponenten 3b350e74 auf Image 4e53dc18
 
 Am 29. September 2026 bestehen **114/114 native Tests in 18 Suiten**, ohne

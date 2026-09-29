@@ -22,9 +22,16 @@ unveränderliche Image-Prüfung bleiben zwingend. Feste Diagnosephasen erhalten
 den ursprünglichen Fehlercode. Entsprechend AOSPs Kernel-/APEX-Regel wird
 nur dem Kernel die Benutzung der Broker-Deskriptoren und das Lesen des eigenen
 Image-Dateityps erlaubt. `026665fb` kompiliert diese Policy einschließlich
-Neverallow-, Treble- und Kontextprüfungen erfolgreich. Die Korrektur ist
-noch nicht im Produktionspfad eines neuen Images geprüft; der kalte Gaststart
-steht aus.
+Neverallow-, Treble- und Kontextprüfungen erfolgreich. Der kalte lokale Start
+dieses Images erreicht die ext4-Superblock-Erzeugung ohne den alten Kernel-FD-
+AVC, scheitert dort aber mit `errno=13` und
+`aegis_runtime_broker -> aegis_runtime_base_file:filesystem relabelfrom`.
+Der gepinnte Kernel setzt bei `context=` erst die Superblock-SID und prüft
+danach das Root-Inode-Label gegen genau diese neue SID. `a187a309` ergänzt
+ausschließlich die dafür fehlende Broker-/Basis-Berechtigung. Sein vollständiger
+Build ist kompiliert und wird paketiert; der neue Bootnachweis steht aus.
+Beleg des fehlgeschlagenen Kaltstarts:
+`out/full-build-026665fb/boot-1/boot-health.json`.
 
 Stand 29. September 2026: Die Policy und Komponenten von
 `6633a0862796d70304456c363158d133e9711513` wurden auf `aegis-build` erfolgreich

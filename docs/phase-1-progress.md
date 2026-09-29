@@ -9,10 +9,12 @@ lokalen Testprofil mit Enforcing, FBE, authentifiziertem ADB und tatsächlichem
 dm-verity. Sein Broker überwindet die zuvor beobachteten Loop-Node- und
 Kernel-Lesefehler, scheitert aber beim Erzeugen des ext4-Superblocks mit
 `EACCES`: Die zweite Prüfung für `context=` verlangt `relabelfrom` auf dem
-bereits gewählten Basislabel. Die gezielte Broker-Regel ist ergänzt und muss
-noch im nächsten Image kompiliert und im Gast geprüft werden. **114 native
+bereits gewählten Basislabel. Die gezielte Broker-Regel in `a187a309` ist im
+vollständigen Build kompiliert; Paketierung und neuer Gasttest folgen. **114 native
 und 62 Java-Tests bestehen** für die unveränderten Komponenten von `026665fb`
-im älteren Image `030dd177`; echte GNU-/Terminaltests fehlen weiterhin.
+im älteren Image `030dd177`. Öffentliche CLI-Negativtests und die verdeckte
+Passworteingabe samt Strg+C-Wiederherstellung bestehen im vollständigen Image
+`026665fb`; echte GNU-Sitzungs- und Rohmodusprüfungen fehlen weiterhin.
 Details stehen in
 [Komponententests](component-tests.md) und
 [Runtime-Policy](../runtime/selinux-integration.md). Der sichtbare geprüfte

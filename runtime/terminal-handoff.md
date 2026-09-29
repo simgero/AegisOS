@@ -12,7 +12,11 @@ Anmeldung und AOSP-Benutzerseriennummer gebundenen Binder-Kanal. Stand
 `026665fb` ist einschließlich CLI, Dienst, JNI und Policy auf `aegis-build`
 kompiliert. Die 114 nativen und 62 Java-Komponententests bestehen im älteren
 lokalen Image `030dd177`; sie führen den neuen öffentlichen Dienstpfad nicht
-aus. Dessen Abnahme verlangt den folgenden vollständigen Image-Boot. Der
+aus. Im anschließenden vollständigen Image `026665fb` bestehen öffentliche
+Negativtests: unbekannter Benutzer ohne Passwort-Echo, keine geerbte Anmeldung,
+Zurückweisung aller vier Linux-Aktionen ohne persönliche Anmeldung sowie
+exakte Termios-Wiederherstellung bei Strg+C an der Passwortabfrage. Eine GNU-
+Sitzung bleibt wegen des dokumentierten Basis-Mountfehlers unbewiesen. Der
 erste Compileversuch `05bdef02` scheiterte am nicht vorhandenen
 `explicit_bzero`; die gepinnte Bionic-Funktion `memset_explicit` ist jetzt
 eingebunden. Die folgenden früheren Nachweise beziehen sich weiterhin auf
@@ -39,8 +43,10 @@ einem zweiten Dateideskriptor-Leser verloren gehen. Eine kleine Bibliothek aus
 dem schreibgeschützten Systemimage übernimmt Termios, begrenztes Lesen und
 Fenstergröße. Passwörter gehen weiterhin ohne Echo, Argumente oder Passwort-
 Strings direkt an den bestehenden AOSP-Prüfpfad. Rohmodus, EOF, Teil-Schreibvorgänge,
-Ctrl-C, Größenänderung, Rückkehr zur CLI und Fehler-Wiederherstellung müssen
-noch mit der tatsächlichen neuen CLI im lokalen QEMU nachgewiesen werden.
+Ctrl-C während einer GNU-Sitzung, Größenänderung, Rückkehr zur CLI und
+Fehler-Wiederherstellung im Rohmodus müssen noch mit der tatsächlichen neuen
+CLI im lokalen QEMU nachgewiesen werden. Die Passwortmodus-Signalprüfung
+deckt diese GNU-Relay-Fälle nicht ab.
 
 Erforderlich bleiben außerdem Gegenproben mit einem fremden Prozess, konkurrierender
 Abmeldung/Bildschirmsperre, wiederholtem Shell-Ende, Hintergrundprogrammen und
