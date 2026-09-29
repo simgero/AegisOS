@@ -104,16 +104,20 @@ class AptImageFixture {
                     || info.lo_device != static_cast<uint64_t>(backing.st_dev) || info.lo_inode != backing.st_ino
                     || info.lo_flags != LO_FLAGS_AUTOCLEAR || info.lo_offset || info.lo_sizelimit
                     || bytes != expected.bytes || readonly) return -1;
-            unique_fd fs(static_cast<int>(syscall(SYS_fsopen, "ext4", FSOPEN_CLOEXEC)));
-            if (fs.get() < 0) return -1;
-            std::string source = "/proc/self/fd/" + std::to_string(loop.get());
-            if (syscall(SYS_fsconfig, fs.get(), FSCONFIG_SET_STRING, "source", source.c_str(), 0) < 0
-                    || syscall(SYS_fsconfig, fs.get(), FSCONFIG_SET_STRING, "context", "u:object_r:aegis_runtime_base_file:s0", 0) < 0
-                    || syscall(SYS_fsconfig, fs.get(), FSCONFIG_CMD_CREATE, nullptr, nullptr, 0) < 0) return -1;
-            return static_cast<int>(syscall(SYS_fsmount, fs.get(), FSMOUNT_CLOEXEC,
-                                           MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV | MOUNT_ATTR_NOEXEC));
+            return remount();
         }
         errno = EBUSY;return -1;
+    }
+    int remount() {
+        using android::base::unique_fd;
+        unique_fd fs(static_cast<int>(syscall(SYS_fsopen, "ext4", FSOPEN_CLOEXEC)));
+        if (fs.get() < 0) return -1;
+        std::string source = "/proc/self/fd/" + std::to_string(loop.get());
+        if (syscall(SYS_fsconfig, fs.get(), FSCONFIG_SET_STRING, "source", source.c_str(), 0) < 0
+                || syscall(SYS_fsconfig, fs.get(), FSCONFIG_SET_STRING, "context", "u:object_r:aegis_runtime_base_file:s0", 0) < 0
+                || syscall(SYS_fsconfig, fs.get(), FSCONFIG_CMD_CREATE, nullptr, nullptr, 0) < 0) return -1;
+        return static_cast<int>(syscall(SYS_fsmount, fs.get(), FSMOUNT_CLOEXEC,
+                               MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV | MOUNT_ATTR_NOEXEC));
     }
     static std::string read(int root, const char* name) {
         android::base::unique_fd fd(openat(root, name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW));

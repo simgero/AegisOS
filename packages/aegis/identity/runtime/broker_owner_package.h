@@ -2,6 +2,7 @@
 #define AEGIS_BROKER_OWNER_PACKAGE_H
 #include "broker_owner.h"
 #include "package_publisher.h"
+#include "package_executor.h"
 namespace aegis {
 enum class PublicationState { Prepared, Running, Complete, Sealed };
 
@@ -31,5 +32,19 @@ int BrokerPollPublication(aegis_broker_owner* owner,uint32_t user,uint32_t seria
                           PackagePublicationResult* result);
 int BrokerCancelPublication(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                             uint64_t job,const std::string& plan,uint64_t deadline);
+// The same registry owns pre-staged APT jobs. Shares the 16-slot limit and
+// monotonic IDs with publication, one unconsumed job per requester across both.
+// Inputs must be trusted/lifecycle-owned preparation results, not client FDs.
+// This is still an internal API; no public wire/CLI caller is enabled yet.
+// Poll NeedsValidation certifies completed execution only, never activation.
+int BrokerPrepareExecution(aegis_broker_owner* owner,const PackageExecution& request,
+                           int groups,int stage,int candidate,int helper,uint64_t deadline,uint64_t* job);
+int BrokerStartExecution(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                         uint64_t job,const std::string& plan,uint64_t deadline);
+int BrokerPollExecution(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                        uint64_t job,const std::string& plan,PublicationState* state,
+                        PackageExecutionResult* result);
+int BrokerCancelExecution(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                          uint64_t job,const std::string& plan,uint64_t deadline);
 } // namespace aegis
 #endif

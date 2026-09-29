@@ -111,6 +111,8 @@ int aegis_namespace_prepare(struct aegis_namespace *context);
  * lifecycle registration, limited creation and checked worker mount/policy.
  */
 int aegis_namespace_prepare_package(struct aegis_namespace *context);
+/* Same one-shot package mapping with caller's remaining 1..10000ms wait. */
+int aegis_namespace_prepare_package_for(struct aegis_namespace *context, int timeout_ms);
 
 /* After prepare() and before resume(): clone a preopened, broker-verified,
  * readonly shared base root as a DETACHED readonly/nosuid/nodev/private mount,

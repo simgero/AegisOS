@@ -545,9 +545,9 @@ static int still_waiting(struct aegis_namespace *context) {
     return 0;
 }
 
-static int receive_references(struct aegis_namespace *context, int refs[REF_COUNT]) {
+static int receive_references(struct aegis_namespace *context, int refs[REF_COUNT], int timeout) {
     struct pollfd ready = {.fd = context->gate, .events = POLLIN};
-    int polled = poll(&ready, 1, 10000);
+    int polled = poll(&ready, 1, timeout);
     if (polled < 0) return -1;
     if (!polled) { errno = ETIMEDOUT; return -1; }
     if (!(ready.revents & POLLIN)) { errno = EPIPE; return -1; }
@@ -599,14 +599,15 @@ static int receive_references(struct aegis_namespace *context, int refs[REF_COUN
     return still_waiting(context);
 }
 
-static int prepare(struct aegis_namespace *context, int package) {
+static int prepare(struct aegis_namespace *context, int package, int timeout) {
+    if (timeout < 1 || timeout > 10000) { errno = EINVAL; return -1; }
     if (owner(context) < 0) return -1;
     if (context->mapped) { errno = EALREADY; return -1; }
     char map[1024], groups[32], oom[32];
     int refs[REF_COUNT] = {-1, -1, -1, -1, -1}, result = -1;
     if (still_waiting(context) < 0) goto done;
     context->mapped = -1;  /* Writing either kernel map is a one-shot action. */
-    if (receive_references(context, refs) < 0) goto done;
+    if (receive_references(context, refs, timeout) < 0) goto done;
     /* Never inherit Android's protected-daemon OOM exemption. Do this while
      * the child is gated, before its maps and later credential changes.
      * memory.oom.group cannot kill a member with oom_score_adj=-1000. */
@@ -648,11 +649,15 @@ done:;
 }
 
 int aegis_namespace_prepare(struct aegis_namespace *context) {
-    return prepare(context, 0);
+    return prepare(context, 0, 10000);
 }
 
 int aegis_namespace_prepare_package(struct aegis_namespace *context) {
-    return prepare(context, 1);
+    return prepare(context, 1, 10000);
+}
+
+int aegis_namespace_prepare_package_for(struct aegis_namespace *context, int timeout_ms) {
+    return prepare(context, 1, timeout_ms);
 }
 
 int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_source_fd) {

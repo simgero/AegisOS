@@ -1,0 +1,299 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include "package_execution_protocol.h"
+#include "sandbox.h"
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <linux/magic.h>
+#include <linux/mount.h>
+#include <linux/openat2.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mount.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/statfs.h>
+#include <sys/statvfs.h>
+#include <sys/syscall.h>
+#include <sys/sysmacros.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#define COUNT(a) (sizeof(a) / sizeof((a)[0]))
+#define AEGIS_MQUEUE_MAGIC UINT64_C(0x19800202)
+static int denied(void) { errno = EPERM; return -1; }
+static void expired(int sig) { (void)sig; _exit(125); }
+static int directory(int fd, uint64_t type, unsigned long required, unsigned long forbidden) {
+    struct stat st;struct statfs fs;struct statvfs flags;
+    if (fstat(fd, &st) < 0 || fstatfs(fd, &fs) < 0 || fstatvfs(fd, &flags) < 0) return -1;
+    int mode = fcntl(fd, F_GETFL);if (mode < 0) return -1;
+    if (!(mode & O_PATH) || st.st_mode != (S_IFDIR | 0755) || st.st_uid || st.st_gid
+            || fs.f_type != type || (flags.f_flag & required) != required || (flags.f_flag & forbidden))
+        return denied();
+    return 0;
+}
+static int beneath(int parent, const char *name, int flags) {
+    struct open_how how = {.flags = (uint64_t)(flags | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW),
+        .resolve = RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS | RESOLVE_NO_MAGICLINKS};
+    return (int)syscall(SYS_openat2, parent, name, &how, sizeof(how));
+}
+
+static int attach(int tree, int parent, const char *name) {
+    int target = beneath(parent, name, O_PATH);
+    if (target < 0) return -1;
+    int result = (int)syscall(SYS_move_mount, tree, "", target, "",
+                             MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH);
+    int saved = errno;
+    close(target);
+    errno = saved;
+    return result;
+}
+
+struct parameter { const char *name, *value; };
+static int fresh(const char *type, const struct parameter *parameters,
+                  unsigned count, unsigned flags) {
+    int fs = (int)syscall(SYS_fsopen, type, FSOPEN_CLOEXEC);
+    if (fs < 0) return -1;
+    int result = -1;
+    for (unsigned i = 0; i < count; i++) {
+        if (syscall(SYS_fsconfig, fs, parameters[i].value ? FSCONFIG_SET_STRING : FSCONFIG_SET_FLAG,
+                    parameters[i].name, parameters[i].value, 0) < 0) goto done;
+    }
+    if (syscall(SYS_fsconfig, fs, FSCONFIG_CMD_CREATE, NULL, NULL, 0) < 0) goto done;
+    result = (int)syscall(SYS_fsmount, fs, FSMOUNT_CLOEXEC, flags);
+done:;
+    int saved = errno;
+    close(fs);
+    errno = saved;
+    return result;
+}
+
+static int fresh_at(int parent, const char *name, const char *type,
+                     const struct parameter *parameters, unsigned count, unsigned flags) {
+    int tree = fresh(type, parameters, count, flags);
+    if (tree < 0) return -1;
+    int result = attach(tree, parent, name);
+    int saved = errno;
+    close(tree);
+    errno = saved;
+    return result;
+}
+
+static int tmpfs_at(int parent, const char *name, const char *size,
+                     const char *inodes, const char *mode, unsigned extra) {
+    const struct parameter parameters[] = {
+        {"size", size}, {"nr_inodes", inodes}, {"mode", mode}, {"uid", "0"}, {"gid", "0"},
+    };
+    return fresh_at(parent, name, "tmpfs", parameters, COUNT(parameters),
+                     MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV | extra);
+}
+
+static int empty_directory(int parent, const char *name) {
+    int fd = beneath(parent, name, O_RDONLY);
+    if (fd < 0) return -1;
+    DIR *directory = fdopendir(fd);
+    if (!directory) { int saved = errno; close(fd); errno = saved; return -1; }
+    int result = 0;
+    struct dirent *entry;
+    errno = 0;
+    while ((entry = readdir(directory))) {
+        if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")) { result = denied(); break; }
+    }
+    if (errno) result = -1;
+    int saved = errno;
+    closedir(directory);
+    errno = saved;
+    return result;
+}
+
+
+static int construct(int root, int devices) {
+    if (attach(root, AT_FDCWD, "/mnt") < 0 || empty_directory(root, "sys") < 0
+            || attach(devices, root, "dev") < 0) return -1;
+    const struct parameter proc[] = {{"hidepid", "2"}, {"subset", "pid"}};
+    const struct parameter pts[] = {{"newinstance", NULL}, {"gid", "5"}, {"mode", "0620"},
+                                    {"ptmxmode", "0666"}, {"max", "128"}};
+    const unsigned restricted = MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV | MOUNT_ATTR_NOEXEC;
+    if (fresh_at(root, "proc", "proc", proc, COUNT(proc), restricted) < 0
+            || fresh_at(root, "dev/pts", "devpts", pts, COUNT(pts), MOUNT_ATTR_NOSUID | MOUNT_ATTR_NOEXEC) < 0
+            || fresh_at(root, "dev/mqueue", "mqueue", NULL, 0, restricted) < 0
+            || tmpfs_at(root, "dev/shm", "67108864", "8192", "1777", MOUNT_ATTR_NOEXEC) < 0
+            || tmpfs_at(root, "tmp", "134217728", "16384", "1777", 0) < 0
+            || tmpfs_at(root, "run", "16777216", "4096", "0755", MOUNT_ATTR_NOEXEC) < 0
+            || sethostname("aegis-package", 13) < 0 || fchdir(root) < 0) return -1;
+    return 0;
+}
+static int mount_inventory(void) {
+    const char *expected[] = {"/", "/dev", "/proc", "/dev/pts",
+        "/dev/mqueue", "/dev/shm", "/tmp", "/run"};
+    unsigned seen = 0;
+    FILE *file = fopen("/proc/self/mountinfo", "re");
+    if (!file) return -1;
+    char line[8192], name[4096];
+    int result = -1;
+    while (fgets(line, sizeof(line), file)) {
+        if (!strchr(line, '\n') || strstr(line, " shared:") || strstr(line, " master:")
+                || sscanf(line, "%*u %*u %*s %*s %4095s", name) != 1) { denied(); goto done; }
+        unsigned i;
+        for (i = 0; i < COUNT(expected); i++) if (!strcmp(name, expected[i])) break;
+        if (i == COUNT(expected) || (seen & (1u << i))) { denied(); goto done; }
+        seen |= 1u << i;
+    }
+    if (ferror(file)) goto done;
+    if (seen != (1u << COUNT(expected)) - 1) { denied(); goto done; }
+    result = 0;
+done:;
+    int saved = errno;
+    fclose(file);
+    errno = saved;
+    return result;
+}
+
+static int readback(void) {
+    const unsigned long restricted = ST_NOSUID | ST_NODEV | ST_NOEXEC;
+    const struct {
+        const char *name; uint64_t type; unsigned long required, forbidden;
+    } views[] = {
+        {"/", EXT4_SUPER_MAGIC, ST_NOSUID | ST_NODEV, ST_RDONLY | ST_NOEXEC},
+        {"/dev", TMPFS_MAGIC, ST_RDONLY | ST_NOSUID | ST_NOEXEC, ST_NODEV},
+        {"/proc", PROC_SUPER_MAGIC, restricted, ST_RDONLY},
+        {"/dev/pts", DEVPTS_SUPER_MAGIC, ST_NOSUID | ST_NOEXEC, ST_RDONLY | ST_NODEV},
+        {"/dev/mqueue", AEGIS_MQUEUE_MAGIC, restricted, ST_RDONLY},
+        {"/dev/shm", TMPFS_MAGIC, restricted, ST_RDONLY},
+        {"/tmp", TMPFS_MAGIC, ST_NOSUID | ST_NODEV, ST_RDONLY | ST_NOEXEC},
+        {"/run", TMPFS_MAGIC, restricted, ST_RDONLY},
+    };
+    for (unsigned i = 0; i < COUNT(views); i++) {
+        struct statfs fs;
+        struct statvfs flags;
+        if (statfs(views[i].name, &fs) < 0 || statvfs(views[i].name, &flags) < 0) return -1;
+        if (fs.f_type != views[i].type || (flags.f_flag & views[i].required) != views[i].required
+                || (flags.f_flag & views[i].forbidden)) return denied();
+    }
+    const struct { const char *name; uid_t uid; mode_t mode; } dirs[] = {
+        {"/", 0, 0755}, {"/dev", 0, 0755},
+        {"/tmp", 0, 01777}, {"/dev/shm", 0, 01777}, {"/run", 0, 0755},
+    };
+    for (unsigned i = 0; i < COUNT(dirs); i++) {
+        struct stat st;
+        if (lstat(dirs[i].name, &st) < 0) return -1;
+        if (st.st_mode != (S_IFDIR | dirs[i].mode) || st.st_uid != dirs[i].uid
+                || st.st_gid != dirs[i].uid) return denied();
+    }
+    struct stat st;
+    if (lstat("/dev/pts/ptmx", &st) < 0) return -1;
+    if (st.st_mode != (S_IFCHR | 0666) || st.st_rdev != makedev(5, 2)) return denied();
+    char self[32];
+    if (readlink("/proc/self", self, sizeof(self)) != 1 || self[0] != '1') return denied();
+    if (lstat("/proc/sys", &st) == 0 || errno != ENOENT) return denied();
+    struct stat root, parent;
+    if (stat("/", &root) < 0 || stat("/..", &parent) < 0) return -1;
+    if (root.st_dev != parent.st_dev || root.st_ino != parent.st_ino) return denied();
+    return mount_inventory();
+}
+
+static int reply(const struct aegis_package_execution_request *request, uint32_t phase,
+                 uint32_t status, uint32_t error) {
+    struct aegis_package_execution_reply r = {.magic = AEGIS_PACKAGE_EXEC_MAGIC,
+        .version = AEGIS_PACKAGE_EXEC_VERSION, .user = request->user, .serial = request->serial,
+        .job = request->job, .phase = phase, .status = status, .error = error};
+    memcpy(r.plan, request->plan, sizeof(r.plan));
+    ssize_t n;
+    do { n = send(3, &r, sizeof(r), MSG_NOSIGNAL | MSG_DONTWAIT); } while (n < 0 && errno == EINTR);
+    return n == (ssize_t)sizeof(r) ? 0 : -1;
+}
+static int regular_at(int root, const char *name, int flags, unsigned mode) {
+    struct open_how how = {.flags = (uint64_t)(flags | O_NOFOLLOW | O_CLOEXEC), .mode = mode,
+        .resolve = RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS | RESOLVE_NO_MAGICLINKS | RESOLVE_NO_XDEV};
+    int fd = syscall(SYS_openat2, root, name, &how, sizeof(how));
+    if (fd < 0) return -1;
+    struct stat st;
+    if (fstat(fd, &st) < 0 || !S_ISREG(st.st_mode) || st.st_uid || st.st_gid
+            || st.st_nlink != 1 || (st.st_mode & (S_ISUID | S_ISGID | S_IWGRP | S_IWOTH))) {
+        close(fd);errno = EPERM;return -1;
+    }
+    return fd;
+}
+static _Noreturn void apt(const struct aegis_package_execution_request *r) {
+    // Drop the private broker socket and every inherited descriptor BEFORE
+    // giving control to Debian. Fresh opens cannot refer outside the pivot.
+    if (syscall(SYS_close_range, 0u, UINT_MAX, 0u) < 0) _exit(126);
+    int in = open("/dev/null", O_RDONLY | O_CLOEXEC);
+    int root = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    char name[128];snprintf(name, sizeof(name), "var/log/aegis-package-%llu.log", (unsigned long long)r->job);
+    int log = root < 0 ? -1 : regular_at(root, name, O_CREAT | O_EXCL | O_WRONLY, 0600);
+    if (in != 0 || root < 0 || log < 0) _exit(126);
+    // Close root before replacing stdio; it can occupy slot 1.
+    close(root);
+    if (dup2(log, 1) < 0 || dup2(log, 2) < 0) _exit(126);
+    for (int fd = 0; fd < 3; fd++) if (fcntl(fd, F_SETFD, 0) < 0) _exit(126);
+    if (syscall(SYS_close_range, 3u, UINT_MAX, 0u) < 0) _exit(126);
+    char paths[AEGIS_PACKAGE_EXEC_ITEMS][AEGIS_PACKAGE_EXEC_NAME + 32];
+    char *args[AEGIS_PACKAGE_EXEC_ITEMS + 24];unsigned n = 0;
+    args[n++] = "/usr/bin/apt-get";args[n++] = "-y";args[n++] = "--no-download";
+    args[n++] = "-o";args[n++] = "Dpkg::Use-Pty=0";
+    args[n++] = "-o";args[n++] = "Dpkg::Options::=--force-confold";
+    args[n++] = "-o";args[n++] = "Dir::Etc::sourcelist=/run/aegis-empty.list";
+    args[n++] = "-o";args[n++] = "Dir::Etc::sourceparts=/run/aegis-empty.d";
+    args[n++] = r->kind == AEGIS_PACKAGE_ARCHIVES ? "install" : "remove";
+    for (unsigned i = 0; i < r->count; i++) {
+        if (r->kind == AEGIS_PACKAGE_ARCHIVES) {
+            snprintf(paths[i], sizeof(paths[i]), "/var/cache/apt/archives/%s", r->items[i]);
+            args[n++] = paths[i];
+        } else args[n++] = (char *)r->items[i];
+    }
+    args[n] = NULL;
+    char *env[] = {"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C", "LC_ALL=C", "HOME=/root",
+                   "DEBIAN_FRONTEND=noninteractive", NULL};
+    execve(args[0], args, env);_exit(127);
+}
+int aegis_package_execute(uint32_t user, uint32_t serial) {
+    if (aegis_check_package_namespaces(user) < 0) return 78;
+    int fds[3] = {-1, -1, -1};
+    struct aegis_package_execution_request request = {0};
+    if (syscall(SYS_close_range, 4u, UINT_MAX, 0u) < 0 || clearenv() < 0) return 125;
+    close(0);close(1);close(2);umask(022);
+    struct sigaction action = {.sa_handler = expired};sigemptyset(&action.sa_mask);
+    if (sigaction(SIGALRM, &action, NULL) < 0) return 125;
+    alarm(10);
+    if (aegis_package_execution_receive(3, user, serial, fds, &request) < 0
+            || directory(fds[0], EXT4_SUPER_MAGIC, ST_NOSUID | ST_NODEV, ST_RDONLY | ST_NOEXEC) < 0
+            || directory(fds[1], TMPFS_MAGIC, ST_RDONLY | ST_NOSUID | ST_NOEXEC, ST_NODEV) < 0
+            || construct(fds[0], fds[1]) < 0) return 125;
+    for (int i = 0; i < 3; i++) close(fds[i]);
+    if (syscall(SYS_close_range, 4u, UINT_MAX, 0u) < 0
+            || syscall(SYS_pivot_root, ".", ".") < 0 || umount2(".", MNT_DETACH) < 0
+            || chdir("/") < 0 || readback() < 0) return 125;
+    int root = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (root < 0) return 125;
+    if (request.kind == AEGIS_PACKAGE_ARCHIVES) for (unsigned i = 0; i < request.count; i++) {
+        char path[AEGIS_PACKAGE_EXEC_NAME + 32];
+        snprintf(path, sizeof(path), "var/cache/apt/archives/%s", request.items[i]);
+        int archive = regular_at(root, path, O_RDONLY, 0);
+        if (archive < 0) return 125;
+        close(archive);
+    }
+    int empty = open("/run/aegis-empty.list", O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC, 0644);
+    if (empty < 0 || mkdir("/run/aegis-empty.d", 0755) < 0) return 125;
+    close(empty);
+    if (aegis_limit_package_worker(user) < 0 || reply(&request, AEGIS_PACKAGE_EXEC_READY, 0, 0) < 0) return 125;
+    alarm(0);
+    pid_t child = fork();
+    if (!child) apt(&request);
+    uint32_t error = child < 0 ? errno : 0, result = 0;
+    int status;
+    if (child > 0) {
+        pid_t waited;do { waited = waitpid(child, &status, 0); } while (waited < 0 && errno == EINTR);
+        if (waited < 0) error = errno;
+        else result = WIFEXITED(status) ? WEXITSTATUS(status) : 128u + WTERMSIG(status);
+    }
+    if (syncfs(root) < 0 && !error) error = errno;
+    close(root);
+    // PID1 exit tears down any script descendants; owning broker still must
+    // reap it, kill/wait the complete cgroup and close all mount/backing refs.
+    return reply(&request, AEGIS_PACKAGE_EXEC_DONE, result, error) == 0 ? 0 : 125;
+}

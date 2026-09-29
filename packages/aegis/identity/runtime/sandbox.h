@@ -13,6 +13,11 @@ int aegis_check_context(uint32_t user_id);
 /* Setup-only guard, before any mount/descriptor changes. Requires the new
  * namespaces but still the inherited Android proc view and exact setup domain. */
 int aegis_check_setup_context(uint32_t user_id);
+/* Package entry requires allow maps and the exact enforcing package domain.
+ * The namespace-only half exists for the separately compiled DEVICE TEST entry;
+ * it is not sufficient for production activation. No runtime bypass flag. */
+int aegis_check_package_namespaces(uint32_t user_id);
+int aegis_check_package_context(uint32_t user_id);
 int aegis_limit_supervisor(void);
 int aegis_limit_shell(void);
 /* Package-worker PID1 only, AFTER trusted setup has detached Android's root,

@@ -82,7 +82,7 @@ static int private_directory(const char *path) {
     return 0;
 }
 
-int aegis_check_setup_context(uint32_t user_id) {
+static int setup_namespaces(uint32_t user_id, int package) {
     uid_t r, e, s;
     gid_t gr, ge, gs;
     if (user_id < 10 || user_id >= 21473 || getpid() != 1 || getppid() != 0
@@ -95,10 +95,7 @@ int aegis_check_setup_context(uint32_t user_id) {
             || check_map("/proc/self/gid_map", user_id) < 0) return -1;
     char text[128];
     if (read_text("/proc/self/setgroups", text, sizeof(text)) < 0) return -1;
-    if (strcmp(text, "deny\n")) return invalid();
-    if (read_text("/proc/self/attr/current", text, sizeof(text)) < 0) return -1;
-    if (strcmp(text, "u:r:aegis_runtime_setup:s0")
-            && strcmp(text, "u:r:aegis_runtime_setup:s0\n")) return invalid();
+    if (strcmp(text, package ? "allow\n" : "deny\n")) return invalid();
     if (read_text("/sys/fs/selinux/enforce", text, sizeof(text)) < 0) return -1;
     if (strcmp(text, "1") && strcmp(text, "1\n")) return invalid();
     struct stat user;
@@ -128,6 +125,25 @@ int aegis_check_setup_context(uint32_t user_id) {
             return invalid();
     }
     return 0;
+}
+
+static int setup_domain(const char *expected) {
+    char text[128];
+    if (read_text("/proc/self/attr/current", text, sizeof(text)) < 0) return -1;
+    size_t n = strlen(text);
+    if (n && text[n - 1] == '\n') text[n - 1] = 0;
+    return strcmp(text, expected) ? invalid() : 0;
+}
+int aegis_check_setup_context(uint32_t user_id) {
+    if (setup_namespaces(user_id, 0) < 0) return -1;
+    return setup_domain("u:r:aegis_runtime_setup:s0");
+}
+int aegis_check_package_namespaces(uint32_t user_id) {
+    return setup_namespaces(user_id, 1);
+}
+int aegis_check_package_context(uint32_t user_id) {
+    if (aegis_check_package_namespaces(user_id) < 0) return -1;
+    return setup_domain("u:r:aegis_package_worker:s0");
 }
 
 int aegis_check_context(uint32_t user_id) {
