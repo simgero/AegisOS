@@ -1,3 +1,67 @@
+## Private Paketablage an AOSP-CE gebunden: a08e3d7d
+
+Der auf `aegis-build` kompilierte [Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T224118Z-a08e3d7d-a08e3d7d-spwnQv)
+aus `a08e3d7df753ae9f14586e2f58c047e2ca098c5e` besteht am **2026-09-29T22:43:37Z
+alle 187/187 nativen Gerätetests**, 28 Suiten in 65.077 Sekunden, ohne Skip.
+Der Serverbuild hat außerdem `selinux_policy` einschließlich Neverallow- und
+Dateikontextprüfungen erfolgreich abgeschlossen. Diese neue Richtlinie ist
+noch nicht im laufenden Gast installiert.
+
+`BrokerPreparePersonalCandidate` und `BrokerPreparePersonalPublication`
+registrieren ihre Aufträge vor dem ersten privaten Zugriff. Anschließend
+öffnen sie ausschließlich das feste `/data` in den von init gepinnten
+Host-Namespaces. ID und Seriennummer gehören zum Antragsteller; eine separate
+Administrator-Zielkennung oder ein vom Client gelieferter Speicherpfad ist
+nicht vorgesehen. Fehler nach Registrierung verbrauchen die Auftragskennung,
+schließen alle übernommenen Referenzen und bleiben passend abholbar.
+
+Die CE-Auflösung verwendet dieselben bestehenden Prüfungen wie HOME:
+`system_ce` als alleinige Seriennummernautorität, identische fscrypt-v2-Policy
+in `system_ce` und `misc_ce`, vorhandener Schlüssel, exakte Eigentümer und
+keine ACL, Symlinks oder Mountwechsel. Der neue Bereich
+`/data/misc_ce/<id>/aegis/packages` liegt neben HOME. Er und seine Unterordner
+`store` und `staging` bleiben root:root 0700 mit unveränderlicher
+ID-/Seriennummer-Zuordnung. Neue Bereiche werden zuerst vollständig angelegt
+und synchronisiert, dann ohne Überschreiben umbenannt. Unterbrochene Bereiche
+werden weder übernommen noch gelöscht. Auftragsablagen erhalten zusätzlich
+einen zufälligen Namensanteil, damit auch nach Broker-Neustart kein alter
+Auftrag übernommen wird. Es werden keine AOSP-Schlüssel oder -Seriennummern
+angelegt oder verändert.
+
+Vier zusätzliche Gerätetests prüfen konkret:
+
+- Plausible Eigentümermetadaten auf unverschlüsselter tmpfs ermöglichen weder
+  Store-Zugriff noch Ablagen; vorhandene Testdateien bleiben unverändert.
+- Ungültige Benutzer, Seriennummern und Auftragskennungen erzeugen keine Ablage.
+- Fehlendes echtes AOSP-CE erzeugt beim privaten Vorbereitungspfad einen
+  gescheiterten registrierten Auftrag, ohne offene Referenzen oder Kindprozess.
+  Eine fremde Seriennummer kann dessen Ergebnis nicht abholen.
+- Private Veröffentlichung lehnt gemeinsamen Bereich vor Registrierung ab;
+  fehlendes AOSP-CE schließt alle Referenzen und liefert ein gebundenes Fehlerergebnis.
+
+Der bestehende Test gegen unverschlüsselte nachgeahmte AOSP-Verzeichnisse
+prüft zusätzlich den neuen Einstieg. Alle bisherigen Kopier-, APT-,
+Veröffentlichungs- und Abbruchtests bestehen weiterhin.
+
+**Grenzen:** Dies ist noch kein erfolgreicher privater CE-/APT-Gesamtnachweis.
+Es wurden keine persönlichen AOSP-Testbenutzer angelegt. Die neue Ablage muss
+mit tatsächlicher Anmeldung, privater Veröffentlichung, Abmeldung und erneutem
+Entsperren geprüft werden. Die produktiven Helferdomänen, AOSP-/Java-/CLI-Aufruf,
+Repository-Planung, frische Adminfreigabe, semantische Validierung und Auswahl
+kompletter Generationen sind noch zu verbinden. Der neue Dateityp trennt
+Paketablagen von gewöhnlichem HOME; seine Laufzeitwirkung ist noch nicht
+gebootet. Die 119 unveränderten Java-Tests wurden nicht wiederholt.
+
+Gast `927cf51d`, Profil `d68845b3-62a9-4181-a7cd-c0f0a8e7d316`,
+Boot-ID `984f23bd-607e-4a6d-8c08-7ae91bccd4f5`. Benutzer-/CE-/Schlüsselbestand bleibt bei 0,
+Kontexte leer, Enforcing und bestehender Broker aktiv. Kein sichtbares
+QEMU-Fenster wurde geöffnet, kein Startprofil ersetzt.
+
+Build `identity-20260929T223818Z-a08e3d7d-fvJ8p4`, Invocation `15ee4dfe201c4aaf843b5f3b79606a28`.
+Belege: `out/components-a08e3d7d/component-tests/`; `native.log` SHA-256
+`91661d85c19b977555ffd30ef1223e0bca11d7d58eb90399d5e105fcbef9f646`; Vorher-/Nachher jeweils
+`0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3`.
+
 ## Registrierte Paketvorbereitung bis APT: adce0475
 
 Der auf `aegis-build` kompilierte [Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T221859Z-adce0475-adce0475-VgK5Ma)

@@ -1,5 +1,22 @@
 # Vollständige Paketgenerationen
 
+## Private Ablage und vorhandene Auftragsverwaltung verbunden
+
+Stand `a08e3d7d` besteht **187/187 native Tests** und die serverseitige
+SELinux-Richtlinienprüfung. [Belege und genaue Grenzen](../docs/component-tests.md).
+Die privaten Broker-Einstiege lösen ihren Speicher nun selbst unter dem festen
+AOSP-CE-Pfad auf und registrieren die Verantwortung vor Öffnen oder Anlegen.
+Pakete liegen neben HOME in einem rootgeschützten Bereich; Store, temporäre
+Aufträge, Seriennummer und fscrypt-Policy sind fest an den Antragsteller
+gebunden. Unterbrochene oder alte Aufträge werden nicht übernommen.
+
+Die vier neuen Nachweise betreffen Ablehnung und Fehlerabbau. Erfolgreiche
+Anmeldung, privates Kopieren/Veröffentlichen, Abmeldung und Wiederöffnung
+müssen noch mit echten AOSP-Benutzern im integrierten Produkt geprüft werden.
+Der neue Dateityp ist kompiliert, aber noch nicht gebootet. Es gibt weiterhin
+keinen öffentlichen Paketendpunkt. Die folgenden Abschnitte dokumentieren
+vorangegangene Bausteine mit ihren damaligen Grenzen.
+
 ## Registrierte Vorbereitung kompletter Kandidaten
 
 Stand `adce0475` besteht **183/183 native Tests** im lokalen Hintergrund-QEMU.
