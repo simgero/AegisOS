@@ -1,3 +1,42 @@
+## Begrenzter Paketabschluss bei fehlender Antwort: 1719eebd
+
+Der [Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T214339Z-1719eebd-1719eebd-Hh238A)
+aus `1719eebd57f3f07c97d3deb2ebe89de7f3eeefc7` besteht am **2026-09-29T21:45:18Z
+alle 171/171 nativen Gerätetests**, 26 Suiten in 44,809 Sekunden, ohne Skip.
+Vier zusätzliche Tests prüfen den tatsächlich vom Publisher verwendeten
+privaten Abschlussdecoder. Bei fehlgeschlagenem Empfang oder EOF konnte dessen
+Ancillary-Schleife zuvor eine Headerlänge von null wiederholt auswerten.
+Der Empfangsfehler wird jetzt vorher verworfen; jede Headerlänge wird vor dem
+Weiterschalten begrenzt. Fehlende Antworten bleiben ausdrücklich `Unconfirmed`.
+
+Die Regression prüft offene leere und geschlossene Kanäle in jeweils einem
+eigenen Kindprozess mit pidfd und Zweisekundenfrist. Ein Hänger würde nur
+diesen eigenen Prüfprozess beenden und den Test fehlschlagen lassen.
+Zusätzlich geprüft: exakte Auftrags-/Planbindung, unzulässige Resultate,
+leere/kurze/übergroße Pakete und mitgesendete FDs einschließlich Kontrollpuffer-
+Trunkierung und leerer Nutzlast. Alle übernommenen FDs sind danach geschlossen;
+die Originale des Senders bleiben offen. Die vier Tests dauerten zusammen 4 ms.
+
+Der Decoder alleine bescheinigt kein Prozessende. Der Publisher ruft ihn erst
+nach Reaping des Kindes und Entfernung der leeren Cgroup auf. Die übrigen
+167 Tests einschließlich echter APT-Ausführung und Abbruch bestehen weiterhin.
+Die Produktionsanbindung und Grenzen des folgenden Nachweises bleiben offen;
+keine Paket-CLI, AOSP-CE-Abmeldung oder neue Vollimage-Integration wird damit
+behauptet. Die Java-Quellen sind seit `09b10fd7` unverändert; deren 119 Tests
+wurden nicht erneut ausgeführt. Transportprofil v3 bleibt unverändert.
+
+Buildlauf `identity-20260929T214231Z-1719eebd-abAgmi`, Invocation `ffbf07f8abe54dc68b3f48264d3ddd80`.
+Ausführung ausschließlich im lokalen Mac-QEMU mit bestehendem Gast `927cf51d`,
+Profil `d68845b3-62a9-4181-a7cd-c0f0a8e7d316`, Boot-ID `984f23bd-607e-4a6d-8c08-7ae91bccd4f5`.
+Benutzer-/CE-/Schlüsselbestand bleiben identisch bei Benutzer 0; Runtime-Kontexte
+leer, Enforcing und der bestehende Broker aktiv. Sichtbarer Launcher und
+sämtliche Daten-/KeyMint-Paare bleiben erhalten. Nur die eigenen neuen
+Komponententestdateien wurden in den laufenden Hintergrundgast übertragen.
+
+Belege: `out/components-1719eebd/component-tests/`; `native.log` SHA-256
+`35351e308118da1355c984c9771c1b87e798ab5a6f1042519de05af2ca4cd533`; Vorher-/Nachher jeweils
+`0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3`.
+
 ## Brokerverwalteter APT-Arbeiter: 90b9732d
 
 Der auf `aegis-build` kompilierte und über GitHub verifizierte

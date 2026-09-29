@@ -1,5 +1,13 @@
 # Vollständige Paketgenerationen
 
+Aktueller Komponentenstand `1719eebd`: **171/171 native Gerätetests** im
+lokalen Hintergrund-QEMU. Der Publisher verarbeitet fehlende/ungültige private
+Abschlussantworten jetzt ohne unbeschränkte Header-Schleife; fehlende Bestätigung
+bleibt `Unconfirmed`. Vier Regressionstests und alle bisherigen APT-/Abbruchtests
+bestehen. [Nachweis und Grenzen](../docs/component-tests.md).
+Die registrierte Vorbereitung von Kandidaten, Planer und produktive
+AOSP-/CE-/CLI-Verbindung bleiben der nächste Implementierungsschritt.
+
 ## Brokerverwaltete Paket-Ausführung
 
 Stand `90b9732d` besteht am 2026-09-29T21:31:27Z **167/167 native Tests**
