@@ -1,5 +1,32 @@
 # Komponentenläufe in lokalem QEMU
 
+## Terminal- und Basisvorbereitung: 026665fb auf Image 030dd177
+
+Der Komponentenlauf `identity-20260929T030627Z-026665fb-TMiVTr` kompiliert
+CLI, Dienst, JNI, Broker und Policy einschließlich der Verbotsprüfungen.
+Die Korrekturen betreffen den öffentlichen widerrufbaren Terminalkanal,
+ueventds asynchrone Loop-Gerätedatei und den Kernel-Lesezugriff auf die
+unveränderliche Basis. Der vorherige Lauf `05bdef02` ist wegen des unter
+Bionic fehlenden `explicit_bzero` fehlgeschlagen; der Ersatz verwendet
+`memset_explicit` aus dem gepinnten Android.
+
+Nach [GitHub-Export und Verifikation](https://github.com/simgero/AegisOS/releases/tag/components-20260929T030923Z-026665fb-026665fb-sJgvbF)
+bestehen im separaten lokalen Profil `runtime-030dd177` **114/114 native
+Tests in 18 Suiten und 62/62 Java-Tests**, ohne Filter oder übersprungene
+Tests. Der Gast verwendet Enforcing, FBE und authentifiziertes ADB. Nur die
+Testprogramme und das Test-APK wurden in den Entwicklungsbereich übertragen;
+Systemdienst, JNI und Policy des alten Images wurden nicht ersetzt.
+
+Der Broker dieses alten Images scheitert weiterhin beim Öffnen der Basis.
+Diese Komponentennachweise ersetzen daher weder den neuen Produktionspfad
+noch Passwort-/Rohmodusprüfungen der öffentlichen CLI, GNU-Ausführung oder
+Zwei-Benutzer-Isolation. Der vollständige Build für genau `026665fb` folgt.
+
+- Rohbelege: `out/components-026665fb/component-tests/`.
+- Native-Log SHA-256: `fb7e22c651f451849b305e42ea46a76b875f80a216bde0936d67a7fc1fe63fc4`.
+- Java-Log SHA-256: `2d0664d0f8f39d609b3fedfdda32c1d8a4baa96170a48646b8934a0f7acc952b`.
+- Gastbeleg SHA-256: `e1b02a074ce729bd0c9240e94e6e5fa7ff478243b2243fb81b3f677f4e055387`.
+
 ## Init-Namespace-Übergabe: Komponenten 3b350e74 auf Image 4e53dc18
 
 Am 29. September 2026 bestehen **114/114 native Tests in 18 Suiten**, ohne

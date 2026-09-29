@@ -8,9 +8,15 @@ offen halten. Ein lokaler Gerätetest dieses öffentlichen Pfads steht noch aus.
 ## Öffentliche CLI-Anbindung in Arbeit
 
 Die neue Quellfassung ergänzt `aegis linux shell` und einen pro CLI-Prozess,
-Anmeldung und AOSP-Benutzerseriennummer gebundenen Binder-Kanal. Sie ist noch
-nicht kompiliert oder im Gast abgenommen. Die folgenden früheren Nachweise
-beziehen sich weiterhin auf die internen Komponenten.
+Anmeldung und AOSP-Benutzerseriennummer gebundenen Binder-Kanal. Stand
+`026665fb` ist einschließlich CLI, Dienst, JNI und Policy auf `aegis-build`
+kompiliert. Die 114 nativen und 62 Java-Komponententests bestehen im älteren
+lokalen Image `030dd177`; sie führen den neuen öffentlichen Dienstpfad nicht
+aus. Dessen Abnahme verlangt den folgenden vollständigen Image-Boot. Der
+erste Compileversuch `05bdef02` scheiterte am nicht vorhandenen
+`explicit_bzero`; die gepinnte Bionic-Funktion `memset_explicit` ist jetzt
+eingebunden. Die folgenden früheren Nachweise beziehen sich weiterhin auf
+die internen Komponenten.
 
 Der persönliche PTY-Master bleibt ausschließlich im Systemdienst. Die CLI
 erhält begrenzte Byte-Nachrichten, Größenänderung und bestätigten Exitstatus,

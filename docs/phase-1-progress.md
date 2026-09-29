@@ -4,6 +4,20 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
+Aktueller Nachweisstand: `030dd177` bootet im getrennten lokalen Testprofil
+mit Enforcing, FBE und authentifiziertem ADB. Der Broker erreicht nach der
+Root-Mount-Korrektur die unveränderliche Linux-Basis, scheitert dort aber
+zunächst mit `ENOENT`, bei einem kontrollierten Init-Neustart mit Kernel-AVC
+und `EIO`. `026665fb` ergänzt den begrenzten Loop-Node-Wartepfad und die
+Kernel-/Dateideskriptor-Regel sowie die öffentliche Terminal-Anbindung.
+Dieser Stand kompiliert erfolgreich; **114 native und 62 Java-Tests bestehen**
+im älteren Image `030dd177`. Der vollständige neue Image-Boot und echte
+GNU-/Terminaltests fehlen weiterhin. Details stehen in
+[Komponententests](component-tests.md) und
+[Runtime-Policy](../runtime/selinux-integration.md). Der sichtbare geprüfte
+Launcher bleibt bis zur Abnahme beim Stand `2a766ab5`; bisherige gekoppelte
+Android-/KeyMint-Profile und deren Basisdateien bleiben erhalten.
+
 ## Bestätigte Nachweise
 
 Das vollständige Image `25fde995` bootet mit SELinux Enforcing,

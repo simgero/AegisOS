@@ -21,8 +21,10 @@ bleiben Fehler; es gibt weder selbst erzeugte Geräte noch Ersatzpfade.
 unveränderliche Image-Prüfung bleiben zwingend. Feste Diagnosephasen erhalten
 den ursprünglichen Fehlercode. Entsprechend AOSPs Kernel-/APEX-Regel wird
 nur dem Kernel die Benutzung der Broker-Deskriptoren und das Lesen des eigenen
-Image-Dateityps erlaubt. Die Korrektur ist noch nicht im Produktionspfad
-eines neuen Images geprüft; Kompilierung und kalter Gaststart stehen aus.
+Image-Dateityps erlaubt. `026665fb` kompiliert diese Policy einschließlich
+Neverallow-, Treble- und Kontextprüfungen erfolgreich. Die Korrektur ist
+noch nicht im Produktionspfad eines neuen Images geprüft; der kalte Gaststart
+steht aus.
 
 Stand 29. September 2026: Die Policy und Komponenten von
 `6633a0862796d70304456c363158d133e9711513` wurden auf `aegis-build` erfolgreich
