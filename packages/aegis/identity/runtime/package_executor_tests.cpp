@@ -442,6 +442,19 @@ TEST_F(RuntimePackagePreparation, CopiedAndVerifiedArchivesExecuteThroughRealApt
     struct stat st;ASSERT_EQ(0,fstatat(mount.get(),"var/lib/aegis-exec-owned",&st,AT_SYMLINK_NOFOLLOW));
     EXPECT_EQ(1005042u,st.st_uid);mount.reset();EXPECT_EQ(before,CountFDs());NoLoop();
 }
+TEST_F(RuntimePackagePreparation, BrokerPrivateUmaskDoesNotBreakCandidatePermissions) {
+    mode_t original=umask(0077);int started=Start();mode_t immediate=umask(original);
+    EXPECT_EQ(0077u,immediate);ASSERT_EQ(0,started)<<strerror(errno);
+    PackagePreparationResult result;int candidate=-1;
+    ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,&result,&candidate));mount.reset(candidate);
+    ASSERT_EQ(PackagePreparationOutcome::Prepared,result.outcome)<<result.error;
+    EXPECT_EQ(original,umask(original));
+    struct stat st;
+    ASSERT_EQ(0,fstatat(mount.get(),"var/cache/apt/archives",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(0755u,st.st_mode&07777);
+    ASSERT_EQ(0,fstatat(mount.get(),("var/cache/apt/archives/"+archive_names[0]).c_str(),&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(0644u,st.st_mode&07777);
+    ASSERT_EQ(0,fstatat(stage.get(),"candidate.ext4",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(0600u,st.st_mode&07777);
+    ASSERT_EQ(0,fstatat(stage.get(),"request",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(0400u,st.st_mode&07777);
+}
 TEST_F(RuntimePackagePreparation, BrokerRetainsSameJobThroughPreparationAndApt) {
     Broker();ASSERT_FALSE(HasFatalFailure());
     EXPECT_EQ(-1,BrokerStartExecution(broker,10,43,job,plan.execution.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);

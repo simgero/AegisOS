@@ -178,6 +178,10 @@ int main(int argc,char**) {
        || !wire::Valid(request) || getsockopt(wire::kReply,SOL_SOCKET,SO_TYPE,&type,&length)<0
        || type!=SOCK_SEQPACKET)return 120;
     close(wire::kRequest);
+    // Broker uses0077. Only this separate process changes its mask: ordinary
+    // candidate directories/cache files need0755/0644, while stage inputs are
+    // explicitly0600 and the retained request is explicitly sealed0400.
+    umask(0022);
     unique_fd mount(Prepare(request));int error=mount.ok() ? 0 : errno;
     // Successful transfer closes source/stage/archive references before reply;
     // the queued detached mount is still owned by the registered parent socket.
