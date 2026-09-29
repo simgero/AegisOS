@@ -24,8 +24,11 @@ Ergebnisse belegen. Gemeinsame Store-Schreiber werden zusätzlich
 vom bereits implementierten Store serialisiert.
 
 Diese Änderungen sind direkt in die native Besitzlogik eingebunden, aber noch
-nicht im bisher laufenden Vollimage installiert. Acht zusätzliche Gerätetests
-sind vorbereitet. Der tatsächliche AOSP-Logout mit privatem CE und laufendem
+nicht im bisher laufenden Vollimage installiert. Stand `74bb0db9` besteht am
+29. September 2026 um 19:29:19 UTC alle **155/155 nativen Tests**, einschließlich
+der acht direkten Besitzer-/Lifecycle-Tests und einer zusätzlichen Prüfung der
+AOSP-Helfergruppe. [Vollständiger Nachweis](../docs/component-tests.md).
+Der tatsächliche AOSP-Logout mit privatem CE und laufendem
 APT bleibt offen. Ebenso fehlen native Planung, der öffentliche Paketkanal,
 Java-Anbindung mit Verbindungswiderruf und die produktive Cgroup-/SELinux-
 Einrichtung für den Publisher. Es wird keine funktionierende Paket-CLI behauptet.
@@ -39,7 +42,9 @@ Der kurze Start erhält ausschließlich vertrauenswürdige FDs und einen an den
 Antragsteller gebundenen Auftrag. Er führt keine Paketauflösung oder Dateikopie
 innerhalb des AOSP-Zulassungsgates aus. Der aufrufende Broker muss auch einen
 fehlgeschlagenen Teilstart vor Freigabe des Gates beim Lebenszyklus registrieren.
-Diese produktive Anbindung ist noch offen.
+Die native Registrierung ist nun im Brokerbesitzer implementiert und direkt
+getestet; die Verbindung zum produktiven Planer, AOSP-Dienst und privaten
+CE-Store bleibt offen.
 
 Der Prozess wird mit stabilem pidfd unmittelbar in einer eigenen begrenzten
 Cgroup angelegt; nach dem Raw-Clone erfolgt ausschließlich ein fester Exec

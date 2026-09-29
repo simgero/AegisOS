@@ -1,3 +1,72 @@
+## Brokergebundene Paketaufträge: 74bb0db9
+
+Der auf `aegis-build` kompilierte und über GitHub verifizierte
+[Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T192740Z-74bb0db9-74bb0db9-J9n2Lj)
+aus Commit `74bb0db9e8b2793b8d9be1b4d12d5ec9dc292f96` besteht am
+29. September 2026 um **19:29:19 UTC alle 155/155 nativen Gerätetests**
+aus 22 Suiten in 15,194 Sekunden, ohne Abwahl oder übersprungene Tests.
+Die acht neuen Broker-Besitzertests benötigen zusammen 160 ms; die neun
+Publisher-Tests einschließlich der zusätzlichen Dateirechteprüfung 1,101 Sekunden.
+
+Der native Besitzer registriert vorbereitete und gestartete Paketaufträge in
+seinen bestehenden Benutzerstopp-, HELLO- und globalen Aufräumpfaden. Geprüft
+sind genaue Bindung an Antragsteller, Seriennummer und Plan; nur ein Start;
+nicht wiederverwendete Auftragskennungen; eigene FD-Kopien; Aufräumen ohne
+Client-Poll; erhaltene Verantwortung bei Teilstart oder Aufräumfehler;
+Fortsetzung des Aufräumens anderer Aufträge trotz eines solchen Fehlers;
+Kapazitätsgrenzen und Ablehnung im fremden Prozess. Fertige, noch nicht abgeholte
+Antworten belegen höchstens einen Platz je Antragsteller. Ein einzelner Benutzer
+kann damit nicht alle globalen Plätze durch fertige Antworten belegen.
+
+Der zusätzliche Publisher-Test kopiert ausschließlich seinen eigenen Helfer
+in ein neues Testverzeichnis. Ein nicht gruppenschreibbarer `root:shell`-Helfer
+veröffentlicht erfolgreich; eine andere Gruppe sowie `shell`-Gruppenbesitz an
+Quelle oder Store werden abgelehnt. Das installierte Systemabbild wird dabei
+nicht verändert. Seine Herkunfts-/EROFS-/Labelprüfung bleibt Aufgabe des
+vertrauenswürdigen Aufrufers.
+
+**Direkte native Besitzertests, keine produktive Paketinstallation:** Die Tests
+verwenden inerte Dateien unter `/data/local/tmp` und eigene Cgroups. Sie rufen
+die tatsächlichen nativen Besitzerpfade auf, installieren aber keinen neuen
+Daemon im laufenden Vollimage. Private CE-Stores, reale AOSP-Abmeldung während
+APT, frische echte Adminpasswörter, Paketauflösung, Paketskripte und die öffentliche
+CLI sind weiterhin nicht durch diesen Nachweis abgedeckt. Die produktive
+Cgroup-/SELinux-/CE-Anbindung und Verbindungswiderruf der Java-Vorbereitungen
+fehlen noch. [Implementierungsstand](../runtime/package-transactions.md).
+
+Vorgänger `113aa930` scheiterte beim Linken des Brokers an der fehlenden direkten
+Publisher-Bibliothek und beim Kompilieren des Tests an einer einschränkenden
+Ganzzahlinitialisierung. `02cf1ab4` wurde deshalb nie gestartet. `44419a93`
+korrigierte beide Fehler und bestand 154/155 Tests. Sein Störfalltest versuchte,
+eine eigene Cgroup v2 umzubenennen; der verwendete Kernel verbietet das. Der
+jetzige Stand verändert nur diesen Test: Er setzt vorübergehend eine fremde
+Gruppenkennung an einer eigenen Test-Cgroup, prüft erhaltenen Besitz und die
+Bereinigung des zweiten Auftrags, stellt die ursprüngliche Kennung wieder her
+und verlangt danach vollständigen Abbau. Der Produktcode wurde für diese
+Testkorrektur nicht verändert. Beide Fehlbelege bleiben erhalten.
+
+Der lokale Gast verwendet weiterhin Vollimage `927cf51d`, Profil
+`d68845b3-62a9-4181-a7cd-c0f0a8e7d316` und Boot-ID
+`984f23bd-607e-4a6d-8c08-7ae91bccd4f5`. Benutzer-, CE-, Schlüsselverzeichnis-
+und Runtime-Kontextbestand sind vorher/nachher identisch; Enforcing, der
+laufende Broker und dieselbe Boot-ID sind bestätigt. Der 119er-Java-Nachweis
+von `09b10fd7` bleibt für unveränderte Java-Quellen erhalten und wurde nicht
+wiederholt. Der sichtbare Launcher bleibt geschlossen und unverändert;
+sämtliche bisherigen Daten-/KeyMint-Profilpaare bleiben erhalten.
+
+Bestätigter Buildlauf `identity-20260929T192639Z-74bb0db9-ITOjva`, InvocationID
+`ddff76e85868485cb904ab611c840a36`. Belege unter
+`out/components-74bb0db9/component-tests/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `native.log` | `fcf22045b657cf341e9e8e6c3550cbc12414c0977103863c8d60c7159c862e63` |
+| identische `before.json` / `after.json` | `0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3` |
+
+Zusätzlich bestehen 10 lokale Quellregistrierungs- und 9 Archivtests; sieben
+Linux-Export-Fixtures sind auf dem Mac ausgelassen. Diese Hosttests kompilieren
+oder starten keinen Android-Code.
+
 ## Eigener Veröffentlichungsprozess: d4fdb778
 
 Der auf `aegis-build` kompilierte und über GitHub verifizierte

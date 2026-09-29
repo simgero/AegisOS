@@ -120,7 +120,12 @@ weiterhin keine eingehenden FDs oder Paketoperationen. Vorbereitungen dürfen
 einen Verbindungs-/Besitzerwechsel nicht überleben; die spätere Java-Anbindung
 muss sie dabei widerrufen. Der neue Besitzerpfad ist noch nicht im laufenden
 Systemserver/Daemon des bisherigen Vollimages installiert. Kompilierung und
-acht direkte native Besitzer-/Lifecycle-Tests stehen für diesen Stand aus.
+acht direkte native Besitzer-/Lifecycle-Tests sind im Komponentenstand
+`74bb0db9` bestätigt: **155/155 native Tests** bestehen am 29. September 2026
+um 19:29:19 UTC im lokalen `927cf51d`-Gast. Der injizierte Metadatenfehler einer
+eigenen Test-Cgroup hält deren Besitzer fest, während der zweite Auftrag weiter
+aufgeräumt wird; nach Wiederherstellung ist vollständiger Abbau bestätigt.
+[Beleg und Grenzen](../docs/component-tests.md).
 
 ## Vorbereiteter Dienststart und Wiederherstellung
 
