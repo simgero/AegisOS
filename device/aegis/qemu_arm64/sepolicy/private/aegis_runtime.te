@@ -169,6 +169,11 @@ allow aegis_runtime_setup aegis_runtime_scratch_file:dir create_dir_perms;
 allow aegis_runtime_setup aegis_runtime_scratch_file:dir mounton;
 allow aegis_runtime_setup { aegis_runtime_base_file aegis_runtime_devices_file
     aegis_runtime_home_file }:dir { getattr open read search mounton };
+# selinux_file_receive maps O_PATH references (neither FMODE_READ nor WRITE)
+# to FILE__IOCTL. The fixed private SCM_RIGHTS channel transfers detached HOME
+# and device roots this way. This adds no ioctl command numbers; AOSP's xperm
+# allowlist and vold-only key-mutation guards remain in force.
+allow aegis_runtime_setup { aegis_runtime_home_file aegis_runtime_devices_file }:dir ioctl;
 allow aegis_runtime_setup aegis_runtime_devices_file:chr_file getattr;
 allow aegis_runtime_setup aegis_runtime_devices_file:lnk_file r_file_perms;
 allow aegis_runtime_setup { aegis_runtime_base_file labeledfs proc devpts mqueue }:filesystem { mount remount unmount };

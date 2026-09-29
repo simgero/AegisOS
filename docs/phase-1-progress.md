@@ -4,22 +4,24 @@ Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.*
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
 
-Aktueller Kandidat: **`eb0ba22d`**, vollständig gebaut, über GitHub verifiziert
+Aktueller Kandidat: **`7c6b9b1c`**, vollständig gebaut, über GitHub verifiziert
 übertragen und im separaten lokalen Profil ohne sichtbares Fenster gestartet.
 Enforcing, FBE, authentifiziertes ADB und tatsächliches dm-verity sind bestätigt.
-Die private Cgroup-Delegation und der Boot ohne Runtime-AVCs bestehen. Auch die
-korrigierte erste ADB-Einrichtung funktioniert direkt.
+Die private Cgroup-Delegation und der Boot ohne Runtime-AVCs bestehen.
 
 AOSP-Anlage und Anmeldung des ersten Testadministrators funktionieren; ein
-falsches Passwort wird abgewiesen. Der persönliche Linux-Start scheitert noch
-am SELinux-Übergang vom Broker zum Setup-Helfer auf einem für den neuen
-User-Namespace fremden System-Mount. Die vorige Tmpfs-Wurzelverweigerung tritt
-nicht mehr auf. Anschließend sind `linux stop`, AOSP-Abmeldung, CE-Sperre und
-leere Kontext-Cgroup bestätigt. **Eine GNU-Sitzung wurde weiterhin nicht
-ausgeführt.** Eine gezielte Korrektur der beiden Helferübergänge, der
-Pidfd-Bereinigung und des privaten Terminaltyps ist vorbereitet. Sie benötigt
-einen neuen vollständigen Build samt produktivem Startnachweis.
-Details: [Runtime-Policy](../runtime/selinux-integration.md).
+falsches Passwort wird abgewiesen. Der persönliche Linux-Start erreicht nun
+den Setup-Helfer in seiner richtigen SELinux-Domäne. Die vorherigen
+`nosuid_transition`-/`execute_no_trans`- und Bereinigungs-Verweigerungen treten
+nicht mehr auf. Er scheitert nun bei der Übergabe des privaten Home-Mounts:
+Der Kernel prüft einen `O_PATH`-Deskriptor beim Empfang als `dir ioctl`.
+Der Stopp, AOSP-Abmeldung, CE-Sperre und leere Kontext-Cgroup sind anschließend
+unabhängig bestätigt. **Eine GNU-Sitzung wurde weiterhin nicht ausgeführt.**
+Die gezielte Freigabe ausschließlich für die privaten Home-/Gerätewurzeln
+ist vorbereitet; die vorhandene Ioctl-Befehlsliste und die ausschließliche
+Zuständigkeit von vold für Schlüsseloperationen bleiben unverändert. Neuer
+Build und produktiver Startnachweis bleiben
+erforderlich. Details: [Runtime-Policy](../runtime/selinux-integration.md).
 
 **124/124 native Tests** aus `c0d8c16c` bestehen auf dem vorherigen lokalen
 `ebf3610`-Image. Die nativen Quellen sind im Kandidaten unverändert.

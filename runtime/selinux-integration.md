@@ -1,5 +1,42 @@
 # SELinux- und Init-Integration der Runtime
 
+## Vollständiger Boot und persönlicher Start in 7c6b9b1c
+
+Build `aosp-20260929T081643Z-7c6b9b1c-e191fec1` ist mit `UPLOAD_VERIFIED`
+veröffentlicht. Das getrennte Profil `412e9f67-2943-40b8-9cfb-1d6eeb0fda76`
+bootet mit Enforcing, FBE, authentifiziertem ADB, tatsächlichem dm-verity und
+korrekter privater Cgroup-Delegation. Das lokale Raw-Image hat SHA-256
+`9b7a8a16f2debb9a9b4d30fedc91936c4cddd138c86218697395ea9eb2a22bf0`.
+Bootbelege: `out/full-build-7c6b9b1c/boot-1/`.
+
+Nach AOSP-Anlage und Anmeldung scheitert `linux start` um 08:43:40 UTC an
+`aegis_runtime_setup aegis_runtime_home_file:dir ioctl` auf dem privaten
+Home-Mount (`dm-102`, Inode 4944). Der Setup-Helfer läuft damit nachweislich
+in seiner vorgesehenen Domäne. Die vorigen Übergangs- und Kill-Verweigerungen
+sind nicht mehr vorhanden. Die nachfolgenden Init-/PTY-Übergänge sind damit
+noch nicht funktional bewiesen. `linux stop` um 08:44:25, `logout` um 08:44:32
+und unabhängiges Readback um 08:45:39 bestätigen Abbau, CE-Sperre und entfernte
+Kontext-Cgroup. Belege: `out/full-build-7c6b9b1c/identity-test/`, einschließlich
+Prüfsummen. **Noch keine GNU-Ausführung.**
+
+Im unveränderten gepinnten Kernel ruft `selinux_file_receive` in
+`security/selinux/hooks.c:3964` `file_has_perm(..., file_to_av(file))` auf.
+`file_to_av` bildet Deskriptoren ohne `FMODE_READ`/`FMODE_WRITE` auf
+`FILE__IOCTL` ab. `open_tree` und `fsmount` liefern hier `O_PATH`-Referenzen.
+Der private Setup-Kanal überträgt genau die vom Broker erzeugten Basis-,
+Home- und Geräte-Mounts sowie den unveränderlichen Init-Code. Empfänger prüfen
+Rolle, Benutzer-ID, Seriennummer, Anzahl und Commit-Reihenfolge; unvollständige
+Übergaben werden geschlossen. Der Client kann diese Deskriptoren nicht wählen.
+
+Die Basis besitzt das benötigte Recht bereits über `r_dir_perms`. Die neue
+Freigabe ergänzt ausschließlich `setup { home_file devices_file }:dir ioctl`
+für die beiden weiteren privaten Mountwurzeln. Sie ergänzt keine Xperm-
+Befehlsnummern. AOSPs allgemeine Befehlsliste bleibt hier auf `FIOCLEX` und
+`FIONCLEX` beschränkt; die Vold-only-Schlüsselregeln bleiben unverändert.
+Dies ist eine Empfangsprüfung, kein tatsächlicher Fscrypt-Ioctl durch Setup.
+Native und Java-Quellen bleiben unverändert. Die Policy-Korrektur benötigt
+Kompilierung und den erneuten vollständigen lokalen Startnachweis.
+
 ## Vollständiger Boot und persönlicher Start in eb0ba22d
 
 Build `aosp-20260929T074031Z-eb0ba22d-f143a89d` ist mit `UPLOAD_VERIFIED`
