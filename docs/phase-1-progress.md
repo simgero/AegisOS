@@ -9,12 +9,14 @@ lokalen Testprofil mit Enforcing, FBE, authentifiziertem ADB und tatsächlichem
 dm-verity. Die ext4-Kontextprüfung besteht nach der gezielten Policy-Korrektur.
 Der nächste Startschritt scheitert beim privaten Mount-Anker mit `EINVAL`,
 ohne Runtime-AVC: Der Basisöffner gibt eine neu geöffnete Wurzel zurück und
-schließt dadurch den ursprünglichen `fsmount`-Besitzer zu früh. Die lokale
-Korrektur erhält diesen Deskriptor; zwei neue Gerätetests prüfen den Fehler
-und den echten Basisöffner bis zum persönlichen Mount-Klon. Build und Test
-der Korrektur stehen noch aus. **114 native
-und 62 Java-Tests bestehen** für die unveränderten Komponenten von `026665fb`
-im älteren Image `030dd177`. Öffentliche CLI-Negativtests und die verdeckte
+schließt dadurch den ursprünglichen `fsmount`-Besitzer zu früh. Die Korrektur
+`d308ea6a` erhält diesen Deskriptor. **116/116 native Gerätetests bestehen**
+auf Image `a187a309`, einschließlich der Fehlerreproduktion und des echten
+Basisöffners bis zum persönlichen Mount-Klon. Der vollständige Build
+`aosp-20260929T042930Z-d308ea6a-57b5567f` läuft; sein echter Broker-Start und
+GNU-Ausführung sind noch unbewiesen. Die **62/62 Java-Tests** des Stands
+`026665fb` auf Image `030dd177` gelten weiterhin für unveränderte Java-/JNI-
+Quellen. Öffentliche CLI-Negativtests und die verdeckte
 Passworteingabe samt Strg+C-Wiederherstellung bestehen im vollständigen Image
 `026665fb`; echte GNU-Sitzungs- und Rohmodusprüfungen fehlen weiterhin.
 Details stehen in

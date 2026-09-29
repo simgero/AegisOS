@@ -18,12 +18,27 @@ nicht mehr eingebundenen Mount anschließend mit `EINVAL` zurück. Der
 Basisöffner muss deshalb den ursprünglichen Mount-Deskriptor zurückgeben;
 der lesbare Deskriptor dient nur der unveränderten Labelprüfung.
 
-Zwei neue native Gerätetests sind vorbereitet: ein tatsächlich abgetrennter
+Zwei neue native Gerätetests bestehen: ein tatsächlich abgetrennter
 tmpfs-Mount reproduziert den Verlust beim Ersetzen des Besitzers; ein Test
 des echten Basisöffners prüft die unveränderliche ext4-Datei, private
-Einbindung, persönlichen ID-Mount und abgewiesenen Schreibzugriff. Sie sind
-noch nicht kompiliert oder ausgeführt. Kein persönlicher AOSP-Benutzer wurde
-im neuen Gast angelegt und GNU-Programme laufen weiterhin nicht.
+Einbindung, persönlichen ID-Mount und abgewiesenen Schreibzugriff. Stand
+`d308ea6a` besteht **116/116 native Tests in 18 Suiten**, ohne Filter oder
+übersprungene Tests, im bestehenden lokalen Image `a187a309` (10.819 ms).
+Die Quellen wurden auf `aegis-build` kompiliert und als
+[geprüfter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260929T042716Z-d308ea6a-d308ea6a-ASJL50)
+übertragen. Der erste Versuch `88eb5509` scheiterte an einem vorzeichenbehafteten
+GTest-Vergleich; korrigiert wurde dessen Typ, nicht die geprüfte Bedingung.
+
+Die 62 Java-Tests des früheren Komponentenstands werden für unveränderte
+Java-/JNI-Quellen beibehalten. Die nativen Tests laufen als Entwicklungs-root;
+sie ersetzen nicht den echten Init-Start in der Broker-SELinux-Domain.
+Vollbuild `aosp-20260929T042930Z-d308ea6a-57b5567f` läuft für diesen Nachweis.
+Kein persönlicher AOSP-Benutzer wurde im neuen Gast angelegt und GNU-Programme
+laufen weiterhin nicht.
+
+- Rohbelege: `out/components-d308ea6a/component-tests/`.
+- Native-Log SHA-256: `106dd974c145ed18e75ea7cd0653918050285d592efa55cdc2db6537112cd958`.
+- Gastbeleg SHA-256: `e3f7eeac7187d76ec0142cbe1c294ba93dca5ba040819d87808b6ab6d14aee89`.
 
 ## Terminal- und Basisvorbereitung: 026665fb auf Image 030dd177
 
