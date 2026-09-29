@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/magic.h>
+#include <private/android_filesystem_config.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,9 +53,20 @@ static int directory(int fd, int private, dev_t device) {
     struct stat st;
     struct statfs fs;
     if (fstat(fd, &st) < 0 || fstatfs(fd, &fs) < 0) return -1;
-    if (!S_ISDIR(st.st_mode) || st.st_uid || st.st_gid || fs.f_type != CGROUP2_SUPER_MAGIC
-            || (device && st.st_dev != device) || (st.st_mode & 0022)
-            || (private && (st.st_mode & 07777) != 0700)) return fail(EPERM);
+    if (!S_ISDIR(st.st_mode) || fs.f_type != CGROUP2_SUPER_MAGIC
+            || (device && st.st_dev != device)) return fail(EPERM);
+    if (private) {
+        // Every aggregate and personal context remains exclusively root-owned.
+        if (st.st_uid || st.st_gid || (st.st_mode & 07777) != 0700) return fail(EPERM);
+    } else {
+        // AOSP init deliberately owns /sys/fs/cgroup as system:system 0775.
+        // This is the trusted Android parent, not the private runtime subtree.
+        int android_parent = st.st_uid == AID_SYSTEM && st.st_gid == AID_SYSTEM
+                && (st.st_mode & 07777) == 0775;
+        mode_t mode = st.st_mode & 07777;
+        int root_parent = !st.st_uid && !st.st_gid && (mode == 0700 || mode == 0755);
+        if (!android_parent && !root_parent) return fail(EPERM);
+    }
     return 0;
 }
 static int same_name(int parent, const char *name, int held) {

@@ -148,12 +148,13 @@ cc_library_static {
     name: "libaegis-runtime-broker-cgroup",
     defaults: ["aegis-runtime-native-defaults"],
     srcs: ["runtime/broker_cgroup.c"],
+    header_libs: ["libcutils_headers"],
     export_include_dirs: ["runtime"],
     stl: "none",
 }
 
-// Explicit compile target. No init service or PRODUCT_PACKAGES activation
-// until SELinux, system_server registration and local device checks pass.
+// Product activation requires the checked base and runtime kernel selection.
+// Successful compilation alone does not prove enforcing guest execution.
 cc_binary {
     name: "aegis-runtime-broker",
     system_ext_specific: true,

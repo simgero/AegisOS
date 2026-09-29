@@ -15,6 +15,7 @@
 #include <limits.h>
 #include <linux/sched.h>
 #include <poll.h>
+#include <private/android_filesystem_config.h>
 #include <signal.h>
 #include <string.h>
 #include <string>
@@ -225,6 +226,41 @@ TEST_F(RuntimeBrokerCgroup, AggregateLimitsAndRepeatedStartupDoNotMoveTheBroker)
     EXPECT_EQ(shared, get(root, "cgroup.subtree_control"));
     EXPECT_EQ(membership, get(self, "cgroup"));
     close(self);
+}
+
+TEST_F(RuntimeBrokerCgroup, AndroidOwnedParentRetainsRootOnlyPrivateAggregate) {
+    // Simulate AOSP's mount-root ownership on this fixture's own empty subtree.
+    // Never change the actual /sys/fs/cgroup root or its controller settings.
+    ASSERT_EQ(0, fchown(parent, AID_SYSTEM, AID_SYSTEM));
+    ASSERT_EQ(0, fchmod(parent, 0775));
+    const std::string shared = get(root, "cgroup.subtree_control");
+    prepare(); ASSERT_FALSE(HasFatalFailure());
+    struct stat st = {};
+    ASSERT_EQ(0, fstat(aggregate, &st));
+    EXPECT_EQ(0u, st.st_uid); EXPECT_EQ(0u, st.st_gid);
+    EXPECT_EQ(0700u, st.st_mode & 07777u);
+    EXPECT_EQ(shared, get(root, "cgroup.subtree_control"));
+    ASSERT_EQ(0, fchown(aggregate, AID_SYSTEM, AID_SYSTEM));
+    EXPECT_EQ(-1, aegis_broker_cgroup_prepare(parent, 0)); EXPECT_EQ(EPERM, errno);
+    EXPECT_EQ(0, fchown(aggregate, 0, 0));
+}
+
+TEST_F(RuntimeBrokerCgroup, UnexpectedParentOwnersAndWritableModesCreateNothing) {
+    const struct { uid_t uid; gid_t gid; mode_t mode; } cases[] = {
+        {AID_SYSTEM + 1, AID_SYSTEM, 0775}, {AID_SYSTEM, AID_SYSTEM + 1, 0775},
+        {AID_SYSTEM, AID_SYSTEM, 0777}, {AID_SYSTEM, AID_SYSTEM, 02775},
+        {0, 0, 0775}, {0, AID_SYSTEM, 0755}, {0, 0, 04755},
+    };
+    for (const auto& value : cases) {
+        ASSERT_EQ(0, fchown(parent, value.uid, value.gid));
+        ASSERT_EQ(0, fchmod(parent, value.mode));
+        EXPECT_EQ(-1, aegis_broker_cgroup_prepare(parent, 0)); EXPECT_EQ(EPERM, errno);
+        struct stat st = {};
+        EXPECT_EQ(-1, fstatat(parent, AEGIS_BROKER_CGROUP, &st, AT_SYMLINK_NOFOLLOW));
+        EXPECT_EQ(ENOENT, errno);
+    }
+    ASSERT_EQ(0, fchown(parent, 0, 0));
+    ASSERT_EQ(0, fchmod(parent, 0700));
 }
 
 TEST_F(RuntimeBrokerCgroup, StaleMembersAreKilledAndRemovedWithoutTouchingAnotherGroup) {
