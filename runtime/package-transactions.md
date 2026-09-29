@@ -1,5 +1,22 @@
 # Vollständige Paketgenerationen
 
+## Begrenzte Rechte für den isolierten Paketarbeiter
+
+Die interne Funktion `aegis_limit_package_worker` erhält im eigenen, exakt
+zugeordneten Benutzer-/PID-Namespace nur sechs für Dateieigentümer und
+technische Konten nötige Capabilities. Sie sperrt zusätzliche Rechte und
+Mount-/Namespace-Manipulationen vor Ausführung von Paketcode. Ein normaler
+UID-Wechsel entfernt die wirksamen Rechte. Der Aufrufer muss vorher Androids
+Wurzel abgehängt, einen exklusiven Kandidaten bereitgestellt und die genaue
+SELinux-Domäne geprüft haben; diese Funktion allein erteilt keine AOSP-Freigabe.
+Fehler nach Beginn des Rechteabbaus sind terminal, ohne Rückfall oder Retry.
+
+Stand `ac01f261` besteht lokal **157/157 native Tests**, einschließlich eines
+echten Pivot-/Exec-/UID-Wechsels in einer eigenen leeren tmpfs.
+[Vollständiger Nachweis](../docs/component-tests.md). APT, produktiver
+Arbeiteraufbau, vollständige Generationen und CE-Lebenszyklus bleiben offen.
+Die Funktion wird noch von keinem produktiven Paketpfad aufgerufen.
+
 ## Gemeinsamer Ressourcenbesitzer und Abmeldung
 
 Der native Brokerbesitzer verwaltet jetzt auch Vorbereitungen und laufende

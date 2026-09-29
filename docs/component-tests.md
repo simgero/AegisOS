@@ -1,3 +1,41 @@
+## Rechte des Paketarbeiters: ac01f261
+
+Der auf `aegis-build` kompilierte und über GitHub verifizierte
+[Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T195146Z-ac01f261-ac01f261-1JWDvU)
+aus Commit `ac01f26105e3348199f08faa5e7275e26cc077d2` besteht am
+29. September 2026 um **19:53:31 UTC alle 157/157 nativen Tests** aus
+23 Suiten in 15,248 Sekunden, ohne übersprungene Tests.
+
+Ein tatsächlicher Namespace-Kindprozess wechselt in eine eigene leere tmpfs,
+hängt die Android-Wurzel ab, begrenzt Rechte und startet den statischen
+Testhelfer erneut. Danach besitzen sämtliche fünf Capability-Mengen exakt
+`0xdb`: CHOWN, DAC_OVERRIDE, FOWNER, FSETID, SETGID und SETUID. No-new-privileges,
+Seccomp und gesperrte NOROOT-/Ambient-Erweiterungsbits sind aktiv. Der Prozess
+kann eine eigene Datei einem technischen Benutzer zuordnen und trotz Modus 000
+bearbeiten. Neue Mounts, chroot, Namespace-Erzeugung, ptrace und zusätzliche
+Capabilities werden verweigert. Nach Wechsel auf UID/GID 42 verschwinden
+Permitted/Effective/Ambient-Rechte; eine Rückkehr auf UID 0 scheitert.
+Eine falsche Benutzerkennung sowie direkte Aufrufe aus dem Host-Testprozess
+scheitern vor einer Privilegänderung.
+
+Dies ist **noch kein APT- oder produktiver Paketarbeiternachweis**. Die Probe
+nutzt nur ihre eigene tmpfs und führt keine Paketskripte aus. Ein vollständiger
+beschreibbarer Kandidat, produktive SELinux-/CE-Anbindung und Paket-CLI fehlen.
+Die neue interne Funktion wird vom installierten System noch nicht aufgerufen.
+Der unveränderte Gast `927cf51d`, dieselbe Boot-ID und derselbe Benutzer-/CE-/
+Schlüssel-/Kontextbestand sind bestätigt; Enforcing und Broker bleiben aktiv.
+Die 119 Java-Tests von `09b10fd7` werden für unveränderte Quellen nicht wiederholt.
+Das sichtbare Fenster bleibt geschlossen; keine Profilpaare werden ersetzt.
+
+Buildlauf `identity-20260929T194439Z-ac01f261-jw7b9y`, InvocationID
+`17693a3c3ee24b06ad05f215582a410d`. Lokale Belege unter
+`out/components-ac01f261/component-tests/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `native.log` | `2d4c650ea56ee874b50eebe008bdcf0bd590de7a4f48d1466bc160e4295dc319` |
+| identische `before.json` / `after.json` | `0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3` |
+
 ## Brokergebundene Paketaufträge: 74bb0db9
 
 Der auf `aegis-build` kompilierte und über GitHub verifizierte
