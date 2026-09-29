@@ -7,7 +7,6 @@ import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.ServiceSpecificException;
 
-import java.io.Console;
 import java.io.IOError;
 import java.lang.ref.Reference;
 import java.util.Arrays;
@@ -15,7 +14,7 @@ import java.util.Arrays;
 /** Interactive development terminal. No bearer token, password or session file is written. */
 public final class Aegis {
     private static final String SERVICE_NAME = "aegis_identity";
-    private final Console console = System.console();
+    private TerminalConsole console;
     private final IBinder lifetime = new Binder();
     private IAegisSession session;
 
@@ -33,6 +32,9 @@ public final class Aegis {
         } catch (RuntimeException | IOError e) {
             System.err.println("AEGIS konnte die Eingabe oder den Sitzungszustand nicht bestätigen.");
             code = 2;
+        } catch (LinkageError unavailable) {
+            System.err.println("Die geprüfte Terminal-Unterstützung fehlt in diesem Systemimage.");
+            code = 2;
         } finally {
             if (cli.session != null) {
                 try { cli.session.close(); } catch (RemoteException | RuntimeException ignored) { }
@@ -47,6 +49,7 @@ public final class Aegis {
             help();
             return 0;
         }
+        console = TerminalConsole.current();
         IBinder binder = ServiceManager.checkService(SERVICE_NAME);
         if (binder == null) {
             System.err.println("AEGIS-Anmeldedienst ist in diesem System nicht verfügbar.");
@@ -153,8 +156,9 @@ public final class Aegis {
                         case "start": System.out.println(session.linuxStart()); return 0;
                         case "status": System.out.println(session.linuxStatus()); return 0;
                         case "stop": System.out.println(session.linuxStop()); return 0;
+                        case "shell": return linuxShell();
                         default:
-                            System.err.println("Verfügbar: linux start, status oder stop. Die Linux-Shell ist noch nicht freigegeben.");
+                            System.err.println("Verfügbar: linux start, status, stop oder shell.");
                             return 2;
                     }
                 default:
@@ -176,6 +180,81 @@ public final class Aegis {
                 System.err.println("Aktion nicht bestätigt. Tatsächlichen Benutzer-/Speicherzustand prüfen.");
             }
             return 1;
+        }
+    }
+
+    private int linuxShell() throws RemoteException {
+        if (console == null) throw new IllegalStateException("Interactive terminal required");
+        int[] size = TerminalNative.consoleSize();
+        IAegisTerminal terminal = session.linuxShell(size[0], size[1]);
+        byte[] pending = null;
+        boolean raw = false;
+        try {
+            TerminalNative.beginMode(1);
+            raw = true;
+            long nextStatus = 0, nextResize = 0, eofDeadline = 0;
+            for (;;) {
+                byte[] output = terminal.read();
+                if (output == null) {
+                    if (eofDeadline == 0) eofDeadline = System.nanoTime() + 10_000_000_000L;
+                } else {
+                    try { System.out.write(output, 0, output.length); System.out.flush(); }
+                    finally { wipe(output); }
+                }
+                long now = System.nanoTime();
+                if (now >= nextStatus) {
+                    int code = terminal.exitStatus();
+                    nextStatus = now + 200_000_000L;
+                    if (code >= 0) {
+                        // Drain the bounded kernel buffer, but never wait for a
+                        // background process that keeps writing after bash exits.
+                        for (int count = 0; count < 64; ++count) {
+                            output = terminal.read();
+                            if (output == null || output.length == 0) break;
+                            try { System.out.write(output, 0, output.length); }
+                            finally { wipe(output); }
+                        }
+                        System.out.flush();
+                        return code;
+                    }
+                }
+                if (eofDeadline != 0 && now >= eofDeadline) {
+                    throw new IllegalStateException("Terminal ended without a confirmed command result");
+                }
+                if (now >= nextResize) {
+                    int[] next = TerminalNative.consoleSize();
+                    if (!Arrays.equals(size, next)) {
+                        terminal.resize(next[0], next[1]);
+                        size = next;
+                    }
+                    nextResize = now + 500_000_000L;
+                }
+                if (pending == null && eofDeadline == 0) {
+                    pending = TerminalNative.readInput(4096, 20);
+                    if (pending == null) throw new IllegalStateException("Local terminal disconnected");
+                }
+                if (pending != null && pending.length > 0) {
+                    int written = terminal.write(pending);
+                    if (written < 0 || written > pending.length) {
+                        throw new IllegalStateException("Invalid terminal write acknowledgement");
+                    }
+                    byte[] remainder = written == pending.length ? null
+                            : Arrays.copyOfRange(pending, written, pending.length);
+                    wipe(pending);
+                    pending = remainder;
+                } else { wipe(pending); pending = null; }
+                if (pending != null || eofDeadline != 0) {
+                    try { Thread.sleep(10); }
+                    catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException("Terminal interrupted");
+                    }
+                }
+            }
+        } finally {
+            wipe(pending);
+            try { if (raw) TerminalNative.endMode(); }
+            finally { terminal.close(); }
         }
     }
 
@@ -300,9 +379,10 @@ public final class Aegis {
                 + "  passwd                eigenes Passwort über AOSP ändern\n"
                 + "  status                diesen Sitzungs- und Speicherzustand anzeigen\n"
                 + "  linux start|status|stop eigenen Kontext steuern, sobald die Runtime installiert ist\n"
+                + "  linux shell           persönliche GNU/Linux-Shell; exit beendet nur die Shell\n"
                 + "  logout                Android-Benutzer stoppen und CE-Sperre bestätigen\n"
                 + "  exit                  nur den Terminalkanal schließen\n"
-                + "Linux-Shell und Paketaktionen sind noch nicht freigegeben.\n"
+                + "Paketaktionen sind noch nicht freigegeben.\n"
                 + "Ein getrennt gestartetes aegis erbt keine persönliche Anmeldung.");
     }
 }

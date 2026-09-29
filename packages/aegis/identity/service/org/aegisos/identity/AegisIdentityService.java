@@ -1,23 +1,34 @@
 package org.aegisos.identity;
 
 import android.content.Context;
+import android.app.KeyguardManager;
+import android.content.BroadcastReceiver;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Process;
+import android.os.PowerManager;
 import android.os.RemoteException;
 import android.os.ServiceSpecificException;
 import android.os.SystemProperties;
+import android.system.ErrnoException;
+import android.system.Os;
+import android.system.OsConstants;
 
 import com.android.internal.widget.LockscreenCredential;
 import com.android.server.SystemService;
 import com.android.server.aegis.AegisRuntimeStorage;
 
 import java.nio.CharBuffer;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -35,7 +46,11 @@ public final class AegisIdentityService extends SystemService {
     private static final int ERROR_STATE = 3;
     private final Object operations = new Object();
     private final Set<Session> sessions = ConcurrentHashMap.newKeySet();
+    // Includes closed channels whose native command result still needs reaping.
+    // This bound is below the native owner's 32 result slots per context.
+    private final Set<Session.PersonalTerminal> terminals = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<Integer, AtomicLong> revocations = new ConcurrentHashMap<>();
+    private final AtomicLong interactiveEpoch = new AtomicLong();
     private AospIdentityBackend backend;
     private RuntimeBrokerConnection runtime;
     private RuntimeAdmission admission;
@@ -53,12 +68,16 @@ public final class AegisIdentityService extends SystemService {
             admission = new RuntimeAdmission((user, deadline) -> {
                 // Called under the per-user storage/admission gate, potentially
                 // from AOSP storage locks. Never acquire operations or call AOSP.
-                // No public PTY/package endpoint is enabled in this stage; all
-                // CE/mount/process references belong to the native owner.
                 revokeTerminalBindings(user);
                 runtime.stopAndReleaseAll(user, deadline);
+                retireTerminals(user);
             });
             AegisRuntimeStorage.register(new RuntimeStorageController(admission));
+            Executors.newSingleThreadScheduledExecutor(task -> {
+                Thread thread = new Thread(task, "AEGIS terminal result cleanup");
+                thread.setDaemon(true);
+                return thread;
+            }).scheduleWithFixedDelay(this::reapTerminals, 1, 1, TimeUnit.SECONDS);
         } else if (!"absent".equals(mode)) {
             throw new IllegalStateException("Unknown runtime lifecycle mode");
         }
@@ -97,7 +116,41 @@ public final class AegisIdentityService extends SystemService {
     }
 
     @Override public void onBootPhase(int phase) {
-        if (phase == PHASE_BOOT_COMPLETED) bootCompleted = true;
+        if (phase == PHASE_BOOT_COMPLETED) {
+            // A screen/keyguard lock revokes interactive authority only. It
+            // neither stops background contexts nor claims to evict CE keys.
+            getContext().registerReceiver(new BroadcastReceiver() {
+                @Override public void onReceive(Context context, Intent intent) {
+                    if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) revokeInteractive();
+                }
+            }, new IntentFilter(Intent.ACTION_SCREEN_OFF), Context.RECEIVER_NOT_EXPORTED);
+            getContext().getSystemService(KeyguardManager.class)
+                    .addKeyguardLockedStateListener(Runnable::run, locked -> {
+                        if (locked) revokeInteractive();
+                    });
+            bootCompleted = true;
+        }
+    }
+
+    @Override public void onUserSwitching(TargetUser from, TargetUser to) {
+        if (from != null && from.getUserIdentifier() > 0) {
+            revokeTerminalBindings(from.getUserIdentifier());
+        }
+    }
+
+    private void requireInteractive() {
+        if (!getContext().getSystemService(PowerManager.class).isInteractive()) {
+            throw new SecurityException("Wake the development console before personal interaction");
+        }
+    }
+
+    private void revokeInteractive() {
+        interactiveEpoch.incrementAndGet();
+        for (Session session : sessions) session.selection.set(null);
+        for (Session.PersonalTerminal terminal : terminals) {
+            try { terminal.closeChannel(); }
+            catch (RuntimeException failure) { /* Registered owner retries; CE barrier stays strict. */ }
+        }
     }
 
     private static void requireRuntimeAbsent() {
@@ -135,24 +188,58 @@ public final class AegisIdentityService extends SystemService {
                 session.selection.compareAndSet(selected, null);
             }
         }
+        closeTerminals(userId);
+    }
+
+    private void closeTerminals(int userId) {
+        // No identity monitor, AOSP call, per-user gate acquisition or blocking
+        // native protocol call. Each terminal lock only protects nonblocking IO.
+        for (Session.PersonalTerminal terminal : terminals) {
+            if (terminal.selected.user.id == userId) terminal.closeChannel();
+        }
+    }
+
+    private void retireTerminals(int userId) {
+        // Call only AFTER the native owner has confirmed whole-context cleanup.
+        for (Session.PersonalTerminal terminal : terminals) {
+            if (terminal.selected.user.id == userId) terminal.stopped();
+        }
+    }
+
+    private void reapTerminals() {
+        for (Session.PersonalTerminal terminal : terminals) {
+            try {
+                if (!terminal.needsResult()) continue;
+                // Metadata-only cleanup of a previously authorized command.
+                // No new exec, file access, AOSP call or identity authority.
+                terminal.collectResult(System.nanoTime() + TimeUnit.SECONDS.toNanos(2));
+            } catch (RuntimeException failure) {
+                // Retain unresolved ownership. A later confirmed user STOP
+                // retires it; a broken native connection never proves cleanup.
+            }
+        }
     }
 
     private static final class Selection {
         final AospIdentityBackend.UserKey user;
         final RuntimeAdmission.Binding runtime;
-        Selection(AospIdentityBackend.UserKey user, RuntimeAdmission.Binding runtime) {
+        final long interactive;
+        Selection(AospIdentityBackend.UserKey user, RuntimeAdmission.Binding runtime, long interactive) {
             this.user = user;
             this.runtime = runtime;
+            this.interactive = interactive;
         }
     }
 
     private interface Operation<T> { T run() throws RemoteException; }
+    private interface TerminalOperation<T> { T run(long deadline) throws RemoteException; }
 
     private final class Session extends IAegisSession.Stub implements IBinder.DeathRecipient {
         private final CallerProcess owner;
         private final IBinder lifetime;
         private volatile boolean alive = true;
         private final AtomicReference<Selection> selection = new AtomicReference<>();
+        private final AtomicReference<PersonalTerminal> currentTerminal = new AtomicReference<>();
 
         Session(CallerProcess owner, IBinder lifetime) {
             this.owner = owner;
@@ -172,8 +259,11 @@ public final class AegisIdentityService extends SystemService {
                 requireOwner();
                 try {
                     T result = operation.run();
-                    requireOwner();
-                    return result;
+                    try { requireOwner(); return result; }
+                    catch (RuntimeException failure) {
+                        if (result instanceof byte[]) wipe((byte[]) result);
+                        throw failure;
+                    }
                 } catch (AospIdentityBackend.AuthenticationFailure e) {
                     throw new ServiceSpecificException(e.retryAfterMs > 0 ? ERROR_RETRY : ERROR_AUTH,
                             e.retryAfterMs > 0 ? Integer.toString(e.retryAfterMs)
@@ -196,7 +286,7 @@ public final class AegisIdentityService extends SystemService {
             AospIdentityBackend.UserKey user = selected.user;
             AospIdentityBackend.State state = backend.state(user);
             if (!state.enabled || state.partial || !state.running || !state.ceUnlocked
-                    || selection.get() != selected) {
+                    || selection.get() != selected || selected.interactive != interactiveEpoch.get()) {
                 selection.compareAndSet(selected, null);
                 throw new SecurityException("Personal session is no longer unlocked");
             }
@@ -222,6 +312,8 @@ public final class AegisIdentityService extends SystemService {
         @Override public String login(String name, byte[] password) {
             try {
                 return checked(() -> {
+                    requireInteractive();
+                    long interactionBefore = interactiveEpoch.get();
                     AospIdentityBackend.UserKey target = backend.resolveName(name);
                     long before = epoch(target.id);
                     RuntimeAdmission.AuthenticationAttempt attempt = admission == null ? null
@@ -233,14 +325,15 @@ public final class AegisIdentityService extends SystemService {
                             state = backend.authenticate(target, credential, true);
                         }
                         requireOwner();
-                        if (epoch(target.id) != before || !state.user.equals(target)
+                        if (interactiveEpoch.get() != interactionBefore || epoch(target.id) != before || !state.user.equals(target)
                                 || !state.enabled || state.partial || !state.running || !state.ceUnlocked) {
                             throw new IllegalStateException("User changed during authentication");
                         }
                         if (admission == null) {
-                            Selection selected = new Selection(target, null);
+                            Selection selected = new Selection(target, null, interactionBefore);
+                            closeCurrentTerminal();
                             selection.set(selected);
-                            if (epoch(target.id) != before) {
+                            if (epoch(target.id) != before || interactiveEpoch.get() != interactionBefore) {
                                 selection.compareAndSet(selected, null);
                                 throw new IllegalStateException("User stopped during session binding");
                             }
@@ -249,9 +342,15 @@ public final class AegisIdentityService extends SystemService {
                                 // Reconciliation may have retired predecessor sessions. The
                                 // current attempt has fresh AOSP proof and a different epoch.
                                 requireOwner();
-                                Selection selected = new Selection(target, access.binding());
+                                Selection selected = new Selection(target, access.binding(), interactionBefore);
+                                closeCurrentTerminal();
                                 selection.set(selected);
-                                try { access.checkCurrent(); }
+                                try {
+                                    access.checkCurrent();
+                                    if (interactiveEpoch.get() != interactionBefore) {
+                                        throw new SecurityException("Console locked during login");
+                                    }
+                                }
                                 catch (RuntimeException failure) {
                                     selection.compareAndSet(selected, null);
                                     throw failure;
@@ -419,7 +518,9 @@ public final class AegisIdentityService extends SystemService {
                     } else if (operation == RuntimeBrokerProtocol.STOP_USER) {
                         // Stop keeps AOSP authentication and CE unlocked. It does
                         // not revoke other clients' identity or claim a logout.
+                        closeTerminals(user.id);
                         runtime.stopAndReleaseAll(user.id, access.deadlineNanos());
+                        retireTerminals(user.id);
                         state = RuntimeBrokerProtocol.ABSENT;
                     } else {
                         state = runtime.state(user.id, user.serial, access.deadlineNanos());
@@ -434,12 +535,226 @@ public final class AegisIdentityService extends SystemService {
             });
         }
 
+        @Override public IAegisTerminal linuxShell(int rows, int columns) {
+            return checked(() -> {
+                requireInteractive();
+                if (runtime == null) throw new IllegalStateException("Runtime is not installed");
+                dimensions(rows, columns);
+                if (currentTerminal.get() != null || terminals.size() >= MAX_SESSIONS) {
+                    throw new IllegalStateException("Terminal resources are still in use");
+                }
+                AospIdentityBackend.UserKey user = requireAuthenticated();
+                Selection selected = selection.get();
+                RuntimeAdmission.Binding binding = selected == null ? null : selected.runtime;
+                if (binding == null || !binding.matches(user.id, user.serial)) {
+                    throw new SecurityException("Fresh personal runtime admission is required");
+                }
+                try (RuntimeAdmission.Access access = admission.existing(binding)) {
+                    requireRuntimeBinding(user, binding);
+                    runtime.start(user.id, user.serial, access.deadlineNanos());
+                    PersonalTerminal terminal = new PersonalTerminal(selected,
+                            runtime.execute(user.id, user.serial,
+                                    new String[] {"/bin/bash", "-i"}, access.deadlineNanos()));
+                    terminals.add(terminal);
+                    boolean published = false;
+                    try {
+                        terminal.prepare(rows, columns);
+                        access.checkCurrent();
+                        requireRuntimeBinding(user, binding);
+                        if (!currentTerminal.compareAndSet(null, terminal)) {
+                            throw new IllegalStateException("Another terminal already exists");
+                        }
+                        requireOwner();
+                        published = true;
+                        return terminal;
+                    } finally {
+                        if (!published) terminal.closeChannel();
+                    }
+                }
+            });
+        }
+
+        private void closeCurrentTerminal() {
+            PersonalTerminal terminal = currentTerminal.getAndSet(null);
+            if (terminal != null) terminal.closeChannel();
+        }
+
+        private final class PersonalTerminal extends IAegisTerminal.Stub {
+            private final Selection selected;
+            private final RuntimeBrokerConnection.Terminal nativeTerminal;
+            private final Object io = new Object();
+            private boolean closeRequested, closed, resultCollected, eof;
+            private int exit = -1;
+
+            PersonalTerminal(Selection selected, RuntimeBrokerConnection.Terminal terminal) {
+                this.selected = selected;
+                this.nativeTerminal = terminal;
+            }
+
+            void prepare(int rows, int columns) {
+                synchronized (io) {
+                    try {
+                        int flags = Os.fcntlInt(nativeTerminal.master.getFileDescriptor(), OsConstants.F_GETFL, 0);
+                        Os.fcntlInt(nativeTerminal.master.getFileDescriptor(), OsConstants.F_SETFL,
+                                flags | OsConstants.O_NONBLOCK);
+                        resizeOwned(rows, columns);
+                    } catch (ErrnoException failure) {
+                        throw new IllegalStateException("Cannot prepare private terminal");
+                    }
+                }
+            }
+
+            private <T> T admitted(TerminalOperation<T> action) {
+                return checked(() -> {
+                    requireInteractive();
+                    AospIdentityBackend.UserKey user = requireAuthenticated(); // outside the gate
+                    if (selection.get() != selected || user != selected.user) {
+                        throw new SecurityException("Terminal belongs to a previous login");
+                    }
+                    try (RuntimeAdmission.Access access = admission.existing(selected.runtime)) {
+                        requireRuntimeBinding(user, selected.runtime);
+                        synchronized (io) {
+                            if (closed) throw new SecurityException("Terminal is closed");
+                        }
+                        T result = action.run(access.deadlineNanos());
+                        try {
+                            access.checkCurrent();
+                            requireRuntimeBinding(user, selected.runtime);
+                            return result;
+                        } catch (RuntimeException failure) {
+                            if (result instanceof byte[]) wipe((byte[]) result);
+                            throw failure;
+                        }
+                    }
+                });
+            }
+
+            @Override public byte[] read() {
+                return admitted(deadline -> {
+                    synchronized (io) {
+                        if (closed) throw new SecurityException("Terminal is closed");
+                        if (eof) return null;
+                        byte[] buffer = new byte[4096];
+                        try {
+                            int count = Os.read(nativeTerminal.master.getFileDescriptor(), buffer, 0, buffer.length);
+                            if (count == 0) { eof = true; return null; }
+                            return Arrays.copyOf(buffer, count);
+                        } catch (ErrnoException failure) {
+                            if (failure.errno == OsConstants.EAGAIN || failure.errno == OsConstants.EINTR) {
+                                return new byte[0];
+                            }
+                            if (failure.errno == OsConstants.EIO) { eof = true; return null; }
+                            throw new IllegalStateException("Private terminal read failed");
+                        } catch (IOException failure) {
+                            throw new IllegalStateException("Private terminal read interrupted");
+                        } finally { wipe(buffer); }
+                    }
+                });
+            }
+
+            @Override public int write(byte[] bytes) {
+                try {
+                    if (bytes == null || bytes.length == 0 || bytes.length > 4096) {
+                        throw new IllegalArgumentException("Invalid terminal input size");
+                    }
+                    return admitted(deadline -> {
+                        synchronized (io) {
+                            if (closed || eof) throw new SecurityException("Terminal input is closed");
+                            try {
+                                return Os.write(nativeTerminal.master.getFileDescriptor(), bytes, 0, bytes.length);
+                            } catch (ErrnoException failure) {
+                                if (failure.errno == OsConstants.EAGAIN || failure.errno == OsConstants.EINTR) return 0;
+                                throw new IllegalStateException("Private terminal write failed");
+                            } catch (IOException failure) {
+                                throw new IllegalStateException("Private terminal write interrupted");
+                            }
+                        }
+                    });
+                } finally { wipe(bytes); }
+            }
+
+            @Override public void resize(int rows, int columns) {
+                dimensions(rows, columns);
+                admitted(deadline -> {
+                    synchronized (io) {
+                        if (closed) throw new SecurityException("Terminal is closed");
+                        resizeOwned(rows, columns);
+                    }
+                    return null;
+                });
+            }
+
+            private void resizeOwned(int rows, int columns) {
+                try { TerminalNative.resize(nativeTerminal.master.getFd(), rows, columns); }
+                catch (LinkageError unavailable) {
+                    throw new IllegalStateException("Verified terminal support is unavailable");
+                }
+            }
+
+            @Override public int exitStatus() {
+                return admitted(this::collectResult);
+            }
+
+            int collectResult(long deadline) {
+                synchronized (io) { if (resultCollected) return exit; }
+                RuntimeBrokerProtocol.Reply reply = runtime.result(selected.user.id, selected.user.serial,
+                        nativeTerminal.command, deadline);
+                synchronized (io) {
+                    if (reply.exited) {
+                        int signal = reply.waitStatus & 0x7f;
+                        exit = signal == 0 ? (reply.waitStatus >>> 8) & 0xff : 128 + signal;
+                        resultCollected = true;
+                        if (closed) terminals.remove(this);
+                    }
+                    return exit;
+                }
+            }
+
+            boolean needsResult() {
+                synchronized (io) {
+                    if (!closeRequested || resultCollected) return false;
+                }
+                closeChannel(); // Retry an unconfirmed close before collecting metadata.
+                return true;
+            }
+
+            void closeChannel() {
+                synchronized (io) {
+                    closeRequested = true;
+                    if (!closed) {
+                        try { nativeTerminal.close(); }
+                        catch (IOException failure) {
+                            // A failed close cannot satisfy the CE barrier. Keep
+                            // ownership registered so that teardown must retry.
+                            throw new IllegalStateException("Private terminal close is unconfirmed");
+                        }
+                        closed = true;
+                    }
+                    currentTerminal.compareAndSet(this, null);
+                    if (resultCollected) terminals.remove(this);
+                }
+            }
+
+            void stopped() {
+                closeChannel();
+                synchronized (io) { resultCollected = true; terminals.remove(this); }
+            }
+
+            @Override public void close() {
+                owner.requireSameCaller();
+                closeChannel();
+            }
+        }
+
         private void requireRuntimeBinding(AospIdentityBackend.UserKey user,
                 RuntimeAdmission.Binding binding) {
             requireOwner();
             Selection selected = selection.get();
             if (selected == null || selected.user != user || selected.runtime != binding) {
                 throw new SecurityException("Personal runtime session was revoked");
+            }
+            if (selected.interactive != interactiveEpoch.get()) {
+                throw new SecurityException("Console interaction was revoked");
             }
         }
 
@@ -453,13 +768,23 @@ public final class AegisIdentityService extends SystemService {
             selection.set(null);
             sessions.remove(this);
             try {
-                lifetime.unlinkToDeath(this, 0);
-            } catch (NoSuchElementException notLinked) {
-                // linkToDeath itself may have failed, or death/close already removed the link.
+                closeCurrentTerminal();
+            } catch (RuntimeException failure) {
+                // The global owner retains and retries an unconfirmed close;
+                // losing the Java session must not lose resource ownership.
+            } finally {
+                try { lifetime.unlinkToDeath(this, 0); }
+                catch (NoSuchElementException notLinked) { /* Already unlinked. */ }
             }
         }
 
         @Override public void binderDied() { dispose(); }
+    }
+
+    private static void dimensions(int rows, int columns) {
+        if (rows < 1 || rows > 1000 || columns < 1 || columns > 1000) {
+            throw new IllegalArgumentException("Invalid terminal dimensions");
+        }
     }
 
     private static LockscreenCredential credential(byte[] bytes) {

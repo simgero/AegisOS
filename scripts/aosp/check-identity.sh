@@ -69,7 +69,7 @@ jobs=$(nproc)
 state COMPILING
 m -j"$jobs" aegis aegis-identity-service AegisIdentityTests AegisQemuHardwareOverlay services framework-res selinux_policy \
     passwd_vendor group_vendor passwd_system_ext group_system_ext \
-    aegis-runtime-init aegis-runtime-setup aegis-runtime-broker AegisRuntimeNativeTests
+    aegis-runtime-init aegis-runtime-setup aegis-runtime-broker AegisRuntimeNativeTests libaegis_terminal_jni
 # The broker is compiled/linked here but remains absent from product startup
 # and from this version of the component transport archive.
 test -s "$(get_build_var PRODUCT_OUT)/system_ext/bin/aegis-runtime-broker"
@@ -88,6 +88,7 @@ artifacts=(
     system_ext/bin/aegis
     system_ext/framework/aegis.jar
     system_ext/framework/aegis-identity-service.jar
+    system_ext/lib64/libaegis_terminal_jni.so
     system/framework/services.jar
     system/framework/framework-res.apk
     vendor/etc/passwd

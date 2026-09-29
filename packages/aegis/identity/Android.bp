@@ -18,7 +18,7 @@ java_library {
     name: "aegis-identity-service",
     system_ext_specific: true,
     srcs: ["service/**/*.java"],
-    static_libs: ["aegis-identity-core", "aegis-identity-protocol"],
+    static_libs: ["aegis-identity-core", "aegis-identity-protocol", "aegis-terminal-api"],
     libs: ["framework", "services.core"],
     installable: true,
 }
@@ -29,9 +29,25 @@ java_binary {
     // The pinned Soong default wrapper hardcodes /system/framework.
     wrapper: "cli/aegis",
     srcs: ["cli/**/*.java"],
-    static_libs: ["aegis-identity-protocol"],
+    static_libs: ["aegis-identity-protocol", "aegis-terminal-api"],
     libs: ["framework"],
     main_class: "org.aegisos.identity.Aegis",
+}
+
+java_library {
+    name: "aegis-terminal-api",
+    srcs: ["terminal/java/**/*.java"],
+    installable: false,
+}
+
+cc_library_shared {
+    name: "libaegis_terminal_jni",
+    system_ext_specific: true,
+    compile_multilib: "64",
+    srcs: ["terminal/terminal_jni.cpp"],
+    header_libs: ["jni_headers"],
+    cflags: ["-Wall", "-Wextra", "-Werror"],
+    stl: "none",
 }
 
 android_test {

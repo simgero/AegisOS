@@ -58,6 +58,7 @@ endif
 PRODUCT_PACKAGES += \
     aegis \
     aegis-identity-service \
+    libaegis_terminal_jni \
     AegisQemuHardwareOverlay
 # Install AOSP's generated numeric-account registries for the reserved runtime IDs.
 # These are platform resource names, not personal accounts or authentication data.

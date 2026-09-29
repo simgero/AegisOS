@@ -1,5 +1,43 @@
 # Terminalübergabe aus einem persönlichen Runtime-Kontext
 
+## Öffentliche CLI-Anbindung in Arbeit
+
+Die neue Quellfassung ergänzt `aegis linux shell` und einen pro CLI-Prozess,
+Anmeldung und AOSP-Benutzerseriennummer gebundenen Binder-Kanal. Sie ist noch
+nicht kompiliert oder im Gast abgenommen. Die folgenden früheren Nachweise
+beziehen sich weiterhin auf die internen Komponenten.
+
+Der persönliche PTY-Master bleibt ausschließlich im Systemdienst. Die CLI
+erhält begrenzte Byte-Nachrichten, Größenänderung und bestätigten Exitstatus,
+niemals einen Deskriptor, der einen Widerruf überleben könnte. AOSP-Prüfungen
+erfolgen vor der Runtime-Sperre; kurze nichtblockierende Dateideskriptorzugriffe
+unterliegen derselben Zulassungs- und Lebenszyklusbarriere. Stop und Logout
+schließen sämtliche Terminalreferenzen vor der bestätigten nativen Bereinigung.
+CLI-Ende oder ein normaler Shell-Exit sind dagegen kein persönlicher Logout.
+
+Ein begrenzter Besitzerbestand behält auch geschlossene Kanäle, bis der native
+Befehlsstatus abgeholt oder der ganze Kontext bestätigt abgebaut wurde. Der
+Hintergrundsammler führt keine neuen Programme aus und ruft keine AOSP-
+Identitätsfunktionen unter der Runtime-Sperre auf. Bildschirm-/Keyguard-Sperre
+und Benutzerwechsel widerrufen den interaktiven Zugang; erlaubte Hintergrund-
+Kontexte werden dadurch nicht als abgemeldet oder CE-gesperrt ausgegeben.
+
+Die CLI verwendet einen einzigen Eingabeleser für Befehle, Passwortabfragen und
+Rohmodus. Dadurch können keine vorgelesenen Zeichen zwischen `Console` und
+einem zweiten Dateideskriptor-Leser verloren gehen. Eine kleine Bibliothek aus
+dem schreibgeschützten Systemimage übernimmt Termios, begrenztes Lesen und
+Fenstergröße. Passwörter gehen weiterhin ohne Echo, Argumente oder Passwort-
+Strings direkt an den bestehenden AOSP-Prüfpfad. Rohmodus, EOF, Teil-Schreibvorgänge,
+Ctrl-C, Größenänderung, Rückkehr zur CLI und Fehler-Wiederherstellung müssen
+noch mit der tatsächlichen neuen CLI im lokalen QEMU nachgewiesen werden.
+
+Erforderlich bleiben außerdem Gegenproben mit einem fremden Prozess, konkurrierender
+Abmeldung/Bildschirmsperre, wiederholtem Shell-Ende, Hintergrundprogrammen und
+zwei echten persönlichen GNU-Kontexten. Diese Quelländerung ersetzt keinen
+dieser Laufzeitnachweise.
+
+## Frühere Komponentennachweise
+
 Stand 29. September 2026: Komponentencommit `ac87df1f` ist auf `aegis-build`
 kompiliert und gelinkt. Im lokalen Android-QEMU bestehen 106/110 native und
 58/59 Java-Tests. Die vier Terminalfehler liegen am Fixture-Gerät: Androids

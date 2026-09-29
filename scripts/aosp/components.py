@@ -19,6 +19,7 @@ MODULES = {
     "system_ext/bin/aegis": 0o755,
     "system_ext/framework/aegis.jar": 0o644,
     "system_ext/framework/aegis-identity-service.jar": 0o644,
+    "system_ext/lib64/libaegis_terminal_jni.so": 0o644,
     "system/framework/services.jar": 0o644,
     "system/framework/framework-res.apk": 0o644,
     "vendor/etc/passwd": 0o644,

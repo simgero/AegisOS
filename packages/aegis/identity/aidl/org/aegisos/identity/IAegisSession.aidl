@@ -1,5 +1,7 @@
 package org.aegisos.identity;
 
+import org.aegisos.identity.IAegisTerminal;
+
 /** Credential parcels are sensitive. Each operation also checks the original process. */
 @SensitiveData
 interface IAegisSession {
@@ -14,8 +16,8 @@ interface IAegisSession {
     void close();
     String resumeFirstAdmin(String name, in byte[] password);
     // Personal target is the service's authenticated binding, never a client userId.
-    // No shell/PTY/package endpoint until revocation and production policy are integrated.
     String linuxStart();
     String linuxStatus();
     String linuxStop();
+    IAegisTerminal linuxShell(int rows, int columns);
 }
