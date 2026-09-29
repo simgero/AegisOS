@@ -534,7 +534,8 @@ TEST_F(RuntimeNamespace, VerifiedImageRetainsOwnershipThroughAttachmentAndClonin
     EXPECT_EQ(1005000u, mapped.st_uid);
     EXPECT_EQ(1005000u, mapped.st_gid);
     ASSERT_EQ(0, fstatvfs(mounts[0], &flags));
-    EXPECT_EQ(ST_RDONLY | ST_NOSUID | ST_NODEV, flags.f_flag & restricted);
+    EXPECT_EQ(static_cast<unsigned long>(ST_RDONLY | ST_NOSUID | ST_NODEV),
+              flags.f_flag & restricted);
     int writable = openat(mounts[0], "aegis-must-remain-readonly", O_CREAT | O_EXCL | O_WRONLY, 0600);
     int saved = errno;
     if (writable >= 0) close(writable);
