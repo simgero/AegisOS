@@ -34,7 +34,7 @@ Artefakte für diese weitere Integration; ein erfolgreicher Build ist kein Bootn
 
 `build.sh` startet einen vollständigen Quellcode-Build auf einem
 **Ubuntu-24.04- oder Ubuntu-26.04-x86-64-Server mit systemd**, mindestens
-**64 GB RAM** und **450 GiB freiem Speicher unter `/srv/aegis`**.
+**64 GB RAM** und für den Erstbuild **450 GiB freiem Speicher unter `/srv/aegis`**.
 Das separate Build-Volume muss bereits eingebunden sein. Ubuntu 26.04 ist für
 unseren ersten Build zugelassen, aber noch nicht durch einen Vollbuild validiert.
 
@@ -136,6 +136,21 @@ Ein zusätzliches Volume muss vor dem Start unter `/srv/aegis` eingebunden sein.
 Für einen dauerhaften Mount dessen UUID in `/etc/fstab` verwenden. Der Builddienst
 fordert den Mount über systemd an. Die Grenze von 450 GiB ist eine Planungsreserve,
 keine Zusicherung des tatsächlichen Platzverbrauchs jedes AOSP-Builds.
+
+Für einen ausdrücklich gewählten Wiederholungsbuild kann
+`AEGIS_INCREMENTAL_FROM_RUN=/srv/aegis/runs/aosp-RUN` einen bereits mit
+`UPLOAD_VERIFIED` abgeschlossenen Vorgänger benennen. `RUN` ist durch dessen
+konkreten Namen zu ersetzen. Dann bleiben mindestens **200 GiB frei** erforderlich.
+Der Bootstrap prüft vorhandene Produktimages, den aktuellen Manifest-Commit
+und die Belegdateien des Vorgängers. Nach dem Download des neuen Projektstands
+muss dessen AOSP-/Produktkonfiguration bytegleich mit der des Vorgängers sein;
+andernfalls startet kein Build. `--check-storage` prüft Speicher und vorhandene
+Belege; die neue Konfiguration wird erst beim tatsächlichen Start überprüft.
+
+Dieser Modus nutzt den vorhandenen Arbeitsbereich weiter. Er löscht keine
+Quellen oder Ergebnisse und ist keine Freigabe für einen zweiten leeren
+Checkout oder ein geändertes Buildziel. Eine fehlende oder unpassende Referenz
+führt zum Abbruch, nicht zu einer stillen Absenkung der Erstbuild-Grenze.
 
 ## Google-Downloadlimits
 

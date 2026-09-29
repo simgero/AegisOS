@@ -4,15 +4,61 @@ set -eu
 check_storage() {
     # 450 GiB leaves reserve above AOSP's 400 GB guidance while admitting a
     # formatted 500 GiB volume (about 471 GiB available with ext4 defaults).
+    required_gib=450
+    storage_reuse_run=${AEGIS_INCREMENTAL_FROM_RUN:-}
+    if [ -n "$storage_reuse_run" ]; then
+        case "$storage_reuse_run" in
+            /srv/aegis/runs/aosp-*) ;;
+            *) echo 'Incremental run must be a completed AOSP run under /srv/aegis/runs.' >&2; return 1;;
+        esac
+        case "${storage_reuse_run#/srv/aegis/runs/}" in
+            *[!A-Za-z0-9_-]*) echo 'Invalid incremental run name.' >&2; return 1;;
+        esac
+        [ -d "$storage_reuse_run" ] && [ ! -L "$storage_reuse_run" ] || return 1
+        for proof in status artifacts/config.sh artifacts/manifest.xml artifacts/builder-commit.txt; do
+            [ -f "$storage_reuse_run/$proof" ] && [ -s "$storage_reuse_run/$proof" ] \
+                && [ ! -L "$storage_reuse_run/$proof" ] || {
+                echo 'Incremental build evidence is missing or linked.' >&2; return 1;
+            }
+        done
+        [ "$(cat "$storage_reuse_run/status")" = UPLOAD_VERIFIED ] || {
+            echo 'Incremental run has not completed verified publication.' >&2; return 1;
+        }
+        for image in system.img super.img; do
+            image_path=/srv/aegis/work/aosp/out/target/product/qemu_arm64/$image
+            [ -f "$image_path" ] && [ -s "$image_path" ] && [ ! -L "$image_path" ] || {
+                echo 'Existing AOSP product output is missing.' >&2; return 1;
+            }
+        done
+        manifest_pin=$(sed -n 's/^AOSP_MANIFEST_COMMIT=//p' "$storage_reuse_run/artifacts/config.sh")
+        case "$manifest_pin" in *[!0-9a-f]*|'') return 1;; esac
+        [ ${#manifest_pin} -eq 40 ] || return 1
+        current_manifest=$(runuser -u aegis-build -- git -C /srv/aegis/work/aosp/.repo/manifests rev-parse HEAD) || return 1
+        [ "$current_manifest" = "$manifest_pin" ] || {
+            echo 'Existing AOSP manifest differs from the completed build.' >&2; return 1;
+        }
+        # Explicit reuse only: the existing checkout and build output are not
+        # a second cold build. Retain a separate 200-GiB free-space floor.
+        # The newly fetched immutable recipe must ALSO match before dispatch.
+        required_gib=200
+    fi
     available_kib=$(df -Pk /srv/aegis | awk 'END {print $4}')
-    [ "$available_kib" -ge 471859200 ] || {
-        echo 'Need at least 450 GiB free at /srv/aegis.' >&2; return 1;
+    [ "$available_kib" -ge "$((required_gib * 1048576))" ] || {
+        echo "Need at least $required_gib GiB free at /srv/aegis." >&2; return 1;
     }
     echo "Storage OK: $((available_kib / 1048576)) GiB free at /srv/aegis."
 }
+verify_incremental_recipe() {
+    if [ -n "${storage_reuse_run:-}" ]; then
+        cmp -s "$storage_reuse_run/artifacts/config.sh" "$1" || {
+            echo 'Incremental build requires the identical AOSP/product recipe; use cold-build capacity for a changed recipe.' >&2
+            return 1
+        }
+    fi
+}
 main() {
     case ${1:-} in
-        --help) printf '%s\n' 'AegisOS AOSP builder (Ubuntu 24.04/26.04 x86-64, root).' 'Required: GH_TOKEN (Contents: read/write for simgero/AegisOS), or --token-stdin.' 'Optional: AEGIS_REF (Git commit, tag or branch; default main).' 'Optional: AEGIS_KERNEL_RUN=/srv/aegis/runs/kernel-RUN (completed matched kernel build).' 'Optional: AEGIS_RUNTIME_RUN=/srv/aegis/runs/runtime-base-RUN (completed shared-base image build).' 'Use --token-stdin COMMIT to read a token from a pipe, never command arguments.' 'Use --check-storage to check disk space without starting a build.' 'Starts a systemd service; preserves the server and source checkout.'; return ;;
+        --help) printf '%s\n' 'AegisOS AOSP builder (Ubuntu 24.04/26.04 x86-64, root).' 'Required: GH_TOKEN (Contents: read/write for simgero/AegisOS), or --token-stdin.' 'Optional: AEGIS_REF (Git commit, tag or branch; default main).' 'Optional: AEGIS_KERNEL_RUN=/srv/aegis/runs/kernel-RUN (completed matched kernel build).' 'Optional: AEGIS_RUNTIME_RUN=/srv/aegis/runs/runtime-base-RUN (completed shared-base image build).' 'Optional: AEGIS_INCREMENTAL_FROM_RUN=/srv/aegis/runs/aosp-RUN (verified prior run, existing matching manifest/product, unchanged recipe, 200 GiB free; default cold-build floor is 450 GiB).' 'Use --token-stdin COMMIT to read a token from a pipe, never command arguments.' 'Use --check-storage to check disk space without starting a build.' 'Starts a systemd service; preserves the server and source checkout.'; return ;;
         --check-storage) check_storage; return ;;
         --token-stdin)
             [ "$#" -eq 2 ] || { echo 'Usage: build.sh --token-stdin FULL_COMMIT' >&2; return 2; }
@@ -90,6 +136,8 @@ main() {
     GH_TOKEN=$(cat /run/aegis-bootstrap/github-token) \
         python3 /run/aegis-bootstrap/fetch-build-inputs.py "$commit" "$root"
     scripts="$root/scripts/aosp"
+    # Validate the exact downloaded recipe before any source sync or service.
+    verify_incremental_recipe "$scripts/config.sh"
     for file in worker.sh config.sh compile.sh setup-sandbox.sh; do
         bash -n "$scripts/$file"
     done

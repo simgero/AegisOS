@@ -179,6 +179,67 @@ class WorkerTests(unittest.TestCase):
 
 
 class BootstrapTests(unittest.TestCase):
+    def incremental_storage_fixture(self, *, free_gib=200, mode='ok'):
+        # Inert files and an isolated shell harness; no real server or build.
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            volume = root/'volume'
+            prior = volume/'runs/aosp-prior'
+            artifacts = prior/'artifacts'
+            artifacts.mkdir(parents=True)
+            (prior/'status').write_text('UPLOAD_VERIFIED\n' if mode != 'unverified' else 'BUILDING\n')
+            config = (REPO/'scripts/aosp/config.sh').read_text()
+            (artifacts/'config.sh').write_text(config)
+            (artifacts/'manifest.xml').write_text('<manifest/>\n')
+            (artifacts/'builder-commit.txt').write_text('a'*40+'\n')
+            new_config = root/'new-config.sh'
+            new_config.write_text(config + ('# changed recipe\n' if mode == 'recipe' else ''))
+            product = volume/'work/aosp/out/target/product/qemu_arm64'
+            product.mkdir(parents=True)
+            for name in ('system.img', 'super.img'):
+                (product/name).write_text('inert image fixture\n')
+            if mode == 'missing_output': (product/'super.img').unlink()
+            if mode == 'linked_evidence':
+                (artifacts/'manifest.xml').unlink()
+                (artifacts/'manifest.xml').symlink_to(new_config)
+            bin_dir = root/'bin'
+            bin_dir.mkdir()
+            (bin_dir/'df').write_text('#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted on\\n/dev/test 900000000 0 %s 0%% /fixture\\n" "$TEST_FREE_KIB"\n')
+            (bin_dir/'runuser').write_text('#!/bin/sh\n[ "$1" = -u ] && [ "$2" = aegis-build ] && [ "$3" = -- ] && [ "$4" = git ] || exit 19\nprintf "%s\\n" "$TEST_MANIFEST"\n')
+            for command in bin_dir.iterdir(): command.chmod(0o755)
+            pin = next(line.split('=', 1)[1] for line in config.splitlines() if line.startswith('AOSP_MANIFEST_COMMIT='))
+            source = (REPO/'build.sh').read_text()
+            source = source[:source.index('# Execute only after')].replace('/srv/aegis', str(volume))
+            harness = root/'check.sh'
+            harness.write_text(source+'\ncheck_storage\nverify_incremental_recipe "$TEST_NEW_CONFIG"\n')
+            env = dict(os.environ, PATH=str(bin_dir)+':'+os.environ['PATH'],
+                       AEGIS_INCREMENTAL_FROM_RUN=str(prior), TEST_NEW_CONFIG=str(new_config),
+                       TEST_FREE_KIB=str(free_gib*1048576),
+                       TEST_MANIFEST='b'*40 if mode == 'manifest' else pin)
+            return subprocess.run(['sh', str(harness)], env=env, capture_output=True, text=True)
+
+    def test_explicit_completed_incremental_storage_preserves_a_free_space_floor(self):
+        good = self.incremental_storage_fixture()
+        self.assertEqual(good.returncode, 0, good.stdout+good.stderr)
+        low = self.incremental_storage_fixture(free_gib=199)
+        self.assertNotEqual(low.returncode, 0)
+        self.assertIn('200 GiB', low.stderr)
+
+    def test_incremental_storage_requires_verified_matching_existing_inputs(self):
+        for mode in ('unverified', 'manifest', 'missing_output', 'linked_evidence', 'recipe'):
+            with self.subTest(mode=mode):
+                result = self.incremental_storage_fixture(mode=mode)
+                self.assertNotEqual(result.returncode, 0, result.stdout+result.stderr)
+
+    def test_incremental_storage_cannot_select_arbitrary_or_escaping_paths(self):
+        for path in ('/tmp/aosp-any', '/srv/aegis/runs/aosp-one/../other',
+                     '/srv/aegis/runs/aosp-space here', '/srv/aegis/runs/aosp-$(command)'):
+            with self.subTest(path=path):
+                result = subprocess.run(['sh', str(REPO/'build.sh'), '--check-storage'],
+                                        env=dict(os.environ, AEGIS_INCREMENTAL_FROM_RUN=path),
+                                        capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+
     def test_runtime_run_path_cannot_escape_or_inject_shell_text(self):
         for path in ('/tmp/runtime-base-any', '/srv/aegis/runs/runtime-base-one/../other',
                      '/srv/aegis/runs/runtime-base-space here', '/srv/aegis/runs/runtime-base-$(command)'):

@@ -132,7 +132,10 @@ Builder, einen Netzwerkjob und die bestehende HTTP-429-Abbruch-/Wartefrist.
 Er darf nach Trennung der SSH-Verbindung weiterlaufen. Nach 24 Stunden endet der
 Dienst; nach einem Serverneustart wird er nicht automatisch neu gestartet.
 Ein manueller Neustart nutzt die bereits geladenen Quellen weiter. Die Prüfung
-auf 450 GiB freien Platz gilt auch bei einem Neustart.
+auf 450 GiB freien Platz gilt für diesen Quellendownload auch bei einem Neustart.
+Für spätere Vollbuilds aus einem bereits erfolgreich gebauten Arbeitsbereich
+gibt es den expliziten [Wiederholungsmodus](../README.md#dauerhafter-buildserver)
+mit geprüftem Vorgänger, gleicher Konfiguration und 200 GiB freier Reserve.
 
 Status und Protokoll:
 
