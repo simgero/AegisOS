@@ -1,0 +1,62 @@
+#ifndef AEGIS_PACKAGE_STORE_H
+#define AEGIS_PACKAGE_STORE_H
+
+#include <atomic>
+#include <mutex>
+#include <stdint.h>
+#include <string>
+
+// Internal persistence primitive, not an authorization or package installation
+// endpoint. The caller supplies a verified store FD after fresh AOSP approval
+// and, for personal scope, CE/serial checks. Never accept these from a CLI.
+namespace aegis {
+struct PackageOwner {
+    bool personal;
+    uint32_t user_id;
+    uint32_t serial;
+};
+struct PackageGeneration {
+    std::string image_sha256;
+    std::string shared_base_sha256; // Required for a personal derived generation.
+    uint64_t bytes = 0;
+};
+enum class PackagePublish { Rejected = -1, Confirmed = 0, Unconfirmed = 1 };
+
+class PackageStore {
+  public:
+    // Root-owned, mode 0700, same-filesystem directory, exclusive nonblocking
+    // process lock. Creation requires an empty directory. No path traversal,
+    // automatic repair, deletion of old generations or retention policy here.
+    static PackageStore* Open(int directory, PackageOwner owner, bool create);
+    ~PackageStore();
+    PackageStore(const PackageStore&) = delete;
+    PackageStore& operator=(const PackageStore&) = delete;
+
+    // Returns an independently opened read-only image FD after hash verification.
+    // ENOENT means no generation selected. Returned FDs pin previous contents
+    // across later publication. Close all private FDs before AOSP CE eviction.
+    int Current(PackageGeneration* generation);
+
+    // Copy a complete already validated package image into broker-owned storage.
+    // The source is never installed in place. It must contain consistent apt/
+    // dpkg/files/config/technical-account state; this primitive does not prove
+    // that semantic validation or fresh AOSP authorization.
+    // expected_current is null only for the first selection. A stale selection
+    // is rejected. cancel is sampled during copy and before the rename point.
+    // A confirmed rename selects a whole image; old images remain. Fsync failure
+    // after rename is Unconfirmed, never success or a claim that nothing changed.
+    PackagePublish Publish(const PackageGeneration* expected_current, int source,
+                           const PackageGeneration& candidate,
+                           const std::atomic_bool& cancel);
+
+  private:
+    PackageStore(int directory, int lock, PackageOwner owner);
+    bool Check() const;
+    int ReadSelection(PackageGeneration* generation) const;
+    int OpenImage(const PackageGeneration& generation) const;
+    int directory_, lock_, process_;
+    PackageOwner owner_;
+    std::mutex mutex_;
+};
+} // namespace aegis
+#endif
