@@ -13,7 +13,7 @@ enum class PublicationState { Prepared, Running, Complete, Sealed };
 // request.job and *job must be zero. IDs are minted and never reused within
 // this owner. The resulting preparation belongs to this exact authenticated
 // broker connection/lifetime; a reconnect MUST invalidate Java preparations.
-// Max16 retained slots, at most one active job per requester. Completed jobs
+// Max16 retained slots, at most one unconsumed job per requester. Completed jobs
 // remain until a matching poll consumes the result or quiescence clears them.
 int BrokerPreparePublication(aegis_broker_owner* owner,const PackagePublication& request,
                              int groups,int store,int source,int helper,uint64_t deadline,uint64_t* job);

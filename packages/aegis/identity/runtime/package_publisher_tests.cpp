@@ -316,10 +316,14 @@ TEST_F(RuntimePackageBroker, PreparationOwnsItsFdsAndIdleReapingClosesThem) {
         if(fstatat(parent.get(),"u10-s42",&st,AT_SYMLINK_NOFOLLOW)<0&&errno==ENOENT) { removed=true;break; }
         usleep(1000);
     }
-    ASSERT_TRUE(removed);PackagePublicationResult result;Completed(id,10,&result);
-    ASSERT_FALSE(HasFatalFailure());EXPECT_EQ(PackagePublish::Confirmed,result.publication);
+    ASSERT_TRUE(removed);
     store.reset(openat(directory.get(),"store",O_RDONLY|O_DIRECTORY|O_CLOEXEC));
+    source.reset(openat(directory.get(),"source",O_RDONLY|O_CLOEXEC));
+    uint64_t next=0;EXPECT_EQ(-1,Prepare(&next));EXPECT_EQ(EBUSY,errno);EXPECT_EQ(0u,next);
+    PackagePublicationResult result;Completed(id,10,&result);
+    ASSERT_FALSE(HasFatalFailure());EXPECT_EQ(PackagePublish::Confirmed,result.publication);
     Selection("complete generation");
+    ASSERT_EQ(0,Prepare(&next));EXPECT_GT(next,id);
 }
 TEST_F(RuntimePackageBroker, FailedStartKeepsPartialOwnershipAndBlocksAdmissionUntilStopped) {
     int baseline=Descriptors();uint64_t id=0;ASSERT_EQ(0,Prepare(&id,10,store.get()));

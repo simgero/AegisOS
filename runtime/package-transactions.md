@@ -18,7 +18,9 @@ Benutzers, einer anderen Seriennummer oder eines anderen Plans greifen nicht
 auf den Auftrag zu. Eine gültige Startübergabe verbraucht die Vorbereitung.
 Fertige Antworten enthalten keine offenen privaten Deskriptoren; ein passendes
 Poll konsumiert sie. Die feste Kapazität beträgt 16 Plätze und höchstens einen
-aktiven Auftrag je Antragsteller. Gemeinsame Store-Schreiber werden zusätzlich
+nicht abgeholten Auftrag je Antragsteller, einschließlich fertiger Antworten.
+Damit kann ein Benutzer nicht alle globalen Plätze durch liegen gelassene
+Ergebnisse belegen. Gemeinsame Store-Schreiber werden zusätzlich
 vom bereits implementierten Store serialisiert.
 
 Diese Änderungen sind direkt in die native Besitzlogik eingebunden, aber noch

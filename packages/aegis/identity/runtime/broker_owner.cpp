@@ -358,7 +358,9 @@ int BrokerPreparePublication(aegis_broker_owner* owner,const PackagePublication&
     std::unique_ptr<publication_slot>* empty=nullptr;
     for(auto& slot:owner->publications) {
         if(!slot) { if(!empty)empty=&slot;continue; }
-        if(slot->resources() && slot->plan.requester==request.requester)return fail(EBUSY);
+        // Uncollected results count too: one requester must not fill every
+        // global slot with completed jobs and starve the other users.
+        if(slot->plan.requester==request.requester)return fail(EBUSY);
     }
     if(!empty)return fail(ENOSPC);
     auto prepared=std::unique_ptr<publication_slot>(new(std::nothrow) publication_slot);
