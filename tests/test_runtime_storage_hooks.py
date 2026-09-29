@@ -277,6 +277,8 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.assertIn('original.info.serialNumber == serial', text)
         self.assertIn('original.aegisRemovalNotified) return false;', text)
         self.assertIn('PHASE_BOOT_COMPLETED', text)
+        self.assertIn('new Thread(() -> mUms.cleanupPartialUsers(), "aegis-user-recovery").start()', text)
+        self.assertIn('"aegis-precreated-removal").start()', text)
         self.assertIn('if (id == excludedUserId) continue;', text)
 
     def test_installer_and_data_errors_are_not_swallowed_in_checked_path(self):

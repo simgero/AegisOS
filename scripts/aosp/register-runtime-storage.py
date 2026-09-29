@@ -354,7 +354,9 @@ def patch_manager(data):
     text = replace_once(text, '                mUms.registerStatsCallbacks();\n            }',
                         '''                mUms.registerStatsCallbacks();
             } else if (phase == SystemService.PHASE_BOOT_COMPLETED) {
-                mUms.cleanupPartialUsers();
+                // Biometric acknowledgements are delivered through framework handlers.
+                // Never wait for them on the boot/main thread itself.
+                new Thread(() -> mUms.cleanupPartialUsers(), "aegis-user-recovery").start();
             }''')
     for signature, collection, kind in (
             ('    private void cleanupPartialUsers()', 'partials', 'partial'),
@@ -441,7 +443,8 @@ def patch_manager(data):
                        '            user = original.info;')
     new = replace_once(new, '''            LocalServices.getService(ActivityTaskManagerInternal.class).onUserStopped(userId);
             removeUserState(userId);
-            return;''', '''            removeUserState(original, serial, true);
+            return;''', '''            new Thread(() -> removeUserState(original, serial, true),
+                    "aegis-precreated-removal").start();
             return true;''')
     new = replace_once(new, '''                                getActivityManagerInternal().onUserRemoving(userId);
                                 removeUserState(userId);''',
