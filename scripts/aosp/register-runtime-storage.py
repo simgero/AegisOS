@@ -12,12 +12,17 @@ import tempfile
 STORAGE = 'services/core/java/com/android/server/StorageManagerService.java'
 USERS = 'services/core/java/com/android/server/am/UserController.java'
 RESILIENT = 'services/core/java/com/android/server/pm/ResilientAtomicFile.java'
+MANAGER = 'services/core/java/com/android/server/pm/UserManagerService.java'
+PREPARER = 'services/core/java/com/android/server/pm/UserDataPreparer.java'
+INSTALLER = 'services/core/java/com/android/server/pm/Installer.java'
 BRIDGE = 'services/core/java/com/android/server/aegis/AegisRuntimeStorage.java'
 SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisRuntimeStorage.java'
 REMOVAL_FILES = 'services/core/java/com/android/server/aegis/AegisRemovalFiles.java'
 REMOVAL_SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisRemovalFiles.java'
-ORIGINAL_FILES = {STORAGE, USERS, RESILIENT}
-SOURCE_FILES = {BRIDGE: SOURCE, REMOVAL_FILES: REMOVAL_SOURCE}
+REMOVAL_DATA = 'services/core/java/com/android/server/aegis/AegisRemovalData.java'
+REMOVAL_DATA_SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisRemovalData.java'
+ORIGINAL_FILES = {STORAGE, USERS, RESILIENT, MANAGER, PREPARER, INSTALLER}
+SOURCE_FILES = {BRIDGE: SOURCE, REMOVAL_FILES: REMOVAL_SOURCE, REMOVAL_DATA: REMOVAL_DATA_SOURCE}
 MARKER = 'out/aegis-runtime-storage/sources.json'
 PREFIX = 'com.android.server.aegis.AegisRuntimeStorage'
 
@@ -37,7 +42,7 @@ def patch_storage(data):
     for name, operation in (
             ('createUserStorageKeys', 'CREATE'), ('destroyUserStorageKeys', 'DESTROY'),
             ('setCeStorageProtection', 'PROTECT'), ('unlockCeStorage', 'UNLOCK'),
-            ('lockCeStorage', 'LOCK')):
+            ('lockCeStorage', 'LOCK'), ('destroyUserStorage', 'DESTROY')):
         start = f'    public void {name}('
         if text.count(start) != 1:
             raise ValueError('Storage method is missing or ambiguous')
@@ -56,7 +61,7 @@ def patch_storage(data):
                 old += '            return;\n'
             body = replace_once(body, old,
                     '            Slog.wtf(TAG, e);\n'
-                    '            throw new IllegalStateException("AOSP storage-key mutation failed", e);\n')
+                    '            throw new IllegalStateException("AOSP storage mutation failed", e);\n')
         indented = '\n'.join('    ' + line if line else '' for line in body.splitlines())
         replacement = (prefix + permission + '\n'
                 f'        try ({PREFIX}.Lease aegisStorageLease =\n'
@@ -132,6 +137,265 @@ def patch_resilient(data):
     return replace_once(text, anchor, addition + anchor).encode('utf-8')
 
 
+def method(text, signature):
+    if text.count(signature) != 1:
+        raise ValueError('Pinned AOSP removal method is missing or ambiguous')
+    start = text.index(signature)
+    end = text.index('\n    }\n', start) + len('\n    }')
+    return text[start:end]
+
+
+def patch_installer(data):
+    text = data.decode('utf-8')
+    original = method(text, '    public void destroyUserData(String uuid, int userId, int flags)')
+    checked = replace_once(original, 'void destroyUserData(', 'void destroyUserDataChecked(')
+    checked = replace_once(checked, '        if (!checkBeforeRemote()) return;', '''        if (!checkBeforeRemote()) {
+            throw new InstallerException("User removal requires an actual installd acknowledgement");
+        }''')
+    return replace_once(text, original, original + '\n\n' + checked).encode('utf-8')
+
+
+def patch_preparer(data):
+    text = data.decode('utf-8')
+    anchor = '    void destroyUserData(int userId, int flags) {\n'
+    addition = '''    /** Reserved-user finalization: every destructive operation must acknowledge success. */
+    void destroyUserDataChecked(int userId, int flags) throws Exception {
+        try (PackageManagerTracedLock installLock = mInstallLock.acquireLock()) {
+            final StorageManager storage = com.android.server.aegis.AegisRemovalData
+                    .requireInternalStorageOnly(mContext.getSystemService(StorageManager.class));
+            mInstaller.destroyUserDataChecked(null, userId, flags);
+            if ((flags & StorageManager.FLAG_STORAGE_DE) != 0) {
+                com.android.server.aegis.AegisRemovalData.deleteSystemDirectory(
+                        getUserSystemDirectory(userId), true);
+                com.android.server.aegis.AegisRemovalData.deleteSystemDirectory(
+                        getDataSystemDeDirectory(userId), false);
+            }
+            if ((flags & StorageManager.FLAG_STORAGE_CE) != 0) {
+                com.android.server.aegis.AegisRemovalData.deleteSystemDirectory(
+                        getDataSystemCeDirectory(userId), false);
+            }
+            // The patched StorageManagerService propagates vold failure under its own lease.
+            storage.destroyUserStorage(null, userId, flags);
+            com.android.server.aegis.AegisRemovalData.requireInternalStorageOnly(storage);
+        }
+    }
+
+'''
+    return replace_once(text, anchor, addition + anchor).encode('utf-8')
+
+
+def patch_manager(data):
+    text = data.decode('utf-8')
+    text = replace_once(text, '        @NonNull UserInfo info;\n', '''        @NonNull UserInfo info;
+        // Claims belong to this exact AOSP object, never to a reusable numeric ID.
+        // Guarded by the enclosing service's mUsersLock; failures retain both claims.
+        boolean aegisRemovalNotified;
+        boolean aegisRemovalCleanupClaimed;
+''')
+    text = replace_once(text, '    private @SystemService.BootPhase int mCurrentBootPhase;',
+                        '    private volatile @SystemService.BootPhase int mCurrentBootPhase;')
+    # Keep early marking, so partial/pre-created users cannot be started. Actual cleanup
+    # waits until LockSettings no longer queues numeric-ID removal for later in boot.
+    text = replace_once(text, '                mUms.registerStatsCallbacks();\n            }',
+                        '''                mUms.registerStatsCallbacks();
+            } else if (phase == SystemService.PHASE_BOOT_COMPLETED) {
+                mUms.cleanupPartialUsers();
+            }''')
+    for signature, collection, kind in (
+            ('    private void cleanupPartialUsers()', 'partials', 'partial'),
+            ('    private void cleanupPreCreatedUsers()', 'preCreatedUsers', 'precreated')):
+        old = method(text, signature)
+        new = old.replace('ArrayList<UserInfo>', 'ArrayList<UserData>')
+        new = replace_once(new, '                UserInfo ui = mUsers.valueAt(i).info;',
+                           '                UserData original = mUsers.valueAt(i);\n'
+                           '                UserInfo ui = original.info;')
+        new = replace_once(new, collection + '.add(ui);', collection + '.add(original);')
+        new = replace_once(new, f'            UserInfo ui = {collection}.get(i);',
+                           f'            UserData original = {collection}.get(i);\n'
+                           '            UserInfo ui = original.info;')
+        new = replace_once(new, '            removeUserState(ui.id);',
+                           '            removeUserState(original, ui.serialNumber, false);')
+        text = replace_once(text, old, new)
+
+    # A checked writer serializes the same AOSP format without swallowing errors.
+    anchor = '    private void writeUserLP(UserData userData) {\n'
+    checked_writer = '''    private void writeUserLPChecked(UserData userData) throws Exception {
+        UserManager.invalidateCacheOnUserDataChanged();
+        try (ResilientAtomicFile file = getUserFile(userData.info.id)) {
+            FileOutputStream stream = file.startWrite();
+            writeUserLP(userData, stream);
+            file.finishWriteChecked(stream);
+        }
+    }
+
+    @GuardedBy({"mPackagesLock"})
+'''
+    text = replace_once(text, anchor, checked_writer + anchor)
+    old = method(text, '    private void writeUserListLP()')
+    new = replace_once(old, '    private void writeUserListLP() {', '''    private void writeUserListLP(boolean checked, int excludedUserId) {
+        // During finalization the removed user's original UserData remains in RAM.
+        // Exclude it from persistent copies without releasing its ID reservation.''')
+    new = replace_once(new, '                for (int id : userIdsToWrite) {',
+                       '                for (int id : userIdsToWrite) {\n'
+                       '                    if (id == excludedUserId) continue;')
+    new = replace_once(new, '                file.finishWrite(fos);',
+                       '                if (checked) file.finishWriteChecked(fos);\n'
+                       '                else file.finishWrite(fos);')
+    new = replace_once(new, '                file.failWrite(fos);',
+                       '                if (checked) throw new IllegalStateException(\n'
+                       '                        "AOSP user-list commit unconfirmed", e);\n'
+                       '                file.failWrite(fos);')
+    wrapper = '''    private void writeUserListLP() {
+        writeUserListLP(false, UserHandle.USER_NULL);
+    }
+
+    @GuardedBy({"mPackagesLock"})
+'''
+    text = replace_once(text, old, wrapper + new)
+
+    old = method(text, '    private boolean removeUserUnchecked(@UserIdInt int userId)')
+    new = replace_once(old, '            final UserData userData;',
+                       '            final UserData userData;\n            final int userSerial;\n'
+                       '            if (mCurrentBootPhase < SystemService.PHASE_BOOT_COMPLETED) {\n'
+                       '                return false;\n            }\n'
+                       '            com.android.server.aegis.AegisRemovalData.requireInternalStorageOnly(\n'
+                       '                    mContext.getSystemService(StorageManager.class));')
+    new = replace_once(new, '                    userData = mUsers.get(userId);',
+                       '                    userData = mUsers.get(userId);\n'
+                       '                    userSerial = userData.info.serialNumber;')
+    new = replace_once(new, '                writeUserLP(userData);', '''                try {
+                    writeUserLPChecked(userData);
+                } catch (Exception failure) {
+                    Slog.e(LOG_TAG, "User removal marker was not committed; ID remains reserved",
+                            failure);
+                    return false;
+                }''')
+    new = replace_once(new, '                                finishRemoveUser(userIdParam);',
+                       '                                if (userIdParam != userId\n'
+                       '                                        || !finishRemoveUser(userData, userSerial)) return;')
+    text = replace_once(text, old, new)
+
+    old = method(text, '    private void finishRemoveUser(final @UserIdInt int userId)')
+    new = replace_once(old, '    private void finishRemoveUser(final @UserIdInt int userId) {',
+                       '    private boolean finishRemoveUser(final UserData original, final int serial) {\n'
+                       '        final int userId = original.info.id;')
+    new = replace_once(new, '            user = getUserInfoLU(userId);',
+                       '            if (!isOriginalRemovingUserLU(original, serial)\n'
+                       '                    || original.aegisRemovalNotified) return false;\n'
+                       '            original.aegisRemovalNotified = true;\n'
+                       '            user = original.info;')
+    new = replace_once(new, '''            LocalServices.getService(ActivityTaskManagerInternal.class).onUserStopped(userId);
+            removeUserState(userId);
+            return;''', '''            removeUserState(original, serial, true);
+            return true;''')
+    new = replace_once(new, '''                                getActivityManagerInternal().onUserRemoving(userId);
+                                removeUserState(userId);''',
+                       '                                removeUserState(original, serial, true);')
+    new = new[:-len('\n    }')] + '\n        return true;\n    }'
+    text = replace_once(text, old, new)
+
+    old = method(text, '    private void removeUserState(final @UserIdInt int userId)')
+    replacement = '''    @GuardedBy("mUsersLock")
+    private boolean isOriginalRemovingUserLU(UserData original, int serial) {
+        return original != null && original.info.id != UserHandle.USER_SYSTEM
+                && mUsers.get(original.info.id) == original
+                && original.info.serialNumber == serial && original.info.partial
+                && mRemovingUserIds.get(original.info.id);
+    }
+
+    private void removeUserState(final UserData original, final int serial,
+            boolean notifyActivityManager) {
+        // Early LockSettings removal is deferred by numeric ID. Do not release an ID
+        // before that service is ready; boot completion retries original partial users.
+        if (mCurrentBootPhase < SystemService.PHASE_BOOT_COMPLETED) return;
+        final int userId = original.info.id;
+        synchronized (mUsersLock) {
+            if (!isOriginalRemovingUserLU(original, serial)
+                    || original.aegisRemovalCleanupClaimed) return;
+            original.aegisRemovalCleanupClaimed = true;
+        }
+        try {
+            if (ActivityManager.getService().isUserRunning(userId, 0)) {
+                throw new IllegalStateException("AOSP user is still running");
+            }
+            final StorageManager storage = com.android.server.aegis.AegisRemovalData
+                    .requireInternalStorageOnly(mContext.getSystemService(StorageManager.class));
+            synchronized (mPackagesLock) {
+                synchronized (mUsersLock) {
+                    if (!isOriginalRemovingUserLU(original, serial)) return;
+                }
+                writeUserLPChecked(original);
+            }
+            // Close before AOSP calls: storage-key/data hooks acquire their own lease.
+            // Closing never reopens runtime admission for this user.
+            try (com.android.server.aegis.AegisRuntimeStorage.Lease lease =
+                    com.android.server.aegis.AegisRuntimeStorage.begin(userId,
+                            com.android.server.aegis.AegisRuntimeStorage.Operation.DESTROY)) {
+                // Acquisition confirms native runtime quiescence for all serials of this ID.
+            }
+            if (notifyActivityManager) {
+                if (original.info.preCreated) {
+                    LocalServices.getService(ActivityTaskManagerInternal.class).onUserStopped(userId);
+                } else {
+                    getActivityManagerInternal().onUserRemoving(userId);
+                }
+            }
+            // LockSettings needs DE data. No swallowed error may reach ID release.
+            mLockPatternUtils.removeUser(userId);
+            storage.destroyUserStorageKeys(userId);
+            if (storage.isCeStorageUnlocked(userId)) {
+                throw new IllegalStateException("Removed user's CE storage is still unlocked");
+            }
+            mPm.cleanUpUser(this, userId);
+            mUserDataPreparer.destroyUserDataChecked(userId,
+                    StorageManager.FLAG_STORAGE_DE | StorageManager.FLAG_STORAGE_CE);
+            com.android.server.aegis.AegisRemovalData.requireInternalStorageOnly(storage);
+
+            // Perform numeric-ID cleanup while this exact AOSP object still reserves the ID.
+            getActivityManagerInternal().onUserRemoved(userId);
+            synchronized (mUserStates) {
+                mUserStates.delete(userId);
+            }
+            synchronized (mRestrictionsLock) {
+                mBaseUserRestrictions.remove(userId);
+                mAppliedUserRestrictions.remove(userId);
+                mCachedEffectiveUserRestrictions.remove(userId);
+                if (mDevicePolicyUserRestrictions.remove(userId)) {
+                    applyUserRestrictionsForAllUsersLR();
+                }
+            }
+            // Creation and deferred XML rewrites also take mPackagesLock. Keep it
+            // through all disk work and final in-memory removal; do not hold mUsersLock
+            // while the list serializer acquires mGuestRestrictions.
+            synchronized (mPackagesLock) {
+                synchronized (mUsersLock) {
+                    if (!isOriginalRemovingUserLU(original, serial)) {
+                        throw new IllegalStateException("AOSP removal reservation changed");
+                    }
+                }
+                try (ResilientAtomicFile file = getUserFile(userId)) {
+                    file.deleteChecked();
+                }
+                writeUserListLP(true, userId);
+                synchronized (mUsersLock) {
+                    removeUserDataLU(userId);
+                    mIsUserManaged.delete(userId);
+                    updateUserIds();
+                    if (RELEASE_DELETED_USER_ID) mRemovingUserIds.delete(userId);
+                }
+            }
+            // No destructive numeric-ID calls after the reservation has been released.
+            Slog.i(LOG_TAG, "AOSP user removal committed for " + userId + "/" + serial);
+        } catch (Exception failure) {
+            // Retain partial UserData and its claim even if cleanup partially succeeded.
+            // Only reboot recovery may retry; delayed duplicate callbacks are inert.
+            Slog.e(LOG_TAG, "AOSP removal incomplete; user ID remains reserved "
+                    + userId + "/" + serial, failure);
+        }
+    }'''
+    return replace_once(text, old, replacement).encode('utf-8')
+
+
 def checked_path(root, relative):
     current = root
     if root.is_symlink() or not root.is_dir():
@@ -177,10 +441,14 @@ def originals_from_git(base):
 
 
 def validate_record(record):
-    legacy = isinstance(record, dict) and record.get('schema') == 1
-    expected_inputs = {STORAGE, USERS} if legacy else ORIGINAL_FILES
-    expected_outputs = {STORAGE, USERS, BRIDGE} if legacy else ORIGINAL_FILES | SOURCE_FILES.keys()
-    if (not isinstance(record, dict) or record.get('schema') not in (1, 2)
+    schema = record.get('schema') if isinstance(record, dict) else None
+    if type(schema) is not int or schema not in (1, 2, 3):
+        raise ValueError('Invalid storage-source receipt schema')
+    expected_inputs = {1: {STORAGE, USERS}, 2: {STORAGE, USERS, RESILIENT}}.get(schema, ORIGINAL_FILES)
+    expected_outputs = {1: {STORAGE, USERS, BRIDGE},
+                        2: {STORAGE, USERS, RESILIENT, BRIDGE, REMOVAL_FILES}}.get(
+                                schema, ORIGINAL_FILES | SOURCE_FILES.keys())
+    if (not isinstance(record, dict) or schema not in (1, 2, 3)
             or record.get('status') != 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED'
             or record.get('aosp_tag') != 'android-16.0.0_r1'
             or not isinstance(record.get('inputs'), dict)
@@ -213,8 +481,11 @@ def prepare(project, aosp, originals=None, pins=None):
                for name, source in SOURCE_FILES.items()}
     outputs = {STORAGE: patch_storage(originals[STORAGE]),
                USERS: patch_users(originals[USERS]),
-               RESILIENT: patch_resilient(originals[RESILIENT]), **sources}
-    record = {'schema': 2, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
+               RESILIENT: patch_resilient(originals[RESILIENT]),
+               MANAGER: patch_manager(originals[MANAGER]),
+               PREPARER: patch_preparer(originals[PREPARER]),
+               INSTALLER: patch_installer(originals[INSTALLER]), **sources}
+    record = {'schema': 3, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
               'aosp_tag': pins['aosp_tag'], 'inputs': pins['files'],
               'bridge_sha256': digest(sources[BRIDGE]),
               'outputs': {name: digest(data) for name, data in outputs.items()}}

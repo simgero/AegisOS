@@ -24,6 +24,9 @@ class StorageHookSourcesTests(unittest.TestCase):
             hooks.STORAGE: (fixtures / 'StorageManagerService.fragment').read_bytes(),
             hooks.USERS: (fixtures / 'UserController.fragment').read_bytes(),
             hooks.RESILIENT: (fixtures / 'ResilientAtomicFile.fragment').read_bytes(),
+            hooks.MANAGER: (fixtures / 'UserManagerService.fragment').read_bytes(),
+            hooks.PREPARER: (fixtures / 'UserDataPreparer.fragment').read_bytes(),
+            hooks.INSTALLER: (fixtures / 'Installer.fragment').read_bytes(),
         }
         self.pins = {'schema': 1, 'aosp_tag': 'android-16.0.0_r1',
                      'files': {name: hooks.digest(data) for name, data in self.originals.items()}}
@@ -32,6 +35,7 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.source.write_bytes(b'first inert bridge-source fixture\n')
         self.removal_source = self.project / hooks.REMOVAL_SOURCE
         self.removal_source.write_bytes(b'inert checked-files fixture\n')
+        (self.project / hooks.REMOVAL_DATA_SOURCE).write_bytes(b'inert checked-data fixture\n')
         for name, data in self.originals.items():
             destination = self.target(name)
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -47,13 +51,13 @@ class StorageHookSourcesTests(unittest.TestCase):
         receipt = self.prepare()
         hooks.verify(self.aosp, receipt)
         storage = self.target(hooks.STORAGE).read_text()
-        self.assertEqual(storage.count('try (' + hooks.PREFIX + '.Lease'), 5)
+        self.assertEqual(storage.count('try (' + hooks.PREFIX + '.Lease'), 6)
         for kind in ('CREATE', 'DESTROY', 'PROTECT', 'UNLOCK', 'LOCK'):
-            self.assertEqual(storage.count('.Operation.' + kind + '))'), 1)
+            self.assertEqual(storage.count('.Operation.' + kind + '))'), 2 if kind == 'DESTROY' else 1)
         self.assertLess(storage.index('super.lockCeStorage_enforcePermission();'),
                         storage.index('.Operation.LOCK'))
         self.assertLess(storage.index('.Operation.LOCK'), storage.index('if (!isCeStorageUnlocked(userId))'))
-        self.assertEqual(storage.count('throw new IllegalStateException("AOSP storage-key mutation failed", e);'), 3)
+        self.assertEqual(storage.count('throw new IllegalStateException("AOSP storage mutation failed", e);'), 4)
         users = self.target(hooks.USERS).read_text()
         self.assertIn('catch (RemoteException | RuntimeException failure)', users)
         self.assertLess(users.index('isCeStorageUnlocked(userId)'), users.index('.keyEvicted(userId)'))
@@ -168,7 +172,7 @@ class StorageHookSourcesTests(unittest.TestCase):
         self.assertEqual(json.loads(marker.read_text()), legacy)
         self.target(hooks.RESILIENT).write_bytes(self.originals[hooks.RESILIENT])
         result = self.prepare()
-        self.assertEqual(result['schema'], 2)
+        self.assertEqual(result['schema'], 3)
         hooks.verify(self.aosp, result)
         self.assertEqual(self.target(hooks.REMOVAL_FILES).read_bytes(), self.removal_source.read_bytes())
         self.assertEqual(self.prepare(), result)
@@ -189,6 +193,60 @@ class StorageHookSourcesTests(unittest.TestCase):
             self.assertLess(source.index(writable + '.close();'),
                             source.index('FileIntegrity.setUpFsVerity(mainPfd)'))
         self.assertIn('originalFailureHandling();', source)
+
+    def test_schema_two_receipt_cannot_adopt_unowned_manager_changes(self):
+        receipt = self.prepare()
+        old_inputs = {hooks.STORAGE, hooks.USERS, hooks.RESILIENT}
+        old_outputs = old_inputs | {hooks.BRIDGE, hooks.REMOVAL_FILES}
+        legacy = {**receipt, 'schema': 2,
+                  'inputs': {k: v for k, v in receipt['inputs'].items() if k in old_inputs},
+                  'outputs': {k: v for k, v in receipt['outputs'].items() if k in old_outputs}}
+        marker = self.aosp / hooks.MARKER
+        marker.write_text(json.dumps(legacy))
+        self.target(hooks.REMOVAL_DATA).unlink()
+        for name in (hooks.PREPARER, hooks.INSTALLER):
+            self.target(name).write_bytes(self.originals[name])
+        self.target(hooks.MANAGER).write_bytes(b'original developer changes')
+        with self.assertRaises(ValueError): self.prepare()
+        self.assertFalse(self.target(hooks.REMOVAL_DATA).exists())
+        self.assertEqual(json.loads(marker.read_text()), legacy)
+        self.target(hooks.MANAGER).write_bytes(self.originals[hooks.MANAGER])
+        self.assertEqual(self.prepare()['schema'], 3)
+
+    def test_removal_orders_metadata_and_data_before_reserved_identity_release(self):
+        self.prepare()
+        text = self.target(hooks.MANAGER).read_text()
+        body = hooks.method(text, '    private void removeUserState(final UserData original,')
+        ordered = ['isOriginalRemovingUserLU(original, serial)',
+                   'original.aegisRemovalCleanupClaimed = true;', 'writeUserLPChecked(original)',
+                   'AegisRuntimeStorage.begin(', 'mLockPatternUtils.removeUser(userId)',
+                   'storage.destroyUserStorageKeys(userId)', 'destroyUserDataChecked(userId,',
+                   'onUserRemoved(userId)', 'file.deleteChecked()',
+                   'writeUserListLP(true, userId)', 'removeUserDataLU(userId)']
+        positions = [body.index(item) for item in ordered]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn('removeUserState(userId)', text)
+        self.assertNotIn('removeUserState(ui.id)', text)
+        self.assertIn('mUsers.get(original.info.id) == original', text)
+        self.assertIn('original.info.serialNumber == serial', text)
+        self.assertIn('original.aegisRemovalNotified) return false;', text)
+        self.assertIn('PHASE_BOOT_COMPLETED', text)
+        self.assertIn('if (id == excludedUserId) continue;', text)
+
+    def test_installer_and_data_errors_are_not_swallowed_in_checked_path(self):
+        self.prepare()
+        text = self.target(hooks.INSTALLER).read_text()
+        checked = hooks.method(text, '    public void destroyUserDataChecked(')
+        self.assertIn('throw new InstallerException(', checked)
+        self.assertIn('mInstalld.destroyUserData(uuid, userId, flags)', checked)
+        self.assertNotIn('return;', checked)
+        text = self.target(hooks.PREPARER).read_text()
+        checked = hooks.method(text, '    void destroyUserDataChecked(')
+        self.assertNotIn('catch (', checked)
+        self.assertIn('mInstaller.destroyUserDataChecked(null, userId, flags)', checked)
+        self.assertIn('storage.destroyUserStorage(null, userId, flags)', checked)
+        self.assertEqual(checked.count('deleteSystemDirectory('), 3)
+        self.assertIn('originalBestEffortCleanup();', text)
 
 
 if __name__ == '__main__':

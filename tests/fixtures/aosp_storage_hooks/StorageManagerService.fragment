@@ -103,3 +103,12 @@
             dispatchCeStorageLockedEvent(userId);
         }
     }
+
+    public void destroyUserStorage(String volumeUuid, int userId, int flags) {
+        super.destroyUserStorage_enforcePermission();
+        try {
+            mVold.destroyUserStorage(volumeUuid, userId, flags);
+        } catch (Exception e) {
+            Slog.wtf(TAG, e);
+        }
+    }

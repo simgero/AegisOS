@@ -1,0 +1,4 @@
+// Inert source-integration fixture, never compiled.
+    void destroyUserData(int userId, int flags) {
+        originalBestEffortCleanup();
+    }

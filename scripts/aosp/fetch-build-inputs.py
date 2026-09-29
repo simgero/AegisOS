@@ -24,6 +24,7 @@ REQUIRED = {
     "scripts/aosp/register-runtime-storage.py", "runtime/aosp-storage-hooks.json",
     "packages/aegis/identity/platform/com/android/server/aegis/AegisRuntimeStorage.java",
     "packages/aegis/identity/platform/com/android/server/aegis/AegisRemovalFiles.java",
+    "packages/aegis/identity/platform/com/android/server/aegis/AegisRemovalData.java",
     "device/aegis/qemu_arm64/AndroidProducts.mk",
     "device/aegis/qemu_arm64/aegis_qemu_arm64.mk",
     "device/aegis/qemu_arm64/BoardConfig.mk", "packages/aegis/identity/Android.bp",

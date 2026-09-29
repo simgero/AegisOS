@@ -145,22 +145,49 @@ Symlinks und mehrfach verlinkte Dateien werden vor dem ersten Unlink abgewiesen.
 Die vorhandene bestmögliche AOSP-fs-verity-Absicherung bleibt im neuen
 Commitpfad erhalten. Bestehende normale AOSP-Aufrufer sind unverändert.
 
-Der Quellintegrator pinnt zusätzlich `ResilientAtomicFile.java` und übernimmt
-nur einen vollständig passenden bisherigen Besitznachweis. Neue unbekannte
-Dateiänderungen bleiben erhalten und verhindern die Installation. Zwölf
-lokale Tests prüfen diese Quellintegration und Migration; sie führen keine
-Android-Dateioperation aus. Zehn neue Android-Tests verwenden echte eigene
-Gastdateien einschließlich fehlgeschlagener Unlinks und ersetzter Inodes;
-ihre Kompilierung und lokale Ausführung stehen noch aus.
+Der Quellintegrator pinnt zusätzlich `ResilientAtomicFile`, `UserManagerService`,
+`UserDataPreparer` und `Installer`. Berichtsschema 3 übernimmt nur vollständig
+passende bisherige Nachweise der Schemata 1/2. Neue unbekannte Dateiänderungen
+verhindern die Installation. 15 lokale Tests prüfen Integration und Migration;
+sie führen keine Android-Dateioperation aus.
 
-**Die neuen Methoden sind noch nicht in UserManagerService aufgerufen.**
-Der bestätigte Speicherabbau, Seriennummernbindung der Rückmeldungen und
-Freigabe der AOSP-ID bleiben der nächste Integrationsschritt. Damit ist
-keine reale Benutzerlöschung nachgewiesen oder freigeschaltet.
+Komponentenstand `c239ab17` ist auf dem Builder kompiliert und über GitHub
+verifiziert. Im lokalen Gast `2f29f0ac` bestehen 77/78 Java-Tests. Der einzige
+Fehler ist das von SELinux verweigerte Anlegen einer Hardlink-Testfixture im
+App-Prozess. Die Korrektur bereitet ausschließlich diese app-eigene Testdatei
+über die vorhandene userdebug-Test-Shell vor; keine Policy wird gelockert.
+Nachweis: `out/components-c239ab1/component-tests/`; Java-Protokoll SHA-256
+`d0394a52a702210496defdae971d8eb2235cc94a5417030a8f2b42c72959413a`.
 
-Die Prüfung der gepinnten Plattformquellen bestätigt zusätzliche Lücken,
-die die fünf Storage-Key-Hooks allein nicht schließen. Dies ist eine
-Implementierungsvorgabe, kein bestandener Löschtest:
+**Der neue Quellstand bindet die bestätigenden Methoden nun in AOSPs
+Benutzerlöschung ein; Kompilierung und Vollimage-Nachweis dafür stehen aus.**
+Stop- und Broadcast-Rückmeldungen behalten das ursprüngliche `UserData` und
+dessen Seriennummer. Getrennte einmalige Benachrichtigungs-/Abbauansprüche
+verhindern doppelte numerische Löschwirkungen. Fehler behalten den partiellen
+Eintrag samt Anspruch bis zur Boot-Wiederherstellung.
+
+Vor LockSettings wird die Runtime stillgelegt. Anschließend müssen Schlüssel,
+installd und vold den Abbau bestätigen. Ein sechster Storage-Hook schützt die
+Datenlöschung und gibt vold-Fehler weiter. Systemverzeichnisse werden ohne
+Folgen von Symlinks geleert; fehlgeschlagene Verzeichnislesevorgänge gelten
+nicht als leere Verzeichnisse. Das ist auf feste, bereits stillgelegte AOSP-
+Pfade beschränkt. Fünf zusätzliche Gasttests prüfen diesen Dateibaustein.
+
+Alle numerischen Abschlussarbeiten erfolgen vor Freigabe von `UserData`.
+Unter `mPackagesLock` verschwinden die drei Benutzer-XML-Kopien und wird die
+Benutzerliste bestätigt ohne diesen Benutzer geschrieben, während dessen
+Eintrag im Speicher weiterhin die ID reserviert. Erst danach wird er entfernt.
+Die direkte nachträgliche vold-Löschung im Backend entfällt.
+
+Frühe Boot-Bereinigung markiert weiterhin partielle Benutzer, führt den Abbau
+aber erst bei `PHASE_BOOT_COMPLETED` aus: LockSettings würde ihn davor intern
+nach numerischer ID aufschieben. Angeschlossene und gespeicherte abgetrennte
+private Zusatzvolumes verhindern die Löschung. Diese Änderungen sind noch
+kein realer Nachweis für Fehlerbehandlung, Wiederanlauf oder ID-Wiederverwendung.
+Verwaltete CLI-Benutzerlöschung bleibt durch `requireRuntimeAbsent()` gesperrt.
+
+Die folgende Prüfliste erklärt die abgedeckten Quellpfade und die noch
+ausstehenden Systemtests. Sie ist kein bestandener Löschtest:
 
 - `UserManagerService.removeUserState()` entfernt zunächst LockSettings,
   Schlüssel und Daten. Fehler beim Schlüsselabbau werden bisher abgefangen;

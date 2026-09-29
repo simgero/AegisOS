@@ -4,6 +4,9 @@
   "files": {
     "services/core/java/com/android/server/StorageManagerService.java": "073a918bf11db680f63ba5da2430a9e3032b70558b4c2e94bb3af8af33eea43b",
     "services/core/java/com/android/server/am/UserController.java": "75529a79f7e0354cf973b7b719d043b80663e58ef024c41022314c5db0708c0b",
-    "services/core/java/com/android/server/pm/ResilientAtomicFile.java": "9c63bdd710fc2a72a2a7e83c809fae93523334023e521148350b68805b85170b"
+    "services/core/java/com/android/server/pm/ResilientAtomicFile.java": "9c63bdd710fc2a72a2a7e83c809fae93523334023e521148350b68805b85170b",
+    "services/core/java/com/android/server/pm/UserManagerService.java": "40e8938d8a7b91d9aff0c6a69f36f796236a8542a442b8fc0210ab9979c65117",
+    "services/core/java/com/android/server/pm/UserDataPreparer.java": "935b566808e93019b98b28423408c91c3310f0f9e4718f51bf05ba1f8c88b170",
+    "services/core/java/com/android/server/pm/Installer.java": "eaca2e029af76361f13246087f1e552226937d3f4001ecef67b366c3c3257678"
   }
 }

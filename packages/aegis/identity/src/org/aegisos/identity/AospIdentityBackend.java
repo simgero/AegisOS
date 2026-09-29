@@ -8,7 +8,6 @@ import android.app.admin.DevicePolicyManager;
 import android.content.Context;
 import android.content.pm.UserInfo;
 import android.os.Binder;
-import android.os.IVold;
 import android.os.Looper;
 import android.os.Process;
 import android.os.RemoteException;
@@ -685,7 +684,9 @@ public final class AospIdentityBackend {
                 }
                 if (current == null && !users.isUserRunning(target.id)
                         && !storage.isCeStorageUnlocked(target.id)) {
-                    finishStorageRemoval(target);
+                    // Pinned AOSP finalization owns every destructive operation while
+                    // the original UserData still reserves the ID. Never delete by an
+                    // already-released numeric ID here; it may now belong to another user.
                     return;
                 }
                 if (Thread.currentThread().isInterrupted()) {
@@ -719,28 +720,6 @@ public final class AospIdentityBackend {
                 throw new IllegalStateException("Adopted private storage requires removal integration");
             }
         }
-    }
-
-    private void requireRemoved(UserKey target) throws RemoteException {
-        if (users.getUserInfo(target.id) != null || users.isUserRunning(target.id)
-                || storage.isCeStorageUnlocked(target.id)) {
-            throw new IllegalStateException("Removed user identity is no longer absent and locked");
-        }
-    }
-
-    private void finishStorageRemoval(UserKey target) throws RemoteException {
-        // The pinned StorageManagerService logs and swallows some vold deletion failures.
-        // After UserManager has completed LockSettings cleanup, require acknowledgement from
-        // AOSP vold itself. These pinned vold operations also succeed for already-absent keys
-        // and directories. Never do this before UserManager has released the user's DE state.
-        requireRemoved(target);
-        requireInternalStorageOnly();
-        IVold vold = IVold.Stub.asInterface(Objects.requireNonNull(
-                ServiceManager.getService("vold"), "AOSP vold unavailable"));
-        vold.destroyUserStorageKeys(target.id);
-        requireRemoved(target);
-        vold.destroyUserStorage(null, target.id, IVold.STORAGE_FLAG_DE | IVold.STORAGE_FLAG_CE);
-        requireRemoved(target);
     }
 
     /**

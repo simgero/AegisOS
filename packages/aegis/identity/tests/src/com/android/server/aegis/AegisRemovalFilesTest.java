@@ -114,7 +114,22 @@ public final class AegisRemovalFilesTest {
 
     @Test public void hardlinkedFallbackIsRejectedWithoutDeletingCopies() throws Exception {
         Files.write(main.toPath(), NEW);
-        Os.link(main.getPath(), reserve.getPath());
+        // The app domain correctly cannot create hard links. Prepare only this
+        // app-owned inert fixture through the userdebug test shell; do not relax
+        // SELinux or change production permissions to make the test runnable.
+        // Paths come only from the app cache and createTempDirectory. Keep this
+        // command unambiguous for UiAutomation implementations without a shell.
+        assertTrue(main.getPath().matches("[A-Za-z0-9_./-]+"));
+        assertTrue(reserve.getPath().matches("[A-Za-z0-9_./-]+"));
+        String command = "su 0 ln " + main.getPath() + " " + reserve.getPath();
+        try (android.os.ParcelFileDescriptor result = InstrumentationRegistry.getInstrumentation()
+                .getUiAutomation().executeShellCommand(command);
+             java.io.InputStream output = new android.os.ParcelFileDescriptor.AutoCloseInputStream(result)) {
+            assertEquals("Hardlink fixture setup failed", "",
+                    new String(output.readAllBytes(), StandardCharsets.UTF_8).trim());
+        }
+        assertEquals(2, Os.lstat(main.getPath()).st_nlink);
+        assertEquals(Os.lstat(main.getPath()).st_ino, Os.lstat(reserve.getPath()).st_ino);
         denied(() -> AegisRemovalFiles.delete(main, backup, reserve));
         assertTrue(main.exists());
         assertTrue(reserve.exists());

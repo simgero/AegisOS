@@ -1,0 +1,103 @@
+// Inert source-integration fixture. Unrelated AOSP bodies are abbreviated.
+// Production preparation validates and patches FULL pinned Git blobs, not this fixture.
+        @NonNull UserInfo info;
+    private @SystemService.BootPhase int mCurrentBootPhase;
+                mUms.registerStatsCallbacks();
+            }
+
+    private void cleanupPartialUsers() {
+        ArrayList<UserInfo> partials = new ArrayList<>();
+        synchronized (mUsersLock) {
+            for (int i = 0; i < mUsers.size(); i++) {
+                UserInfo ui = mUsers.valueAt(i).info;
+                if (ui.partial) {
+                    partials.add(ui);
+                    addRemovingUserIdLocked(ui.id);
+                    ui.partial = true;
+                }
+            }
+        }
+        for (int i = 0; i < partials.size(); i++) {
+            UserInfo ui = partials.get(i);
+            removeUserState(ui.id);
+        }
+    }
+
+    private void cleanupPreCreatedUsers() {
+        final ArrayList<UserInfo> preCreatedUsers = new ArrayList<>();
+        synchronized (mUsersLock) {
+            for (int i = 0; i < mUsers.size(); i++) {
+                UserInfo ui = mUsers.valueAt(i).info;
+                if (ui.preCreated) {
+                    preCreatedUsers.add(ui);
+                    addRemovingUserIdLocked(ui.id);
+                    ui.partial = true;
+                }
+            }
+        }
+        for (int i = 0; i < preCreatedUsers.size(); i++) {
+            UserInfo ui = preCreatedUsers.get(i);
+            removeUserState(ui.id);
+        }
+    }
+
+    private void writeUserLP(UserData userData) {
+        originalUserWriter();
+    }
+
+    private void writeUserListLP() {
+        try (ResilientAtomicFile file = getUserListFile()) {
+            FileOutputStream fos = null;
+            try {
+                fos = file.startWrite();
+                originalListSerializationBeforeUsers();
+                for (int id : userIdsToWrite) {
+                    serializer.writeUser(id);
+                }
+                file.finishWrite(fos);
+            } catch (Exception e) {
+                file.failWrite(fos);
+            }
+        }
+    }
+
+    private boolean removeUserUnchecked(@UserIdInt int userId) {
+            final UserData userData;
+            synchronized (mPackagesLock) {
+                synchronized (mUsersLock) {
+                    userData = mUsers.get(userId);
+                }
+                userData.info.partial = true;
+                writeUserLP(userData);
+            }
+            originalStopUser(new IStopUserCallback.Stub() {
+                            public void userStopped(int userIdParam) {
+                                finishRemoveUser(userIdParam);
+                                originalJourneyLogging();
+                            }
+            });
+    }
+
+    private void finishRemoveUser(final @UserIdInt int userId) {
+        UserInfo user;
+        synchronized (mUsersLock) {
+            user = getUserInfoLU(userId);
+        }
+        if (user != null && user.preCreated) {
+            LocalServices.getService(ActivityTaskManagerInternal.class).onUserStopped(userId);
+            removeUserState(userId);
+            return;
+        }
+        originalBroadcast(new IIntentReceiver.Stub() {
+                        public void performReceive() {
+                            new Thread(() -> {
+                                getActivityManagerInternal().onUserRemoving(userId);
+                                removeUserState(userId);
+                            }).start();
+                        }
+        });
+    }
+
+    private void removeUserState(final @UserIdInt int userId) {
+        originalBestEffortRemoval();
+    }

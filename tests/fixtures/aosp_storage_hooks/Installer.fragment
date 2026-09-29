@@ -1,0 +1,9 @@
+// Inert source-integration fixture, never compiled. Pinned AOSP method shape.
+    public void destroyUserData(String uuid, int userId, int flags) throws InstallerException {
+        if (!checkBeforeRemote()) return;
+        try {
+            mInstalld.destroyUserData(uuid, userId, flags);
+        } catch (Exception e) {
+            throw InstallerException.from(e);
+        }
+    }
