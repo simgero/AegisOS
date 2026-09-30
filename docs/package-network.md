@@ -32,10 +32,31 @@ Der Online-Modus erhält zusätzlich ein root-eigenes, begrenztes Zertifikatsbü
 als festen Produkteingang; es wird schreibgeschützt in die Planerrichtlinie
 kopiert und in deren Digest aufgenommen. Das private Protokoll übergibt genau
 sechs Eingabedeskriptoren einschließlich dieses Bündels und weist einen siebten
-bereits beim Senden ab. HTTPS-Zertifikatsprüfung bleibt aktiv. Der Gerätetest
-erzeugt sein Bündel aus dem verifizierten, schreibgeschützten Conscrypt-APEX;
-dessen Zertifikate gehören Androids Systemkonto (1000:1000). Die tatsächliche
-Produktbereitstellung des festen Bündels bleibt Teil der Brokeranbindung.
+bereits beim Senden ab. HTTPS-Zertifikatsprüfung bleibt aktiv.
+
+Der Broker-Startcode stellt diese Produkteingaben mit `aegis_package_policy_open`
+selbst zusammen: Debian 13 `trixie`, `trixie-updates` und `trixie-security`, jeweils
+`main` und ausschließlich HTTPS. Die drei festen Debian-Archivschlüssel stammen
+aus der bereits geprüften schreibgeschützten Basis. Das TLS-Bündel stammt aus dem
+signierten, schreibgeschützten Conscrypt-APEX; dessen Zertifikate gehören Androids
+Systemkonto (1000:1000). Geprüft werden Mounttyp, Schreibschutz, Eigentümer,
+SELinux-Typ, Dateityp, Größen und sichere Auflösung relativ zum gehaltenen
+Verzeichnis. Persönliche Zertifikatsablagen und Paketkonfigurationen werden nicht
+als Vertrauensquelle verwendet.
+
+Quellenliste, Schlüssel und Zertifikate werden in drei schreibgeschützte memfds
+mit vollständigen Schreib-/Größen-/Seal-Sperren überführt. Der Broker übernimmt
+sie gemeinsam vor dem ersten Auftrag und erlaubt keine spätere Ersetzung.
+Ein Fehler liefert keine teilweise eingerichtete Konfiguration. Die interne
+Eingangsprüfung akzeptiert weiterhin normale geprüfte Dateien für isolierte
+Fixtures; sie allein beweist weder Herkunft noch Berechtigung. Der Produktpfad
+verwendet ausschließlich die festen, versiegelten Eingaben.
+
+Diese Startanbindung ist implementiert, aber noch nicht im laufenden Produktimage
+installiert. Ein Komponentenlauf prüft die Funktionen im lokalen Gast; erst ein
+neues Vollimage und dessen tatsächlicher Brokerstart können die Start- und
+SELinux-Anbindung zur Laufzeit belegen. Die Verbindung zum öffentlichen
+Paketauftrag bleibt ebenfalls offen.
 Dieser Proxy erlaubt ausschließlich CONNECT zu `deb.debian.org` und
 `security.debian.org`, jeweils Port 80 oder 443. Numerische Ziele, weitere
 SOCKS-Befehle, andere Namen/Ports und spezielle oder lokale IPv4-Adressen nach

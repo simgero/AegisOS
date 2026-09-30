@@ -1,3 +1,70 @@
+## Feste Debian-/AOSP-Vertrauensdaten: 357 native Tests bestanden
+
+Stand **e26cfd9004e89542bb3021d4429f0c3be6a267d7** besteht am
+**2026-09-30T14:12:53Z alle 357 aktivierten nativen Tests aus 42 Gruppen**
+(171173 ms, Exit 0). Kompiliert auf `aegis-build` in 20 Sekunden; Lauf
+`identity-20260930T140829Z-e26cfd90-w8DVEH`, Invocation
+`a4dfc37f04144d5c9ced85629f76d496`.
+[Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T140924Z-e26cfd90-e26cfd90-JBq8Tz).
+Alle Laufzeittests fanden im bestehenden lokalen Mac-QEMU mit Produktimage
+`c7401f60` statt. Der Produktbroker wurde dabei nicht ersetzt.
+
+Der neue Startbaustein liest ausschließlich die drei festen Debian-13-
+Archivschlüssel aus der geprüften, schreibgeschützten Basis und die CA-Zertifikate
+aus dem signierten, schreibgeschützten Conscrypt-APEX. Die Quellenliste ist fest
+im Produkt: HTTPS für `trixie`, `trixie-updates` und `trixie-security`, jeweils
+`main`. Mounttyp/Schreibschutz, Dateityp, Eigentümer, SELinux-Typ und Größen werden
+geprüft; die Auflösung erfolgt relativ zu gehaltenen Verzeichnissen ohne
+Symlink-/Mountübergänge unterhalb dieser Anker.
+
+Quellen, Signaturschlüssel und TLS-Bündel werden gemeinsam als drei readonly
+memfds mit vollständigen Schreib-, Größen- und weiteren Seal-Sperren übernommen.
+Der Broker-Startcode bindet sie vor dem ersten Auftrag; nachträgliche Ersetzung
+und teilweise Übernahme werden abgewiesen. Die interne Dateiprüfung akzeptiert
+weiterhin reguläre vertrauenswürdige Fixture-Dateien und ist kein Herkunfts-
+oder Autorisierungsnachweis. [Datenweg und Produktgrenzen](package-network.md).
+
+Die drei neuen Tests prüfen den echten Abruf über alle drei Quellen mit
+Signaturen und vollständigen Indexhashes, verweigerte Schreib-/Größenänderungen,
+unversiegelte Eingaben, ungültige Basis-FDs, atomare Übernahme ohne FD-Leck und
+unveränderliche Startkonfiguration. Der positive Lauf benötigt 6576 ms und liefert
+drei authentifizierte Repository-Belege. `hello_2.10-5_arm64.deb` hat 52.660 Bytes
+und SHA-256 `7a917c7f44fbd3373dff0f35a0b6bdf8ef564ff90579d8b130ff52fbf33fce1f`.
+Die ausgewählte Paketdatenbank und automatische Installationsmarkierungen bleiben
+unverändert. Dieser Abruf installiert das Paket nicht.
+
+Der erste Stand `7a1088b9` hatte zwei Compilerfehler. Nach deren Korrektur
+kompilierte `c95a2c4f`, wurde aber bei der neuen Verzeichnisübernahme von Bionics
+fdsan abgebrochen. Die Korrektur gibt den `unique_fd` vor `fdopendir` frei und
+schließt den unübernommenen Deskriptor ausdrücklich bei Fehler. Die Aufzeichnungen
+beider Versuche bleiben erhalten; beim Laufzeitabbruch waren Benutzer-/CE-
+Bestand und Broker unverändert. Erst `e26cfd90` hat den vollständigen grünen Nachweis.
+
+Die SELinux-Bauprüfungen einschließlich Kontext-, Kompatibilitäts- und Neverallow-
+Prüfungen bestanden im Komponentenbuild `c95a2c4f`; die anschließende Korrektur
+ändert keine Policy. Das beweist noch nicht den tatsächlichen neuen Brokerstart:
+Vollimage und Boot mit diesen Startzugriffen sind weiterhin erforderlich.
+Öffentliche Paket-CLI/Binder, konfigurierte komplette Auftragspipeline, frische
+AOSP-Adminbestätigung und der vollständige Zwei-Benutzer-Ablauf bleiben offen.
+Die 130 Java-Tests behalten ihren unveränderten Nachweis `95f2b925`; sie wurden
+hier nicht erneut ausgeführt. Vier deaktivierte echte CE-Tests bleiben ungetestet.
+
+Profil `39d29ee1-7587-4223-8e5d-f9872c910554`, Boot
+`6c6dc3df-cf70-4c1b-8f16-f131b5a981a5`, SELinux Enforcing, Broker läuft.
+Benutzer-/Schlüssel-/CE-Snapshot vorher und nachher identisch:
+`427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`.
+
+| Nachweis | SHA-256 |
+| --- | --- |
+| Native Testdatei | `d99821d98409381d49d2f837b1d5b86b1e209e785379469324c7c04ec1b98d3e` |
+| Vollständiges Protokoll | `b5570e9bcaeee4c4f87d4636fd32282d6943e5dfc6054e333fc7c540e3554d7e` |
+| Vollständiges Ergebnis | `efdbc8f72a85483ca1ff9b58aa0dbb11847ada4a2e2503fd9a479d9e992b1f75` |
+| Produktquellen-Beleg | `16d2424f28a60c376061f51cb954bc22853d20642987100a961187ae77810968` |
+
+Lokale Belege im primären Workspace: `out/components-e26cfd90/proof.json`,
+`product-policy-receipt.json` im selben Verzeichnis sowie `targeted-tests/`
+(Filter `*`, vollständige aktivierte Suite).
+
 ## Paketaufträge neben laufender Runtime: 354 native Tests bestanden
 
 Stand **5427b78903742d88fdb0d36278bdfabd44d28c11** besteht am
