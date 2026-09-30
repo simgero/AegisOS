@@ -52,7 +52,7 @@ class RuntimeUidLayoutTests(unittest.TestCase):
         self.assertEqual(len(set(mapping.values())), 1002)
         self.assertEqual(mapping[1000], 7500)
         self.assertNotIn(ids.NETWORK_APP_ID, mapping.values())
-        self.assertIn("[AID_SYSTEM_EXT_AEGIS_PACKAGE_NETWORK]", ids.generated(self.layout)[ids.CONFIG])
+        self.assertIn("[AID_SYSTEM_EXT_AEGIS_PKG_NET]", ids.generated(self.layout)[ids.CONFIG])
         self.assertNotIn(0, mapping.values())
         self.assertNotIn(1000, mapping.values())
         self.assertNotIn(2000, mapping.values())

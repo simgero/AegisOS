@@ -65,7 +65,7 @@ def generated(layout):
             config += [f"[AID_{aid}]", f"value: {row['app_id'] + offset}", ""]
     if any(row["app_id"] <= NETWORK_APP_ID < row["app_id"] + row["count"] for row in rows):
         raise ValueError("Network companion ID must remain outside every runtime mapping")
-    config += ["[AID_SYSTEM_EXT_AEGIS_PACKAGE_NETWORK]", f"value: {NETWORK_APP_ID}", ""]
+    config += ["[AID_SYSTEM_EXT_AEGIS_PKG_NET]", f"value: {NETWORK_APP_ID}", ""]
     triples = ",\n".join(f"            {{{r['inside']}, {r['app_id']}, {r['count']}}}" for r in rows)
     java = ("// Generated from runtime/uid-map.json by scripts/runtime/uid_layout.py.\n"
             "package org.aegisos.identity;\n\n"
