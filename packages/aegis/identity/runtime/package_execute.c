@@ -420,6 +420,10 @@ int aegis_package_execute(uint32_t user, uint32_t serial) {
         else result=0;
     }
     if (!error && !result) error=run_command(&request,PACKAGE_ACTION,&result);
+    // Scripts may replace a packaged regular file with a FIFO. Reject special
+    // nodes and invalid account metadata BEFORE dpkg opens candidate files for
+    // verification, then validate again after the consistency commands finish.
+    if (!error && !result && aegis_package_validate(root)<0) error=errno;
     if (!error && !result) error=run_command(&request,PACKAGE_CHECK,&result);
     if (!error && !result) error=run_command(&request,PACKAGE_AUDIT,&result);
     if (!error && !result && audit_empty(root,request.job)<0) error=errno;

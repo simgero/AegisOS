@@ -247,6 +247,16 @@ TEST_F(RuntimePackageExecutor, RejectsPersistentFifoInsteadOfHangingWhileOpening
     EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EPERM,result.error);EXPECT_EQ(0,result.status);
     ASSERT_EQ(0,unlinkat(candidate.get(),"var/lib/aegis-exec-fifo",0));
 }
+TEST_F(RuntimePackageExecutor, RejectsPackagedFifoBeforeDpkgCanBlockReadingIt) {
+    Archives(1,false,"rm /usr/bin/ls; mkfifo /usr/bin/ls\n");
+    ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EPERM,result.error);
+    EXPECT_EQ(0,result.status);EXPECT_EQ(nullptr,worker);
+    EXPECT_EQ("<unavailable>",AptImageFixture::read(candidate.get(),"var/log/aegis-package-1-verify.log"));
+    struct stat st;ASSERT_EQ(0,fstatat(candidate.get(),"usr/bin/ls",&st,AT_SYMLINK_NOFOLLOW));
+    EXPECT_TRUE(S_ISFIFO(st.st_mode));ASSERT_EQ(0,unlinkat(candidate.get(),"usr/bin/ls",0));
+}
 TEST_F(RuntimePackageExecutor, RejectsSetidProgramCreatedByMaintainerScript) {
     Archives(1,false,"chmod 4755 /usr/bin/aegis-exec-app\n");
     ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
