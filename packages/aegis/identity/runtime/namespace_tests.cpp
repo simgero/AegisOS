@@ -7,6 +7,12 @@
 #include "package_apt_probe.h"
 #include "package_apt_plan.h"
 #include "package_apt_archives.h"
+#include "package_resolver.h"
+#include "package_resolver_probe.h"
+#include "package_apt_metadata_fixture.h"
+#include "memory_group.h"
+#include <json/json.h>
+#include <memory>
 #include <time.h>
 #include "package_apt_fixture.h"
 #include "sandbox.h"
@@ -255,6 +261,8 @@ class RuntimeNamespace : public ::testing::Test {
         }
     }
 };
+
+#include "package_resolver_test_cases.inc"
 
 TEST_F(RuntimeNamespace, OfflineAptInstallsUpgradesAndPurgesCompleteCandidate) {
     AptImageFixture fixture;

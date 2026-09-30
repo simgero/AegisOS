@@ -183,9 +183,10 @@ cc_binary {
 cc_binary {
     name: "aegis-runtime-namespace-probe",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/namespace_probe.c", "runtime/package_policy_probe.c", "runtime/package_apt_probe.c", "runtime/package_apt_hook.c", "runtime/sandbox.c"],
+    srcs: ["runtime/namespace_probe.c", "runtime/package_policy_probe.c", "runtime/package_apt_probe.c", "runtime/package_apt_hook.c", "runtime/package_resolver_probe.cpp", "runtime/sandbox.c"],
     static_executable: true,
-    stl: "none",
+    static_libs: ["libaegis-package-resolver", "libaegis-package-metadata", "libbase", "libjsoncpp", "libcrypto_static"],
+    stl: "libc++_static",
 }
 
 // Internal generation persistence, not linked into the production broker yet.
@@ -268,6 +269,18 @@ cc_library_static {
     export_include_dirs: ["runtime"],
 }
 
+// Isolated resolver engine. Product mount/provenance/network/lifecycle wiring
+// must be supplied before exposing any caller endpoint; no install authority.
+cc_library_static {
+    name: "libaegis-package-resolver",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/package_resolver.cpp"],
+    static_libs: ["libaegis-package-metadata", "libbase", "libjsoncpp"],
+    // Consumers choose system libcrypto (tests) or the static helper variant.
+    include_dirs: ["external/boringssl/src/include"],
+    export_include_dirs: ["runtime"],
+}
+
 // Bounded binding of trusted resolved metadata to preparation + publication.
 // This is not a repository verifier or a public package endpoint.
 cc_library_static {
@@ -285,7 +298,7 @@ cc_test {
     defaults: ["aegis-runtime-native-defaults"],
     srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/memory_group_tests.cpp", "runtime/broker_protocol_tests.cpp", "runtime/base_image_tests.cpp", "runtime/ce_tests.cpp", "runtime/setup_tests.cpp", "runtime/exec_tests.cpp", "runtime/package_store_tests.cpp", "runtime/package_publisher_tests.cpp", "runtime/package_executor_tests.cpp", "runtime/package_guard_tests.cpp", "runtime/package_guard.cpp", "runtime/package_plan_tests.cpp", "runtime/package_apt_plan_tests.cpp", "runtime/package_apt_archives_tests.cpp", "runtime/setup_control.c", "runtime/control.c", "runtime/sandbox.c"],
     header_libs: ["libcutils_headers"],
-    static_libs: ["libaegis-runtime-child", "libaegis-runtime-namespace", "libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-runtime-broker-owner", "libaegis-runtime-base", "libaegis-runtime-broker-cgroup", "libaegis-package-store", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libaegis-package-plan", "libaegis-package-metadata", "libbase", "libjsoncpp"],
+    static_libs: ["libaegis-runtime-child", "libaegis-runtime-namespace", "libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-runtime-broker-owner", "libaegis-runtime-base", "libaegis-runtime-broker-cgroup", "libaegis-package-store", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libaegis-package-plan", "libaegis-package-metadata", "libaegis-package-resolver", "libbase", "libjsoncpp"],
     // The test process uses the same system libcrypto as the broker. The
     // namespace setup/init/probe helpers remain separate static executables.
     shared_libs: ["libcrypto", "liblog"],

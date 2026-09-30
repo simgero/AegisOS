@@ -7,6 +7,7 @@
 #include "package_policy_probe.h"
 #include "package_apt_probe.h"
 #include "package_apt_hook.h"
+#include "package_resolver_probe.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -105,5 +106,6 @@ int main(int argc, char **argv) {
     if (recv(3, &command, 1, 0) != 1) return 100;
     if (command == 'P') return aegis_probe_package_policy(report.user_id);
     if (command == 'A') return aegis_probe_package_apt(report.user_id);
+    if (command == 'L') return aegis_probe_package_resolver(report.user_id);
     return command == 'Q' ? 0 : 100;
 }
