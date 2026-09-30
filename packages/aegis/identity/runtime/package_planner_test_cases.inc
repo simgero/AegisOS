@@ -1,4 +1,3 @@
-#include "package_network.h"
 // Included after RuntimePackageResolver; reuse only its inert image/cgroup fixture.
 class RuntimePackagePlanning : public RuntimePackageResolver {
  protected:

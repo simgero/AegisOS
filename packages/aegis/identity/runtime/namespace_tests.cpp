@@ -1,6 +1,7 @@
 // Compile on aegis-build; execute only in local Android QEMU with the new
 // namespace-capable kernel and applicable SELinux policy. Never skip missing
 // prerequisites into a passing isolation result. No AOSP users are created.
+#include "package_network.h"
 #include "namespace.h"
 #include "namespace_probe.h"
 #include "package_policy_probe.h"

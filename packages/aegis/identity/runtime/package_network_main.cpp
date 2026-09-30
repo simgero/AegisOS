@@ -78,9 +78,11 @@ void Relay(int a,int b) {
             if(p[i].eof&&!p[i].size&&!p[i].shutdown) { shutdown(fds[1-i],SHUT_WR);p[i].shutdown=true; }
         }
         if(p[0].shutdown&&p[1].shutdown)return;
+        for(auto& event:events)if(!event.events)event.fd=-1;
         int n=poll(events,2,30000);if(n<0&&errno==EINTR)continue;if(n<=0)return;
         for(unsigned i=0;i<2;++i) {
             if(events[i].revents&(POLLERR|POLLNVAL))return;
+            if((events[i].revents&POLLHUP)&&p[1-i].size&&!(events[i].revents&POLLOUT))return;
             if(!p[i].eof&&!p[i].size&&(events[i].revents&(POLLIN|POLLHUP))) {
                 ssize_t count=recv(fds[i],p[i].bytes.data(),p[i].bytes.size(),0);
                 if(count>0) { p[i].size=count;p[i].at=0;transferred+=count;if(transferred>(uint64_t{1}<<30))return; }
