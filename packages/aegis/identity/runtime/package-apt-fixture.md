@@ -49,8 +49,11 @@ choice; no resolver effect or automatic mark is omitted. Size/SHA-256 checks on
 pinned quiescent archive FDs run before preparation. These streaming reads must
 remain in an owned worker; the library is not an authentication or network API.
 
-The new actual-archive fixture and matcher are not yet compiled or guest-tested.
-The previous 53-test proof applies to the earlier metadata-only fixture.
+The actual-archive fixture and matcher pass **67/67 focused local-QEMU tests**
+at commit `d4147584`, 2026-09-30T06:37:35Z. This includes actual rejection of
+same-size changed archives, successful original acquisition and native byte
+verification. The previous 53-test proof remains an earlier metadata-only run.
+[Evidence and limits](../../../../docs/component-tests.md).
 
 APT 3.0.3's [copy method](https://github.com/Debian/apt/blob/3.0.3/methods/copy.cc)
 compares expected hashes after copying but returns a bare failure on mismatch;

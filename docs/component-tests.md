@@ -1,3 +1,72 @@
+## Signatur bis zu den Archivbytes: 67 gezielte Gerätetests
+
+Stand **d414758476d32e27d6fe6bc2b092da5f87e54319** besteht am
+**2026-09-30T06:37:35Z** im lokalen Hintergrund-QEMU **67/67 Tests**
+aus fünf Gruppen, Laufzeit 14,181 Sekunden. Kompiliert ausschließlich auf
+`aegis-build`, Lauf `identity-20260930T063544Z-d4147584-T1BDCy`, Invocation
+`4ca126e3520b4e678dba0df6a51113a6`.
+[Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T063638Z-d4147584-d4147584-IgvXgE).
+
+Die neue Prüfung verwendet echte Debianarchive aus dem separat signierten
+[Testrepository](https://github.com/simgero/AegisOS/releases/tag/apt-fixture-20260930T060011Z-2d618d0d).
+APT bestätigt Release-Signatur, Frist und Packages-Index. Eine inhaltlich
+veränderte App mit **identischer Dateigröße** scheitert beim Abruf. Nach Rücknahme
+ausschließlich dieser Byteänderung übernimmt APT die Originaldatei erfolgreich.
+Der native Adapter liest danach den vollständigen Index gegen den authentifizierten
+SHA-256, ordnet exakt App 2 und Bibliothek 2 zu und verifiziert beide heruntergeladenen
+Archive unabhängig. Die Bibliothek bleibt als automatische Abhängigkeit erfasst.
+
+- 14 neue Index-/Archivprüfungen decken falsche Indizes, fehlende exakte Version,
+  doppelte und gefaltete Identitätsfelder, Pfadausbruch, Größen-/Fristenlimits,
+  widersprüchliche Quellen, ungeeignete FDs sowie veränderte/gekürzte Archive ab.
+- 10 APT-JSON-Parserprüfungen und 18 Prüfungen der bisherigen Paketplanbindung
+  bestehen erneut.
+- 24 Namespaceprüfungen schließen den tatsächlichen signierten Metadaten- und
+  Archivabruf ein. Unsignierte, verfälschte und abgelaufene Releases, geänderte
+  Indizes und fehlende Wunschversionen scheitern. Die Simulation lässt den
+  Archivcache leer, Paketstatus unverändert und führt keine Paketskripte aus.
+- Ein registrierter Vorbereitung-/Offline-APT-/Publikationslauf mit abgewiesenem
+  falschem Freigabe-Digest besteht weiterhin. Die separate tatsächliche
+  Install-/Upgrade-/Purge-Prüfung bestätigt Skripte, Konfigurationserhalt und UID 42.
+
+**Grenze:** Der Abruf erfolgt über APTs lokale `copy:`-Quelle im ausschließlich
+für diesen Test erzeugten Image, als Entwicklungsroot. Es ist kein produktiver
+Netzabruf, keine öffentliche Paketaktion und keine frische AOSP-Adminfreigabe.
+Die Skript-/Publikationsfixtures bleiben getrennte Ausführungsbelege; sie
+installieren noch nicht über den öffentlichen Weg die gerade signiert bezogenen
+Archive. Produktiver unveränderlicher Planer, Quellenbeschaffung und deren
+Auftragslebenszyklus, Bindung/Übernahme automatischer Markierungen samt ursprünglichem
+APT-Zustand sowie unabhängiger Vergleich der tatsächlich ausgeführten Änderungen
+fehlen weiterhin. [Testdaten, Protokoll und Grenzen](../packages/aegis/identity/runtime/package-apt-fixture.md).
+
+Die vorangegangenen Stände werden nicht als Erfolge umgedeutet: `1f910fb8`
+scheiterte beim Kompilieren an einer Einrückungswarnung. `4d040072` und
+`56b13494` bestanden jeweils 66/67 Tests; ihr Test erwartete bei einer korrekt
+abgewiesenen Hashänderung einen spezifischen Fehlertext, den APTs `copy:`-Methode
+nicht ausgibt. `0acd86af` bestand ebenfalls 66/67 Tests; dort brach die Simulation
+wegen `--no-download` und noch leerem Archivcache vor der positiven Prüfung ab.
+Der korrigierte Stand verwendet APTs Simulation mit unabhängig geprüftem leerem
+Cache. Die Ablehnungen, Vertrauensregeln und Inhaltsprüfungen wurden beibehalten.
+Fehlgeschlagene Logs und ihre eindeutig zugeordneten Fixture-Images bleiben erhalten.
+
+Der laufende Produktgast bleibt `c7401f60`, Profil
+`39d29ee1-7587-4223-8e5d-f9872c910554`, Boot
+`112b706c-2e59-4845-8c90-376f1e7fc048`, Enforcing und Broker aktiv.
+Benutzer, Seriennummern, laufende Benutzer, CE-Sperren, Schlüsselverzeichnisse und
+Runtime-Cgroups sind vorher/nachher gleich. Persönliche Benutzer bleiben gesperrt;
+kein Produkthelfer wurde ersetzt. Android-/KeyMint-Paare und sichtbarer Launcher
+bleiben erhalten, das Fenster geschlossen. Der ältere 239er-Nativlauf und 130
+unveränderte Java-Prüfungen sind **getrennte frühere Belege**, kein wiederholter
+Gesamtlauf dieser Komponentenrevision.
+
+Belege im primären Workspace unter `out/components-d4147584/targeted-tests/`:
+
+- `result.json`: `bbb307160176194f4ab833d7254a0517b69bf41318fc45ab67809af085dfefa4`
+- `native.log`: `86493821b92d8610fd707fe096bb7b79cb27f58ccfd1e9be659cc353f2043179`
+- native Testbinärdatei: `e884f7aa382a48f951538c700afb871381c5f7ace3520300af6bfeeaa666a2e2`
+- Namespace-Testprobe: `b39f60387009900d3f136d2d51f3eb231d22711cff2b7e448871082558e67a6e`
+- `before.json` und `after.json`: `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`
+
 ## APT-Auflösung mit signierten Testmetadaten: 53 gezielte Gerätetests
 
 Stand **322ac8a2e5eacc59553d1cc665cda7aa46bf4cb5** besteht am

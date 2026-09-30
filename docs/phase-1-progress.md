@@ -1,6 +1,21 @@
 # Phase 1: Implementierungsstand
 
 
+## 2026-09-30: signierte Paketquelle bis zu den Archivbytes geprüft
+
+Komponentenstand `d4147584` besteht **67/67 gezielte Prüfungen** im lokalen
+Hintergrund-QEMU. APT weist veränderte Archive gleicher Größe zurück und übernimmt
+die unveränderten Originale. AEGIS ordnet die exakt aufgelösten Versionen dem
+signaturbestätigten Index zu und prüft die heruntergeladenen Dateien nochmals
+unabhängig. Automatische Abhängigkeiten bleiben in diesem Adapter erhalten.
+[Nachweis einschließlich der behobenen Testfehler und Grenzen](component-tests.md).
+
+Die öffentliche Paketverwaltung bleibt inaktiv. Produktiver Netzabruf, der
+unveränderliche Planer mit Auftragslebenszyklus, automatische Markierungen im
+Freigabe-/Ausführungspfad und frische AOSP-Adminfreigabe sind noch zu verbinden.
+Der Produktgast bleibt `c7401f60`; Benutzer, Schlüssel und Profilpaare sind erhalten.
+Das QEMU-Fenster bleibt geschlossen.
+
 ## 2026-09-30: echte APT-Auflösung gegen signierte Testquellen
 
 Komponentenstand `322ac8a2` besteht **53/53 gezielte Prüfungen** im lokalen

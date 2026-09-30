@@ -1,6 +1,6 @@
 # Vollständige Paketgenerationen
 
-## Verbindung mit tatsächlichen Archiven: in Arbeit
+## Verbindung mit tatsächlichen Archiven: Komponentennachweis
 
 `PackageMatchAptArchives` verknüpft die von APT ausgewählten Änderungen mit den
 exakten Versionen/Architekturen in vollständigen authentifizierten Paketindizes.
@@ -12,8 +12,12 @@ verifiziert die gepinnten Archivdateien ohne Pfadsuche oder Ausführung.
 Das Testrepository enthält jetzt echte auf `aegis-build` erzeugte Debianarchive.
 APT muss veränderte Archivbytes ablehnen und die unveränderten Dateien per
 lokaler `copy:`-Quelle beziehen. Die bisherige echte Skript-/Konfigurationsprüfung
-bleibt getrennt bestehen. **Diese Erweiterung ist noch nicht kompiliert oder im
-Gast nachgewiesen.** Produktive Netzbeschaffung, unveränderlicher Planer,
+bleibt getrennt bestehen. **Komponentenstand d4147584 besteht am
+2026-09-30T06:37:35Z im lokalen Hintergrund-QEMU 67/67 gezielte Prüfungen.**
+Die Ablehnung einer gleich großen verfälschten Datei, der anschließende Abruf
+des Originals und die unabhängige native Byteprüfung sind tatsächlich bestätigt.
+[Nachweis und Grenzen](../docs/component-tests.md).
+Produktive Netzbeschaffung, unveränderlicher Planer,
 Lebenszyklus, automatische Markierungen im Freigabe-/Ausführungsplan und frische
 AOSP-Adminfreigabe sind weiterhin zu verbinden.
 
