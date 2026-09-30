@@ -1,3 +1,57 @@
+## Paketaufträge neben laufender Runtime: 354 native Tests bestanden
+
+Stand **5427b78903742d88fdb0d36278bdfabd44d28c11** besteht am
+**2026-09-30T13:42:01Z alle 354 aktivierten nativen Tests aus 42 Gruppen**
+(136833 ms, Exit 0). Kompiliert auf `aegis-build` in 36 Sekunden; Lauf
+`identity-20260930T133714Z-5427b789-sMjebv`, Invocation
+`b4931a388b354488b8a3eb30ae7084d8`.
+[Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T133832Z-5427b789-5427b789-M2HBGI).
+Tests ausschließlich im unveränderten lokalen Mac-QEMU, Produktimage `c7401f60`.
+
+Die bisher gemeinsame Benennung der cgroups verhinderte Paketarbeiten neben
+einer Runtime desselben Benutzers. Runtime-Prozesse verwenden weiter `u<id>-s<serial>`,
+Pakethelfer einschließlich Generationenauswahl nun `p<id>-s<serial>`.
+Beide zählen weiterhin zum unveränderten gemeinsamen Limit von 16 Blättern und
+2 GiB. Die Wiederanlaufprüfung akzeptiert genau beide kanonischen Formen;
+fremde beziehungsweise fehlerhafte Namen bleiben ein Fehler. Neue Helper und
+Broker-Wiederanlaufcode müssen gemeinsam im nächsten Vollimage ausgeliefert werden.
+Die produktiven Prozesse wurden nicht durch Komponenten ersetzt.
+
+Die Auswahl speichert nun ihren Zweck (Runtime, gemeinsame oder persönliche
+Pakete). Ein Paketplan darf weder eine Runtime-Auswahl übernehmen noch den Scope
+nachträglich ändern. Bereits aktivierte Runtime-Metadaten belegen keinen weiteren
+Paketauftrag; ausstehende und fehlgeschlagene Paketaufträge bleiben bis zur
+bestätigten Freigabe auf einen pro Benutzer begrenzt. Ein eigener Abbruch schließt
+nur den passenden Paketauftrag. STOP/HELLO/Verbindungsabbruch besitzen weiterhin
+alle Ressourcen bis zum vollständigen Aufräumen.
+
+`BrokerPrepareConfiguredPackageSelection` verwendet ausschließlich beim Start
+gepinnte Factory-, Helper-, cgroup- und Zustandsdeskriptoren. Persönliche Auswahl
+öffnet den geprüften CE-Pfad nach Registrierung; gemeinsame Auswahl greift nicht
+auf den persönlichen Store zu. Der spätere Systemdienst muss für beide Fälle
+vor dem Aufruf frische AOSP-Anmeldung, Benutzer/Seriennummer und CE-Zulassung prüfen.
+
+Die sechs neuen Prüfungen belegen Scope-/Zweckbindung, genaue Abbruchzuordnung,
+fehlende CE ohne stillen Fallback, beide Wiederanlauf-Namensformen sowie
+Paketvorbereitung und Abbruch neben einem tatsächlich laufenden isolierten
+Namespace beziehungsweise Prozess derselben Identität. Diese Fixtures ändern
+keine realen AOSP-Benutzer und ersetzen keinen angemeldeten Produkt-End-to-End-Test.
+
+Benutzer/Schlüssel/CE-Snapshot vorher und nachher identisch:
+`427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`.
+Profil `39d29ee1-7587-4223-8e5d-f9872c910554`, Boot
+`6c6dc3df-cf70-4c1b-8f16-f131b5a981a5`, SELinux Enforcing, Broker läuft.
+Native-Log SHA-256:
+`eb04914df7669de604cc1ffc2a474081428a0866a302b8807b72aa39fdab3163`.
+Binärdatei SHA-256:
+`745c1c9512fe3a482fcc0da2aa5e0d2ad1ea365ea169155e8158582fe05afdca`.
+Lokale Belege im primären Workspace: `out/components-5427b789/proof.json`
+und `out/components-5427b789/targeted-tests/` (Filter `*`, vollständige aktivierte Suite).
+Die 130 Java-Tests verwenden ihren unveränderten früheren Nachweis; sie wurden
+hier nicht erneut ausgeführt. Vier deaktivierte reale CE-Tests bleiben offen.
+Produkt-CLI/Binder, frische Adminbestätigung, Trust-Inputs/SELinux, Vollimage und
+vollständiger Zwei-Benutzer-Ablauf sind noch nicht abgeschlossen.
+
 ## Kontrollierter Debian-Internetabruf: 54 und 348 Tests bestanden
 
 Komponentenstand **83744d58352dbcca34e3944efd53d1d1f522a1f7** besteht im lokalen Mac-QEMU

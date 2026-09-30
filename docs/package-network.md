@@ -44,6 +44,13 @@ SOCKS5h-Unterstützung ist in der [Debian-APT-Dokumentation](https://manpages.de
 beschrieben. APTs Signatur-, Zeit- und Hash-Prüfungen und die unabhängige Bindung
 von Release, vollständigem Paketindex und Archiv bleiben erforderlich.
 
+Pakethelfer verwenden ein eigenes cgroup-Blatt `p<user>-s<serial>` neben dem
+Runtime-Blatt `u<user>-s<serial>`. Dadurch kann der Planer mit einer laufenden
+Runtime derselben Identität koexistieren; ein Paketabbruch signalisiert deren
+Prozesse nicht. Beide Zwecke bleiben innerhalb desselben begrenzten Aggregats.
+Der Broker bindet eine Paketauswahl vor Planung an den gemeinsamen oder
+persönlichen Scope; eine Runtime-START-Auswahl ist dafür nicht verwendbar.
+
 Der Broker besitzt beide Kinder über beim Start erzeugte pidfds. Ein begrenzter
 zweiter cgroup-Start ist nur nach der ersten Belegung, für denselben Benutzer und
 dieselbe Seriennummer, genau einmal und vor jedem STOP erlaubt. Beide Kinder und

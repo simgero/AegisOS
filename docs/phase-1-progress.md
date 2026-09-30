@@ -1,5 +1,21 @@
 # Phase 1: Implementierungsstand
 
+## 2026-09-30: Paketvorbereitung kollidiert nicht mehr mit der Runtime
+
+`5427b789` besteht **354/354 aktivierte native Tests**. Paketarbeiter erhalten
+getrennte cgroups unter demselben begrenzten Gesamtbudget. Runtime-Auswahl,
+gemeinsamer und persönlicher Paketauftrag sind zweckgebunden; ein Paketabbruch
+übernimmt oder beendet keine Runtime-Auswahl. Sechs neue Tests umfassen die
+Koexistenz mit einem echten isolierten Prozess derselben Identität sowie die
+fest verankerte gemeinsame/persönliche Quellenauswahl. [Nachweise](component-tests.md).
+
+Die Komponententests verändern keine realen Benutzer, Schlüssel oder das
+laufende Produktimage. Die öffentliche CLI/Binder-Paketstrecke mit frischer
+AOSP-Adminbestätigung, feste Quellen/Schlüssel/TLS-Eingaben und SELinux-Einbindung
+müssen noch folgen. Anschließend sind Vollimage und vollständiger
+Zwei-Benutzer-Ablauf einschließlich angemeldeter offener Shell nachzuweisen.
+Vier deaktivierte reale CE-Tests bleiben offen.
+
 ## 2026-09-30: Echter Debian-Abruf mit Zertifikats-, Signatur- und Hashprüfung
 
 `83744d58` besteht **54/54 gezielte und 348/348 aktivierte native Tests** im
