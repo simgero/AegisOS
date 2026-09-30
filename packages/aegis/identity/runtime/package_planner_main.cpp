@@ -16,6 +16,7 @@ extern "C" {
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <string>
+#include <stdio.h>
 using android::base::unique_fd;
 namespace {
 int Fail(int e) { errno=e;return -1; }
@@ -117,7 +118,7 @@ int main(int argc,char** argv) {
     for(auto c:r.padding)if(c)valid=false;
     if(!valid)return 80;
     request.action=static_cast<aegis::PackageAction>(r.action);request.package=r.package;request.version=r.version_text;
-    if(aegis::PackageResolverCheck(request)<0||Setup(fds)<0)return 81;
+    if(aegis::PackageResolverCheck(request)<0||Setup(fds)<0) { perror("aegis planner setup");return 81; }
     for(int fd:fds)close(fd);
     if(syscall(SYS_close_range,4u,~0u,0u)<0||syscall(SYS_pivot_root,".",".")<0
        ||umount2(".",MNT_DETACH)<0||chdir("/")<0)return 82;

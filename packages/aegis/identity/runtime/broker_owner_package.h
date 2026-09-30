@@ -15,6 +15,13 @@ enum class PlanningState { Running, Collected, Complete, Sealed };
 int BrokerStartPlanning(aegis_broker_owner* owner,const PackagePlanning& request,
                          int groups,int factory,int selected,int sources,int key,int helper,
                          uint64_t deadline,uint64_t* job);
+// Production preparation handoff: use the already registered selection job,
+// never an externally reopened CE mount. The same job ID survives selection ->
+// planning, with the verified source identity retained privately by the owner.
+// Still requires fresh requester admission; not fresh install/admin approval.
+int BrokerStartPlanningFromSelection(aegis_broker_owner* owner,const PackagePlanning& request,
+                                      uint64_t selection_job,int groups,int factory,int sources,int key,int helper,
+                                      uint64_t deadline,uint64_t* job);
 int BrokerPollPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job,
                         PlanningState* state,PackagePlanningResult* result);
 int BrokerCancelPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,

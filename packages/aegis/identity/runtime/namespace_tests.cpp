@@ -11,6 +11,7 @@
 #include "package_planner.h"
 #include "package_planning_protocol.h"
 #include "broker_owner_package.h"
+#include "broker_owner_selection.h"
 #include "package_resolver_probe.h"
 #include "package_apt_metadata_fixture.h"
 #include "memory_group.h"

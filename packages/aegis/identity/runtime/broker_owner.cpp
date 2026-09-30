@@ -59,6 +59,8 @@ struct execution_slot {
 };
 struct planning_slot {
     PackagePlanning plan;
+    PackagePreparationResult selected_source;
+    PackageInput factory;
     PackagePlanner* worker=nullptr;
     unique_fd evidence;
     PlanningState state=PlanningState::Running;
@@ -601,12 +603,12 @@ int admission(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t d
     }
     return 0;
 }
-int capacity(aegis_broker_owner* owner,uint32_t user) {
+int capacity(aegis_broker_owner* owner,uint32_t user,const runtime_selection_slot* transferring=nullptr) {
     unsigned count=0;
     for(const auto& slot:owner->planners)if(slot) {
         count++;if(slot->plan.requester==user)return fail(EBUSY);
     }
-    for(const auto& slot:owner->selections)if(slot && slot->resources()) {
+    for(const auto& slot:owner->selections)if(slot && slot.get()!=transferring && slot->resources()) {
         count++;if(slot->plan.requester==user)return fail(EBUSY);
     }
     for(const auto& slot:owner->publications)if(slot) {
@@ -640,26 +642,51 @@ execution_slot* find_execution(aegis_broker_owner* owner,uint32_t user,uint32_t 
     fail(ENOENT);return nullptr;
 }
 }
-int BrokerStartPlanning(aegis_broker_owner* owner,const PackagePlanning& request,
+static int start_planning(aegis_broker_owner* owner,const PackagePlanning& request,
                          int groups,int factory,int selected,int sources,int key,int helper,
-                         uint64_t deadline,uint64_t* job) {
+                         uint64_t deadline,uint64_t* job,runtime_selection_slot* transferring) {
     if(!job||*job||request.job)return fail(EINVAL);
-    if(admission(owner,request.requester,request.serial,deadline)<0||capacity(owner,request.requester)<0)return -1;
-    if(owner->next_publication==INT64_MAX)return fail(EOVERFLOW);
-    PackagePlanning plan=request;plan.job=owner->next_publication+1;
+    if(admission(owner,request.requester,request.serial,deadline)<0||capacity(owner,request.requester,transferring)<0)return -1;
+    if(!transferring&&owner->next_publication==INT64_MAX)return fail(EOVERFLOW);
+    PackagePlanning plan=request;plan.job=transferring?transferring->plan.job:owner->next_publication+1;
     if(PackagePlanningCheck(plan)<0)return -1;
     std::unique_ptr<planning_slot>* empty=nullptr;
     for(auto& slot:owner->planners)if(!slot) { empty=&slot;break; }
     if(!empty)return fail(ENOSPC);
     auto slot=std::unique_ptr<planning_slot>(new(std::nothrow) planning_slot);if(!slot)return fail(ENOMEM);
-    slot->plan=plan;*empty=std::move(slot);owner->next_publication=plan.job;*job=plan.job;
+    slot->plan=plan;
+    if(transferring) { slot->selected_source=transferring->result;slot->factory=transferring->plan.factory; }
+    *empty=std::move(slot);if(!transferring)owner->next_publication=plan.job;*job=plan.job;
     auto& registered=**empty;
-    if(PackagePlannerStart(groups,factory,selected,sources,key,helper,plan,deadline,&registered.worker)<0) {
-        int e=errno;registered.result.outcome=PackagePlanningResult::Outcome::Failed;registered.result.error=e;
+    int started=PackagePlannerStart(groups,factory,selected,sources,key,helper,plan,deadline,&registered.worker);
+    int start_error=errno;
+    // The original selection remains owned until Start has either duplicated
+    // its mount into the new registered worker or failed. No FD leaves the owner.
+    if(transferring)for(auto& old:owner->selections)if(old.get()==transferring) { old.reset();break; }
+    if(started<0) {
+        int e=start_error;registered.result.outcome=PackagePlanningResult::Outcome::Failed;registered.result.error=e;
         if(registered.worker)seal_planning(registered);else registered.state=PlanningState::Complete;
         return fail(e);
     }
     return 0;
+}
+int BrokerStartPlanning(aegis_broker_owner* owner,const PackagePlanning& request,
+                         int groups,int factory,int selected,int sources,int key,int helper,
+                         uint64_t deadline,uint64_t* job) {
+    return start_planning(owner,request,groups,factory,selected,sources,key,helper,deadline,job,nullptr);
+}
+int BrokerStartPlanningFromSelection(aegis_broker_owner* owner,const PackagePlanning& request,
+                                      uint64_t selection_job,int groups,int factory,int sources,int key,int helper,
+                                      uint64_t deadline,uint64_t* job) {
+    if(!selection_job)return fail(EINVAL);
+    if(admission(owner,request.requester,request.serial,deadline)<0)return -1;
+    for(auto& selected:owner->selections)if(selected && selected->plan.job==selection_job) {
+        if(selected->plan.requester!=request.requester||selected->plan.serial!=request.serial)return fail(ESTALE);
+        if(reap_selection(*selected,0)<0)return errno==ETIMEDOUT?fail(EAGAIN):-1;
+        if(selected->state!=RuntimeSelectionState::Selected||!selected->mount.ok())return fail(EBUSY);
+        return start_planning(owner,request,groups,factory,selected->mount.get(),sources,key,helper,deadline,job,selected.get());
+    }
+    return fail(ENOENT);
 }
 static planning_slot* find_planning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job) {
     if(!job||job>INT64_MAX) { fail(EINVAL);return nullptr; }

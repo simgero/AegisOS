@@ -85,7 +85,9 @@ int PackagePlannerFinish(PackagePlanner** pointer,bool cancel,int timeout,Packag
     if(p->group&&aegis_memory_group_kill_and_wait(p->group,left)<0)return -1;
     if(p->group&&aegis_memory_group_remove(&p->group)<0)return -1;
     if(p->anchored) { if(aegis_namespace_temporary_base_end(p->selected.get())<0)return -1;p->anchored=false; }
-    PackagePlanningResult r;r.error=EIO;unique_fd directory;
+    PackagePlanningResult r;r.error=EIO;
+    if(p->spawned && exited.code==CLD_EXITED)r.status=exited.status;
+    unique_fd directory;
     if(!p->spawned||p->cancelled) { r.outcome=PackagePlanningResult::Outcome::Failed;r.error=ECANCELED; }
     else if(exited.code==CLD_EXITED&&exited.status==0) {
         aegis_planning_reply reply={};int fd=-1;

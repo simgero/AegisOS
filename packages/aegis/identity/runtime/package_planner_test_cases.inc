@@ -49,7 +49,7 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
             ASSERT_EQ(0,aegis::BrokerPollPlanning(owner,10,1234,job,&state,&result));
             if(state!=aegis::PlanningState::Running)break;usleep(50000);
         }
-        ASSERT_EQ(aegis::PlanningState::Collected,state)<<result.error;
+        ASSERT_EQ(aegis::PlanningState::Collected,state)<<result.error<<" worker status="<<result.status;
         EXPECT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome);EXPECT_EQ(2u,result.effects);
     }
 };
@@ -57,7 +57,7 @@ TEST_F(RuntimePackagePlanning, OwnedChildCopiesOnlyMetadataAndReturnsEvidenceAft
     int before=descriptors();ASSERT_EQ(0,Start())<<strerror(errno);
     aegis::PackagePlanningResult result;int fd=-1;
     ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,10000,&result,&fd))<<strerror(errno);
-    ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)<<result.error;
+    ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)<<result.error<<" worker status="<<result.status;
     ASSERT_GE(fd,0);Fd evidence(fd);EXPECT_EQ(2u,result.effects);
     auto receipt=Read(fd,"receipt.json");EXPECT_NE(std::string::npos,receipt.find(Hash(initial)));
     EXPECT_NE(std::string::npos,Read(fd,"simulation.json").find("aegis-probe-app"));
@@ -123,4 +123,25 @@ TEST(PackagePlanningProtocol, RejectsExcessDescriptorsWithoutLeaking) {
     ASSERT_EQ(0,aegis_planning_send(first.get(),&sent,sizeof(sent),fds,2));
     int output=-1;EXPECT_EQ(-1,aegis_planning_receive(second.get(),&received,sizeof(received),&output,1));
     EXPECT_EQ(EPROTO,errno);EXPECT_EQ(-1,output);EXPECT_EQ(before,descriptors());
+}
+
+TEST_F(RuntimePackagePlanning, VerifiedSelectionTransfersDirectlyIntoSamePlanningJob) {
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());
+    Fd factory(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC));ASSERT_TRUE(factory.ok());
+    char path[PATH_MAX];ssize_t n=readlink("/proc/self/exe",path,sizeof(path)-1);ASSERT_GT(n,0);path[n]=0;
+    std::string program(path);program.resize(program.rfind('/')+1);program+="aegis-package-prepare";
+    Fd prepare(open(program.c_str(),O_RDONLY|O_CLOEXEC));ASSERT_TRUE(prepare.ok());
+    aegis::PackageRuntimeSelection selection;selection.requester=10;selection.serial=1234;
+    selection.factory={image->original.bytes,image->original.sha256};uint64_t selected_job=0,job=0;
+    ASSERT_EQ(0,aegis::BrokerPrepareRuntimeSelection(owner,selection,parent.get(),-1,-1,factory.get(),prepare.get(),Deadline(),&selected_job));
+    int started=-1;
+    for(int i=0;i<200;++i) {
+        started=aegis::BrokerStartPlanningFromSelection(owner,request,selected_job,parent.get(),source,sources.get(),key.get(),helper.get(),Deadline(),&job);
+        if(started==0)break;ASSERT_EQ(EAGAIN,errno);ASSERT_EQ(0u,job);usleep(50000);
+    }
+    ASSERT_EQ(0,started);EXPECT_EQ(selected_job,job);
+    aegis::RuntimeSelectionState state;aegis::PackagePreparationResult result;
+    EXPECT_EQ(-1,aegis::BrokerPollRuntimeSelection(owner,10,1234,selected_job,&state,&result));EXPECT_EQ(ENOENT,errno);
+    Collected(job);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,aegis::BrokerCancelPlanning(owner,10,1234,job,Deadline()));
 }
