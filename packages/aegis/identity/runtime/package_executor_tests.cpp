@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <sys/statvfs.h>
 #include <sys/inotify.h>
 #include <poll.h>
 #include <time.h>

@@ -32,7 +32,7 @@ struct PackagePreparer {
     pid_t process = 0;
     unique_fd store, source, channel;
     std::vector<unique_fd> archives;
-    bool cancelled=false,selection=false;
+    bool cancelled=false,selection=false,has_shared=false,has_personal=false;
     PackageInput factory;
     uint32_t user=0,serial=0;
     aegis_memory_group* group = nullptr;
@@ -154,7 +154,8 @@ PackagePreparationResult Response(PackagePreparer* p,const aegis_child_exit& exi
     }
     PackagePreparationResult selected{PackagePreparationOutcome::Prepared,0};
     if(p->selection) {
-        if(reply.scope<1 || reply.scope>3 || !wire::InputValid(reply.selected,uint64_t{32}<<30)
+        if(reply.scope<1 || reply.scope>3 || (reply.scope==2 && !p->has_shared)
+           || (reply.scope==3 && !p->has_personal) || !wire::InputValid(reply.selected,uint64_t{32}<<30)
            || reply.selected.bytes%4096)return result;
         if(reply.scope==3 ? !aegis_package_hash(reply.shared_base) : !aegis_package_zero(reply.shared_base,65))return result;
         if(reply.scope==1 && (reply.selected.bytes!=p->factory.bytes || reply.selected.hash!=p->factory.sha256))return result;
@@ -206,7 +207,8 @@ static int Start(int groups,int store,int source,int helper,const std::vector<in
     if(!p)return Fail(ENOMEM);
     p->process=syscall(SYS_getpid);p->job=message.execution.job;p->plan=message.execution.plan;
     p->user=message.execution.user;p->serial=message.execution.serial;
-    p->selection=message.selection;p->factory={message.image.bytes,message.image.hash};
+    p->selection=message.selection;p->has_shared=shared;p->has_personal=personal;
+    p->factory={message.image.bytes,message.image.hash};
     *output=p; // From here onward the caller retains partial ownership on failure.
     p->store.reset(fcntl(store,F_DUPFD_CLOEXEC,128));
     p->source.reset(fcntl(source,F_DUPFD_CLOEXEC,128));

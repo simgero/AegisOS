@@ -51,8 +51,9 @@ int PackageRuntimeSelectionStart(int groups,int shared_store,int personal_store,
                                  PackagePreparer** worker);
 int PackagePreparerCancel(PackagePreparer* worker);
 // Actual child reaping + empty/removed group first. Timeout retains *worker.
-// On Prepared only, *candidate receives ONE detached RW nosuid/nodev/noexec
-// ext4 mount FD; it MUST immediately enter the same registered broker slot.
+// On Prepared only, *candidate receives ONE detached nosuid/nodev/noexec ext4
+// mount FD (RW for preparation, readonly for selection); it MUST immediately
+// enter the same registered broker slot.
 // Keeping it or the stage pins private CE. Caller originals remain its duty.
 // candidate initially -1, no output change on timeout. Cancellation consumes
 // any queued mount without handing it off. No publication or approval occurs.
