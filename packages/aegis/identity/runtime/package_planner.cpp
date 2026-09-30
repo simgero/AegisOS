@@ -143,7 +143,7 @@ int PackagePlannerFinish(PackagePlanner** pointer,bool cancel,int timeout,Packag
             if(file.ok()&&fstat(file.get(),&st)==0&&fstatfs(file.get(),&fs)==0&&fs.f_type==TMPFS_MAGIC
                &&S_ISREG(st.st_mode)&&st.st_nlink==1&&st.st_uid==p->request.user*100000+5000
                &&st.st_size>=0&&st.st_size<=(int64_t{512}<<20)) {
-                char buffer[8192];off_t offset=st.st_size>sizeof(buffer)?st.st_size-sizeof(buffer):0;
+                char buffer[8192];off_t offset=st.st_size>off_t(sizeof(buffer))?st.st_size-off_t(sizeof(buffer)):0;
                 ssize_t n=pread(file.get(),buffer,sizeof(buffer),offset);if(n>0)r.diagnostic.assign(buffer,n);
             }
         }
