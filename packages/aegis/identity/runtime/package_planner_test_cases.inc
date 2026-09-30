@@ -84,7 +84,11 @@ TEST_F(RuntimePackagePlanning, CollectedBrokerEvidenceStaysOwnedUntilRequesterSt
     EXPECT_EQ(before,descriptors());
     aegis::PlanningState ps;aegis::PackagePlanningResult result;
     EXPECT_EQ(-1,aegis::BrokerPollPlanning(owner,10,1234,job,&ps,&result));EXPECT_EQ(ENOENT,errno);
-    ASSERT_EQ(0,StartOwner(&another));EXPECT_GT(another,job);
+    // Each admitted job consumes its detached selected view. Linux refuses
+    // move_mount on the same already-detached mount after MNT_DETACH; a new
+    // job reselects a freshly verified view, as the owned selection path does.
+    selected.reset(aegis_base_open());ASSERT_TRUE(selected.ok());
+    ASSERT_EQ(0,StartOwner(&another))<<strerror(errno);EXPECT_GT(another,job);
 }
 TEST_F(RuntimePackagePlanning, IdentityMismatchCannotPollOrCancelAnotherJob) {
     CreateOwner();ASSERT_FALSE(HasFatalFailure());uint64_t job=0;ASSERT_EQ(0,StartOwner(&job));

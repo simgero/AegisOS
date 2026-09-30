@@ -18,6 +18,9 @@ int PackagePlanningCheck(const PackagePlanning& request);
 // Internal trusted owner API, not CLI input or authorization. Factory is the
 // authenticated immutable factory root, already anchored in the broker. Selected
 // is a verified detached readonly generation from PackageRuntimeSelectionStart.
+// The selected mount is a one-attempt view: temporary attachment/detachment
+// consumes its mount attachment state. Retain caller fd only for closure; obtain
+// a fresh verified selection for another job, including after a partial start.
 // Sources/key are pinned immutable product files, never selected-package config.
 // Their descriptors must be readonly root-owned files. Caller registers ownership
 // BEFORE calling, closes original CE references under admission, and includes
