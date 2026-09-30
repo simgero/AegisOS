@@ -104,7 +104,7 @@ int aegis_package_policy_open(int factory,int output[3]) {
     unique_fd certs(open("/apex/com.android.conscrypt/cacerts",O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC));
     if(!certs.ok()||directory(certs.get(),ca_label)<0)return -1;
     unique_fd scan(at(certs.get(),".",O_RDONLY|O_DIRECTORY));if(!scan.ok())return -1;
-    DIR* entries=fdopendir(scan.get());if(!entries)return -1;scan.release();
+    DIR* entries=fdopendir(scan.get());if(!entries)return -1;(void)scan.release();
     std::vector<std::string> names;int error=0;
     for(;;) {
         errno=0;auto* entry=readdir(entries);if(!entry) { error=errno;break; }
