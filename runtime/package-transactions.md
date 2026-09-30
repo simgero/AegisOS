@@ -1,5 +1,29 @@
 # Vollständige Paketgenerationen
 
+## Auftragssichere Fortsetzung im AEGIS-Service
+
+Stand `95f2b925` besteht **234/234 native und 130/130 Java-Gerätetests** im lokalen
+Hintergrund-QEMU. Der interne Brokerkanal v3 gibt beim Warten die bestehende
+Auswahlkennung zurück. CONTINUE_START kann nur diesen Auftrag fortsetzen;
+STOP, HELLO oder Ersetzung machen ihn ungültig. Es gibt keinen impliziten
+Neustart nach einem Abbruch. Die Kennung ersetzt keine AOSP-Berechtigung.
+
+Der Service kontrolliert bei jedem Versuch die ursprüngliche Anmeldung und
+wartet außerhalb der kurzen CE-Zulassung. Vor der tatsächlichen Shellausführung
+werden Kontext und Terminalkapazität erneut geprüft. Timeout und Unterbrechung
+bestätigen keine Bereinigung. [Belege und Grenzen](../docs/component-tests.md).
+
+**Nächster Schritt:** Der Produkt-Bootstrap muss Systemabbild und Receipt,
+Auswahlhelfer und den optionalen festen gemeinsamen Store verankern und die
+persönliche CE-Auswahl beim ersten START registrieren. Erst nach Helfer-/SELinux-
+Integration und einem neuen vollständigen Build kann der Ablauf mit tatsächlicher
+Anmeldung, gewählter Generation, Linux-Sitzung, Logout und Neustart abgenommen
+werden. Öffentliche Paketbefehle, vertrauenswürdige Repository-Auflösung und
+frische Adminfreigabe für beide Paketbereiche bleiben zusätzlich erforderlich.
+Das laufende Image und der sichtbare Launcher wurden noch nicht ersetzt.
+
+Die folgenden Abschnitte halten die vorherigen Komponentenstände fest.
+
 ## Auswahl einer gespeicherten Generation für die Runtime
 
 Stand `93270f09` besteht **229/229 native Gerätetests und zwei zusätzliche Prüfungen

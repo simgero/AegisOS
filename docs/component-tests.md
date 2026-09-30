@@ -1,3 +1,79 @@
+## Startfortsetzung bleibt an denselben Auftrag gebunden: 95f2b925
+
+Komponentenstand `95f2b925b7c2814cf4dd970ec4f6b7569bd6fe48` wurde auf `aegis-build`
+kompiliert und über [den verifizierten GitHub-Release](https://github.com/simgero/AegisOS/releases/tag/components-20260930T030515Z-95f2b925-95f2b925-jt1XQd) bezogen.
+Lauf `identity-20260930T030420Z-95f2b925-JaTeKI`, Invocation `996251ed7ced4cb2bc40e6c3f8b89c3b`.
+Am **2026-09-30T03:07:33Z bestehen 234/234 native Tests** aus 32 Suiten
+in 82.169 Sekunden und **130/130 Java-Tests** in 8.854 Sekunden. Kein aktiver
+Fall wurde übersprungen. Die vier grundsätzlich deaktivierten CE-Opt-in-Fälle
+wurden in diesem Lauf nicht aktiviert; die beiden gesperrten CE-Prüfungen aus
+dem vorherigen Stand bleiben gesonderte Belege.
+
+Der interne Brokerkanal hat nun **Version 3**: START liefert eine 40-Byte-Antwort.
+EAGAIN darf nur eine positive, weiterhin registrierte Auswahlkennung begleiten.
+CONTINUE_START trägt diese Kennung und ist streng an Benutzer, Seriennummer und
+bestehenden Auftrag gebunden. STOP, HELLO oder eine spätere Auswahl machen eine
+alte Fortsetzung ungültig. Sie darf weder neue Arbeit registrieren noch auf eine
+andere Generation oder die Systembasis zurückfallen. Die Kennung ist reine
+Korrelation, keine Anmeldeberechtigung. Jede Anfrage benötigt weiterhin die
+frische AOSP-Zulassung. Fehler behalten unvollständige Ressourcen beim Besitzer;
+sie dürfen keine erfolgreiche Bereinigung melden. Protokolländerungen gehören
+in ein zusammen gebautes Vollimage, nicht in ein teilweise ersetztes laufendes System.
+
+Der AEGIS-Service nutzt diesen Ablauf für `linux start` und vor einer Linux-Shell.
+Er kontrolliert vor jedem Versuch außerhalb des Gates den tatsächlichen AOSP-
+Benutzerzustand und innerhalb des Gates dieselbe ursprüngliche Sitzung/Binding.
+Er wartet zwischen Versuchen außerhalb der CE-Serialisierung. Nur EAGAIN mit der
+gebundenen Kennung ist fortsetzbar; native Fehler und Kanalfehler werden nicht
+als neuer START wiederholt. Das Warten hat ein Gesamtbudget von zwei Minuten;
+jeder native Aufruf bleibt zusätzlich an die kurze Zulassungsfrist gebunden.
+Timeout und Unterbrechung behaupten keine Bereinigung. Die bestehende native
+Logout-/STOP-Verantwortung bleibt bestehen.
+
+Vor EXEC werden die ursprüngliche Auswahl, Anmeldung und Terminalkapazität
+nochmals unter Zulassung geprüft. Ein zwischenzeitlicher STOP darf keinen neuen
+Kontext erzeugen. Ein schon bestehender Kontext ohne registrierte Auswahl liefert
+weiterhin READY mit Kennung 0; für ihn wird vor EXEC nur STATUS geprüft. Dieser
+Übergangspfad ist noch nötig, bis das Produkt-Bootstrap die Auswahl registriert.
+
+Die fünf zusätzlichen nativen Tests prüfen echte SEQPACKET-Antworten, genaue
+Paketgrößen/Identität/Kennung, eine tatsächlich eingefrorene Auswahl, falsche
+Benutzer/Seriennummern, STOP, HELLO und Wiederanlage unter einer neuen monotonen
+Kennung. Ein fehlgeschlagener Hash wird niemals als wartender Start interpretiert.
+Die elf zusätzlichen Java-Tests prüfen Parser und Warteablauf, einschließlich
+Zugriff auf das reale Serialisierungsgate während der Pause, Widerruf während
+der Pause, späterer Anmeldung, unverändertem Auftrag, Gesamtlaufzeit, verspätetem
+READY, Interrupt und nicht wiederholtem AOSP-Fehler. Diese Java-Tests injizieren
+native Antworten und Anmeldungen; sie ersetzen **keinen integrierten AOSP-/CE-
+oder produktiven Binder-/SELinux-Test**.
+
+Belege im primären Workspace: `out/components-95f2b925/targeted-tests/`.
+Ergebnis SHA-256 `019b81a1537cc99b59741a613b678961eb593df380bf6888ee299810d871889e`;
+Native-Log `c3479a821e0185553c3f0261596d3eca9c0faa543bf3a2b0653ebad864435c37`;
+Java-Log `9c522b2164a459de7b8fde7bfd37084b8339d14398e71d0299ddab7a05e55458`;
+installiertes Test-APK `950f08706f48acbc090e6a1a39e1c2b3c4843569dca5296be59491b0a56a134d`.
+Vorher-/Nachherzustand identisch:
+`427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`.
+Der vorausgehende Stand `4d7c5298` wurde erfolgreich gebaut und transportiert,
+aber nicht separat ausgeführt; `95f2b925` ergänzt die Terminalprüfung nach dem Warten.
+
+**Nächste tatsächliche Integration:** Das Produkt-Bootstrap muss den fest
+verifizierten Systemabbild-FD samt Receipt und Auswahlhelfer halten, den optionalen
+festen gemeinsamen Store sicher auflösen und die CE-Auswahl vor dem ersten START
+registrieren. Helferinstallation, präzise SELinux-Rechte und durchgehende
+Arbeitsprozess-/Cgroup-Verantwortung sind im Vollimage zu prüfen. Anschließend
+müssen echte entsperrte CE-Positivfälle, START/READY und GNU-Ausführung mit gewählter
+Generation sowie Logout und Neustart unter realen AOSP-Benutzern bestehen.
+Öffentlicher Paketkanal, vertrauenswürdige Repository-Planung und frische
+AOSP-Adminfreigabe für gemeinsame **und** private Änderungen bleiben zusätzlich offen.
+
+Das produktive Image samt Broker/Service bleibt `ab38cf24`, Profil
+`0bbb6cf5-951e-43b4-9e08-ec952ab1b6e4`, Boot `6e287d8c-a75c-47c1-ba45-b72b96b2122e`.
+Alpha 10/10 und Beta 11/11 bleiben gesperrt; nur Benutzer 0 ist entsperrt.
+Keine Benutzeranlage, Löschung, Anmeldung, Schlüsselmutation oder Profilmigration.
+SELinux bleibt Enforcing, das sichtbare QEMU-Fenster geschlossen und der sichtbare
+Launcher bei 2a766ab5. Die Komponentenprüfung ersetzt noch kein lokales Gesamtupdate.
+
 ## Registrierte Generation bis START und vollständigem Abbau: 93270f09
 
 Komponentenstand `93270f09d249882c8db7e245ce3ca868009787cf` wurde auf `aegis-build`
