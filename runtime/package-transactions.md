@@ -1,5 +1,33 @@
 # Vollständige Paketgenerationen
 
+## Bindung des aufgelösten Paketplans
+
+Der neue interne `PackageBindResolvedPlan` erzeugt aus dem vertrauenswürdig
+aufgelösten Plan sowohl Vorbereitung als auch Veröffentlichungsziel. Derselbe
+versionierte SHA-256 umfasst Antragsteller/Seriennummer, Bereich, ursprünglichen
+Befehl und Versionswunsch, Quellabbild und gemeinsame Basis, erwarteten bisherigen
+Stand, Planerabbild, Quellen-/Schlüsselrichtlinie, anfänglichen Paketstatus sowie
+Repository-Belege und sämtliche geplanten Versions-/Archivänderungen.
+
+Die Codierung verwendet längenbegrenzte Felder und eine eindeutige Ordnung.
+APT-Cache-Namen werden abgeleitet; insbesondere wird der Doppelpunkt einer
+Versionsepoche nach [APT 3.0.3](https://github.com/Debian/apt/blob/3.0.3/apt-pkg/acquire-item.cc)
+als `%3a` codiert ([QuoteString](https://github.com/Debian/apt/blob/3.0.3/apt-pkg/contrib/strutl.cc)).
+Archive und ihre FDs müssen in derselben Reihenfolge übergeben werden.
+Persönlicher Eigentümer bleibt der Antragsteller. Veränderte gemeinsame Basis,
+abgelaufene Metadaten, fehlende exakte Wunschversion, doppelte/unsortierte Einträge
+und nicht abbildbare gemischte Installations-/Entfernungseffekte werden abgewiesen.
+Entfernung bewahrt Konfigurationsdateien; sie bedeutet kein Purge.
+
+**Grenze:** Dies ist die Bindung eines bereits aufgelösten Plans, keine Prüfung
+von Repository-Signaturen und keine Abhängigkeitsauflösung. Der künftige Adapter
+muss die Release-/Packages-/Archivkette mit der unveränderlichen Vertrauensbasis
+prüfen, Status und Quellen verifizieren und die Frist vor der frischen
+AOSP-Bestätigung erneut kontrollieren. Ein Digest allein schafft kein Vertrauen.
+Zusätzlich fehlt der unabhängige Vergleich der erwarteten mit den tatsächlich
+geplanten APT-Effekten. Öffentliche CLI, produktive Ausführung und Adminfreigabe
+bleiben deshalb unverändert inaktiv. Komponententests dieses Schritts stehen aus.
+
 ## Produktintegration der Startauswahl
 
 **Vollimage c7401f60 ist für die integrierte Startauswahl geprüft.** Die gezielte

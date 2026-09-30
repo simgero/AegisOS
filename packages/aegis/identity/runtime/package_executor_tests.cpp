@@ -2,6 +2,7 @@
 // Compile on the SSH builder, execute only in local QEMU. Synthetic packages
 // in an exclusively copied base; no live AOSP users, passwords or CE mutation.
 #include "package_executor.h"
+#include "package_plan.h"
 #include "package_execution_protocol.h"
 #include "package_apt_fixture.h"
 #include "broker_owner_package.h"
@@ -1380,4 +1381,37 @@ TEST_F(RuntimeSelectionOwner, ConfiguredStartDoesNotTreatSymlinkOrWrongModeShare
 TEST_F(RuntimeSelectionOwner, BootstrapCannotChangeFactoryAfterWorkHasBeenRegistered) {
     ASSERT_EQ(0,RegisterSelection());EXPECT_EQ(-1,Configure());EXPECT_EQ(EALREADY,errno);
     ASSERT_EQ(0,Stop());EXPECT_EQ(-1,Configure());EXPECT_EQ(EALREADY,errno);
+}
+
+TEST_F(RuntimePackageTransaction, BoundPlanFeedsRealAptAndRejectsDifferentApprovalDigest) {
+    PackageResolvedPlan resolved;resolved.requester=10;resolved.serial=42;resolved.create_store=true;
+    resolved.requested_package="aegis-exec-app";resolved.requested_version="1";
+    resolved.source=resolved.shared=plan.image;resolved.planner_image_sha256=plan.image.sha256;
+    // Fixture evidence only: these synthetic hashes are NOT signed metadata.
+    resolved.policy_sha256=std::string(64,'a');resolved.initial_status_sha256=std::string(64,'b');
+    resolved.repositories={{"fixture",std::string(64,'c'),std::string(64,'d'),2000}};
+    resolved.changes={{"aegis-exec-app","all","","1","fixture",plan.archives[1]},
+                      {"aegis-exec-lib","all","","1","fixture",plan.archives[0]}};
+    PackageBoundPlan bound;ASSERT_EQ(0,PackageBindResolvedPlan(resolved,1000,&bound))<<strerror(errno);
+    plan=bound.preparation;target=bound.publication;std::swap(archives[0],archives[1]);
+    ASSERT_EQ(0,BrokerPrepareTransaction(broker,plan,target,parent.get(),stage.get(),store.get(),source.get(),
+        prepare_helper.get(),execute_helper.get(),publish_helper.get(),Fds(),Deadline(),&job))<<strerror(errno);
+    AwaitPrepared();ASSERT_FALSE(HasFatalFailure());
+    auto changed=resolved;changed.requested_version.clear();PackageBoundPlan other;
+    ASSERT_EQ(0,PackageBindResolvedPlan(changed,1000,&other));
+    ASSERT_NE(other.preparation.execution.plan_sha256,plan.execution.plan_sha256);
+    EXPECT_EQ(-1,BrokerStartExecution(broker,10,42,job,other.preparation.execution.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
+    PublicationState state;PackageExecutionResult result;
+    ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));
+    ASSERT_EQ(PublicationState::Prepared,state);
+    ASSERT_EQ(0,BrokerStartExecution(broker,10,42,job,plan.execution.plan_sha256,Deadline()))<<strerror(errno);
+    for(unsigned i=0;i<1600;i++) {
+        ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
+        ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));
+        if(state==PublicationState::Complete)break;
+        usleep(10000);
+    }
+    ASSERT_EQ(PublicationState::Complete,state);
+    ASSERT_EQ(PackageExecutionOutcome::Published,result.outcome)<<result.error;
+    VerifyContents(result,1);ASSERT_FALSE(HasFailure());
 }
