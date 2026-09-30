@@ -417,7 +417,7 @@ TEST(RuntimeBrokerPackage, ErrorReceiptRetainsPartialBeginOwnershipAndContinuati
     aegis_broker_package_reply p={};p.job=44;
     ASSERT_EQ(0,aegis_broker_reply_package(pair.fd[0],&h,EIO,&p));
     unsigned char bytes[49]={};ASSERT_EQ(48,recv(pair.fd[1],bytes,sizeof(bytes),MSG_DONTWAIT));
-    aegis_broker_reply header;memcpy(&header,bytes,32);
+    struct aegis_broker_reply header;memcpy(&header,bytes,32);
     EXPECT_EQ(EIO,header.error);EXPECT_EQ(AEGIS_BROKER_SEALED,header.state);EXPECT_EQ(h.sequence,header.sequence);
     uint64_t job;memcpy(&job,bytes+32,8);EXPECT_EQ(44u,job);
     p.job=0;EXPECT_EQ(-1,aegis_broker_reply_package(pair.fd[0],&h,0,&p));
