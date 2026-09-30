@@ -170,7 +170,13 @@ def run(args,manifest=None):
                 '-device',f'virtio-{args.pointer}-pci','-device','virtio-serial-pci,id=serial,max_ports=31']
     if args.network=='user':
         # Keep -net none to suppress implicit legacy NICs; this pair is explicit.
-        android += ['-netdev','user,id=aegis-net,ipv6=off',
+        # Cuttlefish renames eth0 and explicitly restricts eth1. Reserve these
+        # two slots without backends; Android's ordinary Ethernet manager owns
+        # eth2, including DHCP, DNS, default routing and network validation.
+        # Only eth2 can carry traffic; no NIC publishes a host port.
+        android += ['-device','virtio-net-pci,id=aegis-reserved0,mac=52:54:00:ae:61:00',
+                    '-device','virtio-net-pci,id=aegis-reserved1,mac=52:54:00:ae:61:02',
+                    '-netdev','user,id=aegis-net,ipv6=off',
                     '-device','virtio-net-pci,id=aegis-nic,netdev=aegis-net,mac=52:54:00:ae:61:01']
     (output/'network-mode.txt').write_text(args.network+'\n')
     helper=['qemu-system-aarch64','-machine','virt-11.1,gic-version=3','-accel','hvf',
