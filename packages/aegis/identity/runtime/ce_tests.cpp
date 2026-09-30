@@ -195,6 +195,16 @@ TEST_F(RuntimeCe, DirectoryWalkRejectsSymlinksEscapesAndNonDirectories) {
     EXPECT_EQ(before, fd_count());
 }
 
+TEST_F(RuntimeCe, OptionalStoreLookupDoesNotTreatMissingAospRootsAsAnEmptyPrivateStore) {
+    int before=fd_count(),store=-1;
+    EXPECT_EQ(-1,aegis_ce_find_package_store(root,10,42,&store));EXPECT_EQ(ENOENT,errno);EXPECT_EQ(-1,store);
+    EXPECT_EQ(-1,aegis_ce_find_package_store(root,0,42,&store));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(-1,aegis_ce_find_package_store(root,10,UINT32_MAX,&store));EXPECT_EQ(EINVAL,errno);
+    store=root;EXPECT_EQ(-1,aegis_ce_find_package_store(root,10,42,&store));EXPECT_EQ(EINVAL,errno);EXPECT_EQ(root,store);
+    struct stat st;EXPECT_EQ(-1,fstatat(root,"system_ce",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    EXPECT_EQ(before,fd_count());
+}
+
 TEST_F(RuntimeCe, PlausibleDirectoryNamesAndSerialDoNotSubstituteForEncryption) {
     ASSERT_EQ(0, mkdirat(root, "system_ce", 0700));
     ASSERT_EQ(0, mkdirat(root, "misc_ce", 0700));
@@ -216,6 +226,7 @@ TEST_F(RuntimeCe, PlausibleDirectoryNamesAndSerialDoNotSubstituteForEncryption) 
         int packages = aegis_ce_open_packages(root, 10, 1234, 1);
         EXPECT_EQ(-1, packages);
         if (packages >= 0) close(packages);
+        int selected=-1;EXPECT_EQ(-1,aegis_ce_find_package_store(root,10,1234,&selected));EXPECT_EQ(-1,selected);
     }
     struct stat st;
     EXPECT_EQ(-1, fstatat(misc, "aegis", &st, AT_SYMLINK_NOFOLLOW)); EXPECT_EQ(ENOENT, errno);
@@ -368,6 +379,8 @@ TEST_F(DISABLED_RuntimeCeAosp, LockedAospKeyCannotOpenOrProvisionPackageStorage)
     for(unsigned i=0;i<16;++i) {
         EXPECT_EQ(-1,aegis_ce_open_packages(data.get(),identity.user,identity.serial,0));EXPECT_EQ(ENOKEY,errno);
         EXPECT_EQ(-1,aegis_ce_open_packages(data.get(),identity.user,identity.serial,1));EXPECT_EQ(ENOKEY,errno);
+        int store=-1;EXPECT_EQ(-1,aegis_ce_find_package_store(data.get(),identity.user,identity.serial,&store));
+        EXPECT_EQ(ENOKEY,errno);EXPECT_EQ(-1,store);
     }
     EXPECT_EQ(before,fd_count());
 }

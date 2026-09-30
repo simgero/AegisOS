@@ -5,6 +5,8 @@
 #include "package_execution_protocol.h"
 #include "package_apt_fixture.h"
 #include "broker_owner_package.h"
+#include "broker_owner_selection.h"
+#include "context.h"
 #include "namespace.h"
 #include <gtest/gtest.h>
 #include <android-base/unique_fd.h>
@@ -712,6 +714,139 @@ class RuntimePackageSelection : public RuntimePackageTransaction {
     }
     std::string App(int fd) { return AptImageFixture::read(fd,"usr/bin/aegis-exec-app"); }
 };
+class RuntimeSelectionOwner : public RuntimePackageSelection {
+ protected:
+    uint64_t selected_job=0;
+    bool temporary=false;
+    void SetUp() override {
+        RuntimePackageSelection::SetUp();ASSERT_FALSE(HasFatalFailure());
+        ASSERT_EQ(0,aegis_namespace_private_mounts());selection.job=0;
+    }
+    int RegisterSelection(int shared=-1,int personal=-1) {
+        selected_job=0;return BrokerPrepareRuntimeSelection(broker,selection,parent.get(),shared,personal,
+            factory.get(),prepare_helper.get(),Deadline(),&selected_job);
+    }
+    void AwaitSelection(PackagePreparationResult* result) {
+        RuntimeSelectionState state=RuntimeSelectionState::Selecting;
+        for(unsigned i=0;i<900 && state==RuntimeSelectionState::Selecting;++i) {
+            ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
+            ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,selection.requester,selection.serial,selected_job,&state,result));
+            if(state==RuntimeSelectionState::Selecting)usleep(10000);
+        }
+        ASSERT_EQ(RuntimeSelectionState::Selected,state)<<result->error;
+        ASSERT_EQ(PackagePreparationOutcome::Prepared,result->outcome);
+    }
+    int Apply(uint16_t operation,uint32_t user,uint32_t serial,aegis_broker_state* state) {
+        aegis_broker_request request={};request.magic=AEGIS_BROKER_MAGIC;request.version=AEGIS_BROKER_VERSION;
+        request.operation=operation;request.sequence=operation==AEGIS_BROKER_HELLO?1:2;
+        request.user=user;request.serial=serial;request.deadline_ns=Deadline();
+        return aegis_broker_owner_apply(broker,&request,state);
+    }
+    void Freeze() {
+        auto name="u"+std::to_string(selection.requester)+"-s"+std::to_string(selection.serial);
+        ASSERT_EQ(0,WriteAt(parent.get(),(name+"/cgroup.freeze").c_str(),"1\n",0));
+        bool frozen=false;
+        for(unsigned i=0;i<1000;++i) {
+            auto events=AptImageFixture::read(parent.get(),(name+"/cgroup.events").c_str());
+            if(events.find("populated 1\n")!=std::string::npos && events.find("frozen 1\n")!=std::string::npos) { frozen=true;break; }
+            usleep(1000);
+        }
+        ASSERT_TRUE(frozen);
+    }
+    void TearDown() override {
+        if(temporary)EXPECT_EQ(0,aegis_namespace_temporary_base_end(mount.get()));
+        RuntimePackageSelection::TearDown();
+    }
+};
+TEST_F(RuntimeSelectionOwner, ReadySelectionIsOwnedUntilStopAndPollNeverExportsOrConsumesItsMount) {
+    int fds=CountFDs();ASSERT_EQ(0,RegisterSelection());PackagePreparationResult result;AwaitSelection(&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(PackagePreparationResult::Scope::Factory,result.scope);EXPECT_EQ(selection.factory.sha256,result.generation.image_sha256);
+    int ready_fds=CountFDs();RuntimeSelectionState state;
+    for(int i=0;i<16;++i)ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,10,42,selected_job,&state,&result));
+    EXPECT_EQ(ready_fds,CountFDs());EXPECT_EQ(-1,aegis_broker_owner_release(&broker));EXPECT_EQ(EBUSY,errno);
+    aegis_broker_state current;ASSERT_EQ(0,Apply(AEGIS_BROKER_STATUS,10,42,&current));EXPECT_EQ(AEGIS_BROKER_SEALED,current);
+    ASSERT_EQ(0,Stop());EXPECT_EQ(fds,CountFDs());EXPECT_EQ(-1,BrokerPollRuntimeSelection(broker,10,42,selected_job,&state,&result));EXPECT_EQ(ENOENT,errno);
+}
+TEST_F(RuntimeSelectionOwner, IdentitySerialAndMonotoneJobBindSelectionWithoutReplacingIt) {
+    ASSERT_EQ(0,RegisterSelection());auto first=selected_job;PackagePreparationResult result;AwaitSelection(&result);ASSERT_FALSE(HasFatalFailure());
+    RuntimeSelectionState state;EXPECT_EQ(-1,BrokerPollRuntimeSelection(broker,11,42,first,&state,&result));EXPECT_EQ(ESTALE,errno);
+    EXPECT_EQ(-1,BrokerPollRuntimeSelection(broker,10,43,first,&state,&result));EXPECT_EQ(ESTALE,errno);
+    EXPECT_EQ(-1,RegisterSelection());EXPECT_EQ(EALREADY,errno);EXPECT_EQ(0u,selected_job);
+    ASSERT_EQ(0,Stop());ASSERT_EQ(0,RegisterSelection());EXPECT_GT(selected_job,first);ASSERT_EQ(0,Stop());
+}
+TEST_F(RuntimeSelectionOwner, StopKillsObservedFrozenSelectorAndCannotTargetAnotherUserByAccident) {
+    int fds=CountFDs();ASSERT_EQ(0,RegisterSelection());Freeze();ASSERT_FALSE(HasFatalFailure());
+    aegis_broker_state current;ASSERT_EQ(0,Apply(AEGIS_BROKER_STOP_USER,11,0,&current));
+    RuntimeSelectionState state;PackagePreparationResult result;
+    ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,10,42,selected_job,&state,&result));EXPECT_EQ(RuntimeSelectionState::Selecting,state);
+    ASSERT_EQ(0,Stop());EXPECT_EQ(fds,CountFDs());
+    EXPECT_EQ("populated 0\nfrozen 0\n",AptImageFixture::read(parent.get(),"cgroup.events"));
+}
+TEST_F(RuntimeSelectionOwner, ExpiredDisconnectSealsEverySelectorThenRequiresConfirmedReap) {
+    int fds=CountFDs();ASSERT_EQ(0,RegisterSelection());Freeze();ASSERT_FALSE(HasFatalFailure());
+    selection.requester=11;selection.serial=99;ASSERT_EQ(0,RegisterSelection());Freeze();ASSERT_FALSE(HasFatalFailure());
+    // First call may finish immediately or retain ETIMEDOUT ownership. Neither
+    // path may leave the other frozen child unsignalled.
+    int stopped=aegis_broker_owner_stop_all(broker,0);if(stopped<0)EXPECT_EQ(ETIMEDOUT,errno);
+    ASSERT_EQ(0,aegis_broker_owner_stop_all(broker,Deadline()));EXPECT_EQ(fds,CountFDs());
+    EXPECT_EQ("populated 0\nfrozen 0\n",AptImageFixture::read(parent.get(),"cgroup.events"));
+}
+TEST_F(RuntimeSelectionOwner, HelloClosesReadyMountsForBothUsersBeforeAcknowledging) {
+    int fds=CountFDs();PackagePreparationResult result;ASSERT_EQ(0,RegisterSelection());AwaitSelection(&result);ASSERT_FALSE(HasFatalFailure());
+    selection.requester=11;selection.serial=99;ASSERT_EQ(0,RegisterSelection());AwaitSelection(&result);ASSERT_FALSE(HasFatalFailure());
+    aegis_broker_state state;ASSERT_EQ(0,Apply(AEGIS_BROKER_HELLO,0,0,&state));EXPECT_EQ(AEGIS_BROKER_ABSENT,state);EXPECT_EQ(fds,CountFDs());
+}
+TEST_F(RuntimeSelectionOwner, MissingCeConsumesARegisteredJobAndStartCannotFallBackToFactory) {
+    // This absent numeric identity is checked read-only before the CE opener.
+    struct stat st;ASSERT_EQ(-1,lstat("/data/system_ce/21472",&st));ASSERT_EQ(ENOENT,errno);
+    selection.requester=21472;selection.serial=1234;
+    int fds=CountFDs();
+    EXPECT_EQ(-1,BrokerPrepareCeRuntimeSelection(broker,selection,parent.get(),-1,factory.get(),prepare_helper.get(),Deadline(),&selected_job));
+    EXPECT_EQ(ENOENT,errno);EXPECT_GT(selected_job,0u);
+    RuntimeSelectionState state;PackagePreparationResult result;
+    ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,21472,1234,selected_job,&state,&result));
+    EXPECT_EQ(RuntimeSelectionState::Failed,state);EXPECT_EQ(ENOENT,result.error);EXPECT_EQ(fds,CountFDs());
+    aegis_broker_state current;EXPECT_EQ(-1,Apply(AEGIS_BROKER_START,21472,1234,&current));EXPECT_EQ(ENOENT,errno);
+    EXPECT_EQ(AEGIS_BROKER_SEALED,current);ASSERT_EQ(0,Apply(AEGIS_BROKER_STOP_USER,21472,0,&current));EXPECT_EQ(fds,CountFDs());
+}
+TEST_F(RuntimeSelectionOwner, FailedSelectorNeverUsesLegacyBaseAndStopAllowsNewPreparation) {
+    selection.factory.sha256=std::string(64,'f');ASSERT_EQ(0,RegisterSelection());
+    RuntimeSelectionState state=RuntimeSelectionState::Selecting;PackagePreparationResult result;
+    for(int i=0;i<900 && state==RuntimeSelectionState::Selecting;++i) {
+        ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,10,42,selected_job,&state,&result));if(state==RuntimeSelectionState::Selecting)usleep(10000);
+    }
+    ASSERT_EQ(RuntimeSelectionState::Failed,state);ASSERT_EQ(ESTALE,result.error);
+    aegis_broker_state current;EXPECT_EQ(-1,Apply(AEGIS_BROKER_START,10,42,&current));EXPECT_EQ(ESTALE,errno);
+    ASSERT_EQ(0,Stop());selection.factory=plan.image;ASSERT_EQ(0,RegisterSelection());AwaitSelection(&result);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,Stop());
+}
+TEST_F(RuntimeSelectionOwner, PartialContextStartClonesSelectedMountAndDetachesAnchorBeforeCeFailure) {
+    struct stat absent;ASSERT_EQ(-1,lstat("/data/system_ce/21472",&absent));ASSERT_EQ(ENOENT,errno);
+    selection.requester=21472;selection.serial=1234;
+    int fds=CountFDs();unique_fd anchor(open("/mnt",O_PATH|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(anchor.ok());
+    struct stat before,after;ASSERT_EQ(0,fstat(anchor.get(),&before));
+    ASSERT_EQ(0,RegisterSelection());PackagePreparationResult result;AwaitSelection(&result);ASSERT_FALSE(HasFatalFailure());
+    aegis_broker_state current;
+    EXPECT_EQ(-1,Apply(AEGIS_BROKER_START,21472,1234,&current));EXPECT_EQ(ENOENT,errno);
+    // ENOENT comes only after selected-image attachment, ID-map cloning and
+    // anchor detachment. No fallback to the intentionally non-mount legacy FD.
+    EXPECT_EQ(AEGIS_BROKER_SEALED,current);ASSERT_EQ(0,stat("/mnt",&after));EXPECT_EQ(before.st_dev,after.st_dev);EXPECT_EQ(before.st_ino,after.st_ino);
+    EXPECT_EQ(-1,aegis_broker_owner_release(&broker));EXPECT_EQ(EBUSY,errno);
+    ASSERT_EQ(0,Apply(AEGIS_BROKER_STOP_USER,21472,0,&current));anchor.reset();EXPECT_EQ(fds,CountFDs());
+    EXPECT_EQ("populated 0\nfrozen 0\n",AptImageFixture::read(parent.get(),"cgroup.events"));
+}
+TEST_F(RuntimeSelectionOwner, TemporaryAnchorCannotBeReplacedOrDetachedThroughAnotherMount) {
+    selection.job=777;PackagePreparationResult result;Selected(-1,-1,&result);ASSERT_FALSE(HasFatalFailure());ASSERT_TRUE(mount.ok());
+    unique_fd original(open("/mnt",O_PATH|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(original.ok());
+    struct stat before,after;ASSERT_EQ(0,fstat(original.get(),&before));
+    ASSERT_EQ(0,aegis_namespace_temporary_base_begin(mount.get()));temporary=true;
+    EXPECT_EQ(-1,aegis_namespace_temporary_base_begin(mount.get()));EXPECT_EQ(EBUSY,errno);
+    EXPECT_EQ(-1,aegis_namespace_attach_base(mount.get()));EXPECT_EQ(EBUSY,errno);
+    EXPECT_EQ(-1,aegis_namespace_temporary_base_end(original.get()));EXPECT_EQ(ESTALE,errno);
+    ASSERT_EQ(0,aegis_namespace_temporary_base_end(mount.get()));temporary=false;
+    ASSERT_EQ(0,stat("/mnt",&after));EXPECT_EQ(before.st_dev,after.st_dev);EXPECT_EQ(before.st_ino,after.st_ino);
+    Readonly();
+}
+
 TEST_F(RuntimePackageSelection, AbsentStoresSelectVerifiedFactoryWithoutCreatingAStage) {
     int fds=CountFDs();PackagePreparationResult result;Selected(-1,-1,&result);ASSERT_FALSE(HasFatalFailure());
     ASSERT_EQ(PackagePreparationOutcome::Prepared,result.outcome)<<result.error;

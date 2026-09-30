@@ -247,9 +247,16 @@ int PackagePreparerStart(int groups,int stage,int source,int helper,
     wire::Request message={};if(!Encode(request,&message))return Fail(EINVAL);
     return Start(groups,stage,source,helper,archives,message,output);
 }
+int PackageRuntimeSelectionCheck(const PackageRuntimeSelection& request) {
+    const auto& h=request.factory.sha256;
+    return request.requester>=10 && request.requester<21473 && request.serial<=INT32_MAX
+        && request.job && request.job<=INT64_MAX && request.factory.bytes
+        && request.factory.bytes<=(uint64_t{32}<<30) && request.factory.bytes%4096==0
+        && h.size()==64 && h.find_first_not_of("0123456789abcdef")==std::string::npos ? 0 : Fail(EINVAL);
+}
 int PackageRuntimeSelectionStart(int groups,int shared,int personal,int factory,int helper,
                                  const PackageRuntimeSelection& request,PackagePreparer** output) {
-    if(shared < -1 || personal < -1 || request.factory.sha256.size()!=64)return Fail(EINVAL);
+    if(shared < -1 || personal < -1 || PackageRuntimeSelectionCheck(request)<0)return Fail(EINVAL);
     wire::Request message={};message.magic=wire::kMagic;message.version=wire::kVersion;
     message.selection=1;message.has_shared=shared>=0;message.has_personal=personal>=0;
     auto& e=message.execution;e.magic=AEGIS_PACKAGE_EXEC_MAGIC;e.version=AEGIS_PACKAGE_EXEC_VERSION;

@@ -240,9 +240,20 @@ int aegis_namespace_private_mounts(void) {
     return aegis_namespace_check_broker();
 }
 
+static int temporary_base = -1;
+static int same_base_mount(int first,int second) {
+    struct statx a = {0}, b = {0};
+    if (syscall(SYS_statx,first,"",AT_EMPTY_PATH|AT_SYMLINK_NOFOLLOW,STATX_MNT_ID,&a)<0
+            || syscall(SYS_statx,second,"",AT_EMPTY_PATH|AT_SYMLINK_NOFOLLOW,STATX_MNT_ID,&b)<0) return -1;
+    if (!(a.stx_mask&STATX_MNT_ID) || !(b.stx_mask&STATX_MNT_ID)
+            || !a.stx_mnt_id || a.stx_mnt_id!=b.stx_mnt_id) { errno=ESTALE;return -1; }
+    return 0;
+}
+
 int aegis_namespace_attach_base(int source) {
     if (aegis_namespace_check_broker() < 0) return -1;
     if (broker_mounts < 0) return denied();
+    if (temporary_base>=0) { errno=EBUSY;return -1; }
     struct stat st;
     struct statvfs flags;
     if (fstat(source, &st) < 0 || fstatvfs(source, &flags) < 0) return -1;
@@ -258,6 +269,26 @@ int aegis_namespace_attach_base(int source) {
     int saved = errno;
     close(target); errno = saved;
     return result;
+}
+
+/* Attach only long enough for open_tree(CLONE). The setup child already
+ * exists, so it never inherits this private CE-backed parent anchor. Failure
+ * retains the exact mount reference and blocks replacement until cleanup. */
+int aegis_namespace_temporary_base_begin(int source) {
+    if (aegis_namespace_check_broker()<0) return -1;
+    if (temporary_base>=0) { errno=EBUSY;return -1; }
+    int copy=fcntl(source,F_DUPFD_CLOEXEC,3);if(copy<0)return -1;
+    if(aegis_namespace_attach_base(copy)<0) { int saved=errno;close(copy);errno=saved;return -1; }
+    temporary_base=copy;return 0;
+}
+int aegis_namespace_temporary_base_end(int source) {
+    if (aegis_namespace_check_broker()<0) return -1;
+    if (temporary_base<0) { errno=EINVAL;return -1; }
+    if (same_base_mount(source,temporary_base)<0) return -1;
+    int named=open("/mnt",O_PATH|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW);if(named<0)return -1;
+    int checked=same_base_mount(named,temporary_base),saved=errno;close(named);errno=saved;
+    if(checked<0 || umount2("/mnt",MNT_DETACH)<0)return -1;
+    close(temporary_base);temporary_base=-1;return 0;
 }
 
 static int check_setup(int fd) {
@@ -662,6 +693,7 @@ int aegis_namespace_prepare_package_for(struct aegis_namespace *context, int tim
 
 int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_source_fd) {
     if (still_waiting(context) < 0) return -1;
+    if(temporary_base>=0 && same_base_mount(temporary_base,verified_source_fd)<0) { errno=EBUSY;return -1; }
     if (context->mapped != 1 || context->userns < 0) { errno = EAGAIN; return -1; }
     return aegis_clone_base_mount(verified_source_fd, context->userns, context->user_id);
 }

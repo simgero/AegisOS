@@ -309,6 +309,12 @@ static int open_private(int data, uint32_t user_id, uint32_t serial, int create,
         if (provision(misc, user_id, uid, owner, &expected) < 0) goto done;
         anchor = aegis_ce_open_directory(misc, anchor_name);
     }
+    if(anchor<0 && errno==ENOENT && packages==2 && !create) {
+        if(still_named(data,system_path,system)<0 || still_named(data,misc_path,misc)<0
+           || aegis_ce_require_serial(system,serial)<0 || matching_policy(system,&expected)<0
+           || key_present(misc,&expected)<0 || absent(misc,anchor_name)<0)goto done;
+        result=-2;goto done;
+    }
     if (anchor < 0 || check_anchor(anchor, owner, &expected) < 0) goto done;
     home = aegis_ce_open_directory(anchor, "home");
     if (home < 0 || check_home(home, uid, &expected) < 0
@@ -322,6 +328,13 @@ static int open_private(int data, uint32_t user_id, uint32_t serial, int create,
         if (area < 0 && errno == ENOENT && create) {
             if (provision_packages(anchor, owner, &expected) < 0) goto done;
             area = aegis_ce_open_directory(anchor, package_name);
+        }
+        if(area<0 && errno==ENOENT && packages==2 && !create) {
+            if(still_named(data,system_path,system)<0 || still_named(data,misc_path,misc)<0
+               || still_named(misc,anchor_name,anchor)<0 || aegis_ce_require_serial(system,serial)<0
+               || matching_policy(system,&expected)<0 || key_present(home,&expected)<0
+               || absent(anchor,package_name)<0)goto done;
+            result=-2;goto done;
         }
         if (area < 0 || package_layout(area, owner, &expected) < 0
                 || still_named(anchor, package_name, area) < 0
@@ -378,6 +391,31 @@ int aegis_ce_package_store(int packages, uint32_t user_id, uint32_t serial) {
         int saved = errno; close(store); return reject(saved);
     }
     return store;
+}
+
+int aegis_ce_find_package_store(int data,uint32_t user,uint32_t serial,int* output) {
+    if(!output || *output!=-1)return reject(EINVAL);
+    int area=open_private(data,user,serial,0,2);
+    if(area==-2)return 0; // Verified CE identity, absent AEGIS package area.
+    if(area<0)return -1;
+    int store=aegis_ce_package_store(area,user,serial),saved=errno;close(area);errno=saved;
+    if(store<0)return -1;
+    int scan=aegis_ce_open_directory(store,".");
+    if(scan<0) { saved=errno;close(store);return reject(saved); }
+    DIR* entries=fdopendir(scan);
+    if(!entries) { saved=errno;close(scan);close(store);return reject(saved); }
+    int empty=1,error=0;struct dirent* entry;
+    errno=0;
+    while((entry=readdir(entries)))
+        if(strcmp(entry->d_name,".") && strcmp(entry->d_name,"..")) { empty=0;break; }
+    if(!entry)error=errno;
+    if(closedir(entries)<0 && !error)error=errno;
+    if(error) { close(store);return reject(error); }
+    // Provisioned CE layout initially has a pristine empty store. No metadata
+    // is initialized here. A partially initialized/nonempty store goes to the
+    // strict selector, which must reject missing owner/lock/current data.
+    if(empty)close(store);else *output=store;
+    return 0;
 }
 
 int aegis_ce_new_package_stage(int packages, uint32_t user_id, uint32_t serial, uint64_t job) {

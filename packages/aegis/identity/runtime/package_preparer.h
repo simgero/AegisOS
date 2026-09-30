@@ -46,6 +46,7 @@ int PackagePreparerStart(int groups,int stage,int source,int helper,
 // register before starting, include the worker/mount in STOP_USER, and close
 // caller originals under admission. This internal primitive is not yet wired
 // to production START or a public command. Existing mounts pin old images.
+int PackageRuntimeSelectionCheck(const PackageRuntimeSelection& request);
 int PackageRuntimeSelectionStart(int groups,int shared_store,int personal_store,
                                  int factory,int helper,const PackageRuntimeSelection& request,
                                  PackagePreparer** worker);

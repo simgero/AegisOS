@@ -37,6 +37,16 @@ int aegis_namespace_private_mounts(void);
  * Production attaches once; tests detach their own inert fixture on cleanup. */
 int aegis_namespace_attach_base(int verified_source_fd);
 
+/* Scoped anchor for a selected, possibly CE-backed readonly generation. Begin
+ * only AFTER creating its setup child; clone its ID-mapped view, then end BEFORE
+ * resuming the child. Neither function creates Android filesystem entries.
+ * Exactly one temporary anchor may exist in this private broker namespace.
+ * End checks kernel mount IDs before detaching; failure retains the reference
+ * and blocks replacement. Caller must retain source and retry end in teardown.
+ * These are internal ownership operations, never source authorization. */
+int aegis_namespace_temporary_base_begin(int verified_source_fd);
+int aegis_namespace_temporary_base_end(int verified_source_fd);
+
 /* Personal namespace preparation uses only references sent by the trusted
  * raw clone over its private inherited gate. It opens its own proc inodes
  * as O_PATH and its own user namespace as an NSFS fd. The parent reopens the
@@ -123,8 +133,8 @@ int aegis_namespace_prepare_package_for(struct aegis_namespace *context, int tim
  * remains paused: abort it or correct preparation within the same deadline.
  *
  * The source must already be attached in this broker's mount namespace.
- * Source provenance, generation hash, absence of private data, and backing
- * filesystem immutability are BROKER obligations. Root ownership/read-only
+ * Source provenance, generation hash, requester/serial binding for a personal
+ * package image, and backing filesystem immutability are BROKER obligations. Root ownership/read-only
  * flags alone cannot authenticate a base. Not for CE directories: their host
  * ownership is already user-specific and MUST NOT be remapped a second time.
  * Does not provide mount/exec readiness, AOSP authorization or cleanup proof.

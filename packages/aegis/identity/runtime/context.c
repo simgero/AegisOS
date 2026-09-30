@@ -20,7 +20,7 @@
 struct aegis_context {
     pid_t owner;
     uint32_t user, serial;
-    int channel, ready;
+    int channel, ready, selected_base, base_attached;
     struct aegis_namespace *namespace;
     struct aegis_memory_group *memory;
     struct aegis_exec *commands;
@@ -93,9 +93,9 @@ int aegis_context_start(uint32_t user, uint32_t serial, int parent_fd, int base_
                                      create_home, deadline, output);
 }
 
-int aegis_context_start_until(uint32_t user, uint32_t serial, int parent_fd, int base_fd,
-                              int setup_fd, int init_fd, int create_home,
-                              uint64_t deadline_ns, struct aegis_context **output) {
+static int start_until(uint32_t user, uint32_t serial, int parent_fd, int base_fd,
+                       int setup_fd, int init_fd, int create_home,int selected,
+                       uint64_t deadline_ns, struct aegis_context **output) {
     if (!output || *output || user < 10 || user >= 21473 || serial > INT32_MAX
             || (create_home != 0 && create_home != 1)) return reject(EINVAL);
     if (getuid() || geteuid() || getgid() || getegid()) return reject(EPERM);
@@ -113,7 +113,7 @@ int aegis_context_start_until(uint32_t user, uint32_t serial, int parent_fd, int
     context->owner = (pid_t)syscall(SYS_getpid);
     context->user = user;
     context->serial = serial;
-    context->channel = -1;
+    context->channel = -1;context->selected_base=-1;
     *output = context;
     int pair[2] = {-1, -1};
     int mounts[AEGIS_SETUP_FDS] = {-1, -1, -1, -1};
@@ -125,8 +125,17 @@ int aegis_context_start_until(uint32_t user, uint32_t serial, int parent_fd, int
                                        &context->namespace) < 0) goto fail;
     close(pair[1]); pair[1] = -1;
     if (aegis_namespace_prepare(context->namespace) < 0) goto fail;
+    if(selected) {
+        context->selected_base=fcntl(base_fd,F_DUPFD_CLOEXEC,3);
+        if(context->selected_base<0 || aegis_namespace_temporary_base_begin(context->selected_base)<0)goto fail;
+        context->base_attached=1;
+    }
     mounts[0] = aegis_namespace_base_mount(context->namespace, base_fd);
     if (mounts[0] < 0) goto fail;
+    if(selected) {
+        if(aegis_namespace_temporary_base_end(context->selected_base)<0)goto fail;
+        context->base_attached=0;close(context->selected_base);context->selected_base=-1;
+    }
     mounts[1] = aegis_namespace_home_mount(context->namespace, create_home);
     if (mounts[1] < 0) goto fail;
     mounts[2] = aegis_namespace_devices_mount(context->namespace);
@@ -150,7 +159,21 @@ fail:;
     for (unsigned i = 0; i < 2; i++) if (pair[i] >= 0) close(pair[i]);
     seal(context);
     if (context->namespace) (void)aegis_namespace_stop(context->namespace);
+    if(context->base_attached && aegis_namespace_temporary_base_end(context->selected_base)==0)
+        context->base_attached=0;
+    if(!context->base_attached && context->selected_base>=0) {
+        close(context->selected_base);context->selected_base=-1;
+    }
     return reject(error);
+}
+
+int aegis_context_start_until(uint32_t user,uint32_t serial,int parent,int base,
+                              int setup,int init,int create,uint64_t deadline,struct aegis_context** output) {
+    return start_until(user,serial,parent,base,setup,init,create,0,deadline,output);
+}
+int aegis_context_start_selected_until(uint32_t user,uint32_t serial,int parent,int base,
+                                       int setup,int init,int create,uint64_t deadline,struct aegis_context** output) {
+    return start_until(user,serial,parent,base,setup,init,create,1,deadline,output);
 }
 
 int aegis_context_channel(struct aegis_context *context) {
@@ -217,6 +240,9 @@ int aegis_context_stop(struct aegis_context **output, int timeout_ms) {
     }
     if (error) return reject(error);
     if (context->memory && aegis_memory_group_remove(&context->memory) < 0) return -1;
+    if(context->base_attached && aegis_namespace_temporary_base_end(context->selected_base)<0)return -1;
+    context->base_attached=0;
+    if(context->selected_base>=0)close(context->selected_base);
     free(context);
     *output = NULL;
     return 0;

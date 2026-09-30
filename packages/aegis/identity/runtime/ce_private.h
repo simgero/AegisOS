@@ -25,6 +25,13 @@ int aegis_ce_open_home(int data_fd, uint32_t user_id, uint32_t serial, int creat
 int aegis_ce_open_packages(int data_fd, uint32_t user_id, uint32_t serial, int create);
 /* packages comes only from the above function, in the SAME admission. */
 int aegis_ce_package_store(int packages, uint32_t user_id, uint32_t serial);
+/* Read-only lookup under the same fresh admission/namespace requirements.
+ * Verifies authoritative AOSP serial/policy/key before accepting absent AEGIS
+ * storage or its newly provisioned pristine empty store. Success may leave
+ * *store=-1; missing AOSP roots, locked CE and partial storage are errors.
+ * Never infer absence from a generic ENOENT, never create/repair a directory.
+ * output initially -1, stays unchanged on failure. Register BEFORE calling. */
+int aegis_ce_find_package_store(int data_fd,uint32_t user_id,uint32_t serial,int* store);
 /* Creates a new empty directory; no reuse, repair or cleanup of old jobs. */
 int aegis_ce_new_package_stage(int packages, uint32_t user_id, uint32_t serial, uint64_t job);
 

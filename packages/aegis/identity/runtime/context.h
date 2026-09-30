@@ -38,6 +38,15 @@ int aegis_context_start_until(uint32_t user, uint32_t serial, int parent_fd, int
                               int setup_fd, int init_fd, int create_home,
                               uint64_t deadline_ns, struct aegis_context **output);
 
+/* Same deadline/ownership, but base is the owned detached readonly generation
+ * returned by the selector. After child creation, temporarily anchor it in the
+ * broker's private namespace only to clone the exact child's ID-mapped view.
+ * Detach before sending mounts/resuming. Failed anchor cleanup remains part of
+ * *context and must finish in stop() before CE can be evicted. */
+int aegis_context_start_selected_until(uint32_t user,uint32_t serial,int parent_fd,int base_fd,
+                                       int setup_fd,int init_fd,int create_home,
+                                       uint64_t deadline_ns,struct aegis_context** output);
+
 /* Borrowed private control fd, usable only for owner liveness checks after READY.
  * Never read/write/close it or give it to a CLI. Command I/O and sequence belong
  * exclusively to exec/result below. Fresh AOSP/session checks remain required.
