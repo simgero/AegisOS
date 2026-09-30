@@ -1,5 +1,24 @@
 # Phase 1: Implementierungsstand
 
+## 2026-09-30: Paketplanungsauftrag besitzt Arbeiter und Ergebnis bis zum Abbruch
+
+`33482ef2` besteht **43/43 gezielte und 337/337 aktivierte native Tests**.
+Die verifizierte Auswahl wird unter derselben Auftragskennung an den isolierten
+Planer übergeben. Auch das fertige Ergebnis bleibt bis zur Weiterverarbeitung
+oder zum Abbruch im Broker registriert. Abmeldung/STOP, Fristen, Teilfehler und
+Folgeaufträge sind geprüft. [Belege und Grenzen](component-tests.md).
+Benutzer, Schlüssel, Produktgast und sichtbare Version bleiben unverändert.
+
+Offen bleiben kontrollierter produktiver Netzwerkabruf, Bindung des gehaltenen
+Ergebnisses an den Plan samt erneuter Gültigkeitsprüfung, frische AOSP-Adminfreigabe
+und öffentliche CLI/Binder-Befehle. Der Zwei-Benutzer-Produktablauf ist noch offen.
+
+Auf Nutzerwunsch wurden anschließend weitere 70 überholte lokale Komponenten-
+kopien (rund 0,39 GiB belegte Blöcke) entfernt. Aktueller Komponentenstand und
+vorheriger geprüfter Vergleichsstand, Quellcode, Berichte, Launcher sowie alle
+fünf benötigten Profile bleiben erhalten. Beleg:
+`out/cleanup-planner-copies-20260930.json`.
+
 ## 2026-09-30: Paketplan mit Release-/Index-/Archivbelegen verbunden
 
 `9e705281` besteht **34/34 gezielte und 328/328 aktivierte native Tests**.

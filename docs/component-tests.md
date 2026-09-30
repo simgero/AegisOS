@@ -1,3 +1,65 @@
+## Eigener Planungsauftrag mit Abbruchverwaltung: 43 und 337 Tests bestanden
+
+Komponentenstand **33482ef26d714e9e8265c20f6e3d81e629e7cfa2** besteht am 30. September 2026
+im lokalen Mac-QEMU **43/43 gezielte Prüfungen** (2026-09-30T11:27:25Z, 11,737 Sekunden)
+und anschließend **337/337 aktivierte native Tests aus 41 Gruppen**
+(2026-09-30T11:33:10Z, 131,647 Sekunden).
+Buildlauf `identity-20260930T112502Z-33482ef2-JWjK0R`, Invocation
+`1120b20af1eb4b0c98c07a7074034d0e`, kompiliert inkrementell in 34 Sekunden auf
+`aegis-build`. [Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T112621Z-33482ef2-33482ef2-IoSOhn).
+
+Der Broker registriert den Planungsauftrag vor dem Start des Arbeiters. Eine
+bereits geprüfte Generationsauswahl geht direkt unter derselben Auftragskennung
+an den Planer; Quellenidentität und Mount bleiben intern gebunden. Kopieren der
+Paketmetadaten und APT laufen im isolierten Kind außerhalb der kurzen Zulassung.
+Der Planer verwendet Werksprogramme, feste Quellen/Schlüssel und ausschließlich
+den Paketstatus der ausgewählten Generation. Eine abweichende geerbte umask
+ändert die benötigten Mountberechtigungen nicht.
+
+Poll liefert nur Status. Auch ein eingesammeltes Ergebnis (`Collected`) bleibt
+als privates Verzeichnis im Auftrag registriert und sperrt einen zweiten Auftrag
+desselben Antragstellers. Bei STOP_USER, Abbruch, HELLO und Verbindungsverlust
+behält der Broker Arbeiter, Cgroup und Ergebnis bis zur bestätigten Beendigung. Ein abgelaufenes
+Zeitbudget darf die Ressourcen nicht vorzeitig freigeben. Identität und
+Seriennummer werden für Poll und Abbruch gemeinsam geprüft; Auftragsnummern
+werden innerhalb desselben Besitzers nicht wiederverwendet. Das begrenzte interne
+Protokoll weist zusätzliche Dateideskriptoren ohne Leck ab.
+
+Eine abgetrennte Generationsansicht ist nur für einen Startversuch verwendbar:
+Nach temporärem Einhängen/Aushängen muss ein Folgeauftrag eine neu geprüfte
+Ansicht beziehen. Der Wiederholungstest prüft diese Neuauswahl nach STOP und eine
+höhere Auftragskennung. Die produktive Helferdatei verlangt ihren vorgesehenen
+SELinux-Kontext; der getrennte Testhelfer behauptet diese Produktzulassung nicht.
+
+Die neun zusätzlichen Tests prüfen tatsächliches signiertes Offline-APT,
+Metadatenbegrenzung, Abbruch, Teilfehler, Fristablauf, falsche Identität,
+STOP nach Ergebnis, direkte Auswahlübergabe und Deskriptorbereinigung.
+**Grenze:** Der private Netzwerkraum bleibt ohne produktiven Internetzugang.
+Öffentliche CLI/Binder-Operationen, Produkt-SELinux-Einbindung und die Verbindung
+des intern behaltenen Ergebnisses mit erneuter Gültigkeitsprüfung, gebundenem Plan,
+frischer AOSP-Adminfreigabe und Ausführung fehlen weiterhin. `Collected` ist keine
+Freigabe oder Installation. Der vollständige Zwei-Benutzer-Produktablauf ist offen.
+
+Gast bleibt Produktimage `c7401f60`, Profil `39d29ee1-7587-4223-8e5d-f9872c910554`, Boot-ID
+`6c6dc3df-cf70-4c1b-8f16-f131b5a981a5`. SELinux Enforcing, authentifiziertes ADB, laufender Broker,
+Benutzer/Seriennummern 0/10/11, CE-/DE-Schlüsselkennungen und leere Runtime-Kontexte
+sind vor und nach beiden Läufen unverändert. Benutzer 10/11 bleiben gesperrt.
+Vier ausdrücklich deaktivierte AOSP-CE-Integrationstests wurden nicht aktiviert.
+Die 130 unveränderten Java-Prüfungen verwenden ihren früheren Beleg `95f2b925`;
+sie wurden hier nicht erneut ausgeführt. Kein Produkthelfer oder Launcher ersetzt.
+
+Nachweise im primären Workspace: `out/components-33482ef2/` mit
+`targeted-tests/` und `native-regression/`, jeweils Ergebnis, Protokoll und Zustand
+vor/nach dem Lauf. Alle zehn nativen Testhelfer wurden vor Ausführung gehasht.
+
+| Datei | SHA-256 |
+| --- | --- |
+| Gezieltes Protokoll | `06511945b0009c51d1cb3b973fe75c16c10f3dfde40e99de86a1b2f3344e6052` |
+| Vollständiges Protokoll | `17ba7c5273e2eddcbed299b6d52aaa85832cbac019b0d8ae485a687d7d9f32c3` |
+| Vollständiges Ergebnis | `756a6c9cce2ab7dd2d78f706db99c34bbf30affc96fad3b6ace5551a0f0c27ed` |
+| Zustand vor/nach Tests | `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a` |
+| Native Testdatei | `43cb574d2811af2d886c29e0be45f06288ac209ecbd22128d498485cd1a8180d` |
+
 ## Paketplan mit authentifizierten Index- und Archivbelegen: 34 und 328 Tests bestanden
 
 Komponentenstand **9e705281d73bc08d9ae1df4e9f58cc68203d102c** besteht am

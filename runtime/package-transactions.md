@@ -1,4 +1,23 @@
-## Aktuell: authentifizierte Paketbelege durchgängig gebunden
+## Aktuell: isolierter Planer im registrierten Auftrag
+
+`33482ef2` besteht **43 gezielte und alle 337 aktivierten nativen Prüfungen**.
+Der Broker übernimmt die geprüfte Generationsauswahl direkt in denselben
+Planungsauftrag. Er behält Arbeiter und Ergebnis bis zu bestätigter Beendigung
+bzw. Abbruch; Poll gibt keine privaten Dateideskriptoren heraus. STOP_USER,
+Verbindungswechsel, Zeitablauf und Teilfehler gehören zu derselben Verwaltung.
+Für einen neuen Auftrag ist eine frisch geprüfte Generationsansicht nötig.
+[Belege und Grenzen](../docs/component-tests.md).
+
+Der Arbeiter verwendet unveränderliche Werksprogramme, feste Quellen und
+Schlüssel sowie separat kopierte Paketmetadaten. Die Integration ist mit einer
+signierten Offline-Quelle geprüft. Produktiver Netzwerkabruf, öffentliche
+CLI/Binder-Verbindung, Produkt-SELinux-Kontext sowie Übergang des gehaltenen
+Ergebnisses zu erneut geprüftem Plan, frischer AOSP-Adminfreigabe und Ausführung
+bleiben offen. Vier deaktivierte echte AOSP-CE-Prüfungen sind nicht Bestandteil
+dieses Nachweises; Benutzer und laufendes Produktimage bleiben unverändert.
+Die nachfolgenden Abschnitte dokumentieren frühere Implementierungsstände.
+
+## Vorheriger Stand: authentifizierte Paketbelege durchgängig gebunden
 
 `9e705281` besteht 34 gezielte und alle 328 aktivierten nativen Prüfungen.
 Der unveränderliche Resolver sammelt Release-/Index-/Archivbelege nach beendetem
