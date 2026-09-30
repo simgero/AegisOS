@@ -1,5 +1,19 @@
 # Vollständige Paketgenerationen
 
+## Zuständigkeit zwischen APT und abschließender Prüfung
+
+Stand `8ef04ca6` hält nach erfolgreichem APT die exakte Staging-Referenz im
+selben Auftrag (`AwaitingValidation`). Statusabfragen geben keine private
+Dateireferenz weiter und verbrauchen den Auftrag nicht. Abbruch, Benutzerstopp
+und Verbindungsabbau behalten die Zuständigkeit und schließen die Referenz,
+bevor der Besitzer Abwesenheit bestätigt. Ein erneutes Öffnen anhand eines
+vom Aufrufer gelieferten Pfads ist nicht vorgesehen. Der Validator selbst und
+die anschließende Veröffentlichung/Aktivierung sind noch nicht verbunden.
+
+Dieser Stand ist auf dem Server kompiliert und über GitHub gesichert;
+**die gezielten Gasttests warten auf lokalen Speicherplatz**.
+[Buildbeleg und ausstehende Prüfungen](../docs/component-tests.md).
+
 ## Private CE-Ablage im vollständigen Produkt geprüft
 
 Vollimage `ab38cf24` legt den privaten Paketbereich beim tatsächlich zugelassenen

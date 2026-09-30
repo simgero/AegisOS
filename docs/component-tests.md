@@ -1,3 +1,32 @@
+## Paketablage bleibt nach APT dem Auftrag zugeordnet: 8ef04ca6
+
+Der Komponentenstand `8ef04ca63cb2cd660bf29d9702bc9baada8d4258` wurde auf
+`aegis-build` erfolgreich kompiliert und am 30. September 2026 um 00:57:16 UTC
+als [Komponenten-Release](https://github.com/simgero/AegisOS/releases/tag/components-20260930T005654Z-8ef04ca6-8ef04ca6-28pGaF)
+verifiziert veröffentlicht. Lauf `identity-20260930T005535Z-8ef04ca6-6D0Apr`,
+Invocation `42db13853beb45afbb727d8a768a6871`.
+
+Nach erfolgreichem APT hält derselbe registrierte Auftrag die exakte
+Staging-Verzeichnisreferenz im Zustand `AwaitingValidation`. Wiederholtes
+Abfragen konsumiert den Auftrag nicht. Fremde Identität, Seriennummer oder
+Planhash bleiben abgewiesen; Abbruch und `STOP_USER` schließen die Referenz.
+Die zwei vorhandenen Integrationstests wurden dafür um tatsächliche
+Dateideskriptor-Zählung, wiederholtes Abfragen und Aufräumen erweitert.
+
+**Noch nicht im Gast geprüft oder als Startversion übernommen.** Der lokale
+Mac hatte beim Empfang nur 1.76 GiB frei; der Empfänger stoppte vor dem Download.
+Alle bisherigen Profile und Dateien bleiben erhalten. Nach ausreichend freiem
+Speicher folgen die gezielten Suiten `RuntimePackageExecutor`,
+`RuntimePackagePreparation` und `RuntimePackageBroker` (29 vorhandene Tests)
+im lokalen Mac-QEMU. Die früheren 187 nativen und 119 Java-Ergebnisse sind
+keine Prüfung dieses neuen Komponentenstands. Belege und fortsetzbarer
+Empfang liegen unter `out/components-8ef04ca6/` im primären Workspace.
+
+Die registrierte semantische Validierung sowie ihre Verbindung zu
+Veröffentlichung und Aktivierung bleiben noch zu implementieren. Diese
+Korrektur schaltet weder einen öffentlichen Paketbefehl noch eine
+Administratorfreigabe frei.
+
 ## Reale private CE-Paketablage mit Anmeldung, Logout und Reboot: ab38cf24
 
 Der [Vollbuild ab38cf24](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T225939Z-ab38cf24-844b2f1e)
