@@ -78,8 +78,8 @@ public final class AegisIdentityService extends SystemService {
                 // from AOSP storage locks. Never acquire operations or call AOSP.
                 revokeTerminalBindings(user);
                 runtime.stopAndReleaseAll(user, deadline);
-                retireTerminals(user);
                 retirePackages(user);
+                retireTerminals(user);
             });
             AegisRuntimeStorage.register(new RuntimeStorageController(admission));
             Executors.newSingleThreadScheduledExecutor(task -> {
@@ -209,8 +209,9 @@ public final class AegisIdentityService extends SystemService {
                 session.selection.compareAndSet(selected, null);
             }
         }
-        closeTerminals(userId);
+        // Package revocation must not depend on successfully closing a PTY.
         sealPackages(userId);
+        closeTerminals(userId);
     }
 
     private void closeTerminals(int userId) {
@@ -651,11 +652,11 @@ public final class AegisIdentityService extends SystemService {
                     if (operation == RuntimeBrokerProtocol.STOP_USER) {
                         // Stop keeps AOSP authentication and CE unlocked. It does
                         // not revoke other clients' identity or claim a logout.
-                        closeTerminals(user.id);
                         sealPackages(user.id);
+                        closeTerminals(user.id);
                         runtime.stopAndReleaseAll(user.id, access.deadlineNanos());
-                        retireTerminals(user.id);
                         retirePackages(user.id);
+                        retireTerminals(user.id);
                         state = RuntimeBrokerProtocol.ABSENT;
                     } else {
                         state = runtime.state(user.id, user.serial, access.deadlineNanos());
