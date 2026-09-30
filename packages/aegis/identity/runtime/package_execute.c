@@ -330,6 +330,29 @@ static _Noreturn void apt(const struct aegis_package_execution_request *r, enum 
                    "DEBIAN_FRONTEND=noninteractive", "APT_CONFIG=/tmp/aegis-trusted/config", NULL};
     execve(args[0], args, env);_exit(127);
 }
+// Preserve the bounded structured simulation in the owned candidate. /run is
+// ephemeral, so a rejected plan must remain diagnosable after PID1 exits.
+// This log is evidence only; the guard still reads the original pinned FD.
+static int save_simulation(int root,int input,uint64_t job) {
+    struct stat st;
+    if(fstat(input,&st)<0)return -1;
+    if(!S_ISREG(st.st_mode)||st.st_size<0||st.st_size>262144) { errno=EFBIG;return -1; }
+    char name[128];
+    snprintf(name,sizeof(name),"var/log/aegis-package-%llu-simulate.json",(unsigned long long)job);
+    int output=regular_at(root,name,O_CREAT|O_WRONLY,0600);if(output<0)return -1;
+    int error=0;
+    if(fchmod(output,0600)<0||ftruncate(output,0)<0)error=errno;
+    char buffer[4096];
+    for(off_t at=0;!error&&at<st.st_size;) {
+        size_t want=(size_t)(st.st_size-at);if(want>sizeof(buffer))want=sizeof(buffer);
+        ssize_t n=pread(input,buffer,want,at);if(n<0&&errno==EINTR)continue;
+        if(n<=0) { error=n<0?errno:ESTALE;break; }
+        if(write_all(output,buffer,(size_t)n)<0) { error=errno;break; }
+        at+=n;
+    }
+    if(close(output)<0&&!error)error=errno;
+    if(error) { errno=error;return -1; }return 0;
+}
 // Only our independently verified PID namespace is visible here. PID1 cannot
 // leave a background maintainer script mutating metadata during validation.
 static int reap_descendants(void) {
@@ -487,7 +510,7 @@ int aegis_package_execute(uint32_t user, uint32_t serial, int permit_unbound_fix
         if(!error && !result) {
             int fd=open("/run/aegis-apt-plan.json",O_RDONLY|O_NOFOLLOW|O_CLOEXEC|O_NONBLOCK);
             if(fd<0)error=errno;
-            else { if(aegis_package_guard_simulation(guard,fd)<0)error=errno;close(fd); }
+            else { if(save_simulation(root,fd,request.job)<0 || aegis_package_guard_simulation(guard,fd)<0)error=errno;close(fd); }
         }
     }
     if (!error && !result) error=run_command(&request,PACKAGE_ACTION,&result);

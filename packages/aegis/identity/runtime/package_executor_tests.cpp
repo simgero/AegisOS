@@ -188,7 +188,8 @@ class RuntimePackageExecutor : public ::testing::Test {
             << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-check.log").c_str())
             << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-audit.log").c_str())
             << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-verify.log").c_str())
-            << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-simulate.log").c_str());
+            << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-simulate.log").c_str())
+            << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-simulate.json").c_str());
         EXPECT_EQ(0,result.status);EXPECT_EQ(0,result.error);EXPECT_EQ(nullptr,worker);EXPECT_EQ(before,CountFDs());
     }
     void Remount() { candidate.reset();candidate.reset(image->remount());ASSERT_TRUE(candidate.ok()) << strerror(errno);plan.job++; }
@@ -1479,7 +1480,10 @@ TEST_F(RuntimePackageTransaction, BoundPlanFeedsRealAptAndRejectsDifferentApprov
     PackageResolvedPlan resolved;resolved.initial_apt_state_presence=PackageStatePresence::Absent;resolved.requester=10;resolved.serial=42;resolved.create_store=true;
     resolved.requested_package="aegis-exec-app";resolved.requested_version="1";
     resolved.source=resolved.shared=plan.image;resolved.planner_image_sha256=plan.image.sha256;
-    Ready();ASSERT_FALSE(HasFatalFailure());
+    // Direct preparation needs its own positive job ID; the broker assigns
+    // the real transaction ID only after the bound plan has been registered.
+    plan.execution.job=1;
+    Ready();ASSERT_FALSE(HasFatalFailure());plan.execution.job=0;
     aegis_package_execution_review initial={};InitialReview(mount.get(),&initial);ASSERT_FALSE(HasFatalFailure());
     resolved.initial_status_sha256=initial.initial_status;
     resolved.initial_apt_state_presence=static_cast<PackageStatePresence>(initial.apt_state_presence);
