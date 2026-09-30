@@ -1,21 +1,36 @@
 # Vollständige Paketgenerationen
 
-## Zuständigkeit zwischen APT und abschließender Prüfung
+## Paketkonsistenz und Zuständigkeit nach APT
 
-Stand `8ef04ca6` hält nach erfolgreichem APT die exakte Staging-Referenz im
-selben Auftrag (`AwaitingValidation`). Statusabfragen geben keine private
-Dateireferenz weiter und verbrauchen den Auftrag nicht. Abbruch, Benutzerstopp
-und Verbindungsabbau behalten die Zuständigkeit und schließen die Referenz,
-bevor der Besitzer Abwesenheit bestätigt. Ein erneutes Öffnen anhand eines
-vom Aufrufer gelieferten Pfads ist nicht vorgesehen. Der Validator selbst und
-die anschließende Veröffentlichung/Aktivierung sind noch nicht verbunden.
+Stand `ef8242a1` besteht **44/44 gezielte Tests** im lokalen Hintergrund-QEMU.
+Die feste Offline-Ausführung beendet zunächst ihre Nachkommen, prüft dann
+AEGIS-Konten- und Dateivorgaben sowie mit Debian selbst Abhängigkeiten,
+Paketmetadaten und Paketdateien. Veränderte Konfigurationen bleiben nach
+`--force-confold` erhalten; neue fehlende Dateien oder veränderte Programme
+werden abgewiesen. Absichtliche Auslassungen der gepinnten Slim-Basis werden
+vor APT eng begrenzt und unveränderlich im vertrauenswürdigen PID1 erfasst.
+Ein später überschriebenes Log erweitert diese Ausnahmen nicht.
 
-Dieser Stand ist auf dem Server kompiliert und über GitHub bezogen.
-**29/29 gezielte Tests** bestehen im lokalen Hintergrund-QEMU; die tatsächlichen
-AOSP-Benutzer, CE-Sperren und leeren Runtime-Kontexte sind davor und danach
-unverändert. Die Besitzerbibliothek wird direkt im Testprozess ausgeführt; der
-produktive Broker und der Launcher wurden noch nicht ersetzt.
-[Buildbeleg, Prüfung und verbleibende Integration](../docs/component-tests.md).
+Ein Paket-Hintergrundprozess unter technischer UID 42 wird vor der Prüfung
+beendet und tatsächlich abgeholt. Ausschließlich der vertrauenswürdige PID1
+behält dafür `CAP_KILL`; ausgeführter Paketcode behält die bisherigen sechs
+Rechte. Native Konten-/Dateibaumprüfung vor den Debian-Prüfungen verhindert,
+dass eine durch FIFO ersetzte Programmdatei die lesende Prüfung aufhält.
+[Buildbeleg, konkrete Regressionen und Grenzen](../docs/component-tests.md).
+
+Nach erfolgreichem APT und diesen Prüfungen hält derselbe registrierte Auftrag
+die exakte Staging-Referenz (`AwaitingValidation`). Statusabfragen geben keine
+private Dateireferenz weiter und verbrauchen den Auftrag nicht. Abbruch,
+Benutzerstopp und Verbindungsabbau schließen die Referenz vor bestätigter
+Abwesenheit. Ein erneutes Öffnen anhand eines CLI-Pfads ist nicht vorgesehen.
+Der Paketdateivergleich ist keine Repository-Authentifizierung.
+
+**Nächste Verbindung:** endgültige Hashbildung des vollständig stillgelegten,
+eigenen Abbilds und Veröffentlichung/Aktivierung unter derselben Auftragsbindung.
+Danach bleiben vertrauenswürdige Repository-Planung, öffentlicher Paketkanal,
+frische AOSP-Adminbestätigung und produktive SELinux-/CE-Abnahme zu verbinden.
+Die Tests nutzen die Besitzerbibliothek direkt als Entwicklungs-root; laufender
+Produkt-Broker, sichtbarer Launcher sowie Daten- und KeyMint-Paar bleiben erhalten.
 
 ## Private CE-Ablage im vollständigen Produkt geprüft
 

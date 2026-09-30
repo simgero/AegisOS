@@ -1,3 +1,84 @@
+## Paketkonsistenz und AOSP-Kontengrenzen nach realem APT: ef8242a1
+
+Stand `ef8242a19e3c08a04dd254cb6fc49d3b27204952` wurde auf `aegis-build`
+kompiliert und über den [geprüften Komponenten-Release](https://github.com/simgero/AegisOS/releases/tag/components-20260930T014238Z-ef8242a1-ef8242a1-uxM88Q)
+bezogen. Buildlauf `identity-20260930T014142Z-ef8242a1-dD01wl`, Invocation
+`1ea0cf140cd9417e972aedbcb30d904d`.
+
+Am **2026-09-30T01:43:49Z bestehen 44/44 gezielte native Gerätetests**, fünf
+Suiten in 31.489 Sekunden, ohne Skip. Darunter sind 21 Executor-, 13 Vorbereitungs-
+und acht Brokerfälle sowie zwei gezielte Rechte-/Hostaufruferprüfungen.
+Ausführung nur im lokalen Hintergrund-QEMU, Vollimage ab38cf24, Profil
+`0bbb6cf5-951e-43b4-9e08-ec952ab1b6e4`, Boot `6e287d8c-a75c-47c1-ba45-b72b96b2122e`.
+
+Der feste Offline-APT-Auftrag prüft nun nach erfolgreicher Ausführung:
+
+- APT-Abhängigkeiten mit `apt-get check`, dpkg-Metadaten mit `dpkg --audit`
+  (auch Diagnosen bei Exit 0 führen zur Ablehnung) und Paketdateien mit
+  `dpkg --verify --verify-format=rpm`. Veränderte Konfigurationsinhalte dürfen
+  nach `--force-confold` erhalten bleiben. Fehlende/geänderte Programmdateien,
+  neue fehlende Dokumentation und beschädigte Paketmetadaten werden abgewiesen.
+- Native AEGIS-Vorgaben für Konten, gesperrte Linux-Passwörter, reine `files`-
+  Namensauflösung, technische IDs, Dateieigentümer, Setid, Capabilities, ACLs
+  und besondere Dateitypen. Die begrenzte Dateibaumprüfung folgt keinen Links
+  und öffnet keine FIFOs. Sie läuft vor den nachgelagerten Debian-Prüfungen und
+  erneut danach. Ein realer Test ersetzt `/usr/bin/ls` durch eine FIFO; der
+  Auftrag endet mit `EPERM`, bevor die Paketdateiprüfung startet.
+- Tatsächliches Beenden und Abholen aller Nachkommen, bevor die Prüfung beginnt.
+  Ein Paketskript startet einen beobachteten Hintergrundprozess unter UID 42.
+  Nur der vertrauenswürdige Namespace-PID1 behält `CAP_KILL` in seinem aktuellen
+  Effective-/Permitted-Satz; Bounding, Inheritable und Ambient schließen es aus.
+  Ausgeführte Paketskripte behalten nachweislich die bisherigen sechs Rechte
+  (`CapEff=0xdb`). Sie erhalten keine zusätzlichen Host- oder Mountrechte.
+
+Der Vorlauf b69d6608 bestand 36/36 Fälle ohne Paketdatei-Abgleich. Die erste
+Erweiterung 2fafc631 bestand nur **28/40**: Die gepinnte Debian-slim-Basis lässt
+Dokumentation, Übersetzungen und Cache-Unterverzeichnisse absichtlich weg,
+während dpkg sie teilweise noch verzeichnet. Diese Herkunft wurde auch im
+unveränderten, gepinnten Rootfs-Archiv bestätigt. Es wird keine pauschale
+Ausnahme für beliebige fehlende Dateien oder ganze Verzeichnisse verwendet.
+
+Die Korrektur erfasst vor APT ausschließlich bereits fehlende Einträge in
+begrenzten Slim-Pfadfamilien und hält die exakten Zeilen im Speicher des
+vertrauenswürdigen PID1. Der Nachhervergleich liest keine vom Paketskript
+veränderbare Ausnahmeliste zurück. Fehlende Programme werden bereits vorher
+abgewiesen; danach ist keine neue Auslassung erlaubt. Tests entfernen eine
+zuvor vorhandene Dokumentationsablage, fälschen gleichzeitig das Vorher-Log
+und bestätigen trotzdem Ablehnung. Beibehaltene Copyright-Dateien bleiben
+verpflichtend. Der Korrekturstand e7728958 bestand 43/43; ef8242a1 ergänzt
+anschließend den FIFO-Fall und prüft alle 44 Fälle erneut.
+
+Das entspricht der dokumentierten [Slim-Aufbereitung des Basisprojekts](https://github.com/debuerreotype/debuerreotype/blob/master/scripts/debuerreotype-slimify).
+Der [dpkg-Dateivergleich](https://manpages.debian.org/trixie/dpkg/dpkg.1.en.html)
+ist eine Konsistenzprüfung anhand vorhandener Paketmetadaten und **kein
+Authentizitätsnachweis**. Signierte Repository-Auswahl und der endgültige
+SHA-256-Nachweis des vollständigen Abbilds bleiben eigene Anforderungen.
+
+Vorher und nachher sind AOSP-Benutzer 0/0, Alpha 10/10 und Beta 11/11 identisch.
+Nur Benutzer 0 ist gestartet/CE-entsperrt, alle persönlichen Kontexte bleiben
+leer. Die AVB-Digest entspricht dem gepinnten Vollimage; SELinux Enforcing,
+unveränderte Boot-ID und laufender Produkt-Broker sind bestätigt. Kein Konto wurde gelöscht oder angemeldet,
+kein Profil migriert und kein sichtbares QEMU-Fenster geöffnet.
+
+Belege im primären Workspace: `out/components-ef8242a1/targeted-tests/`.
+Ergebnis SHA-256 `05440a0fcbada1bb65d37bd77b01bd1b124c00821a3052da537fad0775561093`;
+Rohlog `7f2a73a6a28df46e0d711c4b494e69d6235c7e3ae60ce5252d6d739b74392b02`;
+identischer Vorher-/Nachherzustand `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`.
+Die früheren 28/40- und 43/43-Belege bleiben unter
+`out/components-2fafc631/targeted-tests/` beziehungsweise
+`out/components-e7728958/targeted-tests/` erhalten.
+
+**Grenzen:** Entwicklungskomponenten in privaten Root-Testfixtures; der laufende
+Produkt-Broker bleibt ab38cf24. Erfolgreiches APT und diese Prüfungen liefern
+weiterhin nur `NeedsValidation` und dieselbe gehaltene Staging-Referenz im
+registrierten Auftrag. Der Übergang zur endgültigen Hashbildung,
+Veröffentlichung und Aktivierung ist noch nicht verbunden. Es gibt weiterhin
+keinen öffentlichen Paketbefehl mit frischer AOSP-Adminbestätigung, keinen
+vollständigen Repository-Planer und keinen neuen produktiven SELinux-/CE-
+Nachweis während APT. Die übrigen nativen und Java-Suiten wurden für diese
+begrenzte Änderung nicht erneut ausgeführt. Der bekannte sichtbare Launcher
+bleibt bis zur integrierten Abnahme unverändert.
+
 ## Paketablage bleibt nach APT dem Auftrag zugeordnet: 8ef04ca6
 
 Der Komponentenstand `8ef04ca63cb2cd660bf29d9702bc9baada8d4258` wurde auf

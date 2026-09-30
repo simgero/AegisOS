@@ -44,7 +44,8 @@ int PackageExecutorStart(int groups, int stage, int candidate, int helper,
 int PackageExecutorCancel(PackageExecutor* worker);
 // Only after actual PID1 reaping, empty/removed cgroup and closure of owned
 // stage/mount/channel/config FDs is *worker cleared. Timeout/error retains it.
-// NeedsValidation means APT exited0, NOT a published/validated/activated image.
+// NeedsValidation means APT, dpkg consistency and native account/file policy
+// checks completed, NOT a hash-bound/published/activated complete image.
 // Killed/lost replies stay Unconfirmed; never infer rollback or publication.
 int PackageExecutorFinish(PackageExecutor** worker, bool cancel, int timeout_ms,
                           PackageExecutionResult* result);
