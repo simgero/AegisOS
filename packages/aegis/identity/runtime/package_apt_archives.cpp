@@ -27,7 +27,7 @@ bool Stable(const struct stat& a,const struct stat& b) {
 int Describe(int fd,uint64_t maximum,struct stat* st) {
     int flags=fcntl(fd,F_GETFL);if(flags<0 || fstat(fd,st)<0)return -1;
     if((flags&O_ACCMODE)!=O_RDONLY || (flags&O_PATH) || !S_ISREG(st->st_mode)
-       || st->st_size<=0 || uint64_t(st->st_size)>maximum)return Fail(EINVAL);
+       || st->st_size<0 || uint64_t(st->st_size)>maximum)return Fail(EINVAL);
     return 0;
 }
 int Stream(int fd,const struct stat& before,const std::string& expected,
@@ -53,8 +53,13 @@ bool Relative(const std::string& path) {
     std::string component;
     for(char c:path+"/") {
         if(c=='/') { if(component.empty()||component=="."||component=="..")return false;component.clear(); }
-        else { if(!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')
-                   ||c=='.'||c=='+'||c=='-'||c=='_'||c=='~'))return false;component+=c; }
+        else {
+            if(!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')
+                 ||c=='.'||c=='+'||c=='-'||c=='_'||c=='~')) {
+                return false;
+            }
+            component+=c;
+        }
     }
     return true;
 }

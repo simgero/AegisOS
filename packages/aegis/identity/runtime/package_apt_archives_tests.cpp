@@ -51,6 +51,15 @@ TEST_F(PackageAptArchives, ExactVersionAndArchitectureRetainAutomaticDependency)
     EXPECT_EQ("pool/t/test-app_2_all.deb",result[0].filename);EXPECT_EQ(Hash("archive"),result[0].archive.sha256);
     EXPECT_EQ(7,lseek(index.fd,0,SEEK_CUR));
 }
+TEST_F(PackageAptArchives, AuthenticatedEmptyIndexDoesNotHideAnotherSourceOrInventPackage) {
+    auto empty=Index("","empty"),full=Index(Entry(),"full");std::vector<PackageAptArchive> result;
+    ASSERT_EQ(0,PackageMatchAptArchives(effects,{empty,full},1000,&result));
+    ASSERT_EQ(1u,result.size());EXPECT_EQ("full",result[0].repository);
+    EXPECT_EQ(-1,PackageMatchAptArchives(effects,{empty},1000,&result));EXPECT_EQ(ENOENT,errno);
+    empty.repository.index_sha256=Hash("changed");
+    EXPECT_EQ(-1,PackageMatchAptArchives(effects,{empty,full},1000,&result));EXPECT_EQ(EBADMSG,errno);
+    EXPECT_EQ("full",result[0].repository);
+}
 TEST_F(PackageAptArchives, WholeIndexHashMustMatchAuthenticatedReceipt) {
     auto index=Index(Entry());index.repository.index_sha256=Hash(Entry()+"\n");
     std::vector<PackageAptArchive> result;
