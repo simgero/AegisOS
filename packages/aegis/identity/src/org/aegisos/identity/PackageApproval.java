@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Internal one-shot approval and bounded handoff of an already prepared plan.
  * Not a Binder endpoint, package resolver, credential cache or worker owner.
- * The actual installer/CLI is not yet connected. Identifiers and plan hashes
+ * Used by the process-bound package Binder. Identifiers and plan hashes
  * alone grant no authority; only the enclosing authenticated session may call.
  */
 public final class PackageApproval {

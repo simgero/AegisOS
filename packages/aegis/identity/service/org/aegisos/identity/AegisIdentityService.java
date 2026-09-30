@@ -58,6 +58,8 @@ public final class AegisIdentityService extends SystemService {
     private final AtomicLong interactiveEpoch = new AtomicLong();
     private ActivityManagerInternal activityInternal;
     private AospIdentityBackend backend;
+    private AospPackageAuthority packageAuthority;
+    private final Set<Session.PackageJob> packages = ConcurrentHashMap.newKeySet();
     private RuntimeBrokerConnection runtime;
     private RuntimeAdmission admission;
     private volatile boolean bootCompleted;
@@ -77,6 +79,7 @@ public final class AegisIdentityService extends SystemService {
                 revokeTerminalBindings(user);
                 runtime.stopAndReleaseAll(user, deadline);
                 retireTerminals(user);
+                retirePackages(user);
             });
             AegisRuntimeStorage.register(new RuntimeStorageController(admission));
             Executors.newSingleThreadScheduledExecutor(task -> {
@@ -88,6 +91,7 @@ public final class AegisIdentityService extends SystemService {
             throw new IllegalStateException("Unknown runtime lifecycle mode");
         }
         backend = new AospIdentityBackend(getContext());
+        packageAuthority = new AospPackageAuthority(getContext(), backend);
         activityInternal = java.util.Objects.requireNonNull(
                 LocalServices.getService(ActivityManagerInternal.class));
         publishBinderService(SERVICE_NAME, new IAegisIdentity.Stub() {
@@ -154,6 +158,7 @@ public final class AegisIdentityService extends SystemService {
 
     private void revokeInteractive() {
         interactiveEpoch.incrementAndGet();
+        for (Session.PackageJob job : packages) job.transaction.seal();
         for (Session session : sessions) {
             session.selection.set(null);
             session.discardLoginPreparation();
@@ -205,6 +210,7 @@ public final class AegisIdentityService extends SystemService {
             }
         }
         closeTerminals(userId);
+        sealPackages(userId);
     }
 
     private void closeTerminals(int userId) {
@@ -222,12 +228,37 @@ public final class AegisIdentityService extends SystemService {
         }
     }
 
+    private void sealPackages(int userId) {
+        for (Session.PackageJob job : packages) {
+            if (job.selected.user.id == userId) job.transaction.seal();
+        }
+    }
+
+    private void retirePackages(int userId) {
+        // Only after confirmed whole-user STOP. Atomic callbacks, no job monitor.
+        for (Session.PackageJob job : packages) {
+            if (job.selected.user.id == userId) {
+                job.transaction.stopped();
+                job.retireIfFinished();
+            }
+        }
+    }
+
     private void reapTerminals() {
         for (Session session : sessions) {
             // A caller-supplied lifetime Binder is not proof that the original
             // kernel process still exists (it could refer to another process).
             try { session.owner.requireAlive(); }
             catch (SecurityException gone) { session.dispose(); }
+        }
+        for (Session.PackageJob job : packages) {
+            try {
+                try { job.requireBinding(); }
+                catch (SecurityException revoked) { job.transaction.seal(); }
+                job.transaction.cleanup(System.nanoTime() + TimeUnit.SECONDS.toNanos(2));
+            } catch (RuntimeException unconfirmed) {
+                // Failed replies or cancellation retain ownership until retry/whole STOP.
+            } finally { job.retireIfFinished(); }
         }
         for (Session.PersonalTerminal terminal : terminals) {
             try {
@@ -263,6 +294,7 @@ public final class AegisIdentityService extends SystemService {
         private final AtomicReference<Selection> selection = new AtomicReference<>();
         private final AtomicReference<LoginPreparation> loginPreparation = new AtomicReference<>();
         private final AtomicReference<PersonalTerminal> currentTerminal = new AtomicReference<>();
+        private final AtomicReference<PackageJob> currentPackage = new AtomicReference<>();
 
         Session(CallerProcess owner, IBinder lifetime) {
             this.owner = owner;
@@ -288,6 +320,10 @@ public final class AegisIdentityService extends SystemService {
                         throw failure;
                     }
                 } catch (AospIdentityBackend.AuthenticationFailure e) {
+                    throw new ServiceSpecificException(e.retryAfterMs > 0 ? ERROR_RETRY : ERROR_AUTH,
+                            e.retryAfterMs > 0 ? Integer.toString(e.retryAfterMs)
+                                    : "AOSP rejected the credential");
+                } catch (PackageApproval.RejectedCredential e) {
                     throw new ServiceSpecificException(e.retryAfterMs > 0 ? ERROR_RETRY : ERROR_AUTH,
                             e.retryAfterMs > 0 ? Integer.toString(e.retryAfterMs)
                                     : "AOSP rejected the credential");
@@ -354,6 +390,7 @@ public final class AegisIdentityService extends SystemService {
                 discardLoginPreparation();
                 AospIdentityBackend.UserKey target = backend.resolveName(name);
                 selection.set(null);
+                sealCurrentPackage();
                 closeCurrentTerminal();
                 // This is Android's login-target selection, before any password
                 // input or personal authority. It may show the target's keyguard.
@@ -615,8 +652,10 @@ public final class AegisIdentityService extends SystemService {
                         // Stop keeps AOSP authentication and CE unlocked. It does
                         // not revoke other clients' identity or claim a logout.
                         closeTerminals(user.id);
+                        sealPackages(user.id);
                         runtime.stopAndReleaseAll(user.id, access.deadlineNanos());
                         retireTerminals(user.id);
+                        retirePackages(user.id);
                         state = RuntimeBrokerProtocol.ABSENT;
                     } else {
                         state = runtime.state(user.id, user.serial, access.deadlineNanos());
@@ -646,6 +685,146 @@ public final class AegisIdentityService extends SystemService {
                     return reply;
                 }
             });
+        }
+
+        @Override public IAegisPackage packageBegin(String action, String scope, String name, String version) {
+            return checked(() -> {
+                requireInteractive();
+                if (runtime == null) throw new IllegalStateException("Runtime is not installed");
+                int operation;
+                switch (action) {
+                    case "install": operation = PackageBrokerProtocol.INSTALL; break;
+                    case "update": operation = PackageBrokerProtocol.UPDATE; break;
+                    case "remove": operation = PackageBrokerProtocol.REMOVE; break;
+                    default: throw new IllegalArgumentException("Unknown package action");
+                }
+                PackageBrokerProtocol.Intent intent = new PackageBrokerProtocol.Intent(operation,
+                        PackageApproval.Scope.fromArgument(scope) == PackageApproval.Scope.USER
+                                ? PackageBrokerProtocol.PERSONAL : PackageBrokerProtocol.SHARED,
+                        name, version);
+                PackageJob previous = currentPackage.get();
+                if ((previous != null && !previous.transaction.retired()) || packages.size() >= MAX_SESSIONS) {
+                    throw new IllegalStateException("Package cleanup still owns its resources");
+                }
+                AospIdentityBackend.UserKey user = requireAuthenticated();
+                Selection selected = selection.get();
+                if (selected == null || selected.runtime == null) throw new SecurityException("No runtime binding");
+                PackageJob request = new PackageJob(selected, intent);
+                packageAuthority.requireRequester(user, request.transaction.action()); // Outside admission.
+                synchronized (request) {
+                    try (RuntimeAdmission.Access access = admission.existing(selected.runtime)) {
+                        request.requireBinding();
+                        packages.add(request); // Even a lost BEGIN reply retains cleanup ownership.
+                        currentPackage.set(request);
+                        try {
+                            request.transaction.begin(access.deadlineNanos());
+                            access.checkCurrent();
+                            request.requireBinding();
+                            return request;
+                        } catch (RuntimeException failure) {
+                            request.transaction.seal();
+                            request.retireIfFinished();
+                            throw failure;
+                        }
+                    }
+                }
+            });
+        }
+
+        private void sealCurrentPackage() {
+            PackageJob job = currentPackage.get();
+            if (job != null) job.transaction.seal();
+        }
+
+        private final class PackageJob extends IAegisPackage.Stub {
+            final Selection selected;
+            final long revision;
+            final PackageTransaction transaction;
+
+            PackageJob(Selection selected, PackageBrokerProtocol.Intent intent) {
+                this.selected = selected;
+                revision = epoch(selected.user.id);
+                transaction = new PackageTransaction(selected.user, intent,
+                        (op, job, request, digest, deadline) -> runtime.packageCall(op,
+                                selected.user.id, selected.user.serial, job, request, digest, deadline),
+                        () -> System.currentTimeMillis() / 1000);
+            }
+
+            void requireBinding() {
+                owner.requireAlive();
+                if (!alive || !lifetime.isBinderAlive() || selection.get() != selected
+                        || selected.interactive != interactiveEpoch.get()
+                        || revision != epoch(selected.user.id) || transaction.sealed()) {
+                    throw new SecurityException("Package belongs to a revoked login");
+                }
+            }
+
+            void retireIfFinished() {
+                if (transaction.retired()) {
+                    packages.remove(this);
+                    currentPackage.compareAndSet(this, null);
+                }
+            }
+
+            @Override public android.os.Bundle status() {
+                return checked(() -> {
+                    try {
+                        requireInteractive();
+                        requireBinding();
+                        if (requireAuthenticated() != selected.user) throw new SecurityException("Login changed");
+                        packageAuthority.requireRequester(selected.user, transaction.action());
+                        try (RuntimeAdmission.Access access = admission.existing(selected.runtime)) {
+                            requireBinding();
+                            android.os.Bundle result = transaction.poll(access.deadlineNanos());
+                            access.checkCurrent();
+                            requireBinding();
+                            return result;
+                        }
+                    } catch (RemoteException | RuntimeException failure) {
+                        transaction.seal();
+                        throw failure;
+                    } finally { retireIfFinished(); }
+                });
+            }
+
+            @Override public android.os.Bundle approve(String administrator, byte[] password) {
+                try {
+                    return checked(() -> {
+                        requireInteractive();
+                        requireBinding();
+                        if (requireAuthenticated() != selected.user) throw new SecurityException("Login changed");
+                        PackageApproval.Prepared prepared = transaction.approval();
+                        AospIdentityBackend.UserKey admin = backend.resolveName(administrator);
+                        // Credential verification and AOSP restrictions run outside admission
+                        // and outside the transaction monitor. There is no cached admin grant.
+                        new PackageApproval(packageAuthority).confirmAndStart(prepared, admin,
+                                credential(password), this::requireBinding, new PackageApproval.Handoff() {
+                                    @Override public void start(PackageApproval.Prepared approved,
+                                            AospIdentityBackend.OperationGuard guard) {
+                                        try (RuntimeAdmission.Access access = admission.existing(selected.runtime)) {
+                                            guard.check();
+                                            transaction.start(approved, access.deadlineNanos());
+                                            access.checkCurrent();
+                                            guard.check();
+                                        }
+                                    }
+                                    @Override public void cancel(PackageApproval.Prepared ignored) {
+                                        transaction.seal(); // Registered reaper owns confirmation/retries.
+                                    }
+                                });
+                        return transaction.view(false);
+                    });
+                } finally { wipe(password); }
+            }
+
+            @Override public android.os.Bundle cancel() {
+                owner.requireSameCaller();
+                transaction.seal();
+                try { transaction.cleanup(System.nanoTime() + TimeUnit.SECONDS.toNanos(2)); }
+                catch (RuntimeException unconfirmed) { /* Keep the job for the registered reaper. */ }
+                retireIfFinished();
+                return transaction.view(true);
+            }
         }
 
         @Override public IAegisTerminal linuxShell(int rows, int columns) {
@@ -891,6 +1070,7 @@ public final class AegisIdentityService extends SystemService {
         private void dispose() {
             alive = false;
             selection.set(null);
+            sealCurrentPackage();
             discardLoginPreparation();
             sessions.remove(this);
             try {

@@ -1,6 +1,7 @@
 package org.aegisos.identity;
 
 import org.aegisos.identity.IAegisTerminal;
+import org.aegisos.identity.IAegisPackage;
 
 /** Credential parcels are sensitive. Each operation also checks the original process. */
 @SensitiveData
@@ -23,4 +24,5 @@ interface IAegisSession {
     // Selects only the Android login target; grants neither identity nor CE access.
     // The CLI requests the password only after this preparation completes.
     void prepareLogin(String name);
+    IAegisPackage packageBegin(String action, String scope, String name, String version);
 }

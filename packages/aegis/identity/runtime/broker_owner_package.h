@@ -33,7 +33,9 @@ struct ConfiguredPackageStatus {
 // admission for inspection. Reaping may advance the already registered job
 // into its owned publisher; no new request, grant, copy/hash/APT runs in this
 // caller. Output remains unchanged on failure. Internal fixture jobs cannot
-// become product jobs.
+// become product jobs. After CANCEL returns success or EALREADY, a registered
+// cleanup owner may poll ONLY that same job/identity without fresh admission to
+// consume its terminal receipt. Failed cancellation does not permit this bypass.
 int BrokerPollConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                                  uint64_t job,ConfiguredPackageStatus* output);
 // Exact owned identity is enough for cleanup after a session is revoked; it is

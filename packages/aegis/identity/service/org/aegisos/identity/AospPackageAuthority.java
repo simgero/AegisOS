@@ -11,7 +11,7 @@ import com.android.server.LocalServices;
 import com.android.server.aegis.AegisPackageCredentials;
 import java.util.Objects;
 
-/** Real AOSP adapter for PackageApproval; not exposed over Binder or wired to a CLI yet. */
+/** Real AOSP adapter for PackageApproval; used by the session-bound package endpoint. */
 final class AospPackageAuthority implements PackageApproval.Authority {
     private final AospIdentityBackend backend;
     private final UserManager users;
@@ -22,16 +22,21 @@ final class AospPackageAuthority implements PackageApproval.Authority {
     }
 
     @Override public void requireRequester(PackageApproval.Prepared plan) throws RemoteException {
+        requireRequester(plan.requester, plan.action);
+    }
+
+    void requireRequester(AospIdentityBackend.UserKey requester, PackageApproval.Action action)
+            throws RemoteException {
         long caller = Binder.clearCallingIdentity();
         try {
-            AospIdentityBackend.State state = backend.state(plan.requester);
-            if (!state.user.equals(plan.requester) || !state.enabled || state.partial
+            AospIdentityBackend.State state = backend.state(requester);
+            if (!state.user.equals(requester) || !state.enabled || state.partial
                     || !state.running || !state.ceUnlocked) {
                 throw new SecurityException("Package requester is no longer admitted by AOSP");
             }
-            UserHandle user = UserHandle.of(plan.requester.id);
+            UserHandle user = UserHandle.of(requester.id);
             if (users.hasUserRestriction(UserManager.DISALLOW_APPS_CONTROL, user)
-                    || users.hasUserRestriction(plan.action == PackageApproval.Action.REMOVE
+                    || users.hasUserRestriction(action == PackageApproval.Action.REMOVE
                             ? UserManager.DISALLOW_UNINSTALL_APPS : UserManager.DISALLOW_INSTALL_APPS, user)) {
                 throw new SecurityException("AOSP restricts the requester's package action");
             }

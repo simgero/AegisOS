@@ -17,6 +17,7 @@ public final class Aegis {
     private TerminalConsole console;
     private final IBinder lifetime = new Binder();
     private IAegisSession session;
+    private IAegisPackage packageJob;
 
     public static void main(String[] args) {
         Aegis cli = new Aegis();
@@ -128,6 +129,8 @@ public final class Aegis {
                     finally { wipe(initial); }
                     return 0;
                 }
+                case "package":
+                    return packageCommand(args);
                 case "user":
                     return userCommand(args);
                 case "passwd": {
@@ -181,6 +184,103 @@ public final class Aegis {
                 System.err.println("Aktion nicht bestätigt. Tatsächlichen Benutzer-/Speicherzustand prüfen.");
             }
             return 1;
+        }
+    }
+
+    private int packageCommand(String[] args) throws RemoteException {
+        if (console == null) throw new IllegalStateException("Interactive terminal required");
+        if (args.length == 2) {
+            if (packageJob == null) throw new IllegalStateException("No package job in this terminal");
+            switch (args[1]) {
+                case "status": printPackage(packageJob.status()); return 0;
+                case "cancel": printPackage(packageJob.cancel()); return 0;
+                case "approve": return approvePackage(packageJob.status());
+                default: throw new IllegalArgumentException("Unknown package command");
+            }
+        }
+        if (args.length < 3 || !("--user".equals(args[2]) || "--all".equals(args[2]))) {
+            throw new IllegalArgumentException("Explicit package scope required");
+        }
+        String name = "", version = "";
+        switch (args[1]) {
+            case "install":
+                if (args.length != 4 && args.length != 5) throw new IllegalArgumentException("Package/version required");
+                name = args[3]; version = args.length == 5 ? args[4] : ""; break;
+            case "remove": exact(args, 4); name = args[3]; break;
+            case "update": exact(args, 3); break;
+            default: throw new IllegalArgumentException("Unknown package action");
+        }
+        packageJob = session.packageBegin(args[1], args[2].substring(2), name, version);
+        return approvePackage(waitForPackage(false));
+    }
+
+    private android.os.Bundle waitForPackage(boolean started) throws RemoteException {
+        String previous = "";
+        for (;;) {
+            android.os.Bundle state = packageJob.status();
+            String phase = state.getString("state");
+            if (!phase.equals(previous) && !"approval_required".equals(phase)) {
+                printPackage(state); previous = phase;
+            }
+            if ("complete".equals(phase) || "closed".equals(phase) || "cancelling".equals(phase)
+                    || (!started && "approval_required".equals(phase))) return state;
+            try { Thread.sleep(300); }
+            catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                packageJob.cancel();
+                throw new IllegalStateException("Package wait interrupted");
+            }
+        }
+    }
+
+    private int approvePackage(android.os.Bundle state) throws RemoteException {
+        if (!"approval_required".equals(state.getString("state"))) {
+            printPackage(state);
+            return "published".equals(state.getString("outcome")) ? 0 : 1;
+        }
+        printPackage(state);
+        byte[] credential = null;
+        boolean submitted = false;
+        try {
+            String admin = console.readLine("Admin-Benutzer für diesen Plan (leer bricht ab): ");
+            if (admin == null || admin.isBlank()) return 1;
+            credential = password("Admin-Passwort für diesen Plan: ");
+            printPackage(packageJob.approve(admin, credential));
+            submitted = true;
+        } finally {
+            wipe(credential);
+            if (!submitted) printPackage(packageJob.cancel());
+        }
+        return "published".equals(waitForPackage(true).getString("outcome")) ? 0 : 1;
+    }
+
+    private void printPackage(android.os.Bundle result) {
+        switch (result.getString("state")) {
+            case "preparing": System.out.println("Paketplan wird vorbereitet. Strg+C beendet den Auftrag."); break;
+            case "approval_required":
+                System.out.println("Paketplan: " + result.getString("action") + ", Bereich: "
+                        + ("all".equals(result.getString("scope")) ? "gemeinsame Software" : "eigene Pakete"));
+                java.util.ArrayList<android.os.Bundle> changes = result.getParcelableArrayList("changes", android.os.Bundle.class);
+                if (changes == null || changes.isEmpty()) throw new IllegalStateException("Missing complete review");
+                for (android.os.Bundle change : changes) {
+                    String before = change.getString("before"), after = change.getString("after");
+                    System.out.println("  " + change.getString("name") + " (" + change.getString("architecture") + "): "
+                            + (before.isEmpty() ? "nicht installiert" : before) + " -> "
+                            + (after.isEmpty() ? "entfernt" : after) + " ["
+                            + ("manual".equals(change.getString("reason")) ? "angefordert" : "Abhängigkeit") + "]");
+                }
+                break;
+            case "running": System.out.println("Paketänderung läuft; Veröffentlichung wird geprüft."); break;
+            case "cancelling": System.out.println("Abbruch angefordert; Aufräumen noch nicht bestätigt."); break;
+            case "closed": System.out.println("Auftrag geschlossen. Paketänderungen sind nicht bestätigt."); break;
+            case "complete":
+                if ("published".equals(result.getString("outcome"))) {
+                    System.out.println("Paketänderung erfolgreich veröffentlicht. Für die neue Software den eigenen Linux-Kontext neu starten.");
+                } else if ("failed".equals(result.getString("outcome"))) {
+                    System.out.println("Paketauftrag fehlgeschlagen. Keine erfolgreiche Veröffentlichung bestätigt.");
+                } else System.out.println("Paketauftrag beendet; Ergebnis unbestätigt.");
+                break;
+            default: throw new IllegalStateException("Unknown package state");
         }
     }
 
@@ -383,7 +483,10 @@ public final class Aegis {
                 + "  linux shell           persönliche GNU/Linux-Shell; exit beendet nur die Shell\n"
                 + "  logout                Android-Benutzer stoppen und CE-Sperre bestätigen\n"
                 + "  exit                  nur den Terminalkanal schließen\n"
-                + "Paketaktionen sind noch nicht freigegeben.\n"
+                + "  package install --user|--all NAME [VERSION]  Plan prüfen und freigeben\n"
+                + "  package update --user|--all                 Pakete aktualisieren\n"
+                + "  package remove --user|--all NAME            Paket entfernen\n"
+                + "  package status|approve|cancel               Auftrag dieses Terminals\n"
                 + "Ein getrennt gestartetes aegis erbt keine persönliche Anmeldung.");
     }
 }
