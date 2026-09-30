@@ -1,5 +1,26 @@
 # Vollständige Paketgenerationen
 
+## Archivbefunde und vollständige Freigabe: Verbindung in Prüfung
+
+Die Version-2-Bindung verlangt nun eine ausdrückliche Manual-/Automatic-Markierung
+für jede Änderung und den anfänglichen APT-`extended_states`-Beleg. Unbekannter
+Zustand, bestätigte Abwesenheit und vorhandene leere Datei sind verschiedene Fälle;
+unbekannt wird abgewiesen. Vorhandene Dateien benötigen Größe und SHA-256, bis
+16 MiB. Der vollständige validierte Plan bleibt als Review erhalten.
+
+`PackageBindAptArchives` übernimmt sämtliche aufgelösten Archivbefunde, prüft die
+geordneten gepinnten Dateien unabhängig und erzeugt daraus denselben Digest für
+Vorbereitung und Publikation. Eine konkurrierende Änderungsliste im Kontext,
+fehlende/vertauschte/veränderte Archive, ungeklärte Markierungen und abgelaufene
+Quellen verhindern die Bindung. Entfernung darf keine Archiv-FDs einschleusen.
+
+**Noch ungeprüft:** Der neue Stand muss auf `aegis-build` kompiliert und im lokalen
+QEMU ausgeführt werden. Die öffentliche CLI/AOSP-Freigabe und der produktive
+Planer bleiben unverbunden. Der mechanische Paketarbeiter übernimmt diese
+Markierungen noch nicht und vergleicht seine tatsächlichen Änderungen noch nicht
+unabhängig mit dem Review. Die neue Bindung allein autorisiert keine Ausführung.
+
+
 ## Verbindung mit tatsächlichen Archiven: Komponentennachweis
 
 `PackageMatchAptArchives` verknüpft die von APT ausgewählten Änderungen mit den

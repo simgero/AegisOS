@@ -38,6 +38,15 @@ class PackageAptArchives : public testing::Test {
         EXPECT_EQ(-1,PackageMatchAptArchives(effects,{Index(text)},1000,&result));EXPECT_EQ(expected,errno);
         ASSERT_EQ(1u,result.size());EXPECT_EQ("unchanged",result[0].repository);
     }
+    PackageResolvedPlan Context(const std::vector<PackageAptIndex>& indexes) {
+        PackageResolvedPlan p;p.initial_apt_state_presence=PackageStatePresence::Absent;p.requester=10;p.serial=42;p.personal=true;p.create_store=true;
+        p.requested_package="test-app";p.requested_version="2";
+        p.source=p.shared={268435456,std::string(64,'a')};
+        p.planner_image_sha256=std::string(64,'b');p.policy_sha256=std::string(64,'c');
+        p.initial_status_sha256=std::string(64,'d');
+        for(const auto& index:indexes)p.repositories.push_back(index.repository);
+        return p;
+    }
     void TearDown() override { files.clear();for(const auto& p:paths)EXPECT_EQ(0,unlink(p.c_str()));if(!dir.empty())EXPECT_EQ(0,rmdir(dir.c_str())); }
 };
 TEST_F(PackageAptArchives, ExactVersionAndArchitectureRetainAutomaticDependency) {
@@ -126,5 +135,63 @@ TEST_F(PackageAptArchives, PinnedArchiveHashRejectsSameSizeMutationAndTruncation
     int fd=File("archive");ASSERT_EQ(3,lseek(fd,3,SEEK_SET));ASSERT_EQ(0,PackageVerifyAptArchive(result[0],fd));EXPECT_EQ(3,lseek(fd,0,SEEK_CUR));
     EXPECT_EQ(-1,PackageVerifyAptArchive(result[0],File("archivX")));EXPECT_EQ(EBADMSG,errno);
     EXPECT_EQ(-1,PackageVerifyAptArchive(result[0],File("archiv")));EXPECT_EQ(EBADMSG,errno);
+}
+
+TEST_F(PackageAptArchives, BindingJoinsAllArchiveBytesAndDependencyMarks) {
+    effects.push_back({"test-lib","all","","2",true});
+    auto index=Index(Entry()+Entry("test-lib","2","library"));std::vector<PackageAptArchive> result;
+    ASSERT_EQ(0,PackageMatchAptArchives(effects,{index},1000,&result));
+    int app=File("archive"),lib=File("library");ASSERT_EQ(3,lseek(app,3,SEEK_SET));
+    auto context=Context({index});PackageBoundPlan bound;
+    ASSERT_EQ(0,PackageBindAptArchives(context,result,{app,lib},1000,&bound));
+    EXPECT_EQ(3,lseek(app,0,SEEK_CUR));EXPECT_EQ(10u,bound.publication.requester);
+    ASSERT_EQ(2u,bound.reviewed.changes.size());
+    EXPECT_EQ(PackageInstallReason::Manual,bound.reviewed.changes[0].reason);
+    EXPECT_EQ(PackageInstallReason::Automatic,bound.reviewed.changes[1].reason);
+    EXPECT_EQ(Hash("archive"),bound.preparation.archives[0].sha256);
+    EXPECT_EQ(Hash("library"),bound.preparation.archives[1].sha256);
+    auto changed=result;changed[1].effect.automatic=false;PackageBoundPlan other;
+    ASSERT_EQ(0,PackageBindAptArchives(context,changed,{app,lib},1000,&other));
+    EXPECT_NE(bound.publication.plan_sha256,other.publication.plan_sha256);
+}
+TEST_F(PackageAptArchives, BindingRejectsConflictingEffectsAndDescriptorCount) {
+    auto index=Index(Entry());std::vector<PackageAptArchive> result;
+    ASSERT_EQ(0,PackageMatchAptArchives(effects,{index},1000,&result));
+    auto context=Context({index});int fd=File("archive");PackageBoundPlan bound;
+    bound.publication.plan_sha256="unchanged";
+    EXPECT_EQ(-1,PackageBindAptArchives(context,result,{},1000,&bound));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(-1,PackageBindAptArchives(context,result,{fd,fd},1000,&bound));EXPECT_EQ(EINVAL,errno);
+    context.changes.resize(1);
+    EXPECT_EQ(-1,PackageBindAptArchives(context,result,{fd},1000,&bound));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ("unchanged",bound.publication.plan_sha256);
+}
+TEST_F(PackageAptArchives, BindingRejectsChangedOrReorderedFilesWithoutPartialOutput) {
+    effects.push_back({"test-lib","all","","2",true});
+    auto index=Index(Entry()+Entry("test-lib","2","library"));std::vector<PackageAptArchive> result;
+    ASSERT_EQ(0,PackageMatchAptArchives(effects,{index},1000,&result));
+    auto context=Context({index});int app=File("archive"),lib=File("library"),changed=File("archivX");
+    PackageBoundPlan bound;bound.publication.plan_sha256="unchanged";
+    EXPECT_EQ(-1,PackageBindAptArchives(context,result,{changed,lib},1000,&bound));EXPECT_EQ(EBADMSG,errno);
+    EXPECT_EQ(-1,PackageBindAptArchives(context,result,{lib,app},1000,&bound));EXPECT_EQ(EBADMSG,errno);
+    EXPECT_EQ("unchanged",bound.publication.plan_sha256);EXPECT_TRUE(bound.reviewed.changes.empty());
+    EXPECT_EQ(7,lseek(app,0,SEEK_END)); // Caller still owns every FD after rejection.
+}
+TEST_F(PackageAptArchives, BindingChecksExpiryBeforeTouchingAnyArchive) {
+    auto index=Index(Entry());std::vector<PackageAptArchive> result;
+    ASSERT_EQ(0,PackageMatchAptArchives(effects,{index},1000,&result));
+    PackageBoundPlan bound;bound.publication.plan_sha256="unchanged";
+    EXPECT_EQ(-1,PackageBindAptArchives(Context({index}),result,{INT32_MAX},2000,&bound));EXPECT_EQ(ESTALE,errno);
+    EXPECT_EQ("unchanged",bound.publication.plan_sha256);
+}
+TEST_F(PackageAptArchives, RemovalBindingRetainsReasonButRejectsArchiveAuthority) {
+    effects[0].before_version="2";effects[0].after_version.clear();effects[0].automatic=true;
+    std::vector<PackageAptArchive> result;ASSERT_EQ(0,PackageMatchAptArchives(effects,{},1000,&result));
+    auto context=Context({});context.action=PackageAction::Remove;context.requested_version.clear();
+    PackageBoundPlan bound;ASSERT_EQ(0,PackageBindAptArchives(context,result,{-1},1000,&bound));
+    EXPECT_EQ(PackageInstallReason::Automatic,bound.reviewed.changes[0].reason);EXPECT_TRUE(bound.publication.personal);
+    EXPECT_TRUE(bound.preparation.archives.empty());EXPECT_EQ(10u,bound.publication.requester);
+    EXPECT_EQ(-1,PackageBindAptArchives(context,result,{File("archive")},1000,&bound));EXPECT_EQ(EINVAL,errno);
+    result[0].filename="pool/x.deb";
+    EXPECT_EQ(-1,PackageBindAptArchives(context,result,{-1},1000,&bound));EXPECT_EQ(EINVAL,errno);
 }
 }

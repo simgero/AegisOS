@@ -11,9 +11,10 @@ PackageResolvedPlan Plan() {
     p.requested_package="test-app";p.requested_version="2:1.0~rc1-1";
     p.source=p.shared={268435456,H('a')};p.planner_image_sha256=H('b');
     p.policy_sha256=H('c');p.initial_status_sha256=H('d');
+    p.initial_apt_state_presence=PackageStatePresence::Present;p.initial_apt_state={7,H('5')};
     p.repositories={{"debian-main",H('e'),H('f'),2000}};
-    p.changes={{"test-app","arm64","","2:1.0~rc1-1","debian-main",{4096,H('1')}},
-               {"test-lib","all","","1.2-1","debian-main",{2048,H('2')}}};
+    p.changes={{"test-app","arm64","","2:1.0~rc1-1","debian-main",{4096,H('1')},PackageInstallReason::Manual},
+               {"test-lib","all","","1.2-1","debian-main",{2048,H('2')},PackageInstallReason::Automatic}};
     return p;
 }
 PackageResolvedPlan Removal() {
@@ -44,8 +45,8 @@ TEST(PackageResolvedPlan, BindsCanonicalEpochArchivesAndRequesterPrivateOwner) {
     EXPECT_EQ(268435456u,pub.candidate.bytes);EXPECT_EQ(2000u,b.valid_until_unix);
     EXPECT_EQ(prep.execution.plan_sha256,pub.plan_sha256);
 }
-TEST(PackageResolvedPlan, IndependentVersionOneDigestVectorAndClockStableBinding) {
-    auto p=Plan();EXPECT_EQ("62e1d6e9a230b5104c2b0faab831285ab68a74b65d747796d91c00919b79ab7f",Digest(p));
+TEST(PackageResolvedPlan, IndependentVersionTwoDigestVectorAndClockStableBinding) {
+    auto p=Plan();EXPECT_EQ("e2481eca1b14ae560b109c61f22eb9599f4ad8d909ddac6a626c832b69e59949",Digest(p));
     PackageBoundPlan b;ASSERT_EQ(0,PackageBindResolvedPlan(p,1999,&b));
     EXPECT_EQ(Digest(p),b.preparation.execution.plan_sha256);
 }
@@ -59,7 +60,10 @@ TEST(PackageResolvedPlan, EverySecurityRelevantChangeInvalidatesTheBinding) {
         [](auto& p){p.requested_version.clear();},[](auto& p){p.requested_package="test-lib";p.requested_version.clear();},
         [](auto& p){p.action=PackageAction::Update;p.requested_package.clear();p.requested_version.clear();},
         [](auto& p){p.planner_image_sha256=H('3');},[](auto& p){p.policy_sha256=H('3');},
-        [](auto& p){p.initial_status_sha256=H('3');},[](auto& p){p.repositories[0].release_sha256=H('3');},
+        [](auto& p){p.initial_status_sha256=H('3');},
+        [](auto& p){p.initial_apt_state.sha256=H('3');},[](auto& p){p.initial_apt_state.bytes++;},
+        [](auto& p){p.initial_apt_state_presence=PackageStatePresence::Absent;p.initial_apt_state={};},
+        [](auto& p){p.changes[1].reason=PackageInstallReason::Manual;},[](auto& p){p.repositories[0].release_sha256=H('3');},
         [](auto& p){p.repositories[0].index_sha256=H('3');},[](auto& p){p.repositories[0].valid_until_unix++;},
         [](auto& p){p.repositories[0].id="debian-other";for(auto& c:p.changes)c.repository="debian-other";},
         [](auto& p){p.changes[1].name="test-other";},[](auto& p){p.changes[1].architecture="arm64";},
@@ -162,7 +166,7 @@ TEST(PackageResolvedPlan, EnforcesRealMechanicalImageArchiveAndCountLimits) {
 }
 TEST(PackageResolvedPlan, EnforcesAggregateArchiveBudget) {
     auto p=Plan();p.requested_package="test-00";p.requested_version="1";p.changes.clear();
-    for(unsigned i=0;i<5;i++)p.changes.push_back({"test-0"+std::to_string(i),"all","","1","debian-main",{uint64_t{2}<<30,H('1')}});
+    for(unsigned i=0;i<5;i++)p.changes.push_back({"test-0"+std::to_string(i),"all","","1","debian-main",{uint64_t{2}<<30,H('1')},PackageInstallReason::Manual});
     Reject(p);p.changes.pop_back();EXPECT_EQ(64u,Digest(p).size());
 }
 TEST(PackageResolvedPlan, IdentityTimeAndRequiredHashesCannotBeOmitted) {
@@ -171,4 +175,39 @@ TEST(PackageResolvedPlan, IdentityTimeAndRequiredHashesCannotBeOmitted) {
     p.policy_sha256.clear();Reject(p);p=Plan();p.planner_image_sha256.clear();Reject(p);
     p=Plan();p.initial_status_sha256.clear();Reject(p);
     EXPECT_EQ(-1,PackageBindResolvedPlan(Plan(),1000,nullptr));EXPECT_EQ(EINVAL,errno);
+}
+
+TEST(PackageResolvedPlan, OmittedOrUnknownInstallReasonCannotBecomeManual) {
+    auto p=Plan();p.changes[1].reason=PackageInstallReason::Unspecified;Reject(p);
+    p=Plan();p.changes[1].reason=static_cast<PackageInstallReason>(3);Reject(p);
+    p=Removal();p.changes[0].reason=PackageInstallReason::Unspecified;Reject(p);
+}
+TEST(PackageResolvedPlan, AbsentAndEmptyAptStateHaveDifferentBindings) {
+    auto absent=Plan();absent.initial_apt_state_presence=PackageStatePresence::Absent;absent.initial_apt_state={};
+    auto empty=absent;empty.initial_apt_state_presence=PackageStatePresence::Present;
+    empty.initial_apt_state.sha256="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    EXPECT_NE(Digest(absent),Digest(empty));EXPECT_NE(Digest(Plan()),Digest(empty));
+}
+TEST(PackageResolvedPlan, AptStateRequiresCanonicalPresenceHashAndResourceBound) {
+    auto p=Plan();p.initial_apt_state_presence=PackageStatePresence::Unspecified;Reject(p);
+    p=Plan();p.initial_apt_state_presence=PackageStatePresence::Absent;Reject(p);
+    p=Plan();p.initial_apt_state.sha256.clear();Reject(p);
+    p=Plan();p.initial_apt_state.bytes=0;Reject(p);
+    p=Plan();p.initial_apt_state.bytes=(uint64_t{16}<<20)+1;Reject(p);
+    p.initial_apt_state.bytes=uint64_t{16}<<20;EXPECT_EQ(64u,Digest(p).size());
+}
+TEST(PackageResolvedPlan, ReviewRetainsExactAutomaticMarksAndInitialState) {
+    for(const auto& p:{Plan(),Removal()}) {
+        PackageBoundPlan b;ASSERT_EQ(0,PackageBindResolvedPlan(p,1000,&b));
+        EXPECT_EQ(p.requester,b.reviewed.requester);EXPECT_EQ(p.serial,b.reviewed.serial);
+        EXPECT_EQ(p.personal,b.reviewed.personal);EXPECT_EQ(p.action,b.reviewed.action);
+        EXPECT_EQ(p.initial_status_sha256,b.reviewed.initial_status_sha256);
+        EXPECT_EQ(PackageStatePresence::Present,b.reviewed.initial_apt_state_presence);EXPECT_EQ(7u,b.reviewed.initial_apt_state.bytes);
+        EXPECT_EQ(H('5'),b.reviewed.initial_apt_state.sha256);
+        ASSERT_EQ(2u,b.reviewed.changes.size());EXPECT_EQ(PackageInstallReason::Manual,b.reviewed.changes[0].reason);
+        EXPECT_EQ(PackageInstallReason::Automatic,b.reviewed.changes[1].reason);
+        EXPECT_EQ(p.changes[1].after_version,b.reviewed.changes[1].after_version);
+        EXPECT_EQ(p.changes[1].archive.sha256,b.reviewed.changes[1].archive.sha256);
+        EXPECT_EQ(b.preparation.execution.plan_sha256,Digest(b.reviewed));
+    }
 }

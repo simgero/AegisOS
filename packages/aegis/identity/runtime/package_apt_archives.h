@@ -33,5 +33,16 @@ int PackageMatchAptArchives(const std::vector<PackageAptEffect>& effects,
 // Keeping the fd pinned and bytes quiescent through preparation is caller duty.
 // No pathname, package code, user/admin authority or publication is accepted.
 int PackageVerifyAptArchive(const PackageAptArchive& expected,int fd);
+// Join trusted request/source context to ALL matched resolver effects, retain
+// automatic/manual marks, verify each acquired archive and derive the approval
+// digest. context.changes MUST be empty: no competing caller effect list.
+// FDs align with effects; removal slots MUST be -1 with no archive/path metadata.
+// Repositories/context are authenticated owned-worker inputs, never CLI data.
+// Signature trust is a prerequisite, NOT conferred by a matching hash.
+// Bounds/expiry are checked before any archive IO. Failure leaves output intact.
+// Keep input FDs pinned/quiescent through preparation. No execution/authorization.
+int PackageBindAptArchives(const PackageResolvedPlan& context,
+    const std::vector<PackageAptArchive>& effects,const std::vector<int>& archive_fds,
+    uint64_t now_unix,PackageBoundPlan* output);
 }
 #endif

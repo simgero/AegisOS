@@ -29,6 +29,7 @@ class AptImageFixture {
     android::base::unique_fd loop;
     std::string directory;
     bool passed = false;
+    aegis_base_receipt original = {}; // Exact base verified before the fixture copy.
     ~AptImageFixture() {
         // Caller must first close every returned mount/child ref. Never force
         // LOOP_CLR_FD or act on an unowned mount. Autoclear releases our loop.
@@ -77,6 +78,7 @@ class AptImageFixture {
         if (!SHA256_Final(digest, &hash)) return -1;
         for (size_t i = 0; i < sizeof(digest); ++i) snprintf(actual + i * 2, 3, "%02x", digest[i]);
         if (strcmp(actual, expected.sha256) || fsync(image.get()) < 0 || fstat(image.get(), &backing) < 0) return -1;
+        this->original = expected;
         unique_fd control(open("/dev/loop-control", O_RDWR | O_CLOEXEC | O_NOFOLLOW));
         if (control.get() < 0) return -1;
         for (unsigned attempt = 0; attempt < 16; ++attempt) {

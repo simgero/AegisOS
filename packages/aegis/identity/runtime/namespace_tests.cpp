@@ -339,12 +339,46 @@ TEST_F(RuntimeNamespace, OfflineAptInstallsUpgradesAndPurgesCompleteCandidate) {
     ASSERT_EQ(0,aegis::PackageMatchAptArchives(effects,{{repository,index.get()}},uint64_t(time(nullptr)),&archives))<<strerror(errno);
     ASSERT_EQ(2u,archives.size());
     EXPECT_FALSE(archives[0].effect.automatic);EXPECT_TRUE(archives[1].effect.automatic);
+    android::base::unique_fd archive_files[2];std::vector<int> archive_fds;
     for(size_t i=0;i<archives.size();++i) {
         const char* name=i?"var/log/aegis-plan-lib.deb":"var/log/aegis-plan-app.deb";
         android::base::unique_fd archive(openat(source,name,O_RDONLY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(archive.ok());
         EXPECT_EQ(0,aegis::PackageVerifyAptArchive(archives[i],archive.get()))<<strerror(errno);
         EXPECT_EQ("fixture",archives[i].repository);EXPECT_EQ("2",archives[i].effect.after_version);
+        archive_files[i]=std::move(archive);archive_fds.push_back(archive_files[i].get());
     }
+    // Join actual APT effects and acquired bytes to the verified initial source.
+    // This is still a developer-root fixture, not a product authority or approval.
+    aegis::PackageResolvedPlan plan;plan.requester=10;plan.serial=1234;
+    plan.personal=true;plan.create_store=true;plan.requested_package="aegis-probe-app";plan.requested_version="2";
+    plan.source=plan.shared={fixture.original.bytes,fixture.original.sha256};
+    plan.planner_image_sha256=fixture.original.sha256;plan.repositories={repository};
+    auto status=AptImageFixture::read(source,"var/log/aegis-plan-initial-status.sha256");
+    auto policy=AptImageFixture::read(source,"var/log/aegis-plan-policy.sha256");
+    ASSERT_EQ(65u,status.size());ASSERT_EQ('\n',status.back());
+    ASSERT_EQ(65u,policy.size());ASSERT_EQ('\n',policy.back());
+    plan.initial_status_sha256=status.substr(0,64);plan.policy_sha256=policy.substr(0,64);
+    auto presence=AptImageFixture::read(source,"var/log/aegis-plan-apt-state.presence");
+    ASSERT_TRUE(presence=="ABSENT\n" || presence=="PRESENT\n");
+    plan.initial_apt_state_presence=presence=="ABSENT\n"?aegis::PackageStatePresence::Absent:aegis::PackageStatePresence::Present;
+    if(plan.initial_apt_state_presence==aegis::PackageStatePresence::Present) {
+        struct stat st;ASSERT_EQ(0,fstatat(source,"var/log/aegis-plan-initial-apt-state",&st,AT_SYMLINK_NOFOLLOW));
+        ASSERT_GE(st.st_size,0);ASSERT_LE(st.st_size,32768);
+        auto bytes=AptImageFixture::read(source,"var/log/aegis-plan-initial-apt-state");
+        ASSERT_EQ(static_cast<size_t>(st.st_size),bytes.size());
+        unsigned char hash[SHA256_DIGEST_LENGTH];ASSERT_NE(nullptr,SHA256(reinterpret_cast<const unsigned char*>(bytes.data()),bytes.size(),hash));
+        char hex[65];for(unsigned i=0;i<sizeof(hash);++i)snprintf(hex+i*2,3,"%02x",hash[i]);
+        plan.initial_apt_state={bytes.size(),hex};
+    }
+    aegis::PackageBoundPlan bound;
+    ASSERT_EQ(0,aegis::PackageBindAptArchives(plan,archives,archive_fds,uint64_t(time(nullptr)),&bound))<<strerror(errno);
+    ASSERT_EQ(2u,bound.reviewed.changes.size());EXPECT_EQ(10u,bound.publication.requester);EXPECT_TRUE(bound.publication.personal);
+    EXPECT_EQ(aegis::PackageInstallReason::Manual,bound.reviewed.changes[0].reason);
+    EXPECT_EQ(aegis::PackageInstallReason::Automatic,bound.reviewed.changes[1].reason);
+    EXPECT_EQ(archives[1].archive.sha256,bound.preparation.archives[1].sha256);
+    auto changed=archives;changed[1].effect.automatic=false;aegis::PackageBoundPlan different;
+    ASSERT_EQ(0,aegis::PackageBindAptArchives(plan,changed,archive_fds,uint64_t(time(nullptr)),&different));
+    EXPECT_NE(bound.publication.plan_sha256,different.publication.plan_sha256);
     json=AptImageFixture::read(source,"var/log/aegis-plan-upgrade.json");
     ASSERT_EQ(0,aegis::PackageReadAptPlan(json,aegis::PackageAction::Update,"","",&effects))<<json;
     ASSERT_EQ(2u,effects.size());

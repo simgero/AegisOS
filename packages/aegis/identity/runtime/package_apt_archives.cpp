@@ -167,4 +167,26 @@ int PackageVerifyAptArchive(const PackageAptArchive& expected,int fd) {
     if(uint64_t(before.st_size)!=expected.archive.bytes)return Fail(EBADMSG);
     return Stream(fd,before,expected.archive.sha256,[](const char*,size_t){return 0;});
 }
+int PackageBindAptArchives(const PackageResolvedPlan& context,
+    const std::vector<PackageAptArchive>& effects,const std::vector<int>& fds,
+    uint64_t now,PackageBoundPlan* output) {
+    if(!output || !context.changes.empty() || effects.size()>64 || effects.size()!=fds.size())return Fail(EINVAL);
+    PackageResolvedPlan resolved=context;
+    for(size_t i=0;i<effects.size();++i) {
+        const auto& archive=effects[i];const auto& effect=archive.effect;
+        if(effect.after_version.empty()) {
+            if(fds[i]!=-1 || !archive.filename.empty() || !archive.repository.empty()
+               || archive.archive.bytes || !archive.archive.sha256.empty())return Fail(EINVAL);
+        } else if(fds[i]<0 || !Relative(archive.filename))return Fail(EINVAL);
+        resolved.changes.push_back({effect.name,effect.architecture,effect.before_version,
+            effect.after_version,archive.repository,archive.archive,
+            effect.automatic?PackageInstallReason::Automatic:PackageInstallReason::Manual});
+    }
+    PackageBoundPlan bound;
+    if(PackageBindResolvedPlan(resolved,now,&bound)<0)return -1;
+    for(size_t i=0;i<effects.size();++i) {
+        if(!effects[i].effect.after_version.empty() && PackageVerifyAptArchive(effects[i],fds[i])<0)return -1;
+    }
+    *output=std::move(bound);return 0;
+}
 }

@@ -1384,14 +1384,14 @@ TEST_F(RuntimeSelectionOwner, BootstrapCannotChangeFactoryAfterWorkHasBeenRegist
 }
 
 TEST_F(RuntimePackageTransaction, BoundPlanFeedsRealAptAndRejectsDifferentApprovalDigest) {
-    PackageResolvedPlan resolved;resolved.requester=10;resolved.serial=42;resolved.create_store=true;
+    PackageResolvedPlan resolved;resolved.initial_apt_state_presence=PackageStatePresence::Absent;resolved.requester=10;resolved.serial=42;resolved.create_store=true;
     resolved.requested_package="aegis-exec-app";resolved.requested_version="1";
     resolved.source=resolved.shared=plan.image;resolved.planner_image_sha256=plan.image.sha256;
     // Fixture evidence only: these synthetic hashes are NOT signed metadata.
     resolved.policy_sha256=std::string(64,'a');resolved.initial_status_sha256=std::string(64,'b');
     resolved.repositories={{"fixture",std::string(64,'c'),std::string(64,'d'),2000}};
-    resolved.changes={{"aegis-exec-app","all","","1","fixture",plan.archives[1]},
-                      {"aegis-exec-lib","all","","1","fixture",plan.archives[0]}};
+    resolved.changes={{"aegis-exec-app","all","","1","fixture",plan.archives[1],PackageInstallReason::Manual},
+                      {"aegis-exec-lib","all","","1","fixture",plan.archives[0],PackageInstallReason::Manual}};
     PackageBoundPlan bound;ASSERT_EQ(0,PackageBindResolvedPlan(resolved,1000,&bound))<<strerror(errno);
     plan=bound.preparation;target=bound.publication;std::swap(archives[0],archives[1]);
     ASSERT_EQ(0,BrokerPrepareTransaction(broker,plan,target,parent.get(),stage.get(),store.get(),source.get(),
@@ -1400,6 +1400,12 @@ TEST_F(RuntimePackageTransaction, BoundPlanFeedsRealAptAndRejectsDifferentApprov
     auto changed=resolved;changed.requested_version.clear();PackageBoundPlan other;
     ASSERT_EQ(0,PackageBindResolvedPlan(changed,1000,&other));
     ASSERT_NE(other.preparation.execution.plan_sha256,plan.execution.plan_sha256);
+    EXPECT_EQ(-1,BrokerStartExecution(broker,10,42,job,other.preparation.execution.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
+    // A dependency-mark change also invalidates the same fresh approval target.
+    // This is only a binding rejection; the old mechanical executor still does
+    // not apply automatic marks and is not a public product package endpoint.
+    changed=resolved;changed.changes[1].reason=PackageInstallReason::Automatic;
+    ASSERT_EQ(0,PackageBindResolvedPlan(changed,1000,&other));
     EXPECT_EQ(-1,BrokerStartExecution(broker,10,42,job,other.preparation.execution.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
     PublicationState state;PackageExecutionResult result;
     ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));

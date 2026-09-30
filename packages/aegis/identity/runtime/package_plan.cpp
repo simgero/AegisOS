@@ -7,6 +7,7 @@
 namespace aegis {
 namespace {
 int Fail(int error) { errno=error;return -1; }
+constexpr char EmptySha256[]="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 bool Hash(const std::string& s) { return s.size()==64 && aegis_package_hash(s.c_str()); }
 bool Empty(const PackageInput& p) { return p.bytes==0 && p.sha256.empty(); }
 bool Empty(const PackageGeneration& p) {
@@ -70,6 +71,10 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
        || !Hash(p.policy_sha256) || !Hash(p.initial_status_sha256)
        || p.repositories.size()>16 || p.changes.size()>AEGIS_PACKAGE_EXEC_ITEMS
        || (p.action!=PackageAction::Install && p.action!=PackageAction::Update && p.action!=PackageAction::Remove))return Fail(EINVAL);
+    if(p.initial_apt_state_presence==PackageStatePresence::Present) {
+        if(p.initial_apt_state.bytes>(uint64_t{16}<<20) || !Hash(p.initial_apt_state.sha256)
+           || (!p.initial_apt_state.bytes && p.initial_apt_state.sha256!=EmptySha256))return Fail(EINVAL);
+    } else if(p.initial_apt_state_presence!=PackageStatePresence::Absent || !Empty(p.initial_apt_state))return Fail(EINVAL);
     if(p.action==PackageAction::Update) {
         if(!p.requested_package.empty() || !p.requested_version.empty())return Fail(EINVAL);
     } else if(!PackagePlanNameValid(p.requested_package) || (!p.requested_version.empty() && !PackagePlanVersionValid(p.requested_version))
@@ -87,11 +92,12 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
     pub.requester=p.requester;pub.serial=p.serial;pub.personal=p.personal;pub.create=p.create_store;
     pub.has_previous=p.has_previous;pub.previous=p.previous;pub.derive_source_hash=true;
     pub.candidate.bytes=p.source.bytes;if(p.personal)pub.candidate.shared_base_sha256=p.shared.sha256;
-    Encoding e;e.Text("org.aegisos.package.resolved-plan");e.Number(1);
+    Encoding e;e.Text("org.aegisos.package.resolved-plan");e.Number(2);
     e.Number(p.requester);e.Number(p.serial);e.Number(p.personal);e.Number(p.create_store);e.Number(p.has_previous);
     e.Number(static_cast<uint32_t>(p.action));e.Text(p.requested_package);e.Text(p.requested_version);
     e.Input(p.source);e.Input(p.shared);e.Generation(p.previous);
     e.Text(p.planner_image_sha256);e.Text(p.policy_sha256);e.Text(p.initial_status_sha256);
+    e.Number(static_cast<uint32_t>(p.initial_apt_state_presence));e.Input(p.initial_apt_state);
     e.Number(p.repositories.size());std::string previous;
     for(const auto& repo:p.repositories) {
         if(!PackagePlanNameValid(repo.id) || (!previous.empty() && previous>=repo.id) || !Hash(repo.release_sha256)
@@ -106,7 +112,8 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
         if(!PackagePlanNameValid(c.name) || (!previous.empty() && previous>=c.name) || (c.architecture!="arm64"&&c.architecture!="all")
            || (!c.before_version.empty() && !PackagePlanVersionValid(c.before_version))
            || (!c.after_version.empty() && !PackagePlanVersionValid(c.after_version))
-           || c.before_version==c.after_version)return Fail(EINVAL);
+           || c.before_version==c.after_version
+           || (c.reason!=PackageInstallReason::Manual && c.reason!=PackageInstallReason::Automatic))return Fail(EINVAL);
         previous=c.name;
         if(c.after_version.empty()!=!exec.archives)return Fail(EOPNOTSUPP);
         if(exec.archives) {
@@ -124,7 +131,7 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
             requested=true;
         }
         e.Text(c.name);e.Text(c.architecture);e.Text(c.before_version);e.Text(c.after_version);
-        e.Text(c.repository);e.Input(c.archive);
+        e.Number(static_cast<uint32_t>(c.reason));e.Text(c.repository);e.Input(c.archive);
     }
     if(!requested)return Fail(EINVAL);
     std::string digest=e.Digest();if(digest.empty())return Fail(EIO);
@@ -133,6 +140,6 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
     // canonical filename length and action-override suffixes on remove names.
     exec.job=1;pub.job=1;
     if(PackagePreparationCheck(prep)<0 || PackagePublicationCheck(pub)<0)return -1;
-    exec.job=0;pub.job=0;*output=std::move(bound);return 0;
+    exec.job=0;pub.job=0;bound.reviewed=p;*output=std::move(bound);return 0;
 }
 } // namespace aegis
