@@ -31,7 +31,7 @@ TEST(PackageRequestDescriptor, SealedReadWriteDupStillNeedsIndependentReadonlyOp
     EXPECT_EQ(original.st_dev, copied.st_dev); EXPECT_EQ(original.st_ino, copied.st_ino);
     EXPECT_EQ(-1, pwrite(readonly.get(), "x", 1, 0)); EXPECT_EQ(EBADF, errno);
     EXPECT_EQ(-1, pwrite(input.get(), "x", 1, 0)); EXPECT_EQ(EPERM, errno);
-    char value[sizeof(payload)] = {}; ASSERT_EQ(sizeof(value), pread(readonly.get(), value, sizeof(value), 0));
+    char value[sizeof(payload)] = {}; ASSERT_EQ(static_cast<ssize_t>(sizeof(value)), pread(readonly.get(), value, sizeof(value), 0));
     EXPECT_EQ(0, memcmp(payload, value, sizeof(value)));
 }
 TEST(PackageRequestDescriptor, RejectsUnsealedPartiallySealedAndWrongSizeRequests) {
@@ -78,6 +78,6 @@ TEST(PackageRequestDescriptor, ScmRightsKeepsReadonlyAccessAfterOriginalCloses) 
     memcpy(&descriptor, CMSG_DATA(header), sizeof(descriptor)); unique_fd transferred(descriptor);
     ASSERT_EQ(0, aegis_package_request_readonly(transferred.get(), sizeof(payload)));
     EXPECT_EQ(-1, pwrite(transferred.get(), "x", 1, 0)); EXPECT_EQ(EBADF, errno);
-    char value[sizeof(payload)] = {}; ASSERT_EQ(sizeof(value), pread(transferred.get(), value, sizeof(value), 0));
+    char value[sizeof(payload)] = {}; ASSERT_EQ(static_cast<ssize_t>(sizeof(value)), pread(transferred.get(), value, sizeof(value), 0));
     EXPECT_EQ(0, memcmp(payload, value, sizeof(value)));
 }
