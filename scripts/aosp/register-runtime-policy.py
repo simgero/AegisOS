@@ -36,6 +36,9 @@ expandattribute aegis_runtime_exec_domain false;
 # Only the new package-program domain may execute its writable candidate.
 attribute aegis_package_exec_domain;
 expandattribute aegis_package_exec_domain false;
+# Only package construction and execution may override namespace-local DAC.
+attribute aegis_package_dac_domain;
+expandattribute aegis_package_dac_domain false;
 '''
 
 def digest(data):
@@ -59,6 +62,31 @@ def patch_domain(data):
     )
     for old, new in replacements:
         text = source_io.replace_once(text, old, new)
+    # AOSP groups host and user-namespace capabilities in one macro. Keep the
+    # original host DAC guard verbatim in effect; only the new closed package
+    # subjects receive namespace-local DAC. dac_read_search remains forbidden.
+    text = source_io.replace_once(text,
+        'neverallow ~dac_override_allowed self:global_capability_class_set dac_override;',
+        'neverallow ~dac_override_allowed self:capability dac_override;\n'
+        'neverallow ~{ dac_override_allowed aegis_package_dac_domain } self:cap_userns dac_override;')
+    # Static package entrypoints and Debian's own loader need no Android loader,
+    # system or vendor executable mapping. Preserve every existing subject's
+    # permissions and retain read/map for all; only the new subject loses execute.
+    for subjects, target in (
+        ('domain', 'system_linker_exec'), ('domain', 'system_lib_file'),
+        ('{ appdomain coredomain }', 'system_file'), ('domain', 'system_file'),
+        ('domain', 'vendor_file_type'), ('domain', 'vndk_sp_file'),
+    ):
+        narrowed = '{ ' + subjects.strip('{} ') + ' -aegis_package_exec_domain }'
+        old = f'allow {subjects} {target}:file {{ execute read open getattr map }};'
+        new = (f'allow {subjects} {target}:file {{ read open getattr map }};\n'
+               f'allow {narrowed} {target}:file execute;')
+        text = source_io.replace_once(text, old, new)
+    # Package programs are supervised by their PID1 and cannot leave their
+    # closed domain through Android's normally inherited crash-dump transition.
+    text = source_io.replace_once(text,
+        "domain_auto_trans({ domain userdebug_or_eng(`-su') }, crash_dump_exec, crash_dump);",
+        "domain_auto_trans({ domain -aegis_package_exec_domain userdebug_or_eng(`-su') }, crash_dump_exec, crash_dump);")
     # Only this new package-program subject is exempted from the generic inode
     # execution ban. Candidate/hook types remain ordinary file_type labels, not
     # executable entrypoints or disguised system files. Product neverallows

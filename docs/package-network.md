@@ -7,6 +7,21 @@ CLI/Binder-Anbindung, frische AOSP-Adminfreigabe und die Produkt-Ausführungsdom
 für Paketprogramme sind noch nicht aktiviert. Der reguläre Broker-Start mit
 fest gepinnten Produkteingaben und Helfern ist im Vollimage `2f7b18e2` geprüft.
 
+## Stand der neuen Produktdomänen
+
+Der Vollbuild `2308ea46` ist am 30.09.2026 um 18:23 UTC bei der
+Recovery-Policy fehlgeschlagen und hat kein verifiziertes Image erzeugt.
+Die Compilerdiagnose zeigt widersprüchliche Regeln, keinen bestandenen
+Laufzeittest. Die lokale Korrektur trennt Host-Capabilities von `cap_userns`,
+begrenzt die DAC-Ausnahme auf die beiden neuen Paketdomänen im Benutzerraum
+und nimmt den Paketprogrammen die geerbte Android-/Vendor-Ausführung sowie
+den Crash-Dump-Domänenwechsel. Die Broker-Dateirechte schließen `map` für
+private und gemeinsame Paketabbilder weiterhin aus. Bestehende AOSP-Subjekte,
+die Entrypoint-Guards und das Verbot von `dac_read_search` bleiben erhalten.
+Die korrigierte Policy muss erneut auf dem Build-Server kompiliert und danach
+mit den 389 aktivierten nativen Tests sowie dem echten Produktablauf im lokalen
+QEMU geprüft werden. Die bisherige laufende c6-Version ist unverändert.
+
 ## Datenweg und Besitz
 
 `PackagePlannerStart` erstellt zunächst den normalen, angehaltenen Planer mit

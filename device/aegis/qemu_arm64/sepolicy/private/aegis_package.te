@@ -1,16 +1,17 @@
 # Fixed static PID1 helpers construct the private package mount tree, then
 # supervise it. They receive only descriptor-scoped inputs from the broker.
 type aegis_package_worker, domain, coredomain, aegis_runtime_domain,
-    aegis_runtime_mount_domain;
+    aegis_runtime_mount_domain, aegis_package_dac_domain;
 # APT/dpkg and maintainer programs have namespace-local DAC capabilities only.
 type aegis_package_program, domain, coredomain, aegis_runtime_domain,
-    aegis_runtime_exec_domain, aegis_package_exec_domain;
+    aegis_runtime_exec_domain, aegis_package_exec_domain, aegis_package_dac_domain;
 # This one fixed executable temporarily enters the owned planner netns, creates
 # its listener, returns to Android and drops all capabilities before relaying.
 type aegis_package_network, domain, coredomain, aegis_runtime_domain;
 type aegis_package_scratch_file, file_type, coredomain_socket;
 type aegis_package_hook_file, file_type;
 neverallow { aegis_package_exec_domain -aegis_package_program } self:process fork;
+neverallow { aegis_package_dac_domain -aegis_package_worker -aegis_package_program } self:process fork;
 
 # No writable candidate or tmpfs file is a domain entrypoint. The same immutable
 # helper re-executes itself through /proc/self/exe AFTER descriptor/capability
@@ -25,6 +26,7 @@ allow aegis_package_worker aegis_package_program:process2 { nnp_transition nosui
 neverallow * { aegis_package_worker aegis_package_program aegis_package_network }:process dyntransition;
 neverallow { domain -aegis_runtime_broker } { aegis_package_worker aegis_package_network }:process transition;
 neverallow { domain -aegis_package_worker } aegis_package_program:process transition;
+neverallow aegis_package_program domain:process transition;
 neverallow { aegis_package_worker aegis_package_program } { aegis_package_plan_exec aegis_package_execute_exec }:file execute_no_trans;
 neverallow * { aegis_package_candidate_file aegis_package_scratch_file aegis_package_hook_file }:file entrypoint;
 
@@ -33,8 +35,8 @@ neverallow * { aegis_package_candidate_file aegis_package_scratch_file aegis_pac
 allow aegis_runtime_broker aegis_package_publish_exec:file { rx_file_perms execute_no_trans };
 type_transition aegis_runtime_broker aegis_runtime_state_file:dir aegis_package_shared_file "shared-packages";
 allow aegis_runtime_broker aegis_package_shared_file:dir create_dir_perms;
-allow aegis_runtime_broker aegis_package_shared_file:file create_file_perms;
-allow aegis_runtime_broker aegis_package_private_file:file create_file_perms;
+allow aegis_runtime_broker aegis_package_shared_file:file { create_file_perms -map };
+allow aegis_runtime_broker aegis_package_private_file:file { create_file_perms -map };
 allow aegis_runtime_broker labeledfs:filesystem { getattr remount unmount };
 
 # Pre-pivot checks and descriptor-only control. Ordinary programs receive no
@@ -95,7 +97,10 @@ allow aegis_package_program self:unix_dgram_socket create_socket_perms;
 # has none. No netdomain attribute (raw, UDP and netlink grants) is used here.
 allow aegis_package_program self:tcp_socket create_stream_socket_perms;
 allow aegis_package_program port_type:tcp_socket name_connect;
-neverallow { aegis_package_worker aegis_package_program } self:global_capability_class_set *;
+# AOSP global_capability_class_set includes cap_userns. Deny all host
+# capabilities explicitly; the listed namespace-local rights remain bounded.
+neverallow { aegis_package_worker aegis_package_program } self:{ capability capability2 cap2_userns } *;
+neverallow aegis_package_worker self:cap_userns ~{ chown dac_override fowner fsetid setuid setgid sys_admin setpcap kill };
 neverallow { aegis_package_worker aegis_package_program } self:user_namespace create;
 neverallow aegis_package_program self:cap_userns ~{ chown dac_override fowner fsetid setuid setgid };
 neverallow aegis_package_program fs_type:filesystem { mount remount unmount relabelfrom relabelto };

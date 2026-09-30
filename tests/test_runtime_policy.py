@@ -19,6 +19,13 @@ neverallow {
 define(`dac_override_allowed', `{
   init
 }')
+neverallow ~dac_override_allowed self:global_capability_class_set dac_override;
+neverallow ~{
+  dac_override_allowed
+  traced_perf
+  traced_probes
+  heapprofd
+} self:global_capability_class_set dac_read_search;
 neverallow {
     domain
     -apexd
@@ -45,6 +52,13 @@ neverallow coredomain {
     -system_file_type
     -postinstall_file
 }:file entrypoint;
+domain_auto_trans({ domain userdebug_or_eng(`-su') }, crash_dump_exec, crash_dump);
+allow domain system_linker_exec:file { execute read open getattr map };
+allow domain system_lib_file:file { execute read open getattr map };
+allow { appdomain coredomain } system_file:file { execute read open getattr map };
+allow domain system_file:file { execute read open getattr map };
+allow domain vendor_file_type:file { execute read open getattr map };
+allow domain vndk_sp_file:file { execute read open getattr map };
 allow { domain -appdomain -rs } cgroup:dir w_dir_perms;
 allow { domain -appdomain -rs } cgroup:file w_file_perms;
 allow { domain -appdomain -rs } cgroup_v2:dir w_dir_perms;
@@ -130,7 +144,7 @@ class PolicySources(unittest.TestCase):
 
     def test_new_package_subject_exception_keeps_entrypoint_guards(self):
         output = policy.patch_domain(DOMAIN)
-        self.assertEqual(1, output.count(b'-aegis_package_exec_domain'))
+        self.assertIn(b'neverallow {\n    domain\n    -aegis_package_exec_domain\n', output)
         for guard in (
             b'neverallow * { file_type -exec_type -postinstall_file }:file entrypoint;',
             b'neverallow coredomain {\n    file_type\n    -system_file_type\n    -postinstall_file\n}:file entrypoint;',
@@ -139,6 +153,30 @@ class PolicySources(unittest.TestCase):
         # A changed existing subject list must not silently broaden this exception.
         with self.assertRaises(ValueError):
             policy.patch_domain(DOMAIN.replace(b"    -appdomain\n", b"    -newdomain\n"))
+
+    def test_namespace_dac_exception_does_not_change_host_or_search_authority(self):
+        output = policy.patch_domain(DOMAIN)
+        self.assertIn(b'neverallow ~dac_override_allowed self:capability dac_override;', output)
+        self.assertIn(b'neverallow ~{ dac_override_allowed aegis_package_dac_domain } self:cap_userns dac_override;', output)
+        self.assertIn(b'neverallow ~{\n  dac_override_allowed\n  traced_perf\n  traced_probes\n  heapprofd\n} self:global_capability_class_set dac_read_search;', output)
+        with self.assertRaises(ValueError):
+            policy.patch_domain(DOMAIN.replace(b'self:global_capability_class_set dac_override;',
+                                              b'self:global_capability_class_set { dac_override dac_read_search };'))
+
+    def test_package_execution_does_not_inherit_android_executable_mappings(self):
+        output = policy.patch_domain(DOMAIN)
+        for target in ('system_linker_exec', 'system_lib_file', 'system_file', 'vendor_file_type', 'vndk_sp_file'):
+            self.assertIn(f'allow {{ domain -aegis_package_exec_domain }} {target}:file execute;'.encode(), output)
+            self.assertIn(f'allow domain {target}:file {{ read open getattr map }};'.encode(), output)
+        self.assertIn(b'allow { appdomain coredomain -aegis_package_exec_domain } system_file:file execute;', output)
+        with self.assertRaises(ValueError):
+            policy.patch_domain(DOMAIN.replace(b'allow domain vndk_sp_file:file', b'allow domain changed_file:file'))
+
+    def test_package_program_cannot_inherit_crash_dump_transition(self):
+        output = policy.patch_domain(DOMAIN)
+        self.assertIn(b"domain_auto_trans({ domain -aegis_package_exec_domain userdebug_or_eng(`-su') }, crash_dump_exec, crash_dump);", output)
+        with self.assertRaises(ValueError):
+            policy.patch_domain(DOMAIN.replace(b'crash_dump_exec, crash_dump', b'changed_exec, crash_dump'))
 
     def legacy(self):
         outputs = {'public/attributes': self.originals['public/attributes'] + policy.ATTRIBUTES,
