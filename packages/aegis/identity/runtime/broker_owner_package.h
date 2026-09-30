@@ -14,6 +14,33 @@ struct PackageIntent {
     std::string package,version;
     bool personal=false;
 };
+// One session-facing view over the existing owned phases. No second job table,
+// external phase selector or reconstructed action is needed by the wire adapter.
+// Complete results are consumed by a successful poll; a lost response never
+// establishes rollback. An unknown job is never restarted implicitly.
+enum class ConfiguredPackagePhase {
+    Selecting, Selected, Planning, Collected, Reviewed, Preparing, Prepared,
+    Running, AwaitingValidation, Publishing, Complete, Sealed
+};
+struct ConfiguredPackageStatus {
+    ConfiguredPackagePhase phase=ConfiguredPackagePhase::Sealed;
+    PackageIntent intent;
+    std::string plan_sha256;
+    uint64_t valid_until_unix=0;
+    PackageExecutionResult result;
+};
+// Caller must authenticate the original requester/session and hold its AOSP
+// admission for inspection. Reaping may advance the already registered job
+// into its owned publisher; no new request, grant, copy/hash/APT runs in this
+// caller. Output remains unchanged on failure. Internal fixture jobs cannot
+// become product jobs.
+int BrokerPollConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                 uint64_t job,ConfiguredPackageStatus* output);
+// Exact owned identity is enough for cleanup after a session is revoked; it is
+// never an install grant. Seals the current phase, retaining incomplete teardown
+// in the same owner. Completed published execution returns EALREADY, not rollback.
+int BrokerCancelConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                   uint64_t job,uint64_t deadline);
 // Start selection with the original intent registered before opening any CE.
 // Uses startup-pinned product inputs exclusively. A returned nonzero job on
 // failure still belongs to the owner and must be cancelled/reaped normally.

@@ -18,9 +18,24 @@ und nimmt den Paketprogrammen die geerbte Android-/Vendor-Ausführung sowie
 den Crash-Dump-Domänenwechsel. Die Broker-Dateirechte schließen `map` für
 private und gemeinsame Paketabbilder weiterhin aus. Bestehende AOSP-Subjekte,
 die Entrypoint-Guards und das Verbot von `dac_read_search` bleiben erhalten.
-Die korrigierte Policy muss erneut auf dem Build-Server kompiliert und danach
-mit den 389 aktivierten nativen Tests sowie dem echten Produktablauf im lokalen
-QEMU geprüft werden. Die bisherige laufende c6-Version ist unverändert.
+Der Folgebuild `99ead3fd` erreichte die Policy-Prüfung, wies aber die
+Berechtigungssubtraktion innerhalb einer Makro-Erweiterung syntaktisch zurück.
+Die Korrektur nennt die benötigten Dateirechte jetzt ausdrücklich ohne `map`.
+Beide fehlgeschlagenen Läufe bleiben als Diagnose erhalten; kein Image daraus
+wurde in QEMU gestartet. Ein neuer Build und Laufzeittests stehen aus.
+
+Für die folgende Wire-/Binder-Anbindung bieten `BrokerPollConfiguredPackage`
+und `BrokerCancelConfiguredPackage` eine gemeinsame Sicht auf die vorhandenen
+Auswahl-, Planungs- und Ausführungsphasen. Der ursprüngliche Auftrag wird beim
+Übergang in die Ausführung im selben registrierten Job gehalten. Fremde
+Identitäten und interne Fixture-Aufträge werden abgewiesen; ein unbekannter Job
+wird niemals neu gestartet. Unbestätigte Ergebnisse bleiben unbestätigt.
+Vier zusätzliche Tests sowie der bestehende Installieren-/Entfernen-Test prüfen
+diese Schnittstelle; insgesamt sind jetzt 393 native Tests zur Ausführung
+vorgesehen. Ihre Kompilierung und QEMU-Ausführung stehen noch aus. Die
+öffentliche CLI, frische AOSP-Adminfreigabe und die tatsächliche Ausführung in
+den Produktdomänen sind damit weiterhin nicht nachgewiesen. Die laufende
+c6-Version bleibt unverändert.
 
 ## Datenweg und Besitz
 

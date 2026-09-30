@@ -46,6 +46,7 @@ struct publication_slot {
 };
 struct execution_slot {
     PackageExecution plan;
+    std::optional<PackageIntent> configured_intent;
     uint64_t valid_until_unix=0; // Carried from the owned authenticated planning result.
     std::array<unique_fd,4> inputs;
     // Stay lifecycle-owned after APT exits. Never reopen by a caller pathname
@@ -1198,7 +1199,14 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
     prepared->inputs[3].reset(fcntl(execute_helper,F_DUPFD_CLOEXEC,3));
     if(!prepared->inputs[0].ok() || (!personal_ce && !configured_source && !prepared->inputs[1].ok()) || !prepared->inputs[3].ok())return -1;
     if(remaining_ms(deadline)<=0)return fail(ETIMEDOUT);
-    if(transferring)prepared->valid_until_unix=transferring->bound.valid_until_unix;
+    if(transferring) {
+        prepared->valid_until_unix=transferring->bound.valid_until_unix;
+        if(transferring->configured && configured_source) {
+            const auto& original=transferring->plan;
+            prepared->configured_intent=PackageIntent{original.request.action,
+                original.request.package,original.request.version,original.personal};
+        }
+    }
     *job=preparation.execution.job;if(!transferring)owner->next_publication=*job;
     *empty=std::move(prepared);auto& slot=**empty;
     // The same job is now registered in its execution phase. Pinned local
@@ -1431,6 +1439,101 @@ int BrokerCancelExecution(aegis_broker_owner* owner,uint32_t user,uint32_t seria
     }
     if(slot->state==PublicationState::Complete && reap_execution(*slot,0)<0)return -1;
     return error ? fail(error) : 0;
+}
+static PackageIntent configured_intent(const PackagePlanning& plan) {
+    return {plan.request.action,plan.request.package,plan.request.version,plan.personal};
+}
+int BrokerPollConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                  uint64_t job,ConfiguredPackageStatus* output) {
+    if(!output || !job || job>INT64_MAX)return fail(EINVAL);
+    if(owned(owner)<0)return -1;
+    ConfiguredPackageStatus status;
+    for(auto& slot:owner->selections)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial)return fail(ESTALE);
+        if(!slot->intent)return fail(EPERM);
+        status.intent=*slot->intent;
+        RuntimeSelectionState state;PackagePreparationResult result;
+        if(BrokerPollRuntimeSelection(owner,user,serial,job,&state,&result)<0)return -1;
+        switch(state) {
+        case RuntimeSelectionState::Selecting:status.phase=ConfiguredPackagePhase::Selecting;break;
+        case RuntimeSelectionState::Selected:status.phase=ConfiguredPackagePhase::Selected;break;
+        case RuntimeSelectionState::Failed:
+            if(slot->resources())return fail(EBUSY);
+            status.phase=ConfiguredPackagePhase::Complete;
+            status.result.outcome=result.outcome==PackagePreparationOutcome::Failed
+                ? PackageExecutionOutcome::Failed : PackageExecutionOutcome::Unconfirmed;
+            status.result.error=result.error;
+            slot.reset();break;
+        case RuntimeSelectionState::Sealed:status.phase=ConfiguredPackagePhase::Sealed;break;
+        case RuntimeSelectionState::Activated:return fail(EPROTO);
+        }
+        *output=std::move(status);return 0;
+    }
+    for(const auto& slot:owner->planners)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial)return fail(ESTALE);
+        if(!slot->configured)return fail(EPERM);
+        status.intent=configured_intent(slot->plan);
+        // Copy correlation before a terminal poll consumes its slot.
+        if(slot->state==PlanningState::Reviewed) {
+            status.plan_sha256=slot->bound.preparation.execution.plan_sha256;
+            status.valid_until_unix=slot->bound.valid_until_unix;
+        }
+        PlanningState state;PackagePlanningResult result;
+        if(BrokerPollPlanning(owner,user,serial,job,&state,&result)<0)return -1;
+        switch(state) {
+        case PlanningState::Running:status.phase=ConfiguredPackagePhase::Planning;break;
+        case PlanningState::Collected:status.phase=ConfiguredPackagePhase::Collected;break;
+        case PlanningState::Reviewed:status.phase=ConfiguredPackagePhase::Reviewed;break;
+        case PlanningState::Complete:
+            status.phase=ConfiguredPackagePhase::Complete;
+            status.result.outcome=result.outcome==PackagePlanningResult::Outcome::Failed
+                ? PackageExecutionOutcome::Failed : PackageExecutionOutcome::Unconfirmed;
+            status.result.error=result.error;status.result.status=result.status;break;
+        case PlanningState::Sealed:status.phase=ConfiguredPackagePhase::Sealed;break;
+        }
+        *output=std::move(status);return 0;
+    }
+    for(const auto& slot:owner->executions)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial)return fail(ESTALE);
+        if(!slot->configured_intent)return fail(EPERM);
+        status.intent=*slot->configured_intent;status.plan_sha256=slot->plan.plan_sha256;
+        status.valid_until_unix=slot->valid_until_unix;
+        PublicationState state;
+        if(BrokerPollExecution(owner,user,serial,job,status.plan_sha256,&state,&status.result)<0)return -1;
+        switch(state) {
+        case PublicationState::Preparing:status.phase=ConfiguredPackagePhase::Preparing;break;
+        case PublicationState::Prepared:status.phase=ConfiguredPackagePhase::Prepared;break;
+        case PublicationState::Running:status.phase=ConfiguredPackagePhase::Running;break;
+        case PublicationState::AwaitingValidation:status.phase=ConfiguredPackagePhase::AwaitingValidation;break;
+        case PublicationState::Publishing:status.phase=ConfiguredPackagePhase::Publishing;break;
+        case PublicationState::Complete:status.phase=ConfiguredPackagePhase::Complete;break;
+        case PublicationState::Sealed:status.phase=ConfiguredPackagePhase::Sealed;break;
+        }
+        *output=std::move(status);return 0;
+    }
+    return fail(ENOENT);
+}
+int BrokerCancelConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                    uint64_t job,uint64_t deadline) {
+    if(!job || job>INT64_MAX)return fail(EINVAL);
+    if(owned(owner)<0)return -1;
+    for(const auto& slot:owner->selections)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial)return fail(ESTALE);
+        if(!slot->intent)return fail(EPERM);
+        return BrokerCancelPackageSelection(owner,user,serial,job,deadline);
+    }
+    for(const auto& slot:owner->planners)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial)return fail(ESTALE);
+        if(!slot->configured)return fail(EPERM);
+        return BrokerCancelPlanning(owner,user,serial,job,deadline);
+    }
+    for(const auto& slot:owner->executions)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial)return fail(ESTALE);
+        if(!slot->configured_intent)return fail(EPERM);
+        const auto digest=slot->plan.plan_sha256;
+        return BrokerCancelExecution(owner,user,serial,job,digest,deadline);
+    }
+    return fail(ENOENT);
 }
 } // namespace aegis
 
