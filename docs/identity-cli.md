@@ -8,8 +8,54 @@ Passwortabfrage widerrufene Vorbereitung bleibt auch mit korrektem Passwort
 abgewiesen. Der frühere nachträgliche Terminalwiderruf wurde in diesem
 Durchlauf nicht beobachtet. Details und Grenzen:
 [GNU-Test](runtime-gnu-qemu-test.md); der frühere reine AOSP-Test bleibt im
-[CLI-Gasttest](identity-cli-qemu-test.md) dokumentiert. Paketverwaltung und
-verwaltete Benutzerlöschung fehlen weiterhin.
+[CLI-Gasttest](identity-cli-qemu-test.md) dokumentiert. Der öffentliche Paketpfad wird im folgenden Abschnitt getrennt beschrieben;
+verwaltete Benutzerlöschung ist weiterhin gesperrt.
+
+## Sitzungsgebundene Paketbefehle (neuer Quellstand)
+
+Commit `7902400f7f345d418c03f2e6b2278243738e00fe` verbindet die CLI mit dem
+nativen Paketauftrag und der frischen AOSP-Adminprüfung. Kompilierung und
+Gerätetests dieses Standes werden in [Komponentenbelege](component-tests.md)
+protokolliert. Eine Installation in den tatsächlichen Produktdomänen sowie der
+vollständige Zwei-Benutzer-Paketablauf sind damit noch nicht nachgewiesen.
+
+Nach persönlicher Anmeldung im selben interaktiven Terminal:
+
+```text
+package install --user NAME [VERSION]
+package install --all NAME [VERSION]
+package update --user
+package update --all
+package remove --user NAME
+package remove --all NAME
+package status
+package approve
+package cancel
+```
+
+`--user` bezeichnet ausschließlich die ursprünglich angemeldete Person,
+`--all` die gemeinsame Software. Der Adminname wählt keinen Installationsbenutzer.
+Die CLI zeigt vor der Freigabe sämtliche Paketänderungen mit Architektur,
+vorheriger/nachfolgender Version sowie manueller oder automatischer Markierung.
+Für jeden Auftrag wird ein AOSP-Administrator samt Passwort frisch geprüft;
+sein CE-Speicher wird dafür nicht durch den normalen Anmeldepfad entsperrt.
+Passwörter werden ausschließlich verdeckt am Terminal abgefragt und verworfen.
+
+Der Dienst gibt ein prozessgebundenes `IAegisPackage` für genau einen Auftrag
+zurück. Der Client kann weder Benutzer-ID, Seriennummer, Auftragskennung,
+Plan-Digest, Pfad noch Dateideskriptor nachreichen. Benutzerwechsel, Bildschirmsperre,
+Abmeldung oder Sitzungsende sperren den bisherigen Auftrag. Noch unbestätigtes
+Aufräumen bleibt beim Dienst registriert; eine verlorene BEGIN-Antwort darf keinen
+neuen Auftrag erzeugen. AOSP-Aufrufe und Passwortprüfung laufen außerhalb des
+Speicher-Zugangsgatters. Speicher-Callbacks sperren/retirieren atomar und warten
+nicht auf den Auftragsmonitor.
+
+Eine Startbestätigung bedeutet noch keine erfolgreiche Installation. Nur die
+bestätigte Veröffentlichung der neuen Generation meldet Erfolg. Bei einem
+Abbruchrennen wird eine bereits erfolgte Veröffentlichung weiterhin als solche
+angezeigt. Ein verschwundener Auftrag oder ein gestoppter Kontext beweist keine
+Rücknahme. Eine laufende GNU-Sitzung behält ihre bisherige Generation; für die
+neue Software wird der eigene Linux-Kontext beendet und erneut gestartet.
 
 ## Geprüfte Anmeldereihenfolge
 
@@ -74,7 +120,8 @@ Android-Logout im ausdrücklich runtimefreien Build. Benutzeranlage und Löschun
 fordern für jede Aktion erneut das Passwort des angemeldeten AOSP-Administrators.
 In diesem historischen Stand fehlten die `linux`-Operationen. Inzwischen
 sind `linux start|status|shell|stop` integriert und tatsächlich geprüft.
-Paketoperationen fehlen weiterhin; die Entfernung verwalteter Benutzer ist
+Paketoperationen sind im neuen Quellstand angebunden, ihr Produktablauf bleibt
+zu prüfen; die Entfernung verwalteter Benutzer ist
 ausdrücklich gesperrt, bis AOSPs vollständige Löschung vor ID-Freigabe
 integriert ist. Unterbrochene Ersteinrichtung und vollständige Admin-Negativtests
 sind noch nicht als reale CLI-Abläufe nachgewiesen.

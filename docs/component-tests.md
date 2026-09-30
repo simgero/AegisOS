@@ -1,3 +1,37 @@
+## Öffentliche Paket-CLI: Komponenten geprüft, Vollimage folgt
+
+Commit `7902400f7f345d418c03f2e6b2278243738e00fe` kompiliert auf `aegis-build`
+mit dem neuen `IAegisPackage`, der sitzungsgebundenen Dienstanbindung und der
+interaktiven Plan-/Passwortabfrage. Am **2026-09-30T20:26:08Z bestehen 400/400
+aktivierte native Tests aus 46 Suiten und 152/152 Java-Tests**, jeweils Exitcode 0.
+Native Laufzeit: 186791 ms. Vier reale CE-Tests bleiben ausdrücklich deaktiviert.
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T202213Z-7902400f-7902400f-EFc2cg)
+wurde über GitHub verifiziert. Laufzeittests fanden ausschließlich im lokalen
+Mac-QEMU mit unverändertem Vollimage `40179351`, SELinux Enforcing und Boot-ID
+`82749131-9195-4239-92e9-d3679a98c08a` statt. Die Benutzer-, Schlüssel- und
+Kontextaufnahmen davor/danach sind bytegleich. Auch die tatsächlich kompilierte
+CLI-Hilfe wurde in diesem Gast ausgeführt und zeigt alle vier Paketbefehlsgruppen.
+
+Die zwölf zusätzlichen Java-Tests prüfen vollständige Review-Anzeige, einmaligen
+Handoff, abgelaufene und fremde Pläne, partiellen/verlorenen BEGIN, fehlgeschlagenen
+START, unbekannte Jobs, Abbruch vor weiterer Planung, fehlgeschlagene Bereinigung,
+Veröffentlichung beim Abbruchrennen und atomaren STOP ohne Warten auf den
+Auftragsmonitor. Sie verwenden den produktiven Java-Koordinator mit einem
+simulierten nativen Kanal; sie sind keine frische AOSP-Passwortprüfung.
+
+**Grenze:** Der installierte 401-Dienst wurde nicht ersetzt. Eine echte
+Paketinstallation über Binder, tatsächliche AOSP-Adminfreigabe und Ausführung in
+den vorgesehenen Paketdomänen bleiben zu prüfen. Der kleine Folgecommit
+`73c0f3eb2966d248ebcba0fa799359aa3282d09c` ordnet Paketwiderruf/-retirement vor
+potenziell fehlschlagendem PTY-Aufräumen an. Er ändert ausschließlich den Dienst;
+sein passendes Vollimage wird separat gebaut und geprüft.
+
+Nachweise: `out/components-7902400f/proof.json`, `cli-help-proof.json` und
+`targeted-tests/{result.json,native.log,java.log,before.json,after.json}`.
+Native-Log SHA-256: `86bd61aa06aea2f4f071b5d77e5cf8ae20db9990f78cb9fb5423712ed649bdf7`.
+Java-Log SHA-256: `d1612672c230b116e09e7a48701826b898bc8bd349a4b22df2fc53f1d433eab4`.
+
 ## Paketkanal: 400 native und 140 Java-Tests
 
 Komponentencommit `49f038cd0f4f3d116933179525cffcf46de5eb1c` besteht am

@@ -3,39 +3,36 @@
 Der unveränderliche Paketplaner kann einen vom Broker zugelassenen Internetmodus
 verwenden. Persönliche Shells und die späteren Installationsprogramme behalten
 jeweils ihren eigenen Netzwerkraum ohne diese Verbindung. Die öffentliche
-CLI/Binder-Anbindung, frische AOSP-Adminfreigabe und die Produkt-Ausführungsdomänen
-für Paketprogramme sind noch nicht aktiviert. Der reguläre Broker-Start mit
-fest gepinnten Produkteingaben und Helfern ist im Vollimage `2f7b18e2` geprüft.
+CLI/Binder-Anbindung und die frische AOSP-Adminprüfung sind im Quellstand
+`7902400f` verbunden; 400 native und 152 Java-Komponententests bestehen im
+lokalen QEMU. Ein passendes Vollimage mit dem kleinen Folgefix `73c0f3eb`
+ist der nächste Schritt. Die echte Paketinstallation in den Produktdomänen
+und der vollständige Zwei-Benutzer-Ablauf bleiben unbewiesen.
 
-## Stand der neuen Produktdomänen
+## Stand von Broker, Richtlinie und Paketauftrag
 
-Der Vollbuild `2308ea46` ist am 30.09.2026 um 18:23 UTC bei der
-Recovery-Policy fehlgeschlagen und hat kein verifiziertes Image erzeugt.
-Die Compilerdiagnose zeigt widersprüchliche Regeln, keinen bestandenen
-Laufzeittest. Die lokale Korrektur trennt Host-Capabilities von `cap_userns`,
-begrenzt die DAC-Ausnahme auf die beiden neuen Paketdomänen im Benutzerraum
-und nimmt den Paketprogrammen die geerbte Android-/Vendor-Ausführung sowie
-den Crash-Dump-Domänenwechsel. Die Broker-Dateirechte schließen `map` für
-private und gemeinsame Paketabbilder weiterhin aus. Bestehende AOSP-Subjekte,
-die Entrypoint-Guards und das Verbot von `dac_read_search` bleiben erhalten.
-Der Folgebuild `99ead3fd` erreichte die Policy-Prüfung, wies aber die
-Berechtigungssubtraktion innerhalb einer Makro-Erweiterung syntaktisch zurück.
-Die Korrektur nennt die benötigten Dateirechte jetzt ausdrücklich ohne `map`.
-Beide fehlgeschlagenen Läufe bleiben als Diagnose erhalten; kein Image daraus
-wurde in QEMU gestartet. Ein neuer Build und Laufzeittests stehen aus.
+Das Vollimage `40179351` bootet bereits mit Enforcing, der korrigierten
+Paketdomänen-Richtlinie und dem echten init-gestarteten Broker samt vier
+gepinnten Helfern. Seine eigenen 393 nativen Tests und die nachfolgenden
+Komponentensuiten bis 400 native/152 Java sind dokumentiert in den
+[Komponentenbelegen](component-tests.md). Die früheren Policy-Fehler von
+`2308ea46` und `99ead3fd` haben keine verifizierten Images erzeugt.
 
-Für die folgende Wire-/Binder-Anbindung bieten `BrokerPollConfiguredPackage`
-und `BrokerCancelConfiguredPackage` eine gemeinsame Sicht auf die vorhandenen
-Auswahl-, Planungs- und Ausführungsphasen. Der ursprüngliche Auftrag wird beim
-Übergang in die Ausführung im selben registrierten Job gehalten. Fremde
-Identitäten und interne Fixture-Aufträge werden abgewiesen; ein unbekannter Job
-wird niemals neu gestartet. Unbestätigte Ergebnisse bleiben unbestätigt.
-Vier zusätzliche Tests sowie der bestehende Installieren-/Entfernen-Test prüfen
-diese Schnittstelle; insgesamt sind jetzt 393 native Tests zur Ausführung
-vorgesehen. Ihre Kompilierung und QEMU-Ausführung stehen noch aus. Die
-öffentliche CLI, frische AOSP-Adminfreigabe und die tatsächliche Ausführung in
-den Produktdomänen sind damit weiterhin nicht nachgewiesen. Die laufende
-c6-Version bleibt unverändert.
+`BrokerPollConfiguredPackage` und `BrokerCancelConfiguredPackage` geben
+Auskunft über dieselben registrierten Auswahl-, Planungs- und Ausführungsphasen.
+Der ursprüngliche Auftrag bleibt beim Übergang in die Ausführung erhalten.
+Fremde Identitäten und interne Fixture-Aufträge werden abgewiesen; ein
+unbekannter Job wird niemals neu gestartet. Die Java-Transaktion übernimmt
+auch einen partiell registrierten BEGIN und behält die Aufräumverantwortung
+bei verlorener Antwort bis zum bestätigten Ganzbenutzer-STOP.
+
+Der öffentliche Client hält einen unveränderlichen, prozessgebundenen Binder
+für genau einen Auftrag. Frische AOSP-Prüfungen und Plananzeige gehen dem
+begrenzten Start unter RuntimeAdmission voraus. Abbruch nach Widerruf benötigt
+keine neue Anmeldung, darf aber ausschließlich den bereits registrierten Job
+sperren. Nur nach bestätigtem CANCEL oder bereits erfolgter Veröffentlichung
+wird dessen abschließender Status zum Aufräumen ohne neue Zulassung abgeholt.
+[CLI-Befehle und Grenzen](identity-cli.md).
 
 ## Datenweg und Besitz
 
