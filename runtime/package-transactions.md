@@ -1,5 +1,25 @@
 # Vollständige Paketgenerationen
 
+## Unveränderlicher Planer-Kern geprüft; produktive Hülle folgt
+
+`8e500d7e` besteht **9/9 gezielte und 322/322 aktivierte native Prüfungen**.
+`PackageResolverRun` verwendet eine geprüfte schreibgeschützte Werksbasis,
+feste schreibgeschützte APT-Richtlinien und separat kopierte Paketmetadaten der
+ausgewählten Generation. Echte APT-Auflösung, signierter Archivabruf und
+Manipulationsablehnungen funktionieren im isolierten lokalen QEMU-Gerätetest.
+[Belege und Grenzen](../docs/component-tests.md).
+
+Der Kern wird derzeit mit denselben Quellen in Geräteprobe und Tests übersetzt;
+der jeweilige Verbraucher deklariert seine zulässige Crypto-Abhängigkeit.
+Die Produktionshülle ist noch nicht verdrahtet. Sie muss ausschließlich intern
+geprüfte Werk-/Quellen-/Schlüssel-Mounts liefern, Netzwerkzugriff und einen
+abbrechbaren Auftrag an den CE-Lebenszyklus binden, vollständige authentifizierte
+Repository-/Archivbelege ableiten und sie vor einer frischen AOSP-Freigabe an
+`PackageBindAptArchives` übergeben. `Collected` ist ausdrücklich keine Freigabe.
+Der Prüfstand verwendet `copy:` mit einem ausschließlich für Tests signierten
+Repository. Öffentliche CLI, Produktnetz und vollständiger Zwei-Benutzer-Ablauf
+bleiben offen. Nachfolgende Abschnitte beschreiben ihre jeweiligen älteren Stände.
+
 ## Unabhängige Ausführungsprüfung bestanden; Produktintegration offen
 
 `cacb1718` besteht **23/23 gezielte Prüfungen und 313/313 aktivierte native Tests**

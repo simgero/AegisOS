@@ -1,5 +1,19 @@
 # Phase 1: Implementierungsstand
 
+## 2026-09-30: Paketplanung aus unveränderlicher Werksbasis geprüft
+
+`8e500d7e` besteht **9/9 gezielte und 322/322 aktivierte native Tests** im
+lokalen QEMU. Der neue Planer verwendet ausschließlich Werksprogramme und feste
+schreibgeschützte Richtlinien, übernimmt aber den ausgewählten Paketstatus.
+Manipulierte Programme der ausgewählten Generation beeinflussen ihn nicht;
+ungültige Quellen und veränderte Paketdaten werden abgewiesen.
+[Belege und Grenzen](component-tests.md).
+
+Als Nächstes fehlen die produktive Planungs-/Netzbeschaffungshülle mit
+Auftrags-/CE-Lebenszyklus und unabhängig gebundenen Repository-Belegen, danach
+öffentliche CLI/Binder-Verbindung samt frischer AOSP-Adminfreigabe. Vollständiger
+Zwei-Benutzer-Produktablauf bleibt offen; keine Produktaktivierung in diesem Schritt.
+
 ## 2026-09-30: Paketarbeiter geprüft, Produktverbindung als nächster Schritt
 
 Komponentenstand `cacb1718` besteht **23/23 gezielte Prüfungen** und danach

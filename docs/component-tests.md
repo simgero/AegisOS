@@ -1,3 +1,69 @@
+## Unveränderlicher Paketplaner: 9 gezielte und 322 native Prüfungen bestanden
+
+Komponentenstand **8e500d7e9825a7d8f4e05a95c45d5997639d4fc2** besteht im
+lokalen Mac-QEMU am **2026-09-30T09:45:44Z** alle **9/9 gezielten Prüfungen**
+in 5,457 Sekunden und am **2026-09-30T09:47:40Z** anschließend **322/322
+aktivierte native Tests aus 38 Gruppen** in 95,777 Sekunden.
+Der Komponentenbuild auf `aegis-build` dauert 27 Sekunden; Lauf
+`identity-20260930T094357Z-8e500d7e-bx1OYQ`, Invocation
+`b5fb404a5c0a4e1988e58bab84ee1ccf`.
+[Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T094508Z-8e500d7e-8e500d7e-qD5ERk).
+
+`PackageResolverRun` führt APT-Update, strukturierte Simulation, reinen
+Archivabruf und Indexermittlung unter der geprüften unveränderlichen
+Debian-Werksbasis aus. Die ausgewählte Generation liefert ausschließlich eine
+separate schreibgeschützte Kopie von dpkg-Status und automatischen Markierungen.
+Feste Konfiguration, Quellen, Schlüssel und Hook liegen in einem getrennten
+schreibgeschützten Mount. Der Test verändert absichtlich APT und dessen
+Konfiguration im ausgewählten Abbild; die Planung gelingt trotzdem anhand der
+richtigen Metadaten. Diese ausgewählten Programme werden nicht eingebunden.
+
+Der Planer vergleicht sämtliche Simulationseffekte mit dem Downloadlauf,
+bewahrt automatische Markierungen und bestätigt den unveränderten Eingangszustand.
+Er ruft dpkg nicht auf. Seine Phasen und Status unterscheiden Fehler von einem
+vollständig eingesammelten Ergebnis; `Collected` ist keine Freigabe oder Installation.
+
+- Echte Installation, Aktualisierung und abhängige Entfernung ergeben die
+  erwarteten App-/Bibliotheksversionen und Markierungen. Archivbytes entsprechen
+  den auf dem Build-Server erzeugten signierten Testdaten.
+- Unsigned- und abgelaufene signierte Quellen werden im Update abgewiesen.
+  Je ein verändertes Byte im authentifizierten Index bzw. Archiv verhindert das
+  Ergebnis. Die konkrete fehlgeschlagene URI, Phase, Exitstatus 100 und fehlende
+  endgültige Datei werden geprüft; ein gültiger positiver Kontrolllauf besteht.
+  APTs `copy:`-Methode meldet bei diesen Hashfehlern nur „Undetermined Error“.
+- Eine veränderte feste Konfiguration wird schon vor APT abgewiesen. Pfade,
+  Optionen und mehrdeutige APT-Suffixoperatoren werden nicht als Paketnamen akzeptiert.
+- Isolierte PID1-/Benutzer-/Mount-/Netzräume, feste UID-Abbildung, Capability- und
+  Seccomp-Begrenzung; die Testhülle besitzt eine 1-GiB-Cgroup und begrenzte Tmpfs-
+  Ablagen. Kinder werden vor dem Lesen der Ergebnis-FDs beendet und eingesammelt.
+
+**Grenze:** Der Engine-Kern ist im getrennten Entwicklerroot-Gerätetest geprüft.
+Der Test verwendet ein tatsächlich signiertes lokales `copy:`-Repository,
+keinen produktiven Netzwerkabruf. Die produktive Hülle muss Mount-/Quellen-
+Provenienz, Fristen, Abbruch und CE-Lebenszyklus besitzen sowie die verifizierten
+Release-/Index-/Archivbefunde an `PackageBindAptArchives` anbinden. Diese Verbindung,
+öffentliche CLI/Binder-Operationen und frische AOSP-Adminbestätigung fehlen noch.
+Kein Produkt-Paketendpunkt wurde aktiviert. Die vier explizit deaktivierten
+AOSP-CE-/Paket-CE-Prüfungen sind nicht Teil der 322 aktivierten Tests.
+130 unveränderte Java-Prüfungen behalten ihren älteren Beleg `95f2b925`;
+sie wurden in diesem Lauf nicht erneut ausgeführt.
+
+Produktgast `c7401f60`, Profil `39d29ee1-7587-4223-8e5d-f9872c910554`, Boot
+`112b706c-2e59-4845-8c90-376f1e7fc048` und AVB-Beleg bleiben gleich.
+Enforcing/Broker laufen; Benutzer, Seriennummern, CE-Sperren, Schlüsselverzeichnisse
+und Runtime-Cgroups sind vor/nach beiden Läufen bytegleich. Kein Benutzer wurde
+entsperrt oder gelöscht; keine Produkthelfer und kein sichtbarer Launcher ersetzt.
+
+Belege im primären Workspace unter `out/components-8e500d7e/`:
+
+- `targeted-tests/result.json`: `4a9bbceeafe8d8b169be31aadbc689ebfbdbeaaf2fbb729342476e0523c12728`
+- `targeted-tests/native.log`: `67bfcbdd19ecbf18846c9039068bca1ad1cf6e648792df612d6faeb67f283c1c`
+- `native-regression/result.json`: `c9cdb85826a1326fdbe1b63a40b7b09ba9316c4fa6cbf7293a61208f18b1a764`
+- `native-regression/native.log`: `b78dee765333c448b80d8e6260e5b5d3ed70f9d8ca5ef3dc4060f9b24341e364`
+- native Testdatei: `d170f201c7cd61acac38e22d657cd0eac1f5f9b7d82c18807f3053d2a5691377`
+- Namespace-Probe: `b30473f314a345153cc12f204f9c2c46553de4bd695544e0e1984f09defadc17`
+- Vorher/Nachher-Register: `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`
+
 ## Ausführungsprüfung cacb1718: 23 gezielte und 313 native Tests bestanden
 
 Komponentenstand **cacb171824b9586bc3a63dc99368f0f5a3b3b1c0** besteht im lokalen
