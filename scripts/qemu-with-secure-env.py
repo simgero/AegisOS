@@ -3,7 +3,8 @@
 
 Both VMs run on the Mac with HVF. By default both disks are ephemeral; an
 explicit paired profile enables persistent Android and helper state together.
-No host directory sharing or guest network interface is enabled.
+No host directory sharing is enabled. Guest networking is off by default;
+--network user explicitly adds outbound QEMU user-mode networking to Android.
 An optional loopback-only serial channel can carry authenticated ADB traffic.
 """
 import argparse
@@ -118,6 +119,8 @@ def main():
                    help='Relative mouse for Android cursor input; tablet retained for diagnostics')
     p.add_argument('--adb-port',type=int,default=0,
                    help='Optional 127.0.0.1 TCP endpoint for a guest hvc17-to-adbd bridge')
+    p.add_argument('--network',choices=['none','user'],default='none',
+                   help='Optional Android user-mode networking; no host port forwards; helper remains offline')
     p.add_argument('--profile',type=Path,help='Paired persistent Android and TPM profile')
     p.add_argument('--create-profile',action='store_true',help='Explicitly provision a NEW profile')
     args=p.parse_args()
@@ -165,6 +168,11 @@ def run(args,manifest=None):
     android[android.index('-display')+1]='cocoa,zoom-to-fit=on' if args.display=='cocoa' else args.display
     android += ['-device','virtio-gpu-pci,xres=720,yres=1280','-device','virtio-keyboard-pci',
                 '-device',f'virtio-{args.pointer}-pci','-device','virtio-serial-pci,id=serial,max_ports=31']
+    if args.network=='user':
+        # Keep -net none to suppress implicit legacy NICs; this pair is explicit.
+        android += ['-netdev','user,id=aegis-net,ipv6=off',
+                    '-device','virtio-net-pci,id=aegis-nic,netdev=aegis-net,mac=52:54:00:ae:61:01']
+    (output/'network-mode.txt').write_text(args.network+'\n')
     helper=['qemu-system-aarch64','-machine','virt-11.1,gic-version=3','-accel','hvf',
             '-cpu','host','-smp','2','-m','1024','-nodefaults','-display','none','-net','none',
             '-no-reboot','-serial','stdio','-monitor','none','-kernel',str(images/'kernel'),
