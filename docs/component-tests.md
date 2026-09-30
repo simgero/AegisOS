@@ -1,3 +1,42 @@
+## Auftragsgebundene Bereinigung: 375 native Tests bestanden
+
+Commit `9270ca79a56c3cfa3a2d0bfd7e048f2d6dd914e5` besteht am **2026-09-30T16:27:52Z alle 375 aktivierten
+nativen Tests aus 43 Gruppen** (164940 ms, Exit 0). Der Build lief ausschließlich
+auf `aegis-build`: `identity-20260930T161636Z-9270ca79-dt5ED6`, Invocation `5c8b2360e02c4faeb46eb0d9ef6b1599`.
+Die [geprüften Komponenten](https://github.com/simgero/AegisOS/releases/tag/components-20260930T162432Z-9270ca79-9270ca79-ZOJaMa)
+wurden ausschließlich im lokalen Mac-QEMU mit dem unveränderten Vollimage
+`178cbb6eb41356c9f624f400b0f55e925e2f9650` getestet. Die neuen Komponenten wurden nicht in das
+laufende Produktimage eingebaut; der init-gestartete Broker bleibt unverändert.
+
+Sechs neue Verzeichnisprüfungen bestätigen begrenzte Bereinigung selbst erstellter
+Arbeitsverzeichnisse, Erhalt fremder Geschwister, Ablehnung vorhandener Verzeichnisse,
+falscher Rechte, unerwarteter Einträge, Hardlinks, Symlinks, Übergröße und ausgetauschter
+Verzeichnisse sowie Wiederholbarkeit nach einem Fehler. Drei neue Brokerprüfungen
+belegen ausstehende Auftrags-/CE-Verantwortung bei einem Bereinigungsfehler,
+Bereinigung vor STOP-Bestätigung und Erhalt eines bereits veröffentlichten Ergebnisses
+bei fehlschlagendem Hintergrundabschluss. Die vorhandenen Installations-, Entfernungs-,
+Abbruch- und Quellenverlusttests prüfen jetzt zusätzlich, dass kein Arbeitsverzeichnis
+zurückbleibt. Ein späterer Versuch verwendet eine neue Kennung.
+
+Der vorherige Hintergrundpfad setzte jeden Abschlussfehler auf `Sealed`. Bei einem
+Fehler nach Ende aller Helfer hätte das die nächste Bereinigung überspringen können.
+Er behält jetzt den terminalen Zustand und das Ergebnis, bis die Bereinigung gelingt.
+Extern übergebene Verzeichnisse werden nicht gelöscht. Wiederanlauf nach einem
+Prozessabsturz, Kapazitätsgrenzen, öffentlicher CLI-/Binder-Pfad, echte frische
+AOSP-Adminfreigabe und Produktions-SELinux bleiben ausstehend.
+
+Das Profil `cf90cef4-9938-4ade-8a73-3fa8edab317f` und Boot `fb53b06a-0027-4673-89e5-78ce1a68db04` blieben erhalten.
+SELinux ist `Enforcing`; der reguläre Broker läuft. Vorher-/Nachher-Snapshots
+von Benutzeridentitäten, CE-Zuständen, Schlüsselverzeichnisnamen und Runtime-Kontexten
+sind identisch: `0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3`. Es wurden keine realen AOSP-Benutzer
+angelegt oder gelöscht. Die vier deaktivierten AOSP-CE-Tests blieben deaktiviert;
+130 unveränderte Java-Tests werden mit ihrem Nachweis aus `95f2b925` wiederverwendet,
+nicht als erneut ausgeführt gezählt.
+
+Lokale Belege: `out/components-9270ca79/targeted-tests/` und `proof.json`.
+SHA-256 des nativen Rohprotokolls: `b9149f067b17ee4f21f8796d838ae2d4f033fefe7ab0ecd9ad98c4e487a160d1`.
+SHA-256 des Ergebnis-JSON: `b185495a1e8d7292bc177f60f2683a7f6ea7695a36cf0768eeeb7a60e8d494a0`.
+
 ## Konfigurierte Installationsvorbereitung: 366 Tests im passenden Vollimage
 
 Commit `178cbb6eb41356c9f624f400b0f55e925e2f9650` besteht am **2026-09-30T15:52:26Z alle 366 aktivierten
