@@ -176,7 +176,7 @@ cc_binary {
     static_libs: ["libaegis-runtime-broker-owner", "libaegis-runtime-broker-cgroup",
                   "libaegis-runtime-base", "libaegis-runtime-context",
                   "libaegis-runtime-namespace", "libaegis-runtime-child",
-                  "libaegis-runtime-broker-protocol", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libbase", "libjsoncpp"],
+                  "libaegis-runtime-broker-protocol", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libaegis-package-planner", "libaegis-package-metadata", "libbase", "libjsoncpp"],
 }
 
 // Inert trusted probe for device tests; never a production setup helper.
