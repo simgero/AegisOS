@@ -47,6 +47,7 @@ printf '%s\n' "$commit" > "$run/project-commit.txt"
 python3 "$script_dir/check-memory.py"
 python3 "$script_dir/link-product.py" "$project/device/aegis/qemu_arm64" "$aosp"
 python3 "$script_dir/register-identity.py" "$project/packages/aegis/identity" "$aosp"
+python3 "$script_dir/register-package-crypto.py" --aosp "$aosp"
 python3 "$script_dir/register-runtime-storage.py" --project "$project" --aosp "$aosp" \
     --receipt "$run/runtime-storage-source.json"
 python3 "$script_dir/register-runtime-policy.py" --project "$project" --aosp "$aosp" \
@@ -73,6 +74,7 @@ m -j"$jobs" aegis aegis-identity-service AegisIdentityTests AegisQemuHardwareOve
 # The broker is compiled/linked here but remains absent from product startup
 # and from this version of the component transport archive.
 test -s "$(get_build_var PRODUCT_OUT)/system_ext/bin/aegis-runtime-broker"
+python3 "$script_dir/register-package-crypto.py" --aosp "$aosp" --verify
 python3 "$script_dir/register-runtime-storage.py" --aosp "$aosp" \
     --receipt "$run/runtime-storage-source.json" --verify
 python3 "$script_dir/register-runtime-policy.py" --aosp "$aosp" \

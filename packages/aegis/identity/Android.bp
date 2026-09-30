@@ -248,7 +248,7 @@ cc_binary {
     defaults: ["aegis-runtime-native-defaults"],
     srcs: ["runtime/package_exec_main.c", "runtime/package_execute.c", "runtime/package_validate.c", "runtime/package_execution_control.c", "runtime/sandbox.c", "runtime/package_guard.cpp", "runtime/package_apt_hook.c"],
     static_executable: true,
-    static_libs: ["libaegis-package-metadata", "libjsoncpp", "libcrypto"],
+    static_libs: ["libaegis-package-metadata", "libjsoncpp", "libcrypto_static"],
     stl: "libc++_static",
 }
 cc_binary {
@@ -256,7 +256,7 @@ cc_binary {
     defaults: ["aegis-runtime-native-defaults"],
     srcs: ["runtime/package_exec_probe.c", "runtime/package_execute.c", "runtime/package_validate.c", "runtime/package_execution_control.c", "runtime/sandbox.c", "runtime/package_guard.cpp", "runtime/package_apt_hook.c"],
     static_executable: true,
-    static_libs: ["libaegis-package-metadata", "libjsoncpp", "libcrypto"],
+    static_libs: ["libaegis-package-metadata", "libjsoncpp", "libcrypto_static"],
     stl: "libc++_static",
 }
 

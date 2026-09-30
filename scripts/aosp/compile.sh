@@ -23,6 +23,7 @@ if [[ -n ${AEGIS_RUNTIME_RUN:-} ]]; then
         "${runtime_args[@]}"
 fi
 python3 "$script_dir/register-identity.py" "$project/packages/aegis/identity" /srv/aegis/work/aosp
+python3 "$script_dir/register-package-crypto.py" --aosp /srv/aegis/work/aosp
 python3 "$script_dir/register-qemu-graphics.py" --aosp /srv/aegis/work/aosp
 python3 "$script_dir/register-runtime-storage.py" --project "$project" --aosp /srv/aegis/work/aosp \
     --receipt "$1/runtime-storage-source.json"
@@ -70,6 +71,7 @@ jobs=$(nproc)
 (( jobs <= 16 )) || jobs=16
 m -j"$jobs"
 python3 "$script_dir/register-qemu-graphics.py" --aosp /srv/aegis/work/aosp --check
+python3 "$script_dir/register-package-crypto.py" --aosp /srv/aegis/work/aosp --verify
 python3 "$script_dir/register-runtime-storage.py" --aosp /srv/aegis/work/aosp \
     --receipt "$1/runtime-storage-source.json" --verify
 python3 "$script_dir/register-runtime-policy.py" --aosp /srv/aegis/work/aosp \
