@@ -36,6 +36,19 @@ type aegis_package_private_file, file_type, data_file_type, core_data_file_type;
 type aegis_package_shared_file, file_type, data_file_type, core_data_file_type;
 # Mutable, unpublished shared candidates are distinct from immutable generations.
 type aegis_package_staging_file, file_type, data_file_type, core_data_file_type;
+# Contents of one unpublished ext4 candidate. This is an inode file_type,
+# never a contextmount_type or a relabeled filesystem. defcontext supplies it
+# only when an inode has no stored SELinux xattr; mixed labels are rejected.
+type aegis_package_candidate_file, file_type;
+allow aegis_package_candidate_file labeledfs:filesystem associate;
+allow aegis_runtime_broker aegis_package_candidate_file:dir create_dir_perms;
+allow aegis_runtime_broker aegis_package_candidate_file:file create_file_perms;
+allow aegis_runtime_broker aegis_package_candidate_file:lnk_file r_file_perms;
+neverallow { aegis_runtime_broker aegis_runtime_setup aegis_runtime_init aegis_runtime_program }
+    aegis_package_candidate_file:file { execute execute_no_trans entrypoint };
+neverallow { aegis_runtime_setup aegis_runtime_init aegis_runtime_program }
+    aegis_package_candidate_file:dir { open read search write add_name remove_name };
+
 type aegis_runtime_devices_file, file_type;
 type aegis_runtime_scratch_file, file_type, coredomain_socket;
 type aegis_runtime_cgroup, fs_type;

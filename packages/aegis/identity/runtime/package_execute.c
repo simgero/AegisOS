@@ -3,6 +3,7 @@
 #endif
 #include "package_execution_protocol.h"
 #include "package_validate.h"
+#include "package_candidate_labels.h"
 #include "package_guard.h"
 #include "sandbox.h"
 #include <dirent.h>
@@ -482,7 +483,7 @@ int aegis_package_execute(uint32_t user, uint32_t serial, int permit_unbound_fix
             || syscall(SYS_pivot_root, ".", ".") < 0 || umount2(".", MNT_DETACH) < 0
             || chdir("/") < 0 || readback() < 0) return setup_failed(&request);
     int root = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (root < 0) return setup_failed(&request);
+    if (root < 0 || aegis_package_candidate_labels(root,1)<0) return setup_failed(&request);
     if (request.kind == AEGIS_PACKAGE_ARCHIVES) for (unsigned i = 0; i < request.count; i++) {
         char path[AEGIS_PACKAGE_EXEC_NAME + 32];
         snprintf(path, sizeof(path), "var/cache/apt/archives/%s", request.items[i]);

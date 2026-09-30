@@ -2,6 +2,8 @@
 // Compile on the SSH builder, execute only in local QEMU. Synthetic packages
 // in an exclusively copied base; no live AOSP users, passwords or CE mutation.
 #include "package_executor.h"
+#include "package_candidate_labels.h"
+#include <sys/xattr.h>
 #include "package_plan.h"
 #include "package_execution_protocol.h"
 #include "package_apt_fixture.h"
@@ -1248,6 +1250,28 @@ TEST_F(RuntimePackagePreparation, CopiedAndVerifiedArchivesExecuteThroughRealApt
     EXPECT_NE(std::string::npos,AptImageFixture::read(mount.get(),"var/log/aegis-exec-script").find("postinst-1"));
     struct stat st;ASSERT_EQ(0,fstatat(mount.get(),"var/lib/aegis-exec-owned",&st,AT_SYMLINK_NOFOLLOW));
     EXPECT_EQ(1005042u,st.st_uid);mount.reset();EXPECT_EQ(before,CountFDs());NoLoop();
+}
+TEST_F(RuntimePackagePreparation, RejectsStoredForeignRootLabelInsteadOfOverridingIt) {
+    Ready();ASSERT_FALSE(HasFatalFailure());
+    unique_fd candidate(openat(mount.get(),".",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(candidate.ok());
+    ASSERT_EQ(0,aegis_package_candidate_labels(candidate.get(),0));
+    const char foreign[]="u:object_r:shell_data_file:s0";
+    ASSERT_EQ(0,fsetxattr(candidate.get(),"security.selinux",foreign,sizeof(foreign),0));
+    candidate.reset();ReusePreparedImage();ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,Start());PackagePreparationResult result;int fd=-1;
+    ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,&result,&fd));
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(EPERM,result.error);EXPECT_EQ(-1,fd);NoLoop();
+}
+TEST_F(RuntimePackagePreparation, RejectsStoredForeignSymlinkLabelBeforeArchiveOrWorkerHandoff) {
+    Ready();ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,symlinkat("/system/bin/sh",mount.get(),"aegis-foreign-link"));
+    const char foreign[]="u:object_r:shell_data_file:s0";
+    std::string path="/proc/self/fd/"+std::to_string(mount.get())+"/aegis-foreign-link";
+    ASSERT_EQ(0,lsetxattr(path.c_str(),"security.selinux",foreign,sizeof(foreign),0));
+    ReusePreparedImage();ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,Start());PackagePreparationResult result;int fd=-1;
+    ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,&result,&fd));
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(EPERM,result.error);EXPECT_EQ(-1,fd);NoLoop();
 }
 TEST_F(RuntimePackagePreparation, BrokerPrivateUmaskDoesNotBreakCandidatePermissions) {
     mode_t original=umask(0077);int started=Start();mode_t immediate=umask(original);

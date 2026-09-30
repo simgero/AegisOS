@@ -4,6 +4,7 @@
 #ifndef AEGIS_PACKAGE_APT_FIXTURE_H
 #define AEGIS_PACKAGE_APT_FIXTURE_H
 #include "base_image.h"
+#include "package_candidate_labels.h"
 #include <gtest/gtest.h>
 #include <android-base/unique_fd.h>
 #include <openssl/sha.h>
@@ -116,7 +117,7 @@ class AptImageFixture {
         if (fs.get() < 0) return -1;
         std::string source = "/proc/self/fd/" + std::to_string(loop.get());
         if (syscall(SYS_fsconfig, fs.get(), FSCONFIG_SET_STRING, "source", source.c_str(), 0) < 0
-                || syscall(SYS_fsconfig, fs.get(), FSCONFIG_SET_STRING, "context", "u:object_r:aegis_runtime_base_file:s0", 0) < 0
+                || syscall(SYS_fsconfig, fs.get(), FSCONFIG_SET_STRING, "defcontext", AEGIS_PACKAGE_CANDIDATE_CONTEXT, 0) < 0
                 || syscall(SYS_fsconfig, fs.get(), FSCONFIG_CMD_CREATE, nullptr, nullptr, 0) < 0) return -1;
         return static_cast<int>(syscall(SYS_fsmount, fs.get(), FSMOUNT_CLOEXEC,
                                MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV | MOUNT_ATTR_NOEXEC));

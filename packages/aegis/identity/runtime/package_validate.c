@@ -2,6 +2,7 @@
 #define _GNU_SOURCE
 #endif
 #include "package_validate.h"
+#include "package_candidate_labels.h"
 #include "uid_layout.h"
 #include <dirent.h>
 #include <errno.h>
@@ -207,6 +208,6 @@ int aegis_package_validate(int root) {
     if (getpid()!=1 || st.st_mode!=(S_IFDIR|0755)||st.st_uid||st.st_gid) return fail(EPERM);
     int status;errno=0;
     if (waitpid(-1,&status,WNOHANG)!=-1 || errno!=ECHILD) return fail(EBUSY);
-    if (accounts(root)<0 || absent_xattrs(root)<0) return -1;
+    if (aegis_package_candidate_labels(root,1)<0 || accounts(root)<0 || absent_xattrs(root)<0) return -1;
     unsigned count=0;return tree(root,st.st_dev,0,&count);
 }

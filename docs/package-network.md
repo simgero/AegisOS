@@ -182,34 +182,47 @@ Die sichere Behandlung verwaister Verzeichnisse nach Prozessabsturz oder
 Neustart, Kapazitätsbegrenzung und Produktintegration bleiben ausstehend.
 Dieser Pfad wird deshalb noch nicht als öffentlicher Befehl freigeschaltet.
 
-## Ausstehende Trennung des beschreibbaren Kandidaten
+## Trennung des beschreibbaren Kandidaten
 
-Die bisherigen nativen Fixtures laufen mit `su` und beweisen keine erfolgreiche
-Paketinstallation in einer Produktdomäne. `package_prepare_worker.cpp::Mount`
-verwendet derzeit auch für einen beschreibbaren Kandidaten noch
-`context=u:object_r:aegis_runtime_base_file:s0`. Das ist für die Produktanbindung
-ungeeignet: AOSPs `system/sepolicy/private/domain.te` verbietet regulären
-Domänen das Erstellen und Beschreiben von `contextmount_type`-Inhalten.
-Diese Schutzregeln und der unveränderliche Basistyp müssen erhalten bleiben.
+`package_prepare_worker.cpp::Mount` verwendet für beschreibbare Kopien jetzt
+`defcontext=u:object_r:aegis_package_candidate_file:s0`. Dieser eigene Inode-Typ
+ist ein `file_type`, kein `fs_type` und kein `contextmount_type`. Das Dateisystem
+behält `labeledfs`. Der vertrauenswürdige Vorbereiter darf diese Kandidaten lesen
+und beschreiben, aber nicht ausführen. Bestehende Runtime-Domänen erhalten weder
+Zugriff auf die Kandidatenverzeichnisse noch Ausführungsrechte. Veröffentlichte
+Auswahlen behalten ihren bisherigen schreibgeschützten `context`-Mount mit
+`aegis_runtime_base_file`; AOSPs Contextmount-Schreibsperren bleiben unverändert.
 
 Der tatsächlich gepinnte Kernelstand
-`50eb8d5d443b43f38d6e72f005f1b8601ac88a05` unterscheidet in
-`security/selinux/hooks.c::selinux_set_mnt_opts` zwischen `context`, `rootcontext`
-und `defcontext`. Die letzten beiden prüfen über
-`may_context_mount_inode_relabel` die bisherige Dateisystemzuordnung sowie
-`filesystem associate`; `defcontext` setzt nur den Standard für Inodes ohne
-eigenes Label. Vorhandene SELinux-Xattrs werden dadurch nicht neutralisiert.
+`50eb8d5d443b43f38d6e72f005f1b8601ac88a05` prüft `defcontext` in
+`security/selinux/hooks.c::selinux_set_mnt_opts` über
+`may_context_mount_inode_relabel`. Es ändert den Standard für Inodes ohne
+SELinux-Xattr. Ein vorhandenes fremdes Label wird nicht überschrieben;
+insbesondere wird kein `rootcontext` verwendet, das ein fremdes Root-Label
+verdecken könnte.
 
-Der nächste Implementierungsschritt muss deshalb einen eigenen beschreibbaren
-Kandidatentyp, feste Mountoptionen und die Ablehnung fremder Inode-Labels verbinden.
-Es reicht nicht, nur die Mountoption auszutauschen. Die Prüfung muss auch
-Symlinks erfassen und vor Übergabe an Paketprogramme sowie vor Veröffentlichung
-wirksam sein. Die jetzige Baumprüfung in `package_validate.c` prüft Dateirechte,
-Kennungen, Capabilities und ACLs, aber noch nicht diese Labelbindung. Separate
-Domänen für vertrauenswürdige Vorbereitung, gewöhnliche Paketprogramme und den
-begrenzten Netzwerkhelfer müssen anschließend im realen Dienst getestet werden.
-Dies ist eine aus dem eingesetzten Kernel und der Policy abgeleitete Anforderung,
-noch keine implementierte oder durch Laufzeittests belegte Freigabe.
+`aegis_package_candidate_labels` prüft deshalb den vollständigen stillstehenden
+Kandidaten vor der Archivübernahme, erneut vor der Mount-Übergabe, vor dem ersten
+Paketprogramm und in beiden abschließenden Validierungen. Dateien, Verzeichnisse
+und die Inodes symbolischer Links müssen exakt den Kandidatentyp tragen. Die
+Linkziele werden nicht verfolgt. Auflösung erfolgt relativ zu gehaltenen
+Verzeichnisdeskriptoren, mit Inode-Abgleich, begrenzter Tiefe und Eintragszahl;
+fremde Mounts und besondere Dateien werden abgewiesen. Alle Deskriptoren werden
+auch bei Fehlern geschlossen. Es werden keine Labels repariert oder verändert.
+
+Nur im bereits aufgebauten Ausführungs-Namespace dürfen die separat geprüften
+Wurzeln `/dev`, `/proc`, `/tmp` und `/run` andere Dateisysteme sein. Ein bloßes
+Verzeichnis mit einem dieser Namen wird weiter vollständig geprüft; geschachtelte
+oder anders benannte Fremd-Mounts sind nicht erlaubt. Der Aufrufer muss weiterhin
+die feste Mount-Inventur prüfen und alle Paketkinder vor Abschluss einsammeln.
+
+Sieben neue Labelprüfungen und zwei Tests mit tatsächlich kopierten ext4-Abbildern
+sind ergänzt. Die ext4-Tests setzen absichtlich fremde Root-/Symlink-Labels in
+neuen isolierten Testkopien, berechnen deren neuen Eingabehash und verlangen die
+Ablehnung vor dem Mount-Handoff. Build und Laufzeitnachweis dieses neuen Standes
+stehen noch aus. Native SU-Fixtures allein beweisen weiterhin keine erfolgreiche
+Installation in einer Produktdomäne. Die getrennten Domänen für Vorbereitung,
+Paketprogramme und Netzwerk sowie öffentliche Befehle und AOSP-Freigabe folgen.
 
 ## Nachweisgrenze
 

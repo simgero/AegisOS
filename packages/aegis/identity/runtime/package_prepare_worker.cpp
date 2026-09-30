@@ -1,6 +1,7 @@
 // Trusted bounded-input preparation only: copy/hash/mount/cache, never APT or
 // package scripts. Production SELinux/bootstrap/CE anchoring belongs to broker.
 #include "package_preparation_protocol.h"
+#include "package_candidate_labels.h"
 #include <memory>
 #include <android-base/unique_fd.h>
 #include <openssl/sha.h>
@@ -123,7 +124,11 @@ int Mount(int image,uint64_t bytes,bool read_only=false) {
         if(read_only && (syscall(SYS_fsconfig,fs.get(),FSCONFIG_SET_FLAG,"ro",nullptr,0)<0
                         || syscall(SYS_fsconfig,fs.get(),FSCONFIG_SET_FLAG,"noload",nullptr,0)<0))return -1;
         if(syscall(SYS_fsconfig,fs.get(),FSCONFIG_SET_STRING,"source",device.c_str(),0)<0
-           || syscall(SYS_fsconfig,fs.get(),FSCONFIG_SET_STRING,"context","u:object_r:aegis_runtime_base_file:s0",0)<0
+           // Published selections stay immutable context mounts. A writable
+           // candidate uses a file label default on ordinary labeledfs instead;
+           // stored xattrs are NOT overridden, and must pass the full scan below.
+           || syscall(SYS_fsconfig,fs.get(),FSCONFIG_SET_STRING,read_only?"context":"defcontext",
+                      read_only?"u:object_r:aegis_runtime_base_file:s0":AEGIS_PACKAGE_CANDIDATE_CONTEXT,0)<0
            || syscall(SYS_fsconfig,fs.get(),FSCONFIG_CMD_CREATE,nullptr,nullptr,0)<0)return -1;
         // Detached mount owns the autoclearing loop; never attach or force-clear.
         return syscall(SYS_fsmount,fs.get(),FSMOUNT_CLOEXEC,
@@ -192,6 +197,8 @@ int Prepare(const wire::Request& request) {
     unique_fd image(At(wire::kStage,"candidate.ext4",O_RDWR|O_CREAT|O_EXCL,0600));
     if(!image.ok() || Copy(wire::kSource,image.get(),request.image)<0)return -1;
     unique_fd mount(Mount(image.get(),request.image.bytes));if(!mount.ok())return -1;
+    unique_fd root(At(mount.get(),".",O_RDONLY|O_DIRECTORY));
+    if(!root.ok() || aegis_package_candidate_labels(root.get(),0)<0)return -1;
     if(request.execution.kind==AEGIS_PACKAGE_ARCHIVES) {
         unique_fd cache(At(mount.get(),"var",O_RDONLY|O_DIRECTORY));if(!cache.ok())return -1;
         for(const char* part:{"cache","apt","archives"}) {
@@ -214,8 +221,7 @@ int Prepare(const wire::Request& request) {
         }
         if(fsync(cache.get())<0)return -1;
     }
-    unique_fd root(At(mount.get(),".",O_RDONLY|O_DIRECTORY));
-    if(!root.ok() || syncfs(root.get())<0 || fsync(image.get())<0 || fsync(wire::kStage)<0)return -1;
+    if(aegis_package_candidate_labels(root.get(),0)<0 || syncfs(root.get())<0 || fsync(image.get())<0 || fsync(wire::kStage)<0)return -1;
     return mount.release();
 }
 }
