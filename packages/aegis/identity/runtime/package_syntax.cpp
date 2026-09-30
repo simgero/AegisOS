@@ -1,3 +1,5 @@
+#include "package_resolver.h"
+#include <errno.h>
 #include "package_plan.h"
 namespace aegis {
 bool PackagePlanNameValid(const std::string& s) {
@@ -22,5 +24,15 @@ bool PackagePlanVersionValid(const std::string& s) {
     // The bounded adapter accepts a strict subset of Debian versions; the final
     // hyphen introduces a revision and cannot terminate the version.
     return s.back()!='-';
+}
+}
+
+namespace aegis {
+int PackageResolverCheck(const PackageResolverRequest& r) {
+    if(r.action==PackageAction::Update)return r.package.empty()&&r.version.empty()?0:(errno=EINVAL,-1);
+    if(r.action!=PackageAction::Install&&r.action!=PackageAction::Remove)return (errno=EINVAL,-1);
+    if(!PackagePlanNameValid(r.package)||r.package.back()=='+'||r.package.back()=='-'||(!r.version.empty()&&!PackagePlanVersionValid(r.version))
+       ||(r.action==PackageAction::Remove&&!r.version.empty()))return (errno=EINVAL,-1);
+    return 0;
 }
 }

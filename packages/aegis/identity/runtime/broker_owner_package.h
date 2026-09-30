@@ -4,7 +4,22 @@
 #include "package_publisher.h"
 #include "package_executor.h"
 #include "package_preparer.h"
+#include "package_planner.h"
 namespace aegis {
+enum class PlanningState { Running, Collected, Complete, Sealed };
+// Register before snapshot copying/APT. Same requester admission, 16-slot budget,
+// monotonically minted IDs and STOP/HELLO/disconnect ownership as execution.
+// Collected retains its private evidence directory inside the owner; Poll never
+// hands out descriptors or releases the slot. Binding/approval is a later step.
+// No client-supplied factory/selected/policy/helper is accepted by a public API.
+int BrokerStartPlanning(aegis_broker_owner* owner,const PackagePlanning& request,
+                         int groups,int factory,int selected,int sources,int key,int helper,
+                         uint64_t deadline,uint64_t* job);
+int BrokerPollPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job,
+                        PlanningState* state,PackagePlanningResult* result);
+int BrokerCancelPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                          uint64_t job,uint64_t deadline);
+
 enum class PublicationState { Prepared, Running, Complete, Sealed, Preparing, AwaitingValidation, Publishing };
 
 // Trusted internal planner API, not a socket/CLI authorization endpoint.

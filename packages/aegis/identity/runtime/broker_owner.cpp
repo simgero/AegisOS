@@ -57,6 +57,14 @@ struct execution_slot {
             || target_inputs[0].ok() || target_inputs[1].ok() || target_inputs[2].ok();
     }
 };
+struct planning_slot {
+    PackagePlanning plan;
+    PackagePlanner* worker=nullptr;
+    unique_fd evidence;
+    PlanningState state=PlanningState::Running;
+    PackagePlanningResult result;
+    bool resources() const { return worker || evidence.ok(); }
+};
 struct runtime_selection_slot {
     PackageRuntimeSelection plan;
     PackagePreparer* worker=nullptr;
@@ -78,6 +86,7 @@ struct aegis_broker_owner {
     bool selection_enabled=false;
     unique_fd selection_image,selection_helper,selection_directory;
     PackageInput selection_factory;
+    std::array<std::unique_ptr<planning_slot>,MAX_PUBLICATIONS> planners;
     std::array<std::unique_ptr<publication_slot>,MAX_PUBLICATIONS> publications;
     std::array<std::unique_ptr<execution_slot>,MAX_PUBLICATIONS> executions;
     std::array<std::unique_ptr<runtime_selection_slot>,MAX_CONTEXTS> selections;
@@ -170,6 +179,10 @@ int aegis_broker_owner_create(int parent_fd, int base_fd, int setup_fd, int init
 // however, package resources participate in the SAME production STOP/HELLO/
 // disconnect path as runtime contexts. Only exact completed teardown is absent.
 static int publication_guard(struct aegis_broker_owner* owner,uint32_t user,uint32_t serial) {
+    for(const auto& slot:owner->planners)if(slot && slot->plan.requester==user) {
+        if(slot->plan.serial!=serial)return fail(ESTALE);
+        if(slot->state==PlanningState::Sealed)return fail(EBUSY);
+    }
     for(const auto& slot:owner->selections)if(slot && slot->plan.requester==user) {
         if(slot->plan.serial!=serial)return fail(ESTALE);
         if(slot->state==RuntimeSelectionState::Sealed)return fail(EBUSY);
@@ -185,6 +198,8 @@ static int publication_guard(struct aegis_broker_owner* owner,uint32_t user,uint
     return 0;
 }
 static bool publication_resources(struct aegis_broker_owner* owner,uint32_t user) {
+    for(const auto& slot:owner->planners)
+        if(slot && slot->resources() && slot->plan.requester==user)return true;
     for(const auto& slot:owner->selections)
         if(slot && slot->resources() && slot->plan.requester==user)return true;
     for(const auto& slot:owner->executions)
@@ -272,7 +287,24 @@ static int reap_selection(runtime_selection_slot& slot,int wait) {
     slot.state=result.outcome==PackagePreparationOutcome::Prepared ? RuntimeSelectionState::Selected : RuntimeSelectionState::Failed;
     return 0;
 }
+static int reap_planning(planning_slot& slot,int wait) {
+    if(!slot.worker)return 0;
+    int fd=-1;PackagePlanningResult result;
+    if(PackagePlannerFinish(&slot.worker,slot.state==PlanningState::Sealed,wait,&result,&fd)<0)return -1;
+    slot.evidence.reset(fd);slot.result=result;
+    slot.state=result.outcome==PackagePlanningResult::Outcome::Collected ? PlanningState::Collected : PlanningState::Complete;
+    return 0;
+}
+static void seal_planning(planning_slot& slot) {
+    slot.state=PlanningState::Sealed;
+    if(slot.worker)(void)PackagePlannerCancel(slot.worker);
+    else {
+        slot.evidence.reset();slot.result.outcome=PackagePlanningResult::Outcome::Failed;
+        slot.result.error=ECANCELED;slot.state=PlanningState::Complete;
+    }
+}
 static void seal_publications(struct aegis_broker_owner* owner,uint32_t user) {
+    for(auto& slot:owner->planners)if(slot && (!user || slot->plan.requester==user))seal_planning(*slot);
     for(auto& slot:owner->selections)if(slot && (!user || slot->plan.requester==user)) {
         slot->state=RuntimeSelectionState::Sealed;
         if(slot->worker)(void)PackagePreparerCancel(slot->worker);
@@ -308,6 +340,12 @@ static int stop(struct aegis_broker_owner *owner, uint32_t user, uint64_t deadli
     // Signal EVERY matching package worker before the first potentially blocking
     // context/child wait. A timeout never leaves later jobs unvisited.
     seal_publications(owner,user);
+    for(auto& slot:owner->planners) {
+        if(!slot || (user && slot->plan.requester!=user))continue;
+        int left=remaining_ms(deadline);if(left<0) { if(!error)error=errno;left=0; }
+        if(reap_planning(*slot,left)<0) { if(!error)error=errno; }
+        else slot.reset();
+    }
     for (unsigned i = 0; i < MAX_CONTEXTS; i++) {
         struct slot *slot = &owner->slots[i];
         if (!slot->context || (user && slot->user != user)) continue;
@@ -434,6 +472,7 @@ int aegis_broker_owner_release(struct aegis_broker_owner **output) {
     struct aegis_broker_owner *owner = *output;
     if (owned(owner) < 0) return -1;
     for (unsigned i = 0; i < MAX_CONTEXTS; i++) if (owner->slots[i].context) return fail(EBUSY);
+    for(const auto& slot:owner->planners)if(slot && slot->resources())return fail(EBUSY);
     for(const auto& slot:owner->publications)if(slot && slot->resources())return fail(EBUSY);
     for(const auto& slot:owner->executions)if(slot && slot->resources())return fail(EBUSY);
     for(const auto& slot:owner->selections)if(slot && slot->resources())return fail(EBUSY);
@@ -519,6 +558,11 @@ int aegis_broker_owner_result(struct aegis_broker_owner *owner,
 int aegis_broker_owner_reap_publications(struct aegis_broker_owner* owner) {
     if(owned(owner)<0)return -1;
     int error=0;
+    for(auto& slot:owner->planners)if(slot && slot->worker) {
+        if(reap_planning(*slot,0)<0 && errno!=ETIMEDOUT) {
+            if(!error)error=errno;seal_planning(*slot);
+        }
+    }
     for(auto& slot:owner->selections)if(slot && slot->worker) {
         if(reap_selection(*slot,0)<0 && errno!=ETIMEDOUT) {
             if(!error)error=errno;
@@ -559,6 +603,9 @@ int admission(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t d
 }
 int capacity(aegis_broker_owner* owner,uint32_t user) {
     unsigned count=0;
+    for(const auto& slot:owner->planners)if(slot) {
+        count++;if(slot->plan.requester==user)return fail(EBUSY);
+    }
     for(const auto& slot:owner->selections)if(slot && slot->resources()) {
         count++;if(slot->plan.requester==user)return fail(EBUSY);
     }
@@ -593,6 +640,53 @@ execution_slot* find_execution(aegis_broker_owner* owner,uint32_t user,uint32_t 
     fail(ENOENT);return nullptr;
 }
 }
+int BrokerStartPlanning(aegis_broker_owner* owner,const PackagePlanning& request,
+                         int groups,int factory,int selected,int sources,int key,int helper,
+                         uint64_t deadline,uint64_t* job) {
+    if(!job||*job||request.job)return fail(EINVAL);
+    if(admission(owner,request.requester,request.serial,deadline)<0||capacity(owner,request.requester)<0)return -1;
+    if(owner->next_publication==INT64_MAX)return fail(EOVERFLOW);
+    PackagePlanning plan=request;plan.job=owner->next_publication+1;
+    if(PackagePlanningCheck(plan)<0)return -1;
+    std::unique_ptr<planning_slot>* empty=nullptr;
+    for(auto& slot:owner->planners)if(!slot) { empty=&slot;break; }
+    if(!empty)return fail(ENOSPC);
+    auto slot=std::unique_ptr<planning_slot>(new(std::nothrow) planning_slot);if(!slot)return fail(ENOMEM);
+    slot->plan=plan;*empty=std::move(slot);owner->next_publication=plan.job;*job=plan.job;
+    auto& registered=**empty;
+    if(PackagePlannerStart(groups,factory,selected,sources,key,helper,plan,deadline,&registered.worker)<0) {
+        int e=errno;registered.result.outcome=PackagePlanningResult::Outcome::Failed;registered.result.error=e;
+        if(registered.worker)seal_planning(registered);else registered.state=PlanningState::Complete;
+        return fail(e);
+    }
+    return 0;
+}
+static planning_slot* find_planning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job) {
+    if(!job||job>INT64_MAX) { fail(EINVAL);return nullptr; }
+    if(owned(owner)<0)return nullptr;
+    for(auto& slot:owner->planners)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user||slot->plan.serial!=serial) { fail(ESTALE);return nullptr; }
+        return slot.get();
+    }
+    fail(ENOENT);return nullptr;
+}
+int BrokerPollPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job,
+                        PlanningState* state,PackagePlanningResult* result) {
+    if(!state||!result)return fail(EINVAL);
+    auto* slot=find_planning(owner,user,serial,job);if(!slot)return -1;
+    if(reap_planning(*slot,0)<0&&errno!=ETIMEDOUT)return -1;
+    *state=slot->state;*result=slot->result;
+    if(slot->state==PlanningState::Complete)for(auto& item:owner->planners)if(item.get()==slot) { item.reset();break; }
+    return 0;
+}
+int BrokerCancelPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job,uint64_t deadline) {
+    auto* slot=find_planning(owner,user,serial,job);if(!slot)return -1;
+    seal_planning(*slot);int left=remaining_ms(deadline);if(left<0)return -1;
+    if(reap_planning(*slot,left)<0)return -1;
+    for(auto& item:owner->planners)if(item.get()==slot) { item.reset();break; }
+    return 0;
+}
+
 static int optional_shared_store(int state,int* output) {
     open_how how={};how.flags=O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW;
     how.resolve=RESOLVE_BENEATH|RESOLVE_NO_SYMLINKS|RESOLVE_NO_XDEV;

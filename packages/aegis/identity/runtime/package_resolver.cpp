@@ -107,13 +107,6 @@ bool Same(const std::vector<PackageAptEffect>& a,const std::vector<PackageAptEff
 }
 }
 const char* PackageResolverConfiguration() { return policy; }
-int PackageResolverCheck(const PackageResolverRequest& r) {
-    if(r.action==PackageAction::Update)return r.package.empty()&&r.version.empty()?0:Fail(EINVAL);
-    if(r.action!=PackageAction::Install&&r.action!=PackageAction::Remove)return Fail(EINVAL);
-    if(!PackagePlanNameValid(r.package)||r.package.back()=='+'||r.package.back()=='-'||(!r.version.empty()&&!PackagePlanVersionValid(r.version))
-       ||(r.action==PackageAction::Remove&&!r.version.empty()))return Fail(EINVAL);
-    return 0;
-}
 PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequest& r) {
     PackageResolverResult result;
     auto fail=[&](int e) { result.error=e;return result; };
