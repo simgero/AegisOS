@@ -1,26 +1,17 @@
 # Privater AOSP-Kanal und Besitzer der Runtime-Kontexte
 
-Stand 28. September 2026: **Die neu ergänzte Terminalübergabe der Protokollversion
-2 wartet auf Build und Gerätetests. Der Dienst ist noch nicht im Produkt aktiviert.**
-Die folgende erfolgreiche Kompilierung betrifft den früheren Lebenszykluskanal:
-Commit `878fc970ace1a19a7a6f637e8e7df3763536b649`, Lauf
-`identity-20260928T174855Z-878fc970-sllLJ3`, beendet um 17:56:40 UTC mit
-`IDENTITY_COMPILED_NOT_INSTALLED`. Broker und natives Testprogramm sind gelinkt;
-Java-Dienst, DEX und Test-APK sind ebenfalls erfolgreich gebaut.
+Stand 30. September 2026: Der Lebenszyklus- und Terminalkanal verwendet
+**Version 3**. Im lokal gebooteten Vollimage `40179351` läuft der Broker über
+init in `u:r:aegis_runtime_broker:s0` mit SELinux Enforcing und
+`ro.aegis.runtime.mode=managed-v1`. Alle 393 aktivierten nativen Tests dieses
+Image-Stands bestehen. Die vier realen CE-Integrationstests bleiben deaktiviert.
 
-Die früheren Einzelprüfungen hatten nur ARM64-Objekte beziehungsweise Java
-gegen vollständige Core-Systemmodule geprüft. Erst Soong zeigte die fehlende
-statische Android-`libcrypto`-Variante, direkte Link-Abhängigkeiten und die
-nicht verfügbare stabile `StructUcred`-API. Der korrigierte Stand nutzt die
-reguläre dynamische `libcrypto`, explizite JsonCpp-/libbase-Abhängigkeiten und
-`LocalSocket.getPeerCredentials()`. Letzteres liest im gepinnten Framework
-weiterhin `SO_PEERCRED`. UID/GID- und SELinux-Prüfungen bleiben erhalten.
-Namespace-Helfer bleiben statisch, das Testprogramm ist dynamisch gelinkt.
-Der Vollbuild `96f9ed6b` endete an einer Kernel-/VINTF-Unvereinbarkeit;
-der korrigierte Kernel ist gebaut und geprüft, aber noch nicht gebootet. Dieser alte Vollbuild enthält
-diese späteren Änderungen nicht. Es gibt noch keinen installierten Broker-Daemon,
-keinen aktiven Socket und keine Registrierung im Identitätsdienst.
-`ro.aegis.runtime.mode=absent` bleibt bestehen.
+Der nachfolgende Komponentenstand `49f038cd` ergänzt den privaten Paketkanal.
+Er ist auf `aegis-build` kompiliert und über GitHub übertragen. Im lokalen
+401-QEMU bestehen alle 400 nativen und 140 Java-Komponententests. Der
+Produktdienst im Image wurde dabei nicht durch die neuen Komponenten ersetzt. Die öffentliche Paket-Binder-/CLI-Anbindung und
+frische AOSP-Adminfreigabe sind noch nicht angeschlossen. Eine erfolgreiche
+Kompilierung des Adapters ist kein Nachweis produktiver Paketinstallation.
 
 ## Zuständigkeit und Gegenstelle
 
@@ -38,13 +29,14 @@ Passwort-/Sitzungsautorisierung und tatsächlichen CE-Status prüfen sowie die
 Es überträgt weder Passwörter noch Schlüssel, Hostpfade, Prozesskennungen oder
 vom CLI übernommene Dateideskriptoren. Die ergänzte interne
 [Terminalübergabe](terminal-handoff.md) erlaubt begrenzte Programmpfade und
-Argumente innerhalb des persönlichen Runtime-Kontexts. CLI-Sitzungsbindung,
-Widerruf und Paketaktionen sind noch nicht implementiert.
+Argumente innerhalb des persönlichen Runtime-Kontexts. Die persönliche
+CLI-Sitzungsbindung und der Widerruf gehören zum Terminaldienst; die
+öffentliche Paketaktions-Anbindung bleibt ein eigener, noch offener Schritt.
 
 ## Nachrichten und begrenzte Wartezeit
 
-Die Verbindung ist AF_UNIX/SOCK_SEQPACKET. Lebenszyklus-Anfragen und -Antworten
-haben exakt 32 Bytes in Little-Endian-Reihenfolge. Anfragen tragen Version, Operation,
+Die Verbindung ist AF_UNIX/SOCK_SEQPACKET. Jeder Kopf hat exakt 32 Bytes in
+Little-Endian-Reihenfolge. Anfragen tragen Version, Operation,
 streng steigende Sequenznummer, absolute CLOCK_MONOTONIC-Frist, AOSP-ID und
 Seriennummer. Antworten spiegeln Anfrage und Identität und melden einen
 Fehlercode sowie `ABSENT`, `READY` oder `SEALED`.
@@ -52,7 +44,8 @@ Fehlercode sowie `ABSENT`, `READY` oder `SEALED`.
 | Operation | Erforderlicher Nachweis |
 | --- | --- |
 | `HELLO` | Erste Anfrage einer neuen Verbindung; sämtliche vorherigen besessenen Kontexte sind bestätigt abgebaut. Kein automatisches Übernehmen alter Ressourcen. |
-| `START` | Exakte ID/Seriennummer; tatsächlich bestätigte READY-Antwort des Namespace-Aufsehers. Ein bereits gültiger Kontext derselben Identität kann weiterverwendet werden. |
+| `START` | Exakte ID/Seriennummer; eine asynchrone Auswahl bleibt mit ihrer Auftragskennung registriert. READY erst nach bestätigtem Kontextstart. |
+| `CONTINUE_START` | Dieselbe positive Auswahlkennung und dieselbe zugelassene Sitzung; kein automatischer neuer Auftrag nach Fehler oder Widerruf. |
 | `STOP_USER` | Alle besessenen Seriennummern dieser numerischen AOSP-ID sind beendet und ihre Referenzen freigegeben. Seriennummer im Auftrag ist fest 0 als Operationskonvention. |
 | `STATUS` | Fehlender, lebender oder gesperrter Kontext für exakt diese Identität; eine fremde Seriennummer wird nicht übernommen. |
 | `EXEC` | Bereits lebender Kontext; bestätigter Programmstart mit genau einem geprüften persönlichen PTY-Master. Kein impliziter Kontextstart. |
@@ -62,7 +55,9 @@ Fehlercode sowie `ABSENT`, `READY` oder `SEALED`.
 NUL-terminierte Argumente, zusammen höchstens 8192 Bytes. `RESULT` ergänzt
 eine positive 64-Bit-Befehlskennung und hat exakt 40 Bytes. Beide Antworten
 sind exakt 48 Bytes; nur erfolgreiches `EXEC` enthält einen Deskriptor.
-Version 1 wird nicht stillschweigend als Version 2 interpretiert.
+`START` und `CONTINUE_START` antworten mit 40 Bytes; `EAGAIN` mit positiver
+Auftragskennung bezeichnet die registrierte Vorbereitung. `CONTINUE_START`
+trägt ebenfalls 40 Bytes. Alte Protokollversionen werden nicht umgedeutet.
 
 Socket und Verbindung sind von Anfang an nicht blockierend. Polling, Senden,
 Lesen und interne Serialisierung verwenden dieselbe Frist von höchstens zehn
@@ -81,6 +76,31 @@ allein **kein** Abbaunachweis und erlaubt keinen CE-Schlüsselentzug.
 Ein korrekt gerahmter nativer Operationsfehler erhält dagegen den Kanal,
 damit ein gesperrter partieller Kontext erneut kontrolliert gestoppt werden
 kann. Ein Fehler darf weder `READY` noch erfolgreiches `ABSENT` behaupten.
+
+## Interner Paketkanal
+
+Die zusätzlichen Operationen 8–14 heißen `PACKAGE_BEGIN`, `PACKAGE_PLAN`,
+`PACKAGE_REVIEW`, `PACKAGE_PREPARE`, `PACKAGE_STATUS`, `PACKAGE_START` und
+`PACKAGE_CANCEL`. Sie benutzen denselben geprüften Socket, dieselbe Sequenz
+und Frist. `BEGIN` enthält ausschließlich Aktion, persönlichen/gemeinsamen
+Bereich, Paketname und optionale Version. Alle weiteren Aufrufe verwenden die
+bereits registrierte positive Auftragskennung; nur `START` ergänzt den Digest
+des dienstintern festgehaltenen vollständigen Plans. Der Digest ist keine Freigabe.
+
+Antworten haben einen 48-Byte-Präfix und höchstens 64 KiB Gesamtgröße. Die
+Nutzlast ist entweder leer, ein Status oder ein vollständiger Änderungsplan.
+Der Java-Decoder verwirft doppelte/unerwartete JSON-Felder, falsche Typen,
+fehlerhaftes UTF-8, unsortierte/doppelte Pakete und unvollständige Effekte.
+Es werden keine Deskriptoren übertragen. Status und Plan enthalten die ursprüngliche
+Absicht; die Dienstsitzung muss sie mit ihrem unveränderlichen Auftrag vergleichen.
+
+Auch ein fehlgeschlagenes `BEGIN` kann bereits eine Auftragskennung besitzen.
+Sie muss vor Freigabe der AOSP-Zulassung registriert bleiben. Ein gezielter
+Abbruch bestätigt weder Rollback noch CE-Schlüsselsperrung. Ein bereits
+veröffentlichtes Ergebnis darf nicht als abgebrochen ausgegeben werden; verlorene
+Antworten lösen niemals einen automatischen Ersatzauftrag aus. Vor `START` sind
+die frische AOSP-Adminprüfung und erneute Zulassung der ursprünglichen Sitzung
+weiterhin Pflicht. Diese öffentliche Verbindung ist noch nicht implementiert.
 
 ## Native Ressourcenverwaltung
 

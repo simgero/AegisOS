@@ -1,3 +1,36 @@
+## Paketkanal: 400 native und 140 Java-Tests
+
+Komponentencommit `49f038cd0f4f3d116933179525cffcf46de5eb1c` besteht am
+**2026-09-30T19:28:05Z alle 400 aktivierten nativen Tests aus 46 Suiten und
+alle 140 Java-Tests**, jeweils Exitcode 0. Die Java-Tests wurden neu ausgeführt.
+Vier reale CE-Integrationstests bleiben deaktiviert. Native Laufzeit: 194327 ms.
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T192344Z-49f038cd-49f038cd-lHeHOX)
+stammt ausschließlich vom SSH-Builder. Download und Prüfsummen wurden über
+GitHub verifiziert; ausgeführt wurde nur im lokalen Mac-QEMU mit Vollimage
+`401793518441d671d3f2a67a5488b1faee4978c4`. Dessen unveränderte SELinux- und
+Plattformkonfiguration wurde mit dem Komponentenstand verglichen. Das
+[Vollimage](https://github.com/simgero/AegisOS/releases/tag/aosp-20260930T184515Z-40179351-fc7aba3a)
+hat zuvor seinen strengen Bootcheck und alle eigenen 393 nativen Tests bestanden.
+
+Die neuen Prüfungen decken begrenzte Paketnachrichten, unveränderte Auftragskennung
+bei partiellen Fehlern, Ablehnung fremder Deskriptoren, vollständige native Reviews
+und strenge Java-Decodierung ab. Veränderte Antwortidentitäten, doppelte JSON-Felder,
+fehlende Effekte, ungültige Abhängigkeitsmarkierungen und verfrühte
+Veröffentlichungsbehauptungen werden zurückgewiesen. Benutzer-, Schlüssel- und
+Kontextnachweise vor und nach dem Lauf sind bytegleich; SELinux bleibt Enforcing.
+
+**Grenze:** Der Produktdienst im 401-Image wurde nicht ersetzt. Die Tests prüfen
+native Fixtures und Java-Komponenten, noch keine vollständige Installation über
+einen öffentlichen Binder-/CLI-Auftrag mit frischer AOSP-Adminfreigabe. Auch
+Produkt-Paketdomänen und der gesamte Zwei-Benutzer-Ablauf bleiben zu beweisen.
+
+Nachweise: `out/components-49f038cd/proof.json` und
+`targeted-tests/{result.json,native.log,java.log,before.json,after.json}` sowie
+`out/full-build-40179351/proof.json` und `boot-1/boot-health.json`.
+Native-Log SHA-256: `0ee4356e5dc850d777e8caaa8cd9149386279aaa5ead7aa8b2ccda2c72af61f7`.
+Java-Log SHA-256: `ad221f21fe3b8b80691c2c8676faf25274d32aa56f1de96f5d4b544ee7360772`.
+
 ## Beschreibbare Kandidaten: 384 native Tests im passenden Vollimage
 
 Commit `c6f43096e5a686faa8666c560c430b2d3b983bd8` besteht am **2026-09-30T18:11:28Z alle 384
