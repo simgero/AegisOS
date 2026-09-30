@@ -1,6 +1,6 @@
 /* Device fixture only: runs the pinned Debian APT/dpkg with synthetic offline
  * packages in an exclusively owned image. No AOSP user, CE, production policy,
- * repository trust or publication claim. No user-selected path/script/option. */
+ * production repository trust or publication claim. No user-selected path/script/option. */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -72,7 +72,7 @@ static const char script[] =
 "mkdir -p /tmp/aegis-plan/lists/partial /tmp/aegis-plan/cache/archives/partial /tmp/aegis-empty.d\n"
 ": > /tmp/aegis-empty.conf\n"
 "cat > /tmp/aegis-plan.sources.list <<'EOF'\n"
-"deb [signed-by=/tmp/aegis-test-key.asc] file:/tmp/aegis-repo ./\n"
+"deb [signed-by=/tmp/aegis-test-key.asc] copy:/tmp/aegis-repo ./\n"
 "EOF\n"
 "cat > /tmp/aegis-plan.conf <<'EOF'\n"
 "Dir::Etc::parts \"/tmp/aegis-empty.d\";\n"
@@ -134,15 +134,31 @@ static const char script[] =
 "cp /tmp/aegis-original-Packages /tmp/aegis-repo/Packages\n"
 "fresh_lists\n"
 "planner update\n"
+"cp /tmp/aegis-repo/Packages /var/log/aegis-plan-Packages\n"
 "status_before=$(sha256sum /var/lib/dpkg/status)\n"
 "planner --simulate --no-download install aegis-probe-app=2\n"
 "cp /run/aegis-apt-plan.json /var/log/aegis-plan-install.json\n"
 "rm /run/aegis-apt-plan.json\n"
 "[ \"$status_before\" = \"$(sha256sum /var/lib/dpkg/status)\" ]\n"
 "[ ! -e /var/log/aegis-probe-scripts.log ]\n"
+"# A valid signed index must reject changed archive bytes before installation.\n"
+"cp /tmp/aegis-repo/aegis-probe-app_2_all.deb /tmp/aegis-original-app.deb\n"
+"printf 'tampered\\n' >> /tmp/aegis-repo/aegis-probe-app_2_all.deb\n"
+"if planner --download-only --yes install aegis-probe-app=2 > /var/log/aegis-plan-archive.log 2>&1; then exit 86; fi\n"
+"grep -qi 'Hash Sum mismatch' /var/log/aegis-plan-archive.log\n"
+"rm -f /run/aegis-apt-plan.json\n"
+"cp /tmp/aegis-original-app.deb /tmp/aegis-repo/aegis-probe-app_2_all.deb\n"
+"planner --download-only --yes install aegis-probe-app=2\n"
+"rm /run/aegis-apt-plan.json\n"
+"for name in app lib; do\n"
+"  cmp /tmp/aegis-plan/cache/archives/aegis-probe-${name}_2_all.deb /tmp/aegis-repo/aegis-probe-${name}_2_all.deb\n"
+"  cp /tmp/aegis-plan/cache/archives/aegis-probe-${name}_2_all.deb /var/log/aegis-plan-${name}.deb\n"
+"done\n"
+"[ \"$status_before\" = \"$(sha256sum /var/lib/dpkg/status)\" ]\n"
+"[ ! -e /var/log/aegis-probe-scripts.log ]\n"
 "if planner --simulate --no-download install aegis-probe-app=999 > /var/log/aegis-plan-missing.log 2>&1; then exit 85; fi\n"
 "[ ! -e /run/aegis-apt-plan.json ]\n"
-"printf 'SIGNED_METADATA_RESOLUTION_OK\\nUNSIGNED_REJECTED\\nSIGNATURE_TAMPER_REJECTED\\nEXPIRED_REJECTED\\nINDEX_TAMPER_REJECTED\\nMISSING_VERSION_REJECTED\\n' > /var/log/aegis-plan-tests.complete\n"
+"printf 'SIGNED_METADATA_RESOLUTION_OK\\nUNSIGNED_REJECTED\\nSIGNATURE_TAMPER_REJECTED\\nEXPIRED_REJECTED\\nINDEX_TAMPER_REJECTED\\nARCHIVE_TAMPER_REJECTED\\nARCHIVE_DOWNLOAD_VERIFIED\\nMISSING_VERSION_REJECTED\\n' > /var/log/aegis-plan-tests.complete\n"
 "mkdir -p /tmp/aegis-sources.d\n"
 "touch /tmp/aegis-sources.list\n"
 "apt() {\n"
@@ -236,7 +252,7 @@ static int fixture_files(int root) {
     for(size_t i=0;i<sizeof(aegis_apt_metadata)/sizeof(aegis_apt_metadata[0]);++i) {
         out=openat(tmp,aegis_apt_metadata[i].name,O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW|O_CLOEXEC,0644);
         if(out<0)goto done;
-        const char* data=aegis_apt_metadata[i].data;size_t size=strlen(data),at=0;
+        const unsigned char* data=aegis_apt_metadata[i].data;size_t size=aegis_apt_metadata[i].size,at=0;
         while(at<size) { ssize_t n=write(out,data+at,size-at);if(n<0&&errno==EINTR)continue;if(n<=0)goto done;at+=n; }
         if(close(out)<0) { out=-1;goto done; }out=-1;
     }

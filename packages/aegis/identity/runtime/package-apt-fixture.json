@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "scope": "TEST_ONLY_NOT_PRODUCT_TRUST",
+  "fingerprint": "C2DC8C2FB8575A771FE65F4D9FC544D4B3434A8D",
+  "index_sha256": "dd773ba40d6528b8e09a1a2ae058846c46c27d02d3c9bf30415e18bf8c047bb6",
+  "release_sha256": "d518784b0590e6d978d4b17a68831e4995a29ddfe6cbb1f637669ee59770c131",
+  "valid_until_unix": 2137795200,
+  "archives": {
+    "aegis-probe-app_1_all.deb": {
+      "bytes": 648,
+      "sha256": "858cea806aa0ea83b7ec7794bee2757b99ea20e9566d83373da0b31320a1b683"
+    },
+    "aegis-probe-app_2_all.deb": {
+      "bytes": 648,
+      "sha256": "d42f7b2cdbf0fa3ab288171b0632bc76ccdce2f374d301496c5593cba45a1446"
+    },
+    "aegis-probe-lib_1_all.deb": {
+      "bytes": 634,
+      "sha256": "323a0429ad6c6148ce8c953a4e173347b9fff535e312cc0e4df77dc431e3cbb3"
+    },
+    "aegis-probe-lib_2_all.deb": {
+      "bytes": 634,
+      "sha256": "1037b9effdc2f43e220ba5d5d05e212dc0c29ef8d409d7b8f048ce82c0c6b916"
+    }
+  }
+}

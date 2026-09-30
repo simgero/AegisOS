@@ -6,6 +6,8 @@
 #include "package_policy_probe.h"
 #include "package_apt_probe.h"
 #include "package_apt_plan.h"
+#include "package_apt_archives.h"
+#include <time.h>
 #include "package_apt_fixture.h"
 #include "sandbox.h"
 #include <linux/capability.h>
@@ -307,7 +309,7 @@ TEST_F(RuntimeNamespace, OfflineAptInstallsUpgradesAndPurgesCompleteCandidate) {
     std::string log = AptImageFixture::read(source, "var/log/aegis-package-test.log");
     fprintf(stderr, "APT isolated candidate log:\n%s\n", log.c_str());
     for(const char* name:{"aegis-plan-unsigned.log","aegis-plan-signature.log","aegis-plan-expired.log",
-                          "aegis-plan-index.log","aegis-plan-missing.log","aegis-plan-install.json",
+                          "aegis-plan-index.log","aegis-plan-archive.log","aegis-plan-missing.log","aegis-plan-install.json",
                           "aegis-plan-upgrade.json","aegis-plan-remove.json"}) {
         auto evidence=AptImageFixture::read(source,(std::string("var/log/")+name).c_str());
         fprintf(stderr,"APT planner evidence %s:\n%s\n",name,evidence.c_str());
@@ -318,7 +320,7 @@ TEST_F(RuntimeNamespace, OfflineAptInstallsUpgradesAndPurgesCompleteCandidate) {
     ASSERT_EQ(0u, result.status);ASSERT_EQ(0u, result.error);
     ASSERT_EQ(CLD_EXITED, exited.code);ASSERT_EQ(0, exited.status);
     ASSERT_EQ("APT_INSTALL_UPGRADE_PURGE_OK\n", AptImageFixture::read(source, "var/log/aegis-package-test.complete"));
-    EXPECT_EQ("SIGNED_METADATA_RESOLUTION_OK\nUNSIGNED_REJECTED\nSIGNATURE_TAMPER_REJECTED\nEXPIRED_REJECTED\nINDEX_TAMPER_REJECTED\nMISSING_VERSION_REJECTED\n",
+    EXPECT_EQ("SIGNED_METADATA_RESOLUTION_OK\nUNSIGNED_REJECTED\nSIGNATURE_TAMPER_REJECTED\nEXPIRED_REJECTED\nINDEX_TAMPER_REJECTED\nARCHIVE_TAMPER_REJECTED\nARCHIVE_DOWNLOAD_VERIFIED\nMISSING_VERSION_REJECTED\n",
         AptImageFixture::read(source,"var/log/aegis-plan-tests.complete"));
     std::vector<aegis::PackageAptEffect> effects;
     auto json=AptImageFixture::read(source,"var/log/aegis-plan-install.json");
@@ -328,6 +330,21 @@ TEST_F(RuntimeNamespace, OfflineAptInstallsUpgradesAndPurgesCompleteCandidate) {
     EXPECT_EQ("2",effects[0].after_version);EXPECT_EQ("2",effects[1].after_version);
     EXPECT_TRUE(effects[0].before_version.empty());EXPECT_TRUE(effects[1].before_version.empty());
     EXPECT_FALSE(effects[0].automatic);EXPECT_TRUE(effects[1].automatic);
+    // These hashes are pinned public outputs from the builder-only signed fixture.
+    // APT has already verified its Release, index, archive acquisition and expiry.
+    android::base::unique_fd index(openat(source,"var/log/aegis-plan-Packages",O_RDONLY|O_NOFOLLOW|O_CLOEXEC));
+    ASSERT_TRUE(index.ok());
+    aegis::PackageRepository repository{"fixture", "d518784b0590e6d978d4b17a68831e4995a29ddfe6cbb1f637669ee59770c131", "dd773ba40d6528b8e09a1a2ae058846c46c27d02d3c9bf30415e18bf8c047bb6", 2137795200};
+    std::vector<aegis::PackageAptArchive> archives;
+    ASSERT_EQ(0,aegis::PackageMatchAptArchives(effects,{{repository,index.get()}},uint64_t(time(nullptr)),&archives))<<strerror(errno);
+    ASSERT_EQ(2u,archives.size());
+    EXPECT_FALSE(archives[0].effect.automatic);EXPECT_TRUE(archives[1].effect.automatic);
+    for(size_t i=0;i<archives.size();++i) {
+        const char* name=i?"var/log/aegis-plan-lib.deb":"var/log/aegis-plan-app.deb";
+        android::base::unique_fd archive(openat(source,name,O_RDONLY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(archive.ok());
+        EXPECT_EQ(0,aegis::PackageVerifyAptArchive(archives[i],archive.get()))<<strerror(errno);
+        EXPECT_EQ("fixture",archives[i].repository);EXPECT_EQ("2",archives[i].effect.after_version);
+    }
     json=AptImageFixture::read(source,"var/log/aegis-plan-upgrade.json");
     ASSERT_EQ(0,aegis::PackageReadAptPlan(json,aegis::PackageAction::Update,"","",&effects))<<json;
     ASSERT_EQ(2u,effects.size());
