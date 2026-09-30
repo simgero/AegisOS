@@ -672,6 +672,11 @@ public final class AegisIdentityService extends SystemService {
                             ? runtime.start(user.id, user.serial, started.job, access.deadlineNanos()).ready
                             : runtime.state(user.id, user.serial, access.deadlineNanos()) == RuntimeBrokerProtocol.READY;
                     if (!ready) throw new IllegalStateException("Runtime is no longer ready");
+                    // Another caller may have opened a terminal while this
+                    // request waited outside admission. Recheck before EXEC.
+                    if (currentTerminal.get() != null || terminals.size() >= MAX_SESSIONS) {
+                        throw new IllegalStateException("Terminal resources are still in use");
+                    }
                     PersonalTerminal terminal = new PersonalTerminal(selected,
                             runtime.execute(user.id, user.serial,
                                     new String[] {"/bin/bash", "-i"}, access.deadlineNanos()));
