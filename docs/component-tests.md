@@ -1,3 +1,65 @@
+## Vollständiger interner Freigabeplan: 76 gezielte Gerätetests
+
+Stand **6caa5bf266edd7471c2feb33476fc7ad1a4e079f** besteht am
+**2026-09-30T06:53:22Z** im lokalen Hintergrund-QEMU **76/76 Tests**
+aus fünf Gruppen, Laufzeit 14,287 Sekunden. Der Komponentenbuild auf
+`aegis-build` kompiliert in 32 Sekunden; Lauf
+`identity-20260930T065040Z-6caa5bf2-HjNp8P`, Invocation
+`75dd0ad29d7641c6b9ba6bfcb9f68717`.
+[Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T065151Z-6caa5bf2-6caa5bf2-S9zIKh).
+
+Die neue Version-2-Bindung verlangt für jede Änderung ausdrücklich Manual oder
+Automatic und für den ursprünglichen APT-Zustand ausdrücklich Absent oder Present.
+Unbekannte Zustände werden abgewiesen. Eine vorhandene leere Datei ist nicht
+dasselbe wie bestätigte Abwesenheit; Größe/Hash und Markierungen beeinflussen den
+Digest. Die unabhängige Python-Referenzcodierung ergibt
+`e2481eca1b14ae560b109c61f22eb9599f4ad8d909ddac6a626c832b69e59949`.
+Der vollständige validierte Plan bleibt für die spätere Prüfung erhalten.
+
+Der echte APT-Test kopiert den tatsächlichen anfänglichen automatischen Paketstatus
+aus seiner geprüften Basis in den getrennten Planer. Simulation und reiner
+Archivabruf lassen diesen Zustand unverändert. Die signiert bezogenen App-/Lib-
+Archive fließen durch `PackageBindAptArchives` in den vollständigen Review und
+die gemeinsame Vorbereitungs-/Publikationskennung. Die automatische Bibliothek
+bleibt erfasst; das Ändern nur dieser Markierung erzeugt einen anderen Digest.
+
+- 19 Archiv-/Bindungsprüfungen, davon fünf neue: vollständige Übernahme,
+  konkurrierende Änderungsliste/FD-Anzahl, vertauschte oder gleich groß veränderte
+  Dateien, abgelaufene Quellen vor IO und Entfernung ohne eingeschleuste Archive.
+- 22 Planprüfungen, davon vier neue: fehlende Markierungen, unterschiedliche
+  Abwesenheit/Leerzustand, Zustandsgrenzen und vollständiger Review-Erhalt.
+- 10 APT-JSON-Parserprüfungen und 24 Namespaceprüfungen bestehen erneut, inklusive
+  der tatsächlichen Signatur-/Fristen-/Index-/Archivablehnungen und der neuen Bindung.
+- Der echte registrierte Vorbereitung-/APT-/Publikationslauf verweigert jetzt
+  zusätzlich einen Start mit geändertem Abhängigkeitsgrund. Der Auftrag bleibt
+  vorbereitet; der ursprüngliche Digest startet weiterhin erfolgreich.
+
+**Grenze:** Das ist ein interner Entwicklerroot-Komponentennachweis, kein
+öffentlicher Installationsbefehl und keine tatsächliche AOSP-Passwortfreigabe.
+Der mechanische Paketarbeiter ist bytegleich und übernimmt automatische
+Markierungen noch nicht. Sein unabhängiger Vergleich mit den erwarteten Effekten,
+produktiver unveränderlicher Planer mit Netzbeschaffung und Auftragslebenszyklus
+sowie öffentliche CLI/Binder-Autorisierung fehlen weiterhin. Der erfolgreiche
+Publikationstest verwendet weiterhin seine getrennten synthetischen Archive.
+Eine geprüfte Planbindung allein autorisiert oder implementiert diese Schritte nicht.
+
+Nur Testbinärdatei und Namespace-Probe unterscheiden sich vom 67er-Stand;
+alle sechs mechanischen Helfer sind bytegleich. Produktgast `c7401f60`, Profil
+`39d29ee1-7587-4223-8e5d-f9872c910554` und Boot
+`112b706c-2e59-4845-8c90-376f1e7fc048` bleiben gleich. Enforcing und Broker aktiv;
+Benutzer, Seriennummern, CE-Sperren, Schlüsselverzeichnisse und Runtime-Cgroups
+sind vorher/nachher bytegleich. Keine Benutzer entsperrt/gelöscht, keine Produkt-
+helfer ersetzt, kein sichtbares Fenster oder Launcherwechsel. Der ältere
+239er-Nativlauf und 130 unveränderte Java-Prüfungen bleiben separate frühere Belege.
+
+Belege im primären Workspace unter `out/components-6caa5bf2/targeted-tests/`:
+
+- `result.json`: `dae6c9fc788abfd39beacd2c29f9fb8787db2bc4e5d94fba8e97f895d39003fe`
+- `native.log`: `4a9491d4d4e0be8cc484af2c061a239aca9630e858fae42c576961ac498e4c5c`
+- native Testbinärdatei: `4191c21816ddddea8786f97cbba744d6f631cff1c1089224292eb6148f7cc4c5`
+- Namespace-Testprobe: `9f336e33e4daa8d0026dedfe371adabeab94010ff223fce59af1e8969b310d00`
+- `before.json` und `after.json`: `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`
+
 ## Signatur bis zu den Archivbytes: 67 gezielte Gerätetests
 
 Stand **d414758476d32e27d6fe6bc2b092da5f87e54319** besteht am

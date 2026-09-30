@@ -1,6 +1,19 @@
 # Phase 1: Implementierungsstand
 
 
+## 2026-09-30: automatische Abhängigkeiten an den Freigabeplan gebunden
+
+Komponentenstand `6caa5bf2` besteht **76/76 gezielte Gerätetests**. Tatsächlich
+verifizierte Archive, automatische/manuale Markierungen und ursprünglicher APT-
+Zustand gehören jetzt zu demselben internen Plan-Digest. Ein veränderter
+Abhängigkeitsgrund wird beim Start eines bereits vorbereiteten Auftrags abgewiesen.
+[Belege und Grenzen](component-tests.md).
+
+Noch fehlen die tatsächliche Übernahme dieser Markierungen im Paketarbeiter,
+der unabhängige Vergleich seiner Effekte mit dem Plan und der produktive
+Planungs-/Beschaffungsweg samt frischer AOSP-Adminfreigabe. Die öffentliche
+Paketverwaltung bleibt inaktiv; Produktgast, Benutzer und Profilpaare bleiben erhalten.
+
 ## 2026-09-30: signierte Paketquelle bis zu den Archivbytes geprüft
 
 Komponentenstand `d4147584` besteht **67/67 gezielte Prüfungen** im lokalen

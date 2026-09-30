@@ -37,7 +37,7 @@ upgrade and purge tests use their separate offline-archive configuration.
 This is a component test, not the production planning authority. It does not
 implement product network acquisition, lifecycle-owned trusted acquisition,
 immutable product planner mounts, request lifecycle/approval, exact execution
-effect comparison or automatic-state propagation into the bound plan. These
+effect comparison or automatic-state propagation during execution. These
 must be integrated before exposing a public package operation.
 
 The index matcher follows the [Debian control-file format](https://www.debian.org/doc/debian-policy/ch-controlfields.html):
@@ -73,12 +73,14 @@ independently requires the archive cache to remain empty around the initial
 simulation, unchanged dpkg state and no maintainer-script output. Actual archive
 acquisition remains a separate `--download-only` operation with unchanged trust.
 
-The next adapter step binds matched archives directly into the version-2 review,
+The adapter binds matched archives directly into the version-2 review,
 including every explicit automatic/manual reason and the original APT
 extended-state receipt. Unspecified state is rejected, and absence differs from
 an existing empty file. The fixture copies the source's actual extended state
 for the planner and requires it to remain unchanged through simulation and
 archive-only acquisition. Real acquired files feed the bound review; a changed
-dependency reason must produce a different approval digest. This new step still
-awaits compilation and device testing. Execution-state propagation, independent
-execution effect checking and public fresh AOSP approval are not implied.
+dependency reason produces a different approval digest. Commit `6caa5bf2` passes
+76/76 focused local-QEMU tests at 2026-09-30T06:53:22Z, including actual archive-to-
+review binding and refusal to start a prepared transaction with changed dependency
+marks. Execution-state propagation, independent execution effect checking and
+public fresh AOSP approval are not implied.
