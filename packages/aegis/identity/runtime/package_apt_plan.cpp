@@ -49,17 +49,14 @@ bool Version(const Json::Value& v,std::string* version,std::string* architecture
     *version=v["version"].asString();*architecture=v["architecture"].asString();return true;
 }
 }
-int PackageReadAptPlan(const std::string& json,PackageAction action,const std::string& package,
-                       const std::string& version,std::vector<PackageAptEffect>* output) {
-    if(!output || !Bounded(json))return Fail(EINVAL);
-    std::string command;
-    if(action==PackageAction::Install)command="install";
-    else if(action==PackageAction::Remove)command="remove";
-    else if(action==PackageAction::Update)command="upgrade";
-    else return Fail(EINVAL);
-    if(action==PackageAction::Update ? !package.empty()||!version.empty()
-       : !PackagePlanNameValid(package) || (!version.empty()&&!PackagePlanVersionValid(version))
-         || (action==PackageAction::Remove&&!version.empty()))return Fail(EINVAL);
+int PackageReadAptOperation(const std::string& json,const std::string& command,
+                            const std::vector<std::string>& arguments,std::vector<PackageAptEffect>* output) {
+    if(!output || !Bounded(json) || (command!="install" && command!="remove" && command!="upgrade")
+       || arguments.size()>64)return Fail(EINVAL);
+    for(const auto& arg:arguments) {
+        if(arg.empty() || arg.size()>256)return Fail(EINVAL);
+        for(unsigned char c:arg)if(c<33 || c>126)return Fail(EINVAL);
+    }
     Json::CharReaderBuilder settings;settings["collectComments"]=false;settings["allowComments"]=false;
     settings["strictRoot"]=true;settings["failIfExtra"]=true;settings["rejectDupKeys"]=true;
     settings["allowTrailingCommas"]=false;settings["allowSpecialFloats"]=false;settings["skipBom"]=false;
@@ -72,10 +69,9 @@ int PackageReadAptPlan(const std::string& json,PackageAction action,const std::s
     if(!Members(p,{"command","search-terms","unknown-packages","packages"},{"command","search-terms","unknown-packages","packages"})
        || p["command"]!=command || !p["search-terms"].isArray() || !p["unknown-packages"].isArray()
        || !p["unknown-packages"].empty() || !p["packages"].isArray() || p["packages"].size()>64)return Fail(EBADMSG);
-    if(action==PackageAction::Update) { if(!p["search-terms"].empty())return Fail(ESTALE); }
-    else if(p["search-terms"].size()!=1 || p["search-terms"][0]!=(package+(version.empty()?"":"="+version)))return Fail(ESTALE);
+    if(p["search-terms"].size()!=arguments.size())return Fail(ESTALE);
+    for(size_t i=0;i<arguments.size();++i)if(p["search-terms"][static_cast<Json::ArrayIndex>(i)]!=arguments[i])return Fail(ESTALE);
     std::vector<PackageAptEffect> result;std::set<std::string> names;std::set<unsigned> ids;
-    bool requested=action==PackageAction::Update || p["packages"].empty();
     for(const auto& item:p["packages"]) {
         if(!Members(item,{"id","name","architecture","mode","automatic","versions"},{"id","name","architecture","mode","automatic","versions"})
            || !Number(item["id"]) || !ids.insert(item["id"].asUInt()).second || !Text(item["name"],128)
@@ -98,15 +94,33 @@ int PackageReadAptPlan(const std::string& json,PackageAction action,const std::s
                || ((mode=="install")!=effect.before_version.empty()))return Fail(EBADMSG);
         }
         if(item["architecture"]=="all" && effect.architecture!="all")return Fail(EBADMSG);
-        if(effect.name==package) {
-            if((action==PackageAction::Remove)!=effect.after_version.empty()
-               || (!version.empty()&&effect.after_version!=version))return Fail(ESTALE);
-            requested=true;
-        }
         result.push_back(std::move(effect));
     }
-    if(!requested)return Fail(ESTALE);
     std::sort(result.begin(),result.end(),[](const auto& a,const auto& b){return a.name<b.name;});
+    *output=std::move(result);return 0;
+}
+int PackageReadAptPlan(const std::string& json,PackageAction action,const std::string& package,
+                       const std::string& version,std::vector<PackageAptEffect>* output) {
+    if(!output || !Bounded(json))return Fail(EINVAL);
+    std::string command;
+    if(action==PackageAction::Install)command="install";
+    else if(action==PackageAction::Remove)command="remove";
+    else if(action==PackageAction::Update)command="upgrade";
+    else return Fail(EINVAL);
+    if(action==PackageAction::Update ? !package.empty()||!version.empty()
+       : !PackagePlanNameValid(package) || (!version.empty()&&!PackagePlanVersionValid(version))
+         || (action==PackageAction::Remove&&!version.empty()))return Fail(EINVAL);
+    std::vector<std::string> arguments;
+    if(action!=PackageAction::Update)arguments.push_back(package+(version.empty()?"":"="+version));
+    std::vector<PackageAptEffect> result;
+    if(PackageReadAptOperation(json,command,arguments,&result)<0)return -1;
+    bool requested=action==PackageAction::Update || result.empty();
+    for(const auto& effect:result)if(effect.name==package) {
+        if((action==PackageAction::Remove)!=effect.after_version.empty()
+           || (!version.empty()&&effect.after_version!=version))return Fail(ESTALE);
+        requested=true;
+    }
+    if(!requested)return Fail(ESTALE);
     *output=std::move(result);return 0;
 }
 }

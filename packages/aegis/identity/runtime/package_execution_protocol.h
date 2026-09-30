@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <string.h>
 #define AEGIS_PACKAGE_EXEC_MAGIC UINT32_C(0x41455045)
-#define AEGIS_PACKAGE_EXEC_VERSION 1u
+#define AEGIS_PACKAGE_EXEC_VERSION 2u
 #define AEGIS_PACKAGE_EXEC_ITEMS 64u
 #define AEGIS_PACKAGE_EXEC_NAME 160u
 #define AEGIS_PACKAGE_EXEC_FDS 3u
@@ -12,6 +12,17 @@
 #define AEGIS_PACKAGE_REMOVE 2u
 #define AEGIS_PACKAGE_EXEC_READY 1u
 #define AEGIS_PACKAGE_EXEC_DONE 2u
+struct aegis_package_expected_effect {
+    char name[129], architecture[8], before[129], after[129];
+    uint8_t reason; // 1 manual, 2 automatic (initial reason for removals).
+};
+struct aegis_package_execution_review {
+    uint32_t present, apt_state_presence; // absent review is developer fixture only
+    uint64_t apt_state_bytes;
+    char initial_status[65], initial_apt_state[65];
+    uint8_t reserved[6];
+    struct aegis_package_expected_effect effects[AEGIS_PACKAGE_EXEC_ITEMS];
+};
 struct aegis_package_execution_request {
     uint32_t magic, version, user, serial;
     uint64_t job;
@@ -19,6 +30,7 @@ struct aegis_package_execution_request {
     char plan[65];
     uint8_t reserved[7];
     char items[AEGIS_PACKAGE_EXEC_ITEMS][AEGIS_PACKAGE_EXEC_NAME];
+    struct aegis_package_execution_review review;
 };
 struct aegis_package_execution_reply {
     uint32_t magic, version, user, serial;
@@ -55,6 +67,35 @@ static inline int aegis_package_item(const char name[AEGIS_PACKAGE_EXEC_NAME], u
     if (kind == AEGIS_PACKAGE_REMOVE && (name[length - 1] == '+' || name[length - 1] == '-')) return 0;
     return kind == AEGIS_PACKAGE_REMOVE || (length > 4 && !strcmp(name + length - 4, ".deb"));
 }
+static inline int aegis_package_fixed(const char *text,size_t size,int empty) {
+    size_t n=strnlen(text,size);
+    if(n==size || (!empty && !n) || !aegis_package_zero(text+n,size-n))return 0;
+    for(size_t i=0;i<n;++i)if((unsigned char)text[i]<33 || (unsigned char)text[i]>126)return 0;
+    return 1;
+}
+static inline int aegis_package_review_valid(const struct aegis_package_execution_request *r) {
+    const struct aegis_package_execution_review *v=&r->review;
+    if(!v->present)return aegis_package_zero(v,sizeof(*v));
+    if(v->present!=1 || !aegis_package_hash(v->initial_status)
+       || !aegis_package_zero(v->reserved,sizeof(v->reserved)))return 0;
+    if(v->apt_state_presence==1) {
+        if(v->apt_state_bytes || !aegis_package_zero(v->initial_apt_state,65))return 0;
+    } else if(v->apt_state_presence!=2 || v->apt_state_bytes>(UINT64_C(16)<<20)
+              || !aegis_package_hash(v->initial_apt_state))return 0;
+    for(unsigned i=0;i<AEGIS_PACKAGE_EXEC_ITEMS;++i) {
+        const struct aegis_package_expected_effect *e=&v->effects[i];
+        if(i>=r->count) { if(!aegis_package_zero(e,sizeof(*e)))return 0;continue; }
+        if(!aegis_package_fixed(e->name,sizeof(e->name),0)
+           || !aegis_package_fixed(e->architecture,sizeof(e->architecture),0)
+           || (strcmp(e->architecture,"all") && strcmp(e->architecture,"arm64"))
+           || !aegis_package_fixed(e->before,sizeof(e->before),1)
+           || !aegis_package_fixed(e->after,sizeof(e->after),1)
+           || !strcmp(e->before,e->after) || (e->reason!=1 && e->reason!=2)
+           || (i && strcmp(v->effects[i-1].name,e->name)>=0)
+           || (r->kind==AEGIS_PACKAGE_REMOVE ? *e->after!=0 : *e->after==0))return 0;
+    }
+    return 1;
+}
 static inline int aegis_package_execution_valid(const struct aegis_package_execution_request *r) {
     if (r->magic != AEGIS_PACKAGE_EXEC_MAGIC || r->version != AEGIS_PACKAGE_EXEC_VERSION
             || r->user < 10 || r->user >= 21473 || r->serial > INT32_MAX
@@ -67,7 +108,7 @@ static inline int aegis_package_execution_valid(const struct aegis_package_execu
         if (!aegis_package_item(r->items[i], r->kind)) return 0;
         for (unsigned j = 0; j < i; j++) if (!strcmp(r->items[i], r->items[j])) return 0;
     }
-    return 1;
+    return aegis_package_review_valid(r);
 }
 #ifdef __cplusplus
 extern "C" {
@@ -81,7 +122,7 @@ int aegis_package_execution_receive(int channel, uint32_t user, uint32_t serial,
                                     int fds[3], struct aegis_package_execution_request *request);
 /* Trusted namespace PID1 core; production entry separately requires the exact
  * package SELinux domain. This never takes an arbitrary command or script. */
-int aegis_package_execute(uint32_t user, uint32_t serial);
+int aegis_package_execute(uint32_t user, uint32_t serial, int permit_unbound_fixture);
 #ifdef __cplusplus
 }
 #endif

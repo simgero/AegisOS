@@ -42,29 +42,6 @@ struct Encoding {
     }
 };
 }
-bool PackagePlanNameValid(const std::string& s) {
-    if(s.size()<2 || s.size()>128 || !((s[0]>='a'&&s[0]<='z')||(s[0]>='0'&&s[0]<='9')))return false;
-    for(char c:s)if(!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='+'||c=='-'||c=='.'))return false;
-    return true;
-}
-bool PackagePlanVersionValid(const std::string& s) {
-    if(s.empty() || s.size()>128)return false;
-    size_t start=0,colon=s.find(':');
-    if(colon!=std::string::npos) {
-        if(!colon)return false;
-        for(size_t i=0;i<colon;++i)if(s[i]<'0'||s[i]>'9')return false;
-        start=colon+1;
-    }
-    if(start>=s.size() || s[start]<'0'||s[start]>'9')return false;
-    for(size_t i=start;i<s.size();++i) {
-        char c=s[i];
-        if(!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')
-             ||c=='.'||c=='+'||c=='-'||c=='~'))return false;
-    }
-    // The bounded adapter accepts a strict subset of Debian versions; the final
-    // hyphen introduces a revision and cannot terminate the version.
-    return s.back()!='-';
-}
 int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* output) {
     if(!output || !now || now>INT64_MAX || p.requester<10 || p.requester>=21473 || p.serial>INT32_MAX
        || !Image(p.source) || !Image(p.shared) || !Hash(p.planner_image_sha256)
@@ -88,7 +65,12 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
     if(p.changes.empty())return Fail(EALREADY); // No job/approval for a no-op.
     PackageBoundPlan bound;auto& prep=bound.preparation;auto& exec=prep.execution;auto& pub=bound.publication;
     exec.requester=p.requester;exec.serial=p.serial;exec.archives=p.action!=PackageAction::Remove;
-    prep.image=p.source;
+    prep.image=p.source;exec.review.present=1;
+    exec.review.apt_state_presence=static_cast<uint32_t>(p.initial_apt_state_presence);
+    exec.review.apt_state_bytes=p.initial_apt_state.bytes;
+    memcpy(exec.review.initial_status,p.initial_status_sha256.c_str(),65);
+    if(p.initial_apt_state_presence==PackageStatePresence::Present)
+        memcpy(exec.review.initial_apt_state,p.initial_apt_state.sha256.c_str(),65);
     pub.requester=p.requester;pub.serial=p.serial;pub.personal=p.personal;pub.create=p.create_store;
     pub.has_previous=p.has_previous;pub.previous=p.previous;pub.derive_source_hash=true;
     pub.candidate.bytes=p.source.bytes;if(p.personal)pub.candidate.shared_base_sha256=p.shared.sha256;
@@ -132,6 +114,12 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
         }
         e.Text(c.name);e.Text(c.architecture);e.Text(c.before_version);e.Text(c.after_version);
         e.Number(static_cast<uint32_t>(c.reason));e.Text(c.repository);e.Input(c.archive);
+        auto& expected=exec.review.effects[exec.items.size()-1];
+        memcpy(expected.name,c.name.c_str(),c.name.size()+1);
+        memcpy(expected.architecture,c.architecture.c_str(),c.architecture.size()+1);
+        memcpy(expected.before,c.before_version.c_str(),c.before_version.size()+1);
+        memcpy(expected.after,c.after_version.c_str(),c.after_version.size()+1);
+        expected.reason=static_cast<uint8_t>(c.reason);
     }
     if(!requested)return Fail(EINVAL);
     std::string digest=e.Digest();if(digest.empty())return Fail(EIO);

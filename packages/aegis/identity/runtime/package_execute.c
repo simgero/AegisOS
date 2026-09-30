@@ -3,6 +3,7 @@
 #endif
 #include "package_execution_protocol.h"
 #include "package_validate.h"
+#include "package_guard.h"
 #include "sandbox.h"
 #include <dirent.h>
 #include <errno.h>
@@ -112,6 +113,53 @@ static int empty_directory(int parent, const char *name) {
 }
 
 
+static int write_all(int fd,const void *bytes,size_t size) {
+    const char *p=bytes;
+    while(size) { ssize_t n=write(fd,p,size);if(n<0&&errno==EINTR)continue;if(n<=0)return -1;p+=n;size-=n; }
+    return 0;
+}
+static int trusted_tools(int root) {
+    // Copy only our already pinned static executable, before package privileges
+    // are dropped. Seal its separate mount readonly before any Debian process.
+    int executable=open("/proc/self/exe",O_RDONLY|O_CLOEXEC);
+    struct stat st;if(executable<0)return -1;
+    if(fstat(executable,&st)<0 || !S_ISREG(st.st_mode) || st.st_size<=0 || st.st_size>(16<<20)) {
+        close(executable);return denied();
+    }
+    const struct parameter parameters[]={{"size","33554432"},{"nr_inodes","32"},{"mode","0755"}};
+    int tree=fresh("tmpfs",parameters,COUNT(parameters),MOUNT_ATTR_NOSUID|MOUNT_ATTR_NODEV);
+    if(tree<0) { close(executable);return -1; }
+    int result=-1,hook=openat(tree,"hook",O_CREAT|O_EXCL|O_WRONLY|O_CLOEXEC,0555),config=-1;
+    if(hook<0)goto done;
+    char buffer[65536];off_t offset=0;
+    while(offset<st.st_size) {
+        ssize_t n=pread(executable,buffer,sizeof(buffer),offset);if(n<0&&errno==EINTR)continue;
+        if(n<=0||write_all(hook,buffer,n)<0)goto done;
+        offset+=n;
+    }
+    if(fchmod(hook,0555)<0)goto done;
+    close(hook);hook=-1;
+    config=openat(tree,"config",O_CREAT|O_EXCL|O_WRONLY|O_CLOEXEC,0444);if(config<0)goto done;
+    static const char policy[]=
+        "Dir::Etc::parts \"/run/aegis-empty.d\";\n"
+        "Dir::Etc::main \"/run/aegis-empty.list\";\n"
+        "Dir::Etc::sourcelist \"/run/aegis-empty.list\";\n"
+        "Dir::Etc::sourceparts \"/run/aegis-empty.d\";\n"
+        "Dir::State::lists \"/run/aegis-empty.d\";\n"
+        "Dir::Cache::pkgcache \"\";\nDir::Cache::srcpkgcache \"\";\n"
+        "APT::Architecture \"arm64\";\nAPT::Architectures { \"arm64\"; };\n"
+        "APT::Install-Recommends \"false\";\nAPT::Install-Suggests \"false\";\n"
+        "APT::Get::AllowUnauthenticated \"false\";\n"
+        "Dpkg::Use-Pty \"false\";\nDpkg::Options { \"--force-confold\"; };\n";
+    if(write_all(config,policy,sizeof(policy)-1)<0)goto done;
+    close(config);config=-1;
+    struct mount_attr attributes={.attr_set=MOUNT_ATTR_RDONLY|MOUNT_ATTR_NOSUID|MOUNT_ATTR_NODEV};
+    if(syscall(SYS_mount_setattr,tree,"",AT_EMPTY_PATH,&attributes,sizeof(attributes))<0
+       || mkdirat(root,"tmp/aegis-trusted",0755)<0 || attach(tree,root,"tmp/aegis-trusted")<0)goto done;
+    result=0;
+done:;
+    int saved=errno;if(hook>=0)close(hook);if(config>=0)close(config);close(tree);close(executable);errno=saved;return result;
+}
 static int construct(int root, int devices) {
     // The initial Android root is trusted. Anchor it explicitly: the strict
     // BENEATH helper intentionally rejects absolute paths, even /mnt.
@@ -132,11 +180,11 @@ static int construct(int root, int devices) {
             || tmpfs_at(root, "tmp", "134217728", "16384", "1777", 0) < 0
             || tmpfs_at(root, "run", "16777216", "4096", "0755", MOUNT_ATTR_NOEXEC) < 0
             || sethostname("aegis-package", 13) < 0 || fchdir(root) < 0) return -1;
-    return 0;
+    return trusted_tools(root);
 }
 static int mount_inventory(void) {
     const char *expected[] = {"/", "/dev", "/proc", "/dev/pts",
-        "/dev/mqueue", "/dev/shm", "/tmp", "/run"};
+        "/dev/mqueue", "/dev/shm", "/tmp", "/run", "/tmp/aegis-trusted"};
     unsigned seen = 0;
     FILE *file = fopen("/proc/self/mountinfo", "re");
     if (!file) return -1;
@@ -173,6 +221,7 @@ static int readback(void) {
         {"/dev/shm", TMPFS_MAGIC, restricted, ST_RDONLY},
         {"/tmp", TMPFS_MAGIC, ST_NOSUID | ST_NODEV, ST_RDONLY | ST_NOEXEC},
         {"/run", TMPFS_MAGIC, restricted, ST_RDONLY},
+        {"/tmp/aegis-trusted", TMPFS_MAGIC, ST_RDONLY | ST_NOSUID | ST_NODEV, ST_NOEXEC},
     };
     for (unsigned i = 0; i < COUNT(views); i++) {
         struct statfs fs;
@@ -225,9 +274,9 @@ static int regular_at(int root, const char *name, int flags, unsigned mode) {
     }
     return fd;
 }
-enum package_command { PACKAGE_ACTION, PACKAGE_CHECK, PACKAGE_AUDIT, PACKAGE_VERIFY, PACKAGE_VERIFY_BASELINE };
+enum package_command { PACKAGE_ACTION, PACKAGE_CHECK, PACKAGE_AUDIT, PACKAGE_VERIFY, PACKAGE_VERIFY_BASELINE, PACKAGE_SIMULATE, PACKAGE_MARK_AUTO, PACKAGE_MARK_MANUAL };
 static void log_name(char name[128], uint64_t job, enum package_command command) {
-    const char *suffix=command==PACKAGE_VERIFY_BASELINE ? "-verify-before" : command==PACKAGE_CHECK ? "-check" : command==PACKAGE_AUDIT ? "-audit" : command==PACKAGE_VERIFY ? "-verify" : "";
+    const char *suffix=command==PACKAGE_SIMULATE ? "-simulate" : command==PACKAGE_MARK_AUTO ? "-auto" : command==PACKAGE_MARK_MANUAL ? "-manual" : command==PACKAGE_VERIFY_BASELINE ? "-verify-before" : command==PACKAGE_CHECK ? "-check" : command==PACKAGE_AUDIT ? "-audit" : command==PACKAGE_VERIFY ? "-verify" : "";
     snprintf(name,128,"var/log/aegis-package-%llu%s.log",(unsigned long long)job,suffix);
 }
 static _Noreturn void apt(const struct aegis_package_execution_request *r, enum package_command command) {
@@ -254,8 +303,12 @@ static _Noreturn void apt(const struct aegis_package_execution_request *r, enum 
     args[n++] = "-o";args[n++] = "Dpkg::Options::=--force-confold";
     args[n++] = "-o";args[n++] = "Dir::Etc::sourcelist=/run/aegis-empty.list";
     args[n++] = "-o";args[n++] = "Dir::Etc::sourceparts=/run/aegis-empty.d";
+    if(command==PACKAGE_SIMULATE) {
+        args[n++]="--simulate";args[n++]="-o";
+        args[n++]="AptCli::Hooks::Install::=/tmp/aegis-trusted/hook --apt-plan-hook";
+    }
     args[n++] = command==PACKAGE_CHECK ? "check" : r->kind == AEGIS_PACKAGE_ARCHIVES ? "install" : "remove";
-    for (unsigned i = 0; command==PACKAGE_ACTION && i < r->count; i++) {
+    for (unsigned i = 0; (command==PACKAGE_ACTION || command==PACKAGE_SIMULATE) && i < r->count; i++) {
         if (r->kind == AEGIS_PACKAGE_ARCHIVES) {
             snprintf(paths[i], sizeof(paths[i]), "/var/cache/apt/archives/%s", r->items[i]);
             args[n++] = paths[i];
@@ -266,9 +319,15 @@ static _Noreturn void apt(const struct aegis_package_execution_request *r, enum 
         args[n++]=command==PACKAGE_AUDIT ? "--audit" : "--verify";
         if (command==PACKAGE_VERIFY || command==PACKAGE_VERIFY_BASELINE) args[n++]="--verify-format=rpm";
     }
+    if(command==PACKAGE_MARK_AUTO || command==PACKAGE_MARK_MANUAL) {
+        n=0;args[n++]="/usr/bin/apt-mark";args[n++]=command==PACKAGE_MARK_AUTO?"auto":"manual";
+        for(unsigned i=0;i<r->count;++i)if(*r->review.effects[i].after
+                && r->review.effects[i].reason==(command==PACKAGE_MARK_AUTO?2:1))args[n++]=(char*)r->review.effects[i].name;
+        if(n==2)_exit(0);
+    }
     args[n] = NULL;
     char *env[] = {"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C", "LC_ALL=C", "HOME=/root",
-                   "DEBIAN_FRONTEND=noninteractive", NULL};
+                   "DEBIAN_FRONTEND=noninteractive", "APT_CONFIG=/tmp/aegis-trusted/config", NULL};
     execve(args[0], args, env);_exit(127);
 }
 // Only our independently verified PID namespace is visible here. PID1 cannot
@@ -381,7 +440,7 @@ static int setup_failed(const struct aegis_package_execution_request *request) {
         (void)reply(request, AEGIS_PACKAGE_EXEC_READY, 0, (uint32_t)error);
     return 125;
 }
-int aegis_package_execute(uint32_t user, uint32_t serial) {
+int aegis_package_execute(uint32_t user, uint32_t serial, int permit_unbound_fixture) {
     if (aegis_check_package_namespaces(user) < 0) return 78;
     int fds[3] = {-1, -1, -1};
     struct aegis_package_execution_request request = {0};
@@ -394,6 +453,7 @@ int aegis_package_execute(uint32_t user, uint32_t serial) {
             || directory(fds[0], EXT4_SUPER_MAGIC, ST_NOSUID | ST_NODEV, ST_RDONLY | ST_NOEXEC) < 0
             || directory(fds[1], TMPFS_MAGIC, ST_RDONLY | ST_NOSUID | ST_NOEXEC, ST_NODEV) < 0
             || construct(fds[0], fds[1]) < 0) return setup_failed(&request);
+    if(!request.review.present && !permit_unbound_fixture) { errno=EPERM;return setup_failed(&request); }
     for (int i = 0; i < 3; i++) close(fds[i]);
     if (syscall(SYS_close_range, 4u, UINT_MAX, 0u) < 0
             || syscall(SYS_pivot_root, ".", ".") < 0 || umount2(".", MNT_DETACH) < 0
@@ -414,16 +474,30 @@ int aegis_package_execute(uint32_t user, uint32_t serial) {
     alarm(0);
     uint32_t result=0;
     struct verification_baseline baseline={0};
-    uint32_t error=run_command(&request,PACKAGE_VERIFY_BASELINE,&result);
+    struct aegis_package_guard *guard=NULL;
+    uint32_t error=0;
+    if(request.review.present && aegis_package_guard_begin(root,&request,&guard)<0)error=errno;
+    if(!error)error=run_command(&request,PACKAGE_VERIFY_BASELINE,&result);
     if (!error) {
         if (verify_output(root,request.job,result,&baseline,1)<0) error=errno;
         else result=0;
+    }
+    if(!error && !result && guard) {
+        error=run_command(&request,PACKAGE_SIMULATE,&result);
+        if(!error && !result) {
+            int fd=open("/run/aegis-apt-plan.json",O_RDONLY|O_NOFOLLOW|O_CLOEXEC|O_NONBLOCK);
+            if(fd<0)error=errno;
+            else { if(aegis_package_guard_simulation(guard,fd)<0)error=errno;close(fd); }
+        }
     }
     if (!error && !result) error=run_command(&request,PACKAGE_ACTION,&result);
     // Scripts may replace a packaged regular file with a FIFO. Reject special
     // nodes and invalid account metadata BEFORE dpkg opens candidate files for
     // verification, then validate again after the consistency commands finish.
     if (!error && !result && aegis_package_validate(root)<0) error=errno;
+    if(!error && !result && guard)error=run_command(&request,PACKAGE_MARK_AUTO,&result);
+    if(!error && !result && guard)error=run_command(&request,PACKAGE_MARK_MANUAL,&result);
+    if(!error && !result && guard && aegis_package_guard_finish(guard,root)<0)error=errno;
     if (!error && !result) error=run_command(&request,PACKAGE_CHECK,&result);
     if (!error && !result) error=run_command(&request,PACKAGE_AUDIT,&result);
     if (!error && !result && audit_empty(root,request.job)<0) error=errno;
@@ -436,6 +510,8 @@ int aegis_package_execute(uint32_t user, uint32_t serial) {
     }
     baseline_free(&baseline);
     if (!error && !result && aegis_package_validate(root)<0) error=errno;
+    if(!error && !result && guard && aegis_package_guard_finish(guard,root)<0)error=errno;
+    aegis_package_guard_free(guard);
     if (syncfs(root) < 0 && !error) error = errno;
     close(root);
     // PID1 exit tears down any script descendants; owning broker still must

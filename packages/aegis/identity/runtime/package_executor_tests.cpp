@@ -25,6 +25,30 @@
 using namespace aegis;
 using android::base::unique_fd;
 namespace {
+std::string InputHash(const std::string& value);
+std::string ControlFile(int root,const char* path) {
+    unique_fd fd(openat(root,path,O_RDONLY|O_CLOEXEC|O_NOFOLLOW));
+    if(!fd.ok())return "<unavailable>";
+    std::string out;char buffer[8192];
+    for(;;) {
+        ssize_t n=TEMP_FAILURE_RETRY(read(fd.get(),buffer,sizeof(buffer)));
+        if(n<0)return "<unavailable>";
+        if(!n)return out;
+        out.append(buffer,n);if(out.size()>(64u<<20))return "<unavailable>";
+    }
+}
+void InitialReview(int root,aegis_package_execution_review* review) {
+    auto status=ControlFile(root,"var/lib/dpkg/status");ASSERT_NE("<unavailable>",status);
+    review->present=1;memcpy(review->initial_status,InputHash(status).c_str(),65);
+    struct stat st;
+    if(fstatat(root,"var/lib/apt/extended_states",&st,AT_SYMLINK_NOFOLLOW)<0) {
+        ASSERT_EQ(ENOENT,errno);review->apt_state_presence=1;
+    } else {
+        auto state=ControlFile(root,"var/lib/apt/extended_states");ASSERT_NE("<unavailable>",state);
+        review->apt_state_presence=2;review->apt_state_bytes=state.size();
+        memcpy(review->initial_apt_state,InputHash(state).c_str(),65);
+    }
+}
 uint64_t Deadline() {
     timespec t;EXPECT_EQ(0,clock_gettime(CLOCK_MONOTONIC,&t));
     return uint64_t(t.tv_sec)*1000000000+t.tv_nsec+UINT64_C(9000000000);
@@ -134,6 +158,26 @@ class RuntimePackageExecutor : public ::testing::Test {
             plan.items.push_back(name);
         }
     }
+    void Review(int before,int after) {
+        plan.review={};InitialReview(candidate.get(),&plan.review);ASSERT_FALSE(HasFatalFailure());
+        std::sort(plan.items.begin(),plan.items.end());
+        for(unsigned i=0;i<2;i++) {
+            auto& e=plan.review.effects[i];
+            strcpy(e.name,i?"aegis-exec-lib":"aegis-exec-app");strcpy(e.architecture,"all");
+            if(before)snprintf(e.before,sizeof(e.before),"%d",before);
+            if(after)snprintf(e.after,sizeof(e.after),"%d",after);
+            e.reason=i?2:1;
+        }
+        ASSERT_EQ(0,PackageExecutionCheck(plan));
+    }
+    void RejectedBeforeScripts(int expected) {
+        ASSERT_EQ(0,Start())<<strerror(errno);PackageExecutionResult result;
+        ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+        EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);
+        EXPECT_EQ(expected,result.error)<<"status="<<result.status;
+        EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),"var/log/aegis-exec-script"));
+        EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),"usr/bin/aegis-exec-app"));
+    }
     int Start() { return PackageExecutorStart(parent.get(),stage.get(),candidate.get(),helper.get(),plan,Deadline(),&worker); }
     void Completed() {
         int before=CountFDs();ASSERT_GT(before,0);
@@ -143,7 +187,8 @@ class RuntimePackageExecutor : public ::testing::Test {
             << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+".log").c_str())
             << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-check.log").c_str())
             << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-audit.log").c_str())
-            << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-verify.log").c_str());
+            << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-verify.log").c_str())
+            << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-simulate.log").c_str());
         EXPECT_EQ(0,result.status);EXPECT_EQ(0,result.error);EXPECT_EQ(nullptr,worker);EXPECT_EQ(before,CountFDs());
     }
     void Remount() { candidate.reset();candidate.reset(image->remount());ASSERT_TRUE(candidate.ok()) << strerror(errno);plan.job++; }
@@ -217,6 +262,48 @@ TEST_F(RuntimePackageExecutor, ExecutesActualInstallUpgradeRemoveAndClosesOwnedR
     // Defined remove action keeps the conffile; purge is a distinct policy.
     EXPECT_EQ("personal=kept\n",AptImageFixture::read(candidate.get(),"etc/aegis-exec.conf"));
     EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-exec-script").find("prerm\n"));
+}
+TEST_F(RuntimePackageExecutor, ReviewedInstallUpgradeRemovePreservesConffilesAndDependencyMarks) {
+    Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
+    auto automatic=ControlFile(candidate.get(),"var/lib/apt/extended_states");
+    EXPECT_NE(std::string::npos,automatic.find("Package: aegis-exec-lib\n"));
+    EXPECT_EQ(std::string::npos,automatic.find("Package: aegis-exec-app\n"));
+    Remount();ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,WriteAt(candidate.get(),"etc/aegis-exec.conf","local=preserved\n",O_TRUNC));
+    Archives(2);Review(1,2);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
+    EXPECT_EQ("local=preserved\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));
+    EXPECT_EQ("2\n",ControlFile(candidate.get(),"usr/share/aegis-exec-library"));
+    automatic=ControlFile(candidate.get(),"var/lib/apt/extended_states");
+    EXPECT_NE(std::string::npos,automatic.find("Package: aegis-exec-lib\n"));
+    EXPECT_EQ(std::string::npos,automatic.find("Package: aegis-exec-app\n"));
+    Remount();ASSERT_FALSE(HasFatalFailure());plan.archives=false;plan.items={"aegis-exec-app","aegis-exec-lib"};
+    Review(2,0);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
+    EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),"usr/bin/aegis-exec-app"));
+    EXPECT_EQ("local=preserved\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));
+}
+TEST_F(RuntimePackageExecutor, ChangedInitialStatusRejectsBeforeAnyPackageScript) {
+    Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());
+    plan.review.initial_status[0]=plan.review.initial_status[0]=='a'?'b':'a';
+    RejectedBeforeScripts(ESTALE);
+}
+TEST_F(RuntimePackageExecutor, ChangedInitialAutomaticStateRejectsBeforeAnyPackageScript) {
+    Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());
+    auto state=ControlFile(candidate.get(),"var/lib/apt/extended_states");
+    if(state=="<unavailable>")state="";
+    ASSERT_EQ(0,WriteAt(candidate.get(),"var/lib/apt/extended_states",state+"\n",O_CREAT|O_TRUNC));
+    RejectedBeforeScripts(ESTALE);
+}
+TEST_F(RuntimePackageExecutor, DifferentSimulatedVersionRejectsBeforeAnyPackageScript) {
+    Archives(1);Review(0,2);ASSERT_FALSE(HasFatalFailure());RejectedBeforeScripts(ESTALE);
+}
+TEST_F(RuntimePackageExecutor, MaintainerScriptCannotReplaceTrustedHookOrConfiguration) {
+    Archives(1,false,
+        "if echo changed > /tmp/aegis-trusted/config; then exit 81; fi\n"
+        "if echo changed > /tmp/aegis-trusted/hook; then exit 82; fi\n"
+        "if rm /tmp/aegis-trusted/config; then exit 83; fi\n"
+        "echo readonly-confirmed > /var/log/aegis-trusted-proof\n");
+    Review(0,1);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
+    EXPECT_EQ("readonly-confirmed\n",ControlFile(candidate.get(),"var/log/aegis-trusted-proof"));
 }
 // Each policy violation is written by a real successfully completing Debian
 // maintainer script in the exclusive candidate, not by a mocked result flag.
@@ -647,7 +734,7 @@ class RuntimePackageTransaction : public RuntimePackagePreparation {
         unique_fd selected=Selection(result,personal);ASSERT_TRUE(selected.ok());
         NewStage();ASSERT_FALSE(HasFatalFailure());
         auto check=plan;check.execution.job=100+next_stage;check.execution.archives=false;
-        check.execution.items={"aegis-exec-app"};check.archives.clear();
+        check.execution.items={"aegis-exec-app"};check.execution.review={};check.archives.clear();
         check.image={result.generation.bytes,result.generation.image_sha256};
         ASSERT_EQ(0,PackagePreparerStart(parent.get(),stage.get(),selected.get(),prepare_helper.get(),{},check,&worker));
         PackagePreparationResult prepared;int fd=-1;
@@ -656,6 +743,11 @@ class RuntimePackageTransaction : public RuntimePackagePreparation {
         EXPECT_EQ(removed?"<unavailable>":"#!/bin/sh\necho app-"+std::to_string(version)+"\n",
             AptImageFixture::read(mount.get(),"usr/bin/aegis-exec-app"));
         EXPECT_EQ("version="+std::to_string(version)+"\n",AptImageFixture::read(mount.get(),"etc/aegis-exec.conf"));
+        if(plan.execution.review.present && !removed) {
+            auto automatic=ControlFile(mount.get(),"var/lib/apt/extended_states");
+            EXPECT_NE(std::string::npos,automatic.find("Package: aegis-exec-lib\n"));
+            EXPECT_EQ(std::string::npos,automatic.find("Package: aegis-exec-app\n"));
+        }
         mount.reset();NoLoop();
     }
     void Next(const PackageExecutionResult& previous,int version,bool remove=false) {
@@ -1387,11 +1479,17 @@ TEST_F(RuntimePackageTransaction, BoundPlanFeedsRealAptAndRejectsDifferentApprov
     PackageResolvedPlan resolved;resolved.initial_apt_state_presence=PackageStatePresence::Absent;resolved.requester=10;resolved.serial=42;resolved.create_store=true;
     resolved.requested_package="aegis-exec-app";resolved.requested_version="1";
     resolved.source=resolved.shared=plan.image;resolved.planner_image_sha256=plan.image.sha256;
-    // Fixture evidence only: these synthetic hashes are NOT signed metadata.
-    resolved.policy_sha256=std::string(64,'a');resolved.initial_status_sha256=std::string(64,'b');
+    Ready();ASSERT_FALSE(HasFatalFailure());
+    aegis_package_execution_review initial={};InitialReview(mount.get(),&initial);ASSERT_FALSE(HasFatalFailure());
+    resolved.initial_status_sha256=initial.initial_status;
+    resolved.initial_apt_state_presence=static_cast<PackageStatePresence>(initial.apt_state_presence);
+    if(initial.apt_state_presence==2)resolved.initial_apt_state={initial.apt_state_bytes,initial.initial_apt_state};
+    mount.reset();NoLoop();ASSERT_FALSE(HasFailure());NewStage();ASSERT_FALSE(HasFatalFailure());
+    // Repository fixture hashes remain synthetic, not signed metadata evidence.
+    resolved.policy_sha256=std::string(64,'a');
     resolved.repositories={{"fixture",std::string(64,'c'),std::string(64,'d'),2000}};
     resolved.changes={{"aegis-exec-app","all","","1","fixture",plan.archives[1],PackageInstallReason::Manual},
-                      {"aegis-exec-lib","all","","1","fixture",plan.archives[0],PackageInstallReason::Manual}};
+                      {"aegis-exec-lib","all","","1","fixture",plan.archives[0],PackageInstallReason::Automatic}};
     PackageBoundPlan bound;ASSERT_EQ(0,PackageBindResolvedPlan(resolved,1000,&bound))<<strerror(errno);
     plan=bound.preparation;target=bound.publication;std::swap(archives[0],archives[1]);
     ASSERT_EQ(0,BrokerPrepareTransaction(broker,plan,target,parent.get(),stage.get(),store.get(),source.get(),
@@ -1402,9 +1500,8 @@ TEST_F(RuntimePackageTransaction, BoundPlanFeedsRealAptAndRejectsDifferentApprov
     ASSERT_NE(other.preparation.execution.plan_sha256,plan.execution.plan_sha256);
     EXPECT_EQ(-1,BrokerStartExecution(broker,10,42,job,other.preparation.execution.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
     // A dependency-mark change also invalidates the same fresh approval target.
-    // This is only a binding rejection; the old mechanical executor still does
-    // not apply automatic marks and is not a public product package endpoint.
-    changed=resolved;changed.changes[1].reason=PackageInstallReason::Automatic;
+    // The accepted worker subsequently applies and verifies the sealed marks.
+    changed=resolved;changed.changes[1].reason=PackageInstallReason::Manual;
     ASSERT_EQ(0,PackageBindResolvedPlan(changed,1000,&other));
     EXPECT_EQ(-1,BrokerStartExecution(broker,10,42,job,other.preparation.execution.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
     PublicationState state;PackageExecutionResult result;

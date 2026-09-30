@@ -246,16 +246,26 @@ cc_library_static {
 cc_binary {
     name: "aegis-package-execute",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/package_exec_main.c", "runtime/package_execute.c", "runtime/package_validate.c", "runtime/package_execution_control.c", "runtime/sandbox.c"],
+    srcs: ["runtime/package_exec_main.c", "runtime/package_execute.c", "runtime/package_validate.c", "runtime/package_execution_control.c", "runtime/sandbox.c", "runtime/package_guard.cpp", "runtime/package_apt_hook.c"],
     static_executable: true,
-    stl: "none",
+    static_libs: ["libaegis-package-metadata", "libjsoncpp", "libcrypto"],
+    stl: "libc++_static",
 }
 cc_binary {
     name: "aegis-package-execute-probe",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/package_exec_probe.c", "runtime/package_execute.c", "runtime/package_validate.c", "runtime/package_execution_control.c", "runtime/sandbox.c"],
+    srcs: ["runtime/package_exec_probe.c", "runtime/package_execute.c", "runtime/package_validate.c", "runtime/package_execution_control.c", "runtime/sandbox.c", "runtime/package_guard.cpp", "runtime/package_apt_hook.c"],
     static_executable: true,
-    stl: "none",
+    static_libs: ["libaegis-package-metadata", "libjsoncpp", "libcrypto"],
+    stl: "libc++_static",
+}
+
+cc_library_static {
+    name: "libaegis-package-metadata",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/package_apt_plan.cpp", "runtime/package_syntax.cpp"],
+    static_libs: ["libjsoncpp"],
+    export_include_dirs: ["runtime"],
 }
 
 // Bounded binding of trusted resolved metadata to preparation + publication.
@@ -263,8 +273,8 @@ cc_binary {
 cc_library_static {
     name: "libaegis-package-plan",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/package_plan.cpp", "runtime/package_apt_plan.cpp", "runtime/package_apt_archives.cpp"],
-    static_libs: ["libaegis-package-preparer", "libaegis-package-publisher", "libjsoncpp"],
+    srcs: ["runtime/package_plan.cpp", "runtime/package_apt_archives.cpp"],
+    static_libs: ["libaegis-package-preparer", "libaegis-package-publisher", "libaegis-package-metadata"],
     shared_libs: ["libcrypto"],
     export_include_dirs: ["runtime"],
 }
@@ -273,7 +283,7 @@ cc_library_static {
 cc_test {
     name: "AegisRuntimeNativeTests",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/memory_group_tests.cpp", "runtime/broker_protocol_tests.cpp", "runtime/base_image_tests.cpp", "runtime/ce_tests.cpp", "runtime/setup_tests.cpp", "runtime/exec_tests.cpp", "runtime/package_store_tests.cpp", "runtime/package_publisher_tests.cpp", "runtime/package_executor_tests.cpp", "runtime/package_plan_tests.cpp", "runtime/package_apt_plan_tests.cpp", "runtime/package_apt_archives_tests.cpp", "runtime/setup_control.c", "runtime/control.c", "runtime/sandbox.c"],
+    srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/memory_group_tests.cpp", "runtime/broker_protocol_tests.cpp", "runtime/base_image_tests.cpp", "runtime/ce_tests.cpp", "runtime/setup_tests.cpp", "runtime/exec_tests.cpp", "runtime/package_store_tests.cpp", "runtime/package_publisher_tests.cpp", "runtime/package_executor_tests.cpp", "runtime/package_guard_tests.cpp", "runtime/package_guard.cpp", "runtime/package_plan_tests.cpp", "runtime/package_apt_plan_tests.cpp", "runtime/package_apt_archives_tests.cpp", "runtime/setup_control.c", "runtime/control.c", "runtime/sandbox.c"],
     header_libs: ["libcutils_headers"],
     static_libs: ["libaegis-runtime-child", "libaegis-runtime-namespace", "libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-runtime-broker-owner", "libaegis-runtime-base", "libaegis-runtime-broker-cgroup", "libaegis-package-store", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libaegis-package-plan", "libbase", "libjsoncpp"],
     // The test process uses the same system libcrypto as the broker. The

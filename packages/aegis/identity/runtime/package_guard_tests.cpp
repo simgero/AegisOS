@@ -1,0 +1,107 @@
+// Compile on aegis-build, run only in local Android QEMU. Private synthetic
+// control files exercise the independent native registry parser and comparison.
+#include "package_guard.h"
+#include <gtest/gtest.h>
+#include <openssl/sha.h>
+#include <android-base/unique_fd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <string>
+using android::base::unique_fd;
+namespace {
+std::string Hash(const std::string& s) {
+    unsigned char bytes[32];char text[65];SHA256(reinterpret_cast<const unsigned char*>(s.data()),s.size(),bytes);
+    for(unsigned i=0;i<32;i++)snprintf(text+2*i,3,"%02x",bytes[i]);return text;
+}
+const std::string base="Package: base-one\nStatus: hold ok installed\nArchitecture: arm64\nVersion: 1\nDescription: retained\n folded description\n\n";
+const std::string added="Package: test-app\nStatus: install ok installed\nArchitecture: all\nVersion: 2\n\n";
+const std::string base_auto="Package: base-one\nArchitecture: arm64\nAuto-Installed: 1\n\n";
+const std::string app_auto="Package: test-app\nArchitecture: arm64\nAuto-Installed: 1\n\n";
+class PackageExecutionGuard : public ::testing::Test {
+ protected:
+    unique_fd root;
+    std::string directory;
+    aegis_package_execution_request request={};
+    aegis_package_guard* guard=nullptr;
+    void Write(const char* path,const std::string& data) {
+        unique_fd fd(openat(root.get(),path,O_CREAT|O_TRUNC|O_WRONLY|O_NOFOLLOW|O_CLOEXEC,0644));
+        ASSERT_TRUE(fd.ok());ASSERT_EQ(static_cast<ssize_t>(data.size()),write(fd.get(),data.data(),data.size()));
+    }
+    void SetUp() override {
+        ASSERT_EQ(0u,getuid());char path[]="/data/local/tmp/aegis-native-guard-XXXXXX";
+        ASSERT_NE(nullptr,mkdtemp(path));directory=path;root.reset(open(path,O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(root.ok());
+        for(const char* d:{"var","var/lib","var/lib/dpkg","var/lib/apt"})ASSERT_EQ(0,mkdirat(root.get(),d,0755));
+        Write("var/lib/dpkg/status",base);Write("var/lib/apt/extended_states",base_auto);ASSERT_FALSE(HasFatalFailure());
+        request.magic=AEGIS_PACKAGE_EXEC_MAGIC;request.version=AEGIS_PACKAGE_EXEC_VERSION;
+        request.user=10;request.serial=42;request.job=1;request.kind=AEGIS_PACKAGE_ARCHIVES;request.count=1;
+        strcpy(request.plan,std::string(64,'a').c_str());strcpy(request.items[0],"test-app_2_all.deb");
+        auto& r=request.review;r.present=1;r.apt_state_presence=2;r.apt_state_bytes=base_auto.size();
+        strcpy(r.initial_status,Hash(base).c_str());strcpy(r.initial_apt_state,Hash(base_auto).c_str());
+        strcpy(r.effects[0].name,"test-app");strcpy(r.effects[0].architecture,"all");strcpy(r.effects[0].after,"2");r.effects[0].reason=2;
+        ASSERT_TRUE(aegis_package_execution_valid(&request));
+    }
+    void Begin() { ASSERT_EQ(0,aegis_package_guard_begin(root.get(),&request,&guard))<<strerror(errno);ASSERT_NE(nullptr,guard); }
+    void Finish(const std::string& status,const std::string& state,int expected) {
+        Write("var/lib/dpkg/status",status);Write("var/lib/apt/extended_states",state);ASSERT_FALSE(HasFatalFailure());
+        int rc=aegis_package_guard_finish(guard,root.get());
+        EXPECT_EQ(expected? -1:0,rc);if(expected)EXPECT_EQ(expected,errno);
+    }
+    void TearDown() override {
+        aegis_package_guard_free(guard);
+        if(root.ok()) {
+            // Only the fixed files in this exclusively owned test directory.
+            for(const char* p:{"var/lib/dpkg/status","var/lib/apt/extended_states"})EXPECT_EQ(0,unlinkat(root.get(),p,0));
+            for(const char* p:{"var/lib/dpkg","var/lib/apt","var/lib","var"})EXPECT_EQ(0,unlinkat(root.get(),p,AT_REMOVEDIR));
+            root.reset();EXPECT_EQ(0,rmdir(directory.c_str()));
+        }
+    }
+};
+TEST_F(PackageExecutionGuard, ExactChangePreservesUnrelatedHoldAndAutomaticState) {
+    Begin();ASSERT_FALSE(HasFatalFailure());Finish(base+added,base_auto+app_auto,0);
+}
+TEST_F(PackageExecutionGuard, SameSizeChangedInitialStatusCannotUseOldApproval) {
+    auto changed=base;changed[changed.find("Version: 1")+9]='9';ASSERT_EQ(base.size(),changed.size());
+    Write("var/lib/dpkg/status",changed);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(nullptr,guard);
+}
+TEST_F(PackageExecutionGuard, DuplicateCaseInsensitiveSelectedFieldRejectsEvenWithMatchingDigest) {
+    auto bad=base;bad.insert(bad.size()-1,"vErSiOn: 1\n");Write("var/lib/dpkg/status",bad);
+    strcpy(request.review.initial_status,Hash(bad).c_str());
+    EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(EBADMSG,errno);EXPECT_EQ(nullptr,guard);
+}
+TEST_F(PackageExecutionGuard, UnexpectedInstalledPackageRejects) {
+    Begin();ASSERT_FALSE(HasFatalFailure());
+    Finish(base+added+"Package: extra-package\nStatus: install ok installed\nArchitecture: all\nVersion: 1\n\n",base_auto+app_auto,ESTALE);
+}
+TEST_F(PackageExecutionGuard, ChangedUnrelatedVersionRejects) {
+    Begin();ASSERT_FALSE(HasFatalFailure());auto changed=base;changed[changed.find("Version: 1")+9]='9';
+    Finish(changed+added,base_auto+app_auto,ESTALE);
+}
+TEST_F(PackageExecutionGuard, UnapprovedHoldRemovalRejects) {
+    Begin();ASSERT_FALSE(HasFatalFailure());auto changed=base;changed.replace(changed.find("hold ok"),4,"install");
+    Finish(changed+added,base_auto+app_auto,ESTALE);
+}
+TEST_F(PackageExecutionGuard, HalfConfiguredResultRejects) {
+    Begin();ASSERT_FALSE(HasFatalFailure());auto changed=added;changed.replace(changed.find("ok installed"),12,"ok half-configured");
+    Finish(base+changed,base_auto+app_auto,EBADMSG);
+}
+TEST_F(PackageExecutionGuard, LostUnrelatedAutomaticMarkRejects) {
+    Begin();ASSERT_FALSE(HasFatalFailure());Finish(base+added,app_auto,ESTALE);
+}
+TEST_F(PackageExecutionGuard, MissingApprovedAutomaticMarkRejects) {
+    Begin();ASSERT_FALSE(HasFatalFailure());Finish(base+added,base_auto,ESTALE);
+}
+TEST_F(PackageExecutionGuard, DuplicateAutomaticRecordRejects) {
+    Begin();ASSERT_FALSE(HasFatalFailure());Finish(base+added,base_auto+app_auto+app_auto,EBADMSG);
+}
+TEST_F(PackageExecutionGuard, SymlinkStatusCannotLeaveOwnedRoot) {
+    ASSERT_EQ(0,unlinkat(root.get(),"var/lib/dpkg/status",0));
+    ASSERT_EQ(0,symlinkat("/system/build.prop",root.get(),"var/lib/dpkg/status"));
+    EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(ELOOP,errno);EXPECT_EQ(nullptr,guard);
+}
+TEST_F(PackageExecutionGuard, FifoStatusRejectsWithoutBlocking) {
+    ASSERT_EQ(0,unlinkat(root.get(),"var/lib/dpkg/status",0));ASSERT_EQ(0,mkfifoat(root.get(),"var/lib/dpkg/status",0644));
+    EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(EPERM,errno);EXPECT_EQ(nullptr,guard);
+}
+}

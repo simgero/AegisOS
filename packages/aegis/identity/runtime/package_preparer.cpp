@@ -61,6 +61,7 @@ bool Encode(const PackagePreparation& value,wire::Request* out) {
     auto& e=out->execution;e.magic=AEGIS_PACKAGE_EXEC_MAGIC;e.version=AEGIS_PACKAGE_EXEC_VERSION;
     e.user=p.requester;e.serial=p.serial;e.job=p.job;
     e.kind=p.archives ? AEGIS_PACKAGE_ARCHIVES : AEGIS_PACKAGE_REMOVE;e.count=p.items.size();
+    e.review=p.review;
     memcpy(e.plan,p.plan_sha256.c_str(),65);
     for(size_t i=0;i<p.items.size();++i)memcpy(e.items[i],p.items[i].c_str(),p.items[i].size()+1);
     out->image.bytes=value.image.bytes;memcpy(out->image.hash,value.image.sha256.c_str(),65);

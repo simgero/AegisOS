@@ -43,6 +43,7 @@ bool Encode(const PackageExecution& plan, aegis_package_execution_request* r) {
     *r = {};r->magic = AEGIS_PACKAGE_EXEC_MAGIC;r->version = AEGIS_PACKAGE_EXEC_VERSION;
     r->user = plan.requester;r->serial = plan.serial;r->job = plan.job;
     r->kind = plan.archives ? AEGIS_PACKAGE_ARCHIVES : AEGIS_PACKAGE_REMOVE;
+    r->review=plan.review;
     if (plan.plan_sha256.size() != 64 || plan.items.empty() || plan.items.size() > AEGIS_PACKAGE_EXEC_ITEMS) return false;
     memcpy(r->plan, plan.plan_sha256.data(), 64);r->count = plan.items.size();
     for (size_t i = 0; i < plan.items.size(); i++) {

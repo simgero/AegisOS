@@ -2,6 +2,7 @@
 #define AEGIS_PACKAGE_EXECUTOR_H
 #include <stdint.h>
 #include "package_store.h"
+#include "package_execution_protocol.h"
 #include <string>
 #include <vector>
 namespace aegis {
@@ -22,6 +23,9 @@ struct PackageExecution {
     // Otherwise package names to remove. Updates/private fallbacks are resolved
     // by the trusted planner into exact archives, never an implicit online run.
     std::vector<std::string> items;
+    // Sealed expected effects/state; missing review is accepted by the device
+    // probe only. The production entry requires a complete bound review.
+    aegis_package_execution_review review = {};
 };
 enum class PackageExecutionOutcome { Unconfirmed, Failed, NeedsValidation, Published };
 struct PackageExecutionResult {

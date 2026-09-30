@@ -3,7 +3,7 @@
 #include "package_preparer.h"
 #include "package_execution_protocol.h"
 namespace aegis::preparation {
-constexpr uint32_t kMagic=0x41455052,kVersion=2;
+constexpr uint32_t kMagic=0x41455052,kVersion=3;
 constexpr int kStage=3,kSource=4,kReply=5,kRequest=6,kExecutable=7,kArchive=8;
 struct Input { uint64_t bytes; char hash[65]; };
 struct Request {
@@ -27,7 +27,8 @@ inline bool Valid(const Request& r) {
            || e.user<10 || e.user>=21473 || e.serial>INT32_MAX || !e.job || e.job>INT64_MAX
            || e.kind || e.count || !aegis_package_zero(e.reserved,sizeof(e.reserved))
            || memcmp(e.plan,r.image.hash,65)
-           || !aegis_package_zero(e.items,sizeof(e.items)))return false;
+           || !aegis_package_zero(e.items,sizeof(e.items))
+           || !aegis_package_zero(&e.review,sizeof(e.review)))return false;
         for(const auto& a:r.archives)if(a.bytes || !aegis_package_zero(a.hash,65))return false;
         return true;
     }
