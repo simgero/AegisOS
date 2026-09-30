@@ -33,6 +33,18 @@ neverallow {
     domain
     -appdomain # for oemfs
 } { fs_type -rootfs }:file execute;
+neverallow {
+    domain
+    -appdomain
+    with_asan(`-asan_extract')
+    -shell
+} { file_type -system_file_type -exec_type }:file execute;
+neverallow * { file_type -exec_type -postinstall_file }:file entrypoint;
+neverallow coredomain {
+    file_type
+    -system_file_type
+    -postinstall_file
+}:file entrypoint;
 allow { domain -appdomain -rs } cgroup:dir w_dir_perms;
 allow { domain -appdomain -rs } cgroup:file w_file_perms;
 allow { domain -appdomain -rs } cgroup_v2:dir w_dir_perms;
@@ -112,8 +124,21 @@ class PolicySources(unittest.TestCase):
     def test_missing_or_duplicate_guard_is_not_silently_patched(self):
         with self.assertRaises(ValueError): policy.patch_domain(DOMAIN.replace(b'-apexd', b'-changed'))
         with self.assertRaises(ValueError): policy.patch_domain(DOMAIN + DOMAIN)
+        with self.assertRaises(ValueError): policy.patch_domain(DOMAIN.replace(b"with_asan(`-asan_extract')", b"with_asan(`-other')"))
         with self.assertRaises(ValueError): policy.patch_vold(VOLD.replace(b'-vold', b'-changed'))
         with self.assertRaises(ValueError): policy.patch_vold(VOLD + VOLD)
+
+    def test_new_package_subject_exception_keeps_entrypoint_guards(self):
+        output = policy.patch_domain(DOMAIN)
+        self.assertEqual(1, output.count(b'-aegis_package_exec_domain'))
+        for guard in (
+            b'neverallow * { file_type -exec_type -postinstall_file }:file entrypoint;',
+            b'neverallow coredomain {\n    file_type\n    -system_file_type\n    -postinstall_file\n}:file entrypoint;',
+        ):
+            self.assertIn(guard, output)
+        # A changed existing subject list must not silently broaden this exception.
+        with self.assertRaises(ValueError):
+            policy.patch_domain(DOMAIN.replace(b"    -appdomain\n", b"    -newdomain\n"))
 
     def legacy(self):
         outputs = {'public/attributes': self.originals['public/attributes'] + policy.ATTRIBUTES,
