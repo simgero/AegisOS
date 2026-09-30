@@ -1,4 +1,26 @@
-## Aktuell: isolierter Planer im registrierten Auftrag
+## Aktuell: Plan aus signierter Quelle bis zur veröffentlichten Generation verbunden
+
+`b827ba82` besteht **46 gezielte und 340 aktivierte native Prüfungen**.
+Der Auftrag bindet die tatsächlich authentifizierten Repository-/Archivbelege
+an seine überprüfte Quellenauswahl, hält das Review selbst und übergibt ausschließlich
+eigene Archive an Vorbereitung und Ausführung. Kennung, Antragsteller, Bereich,
+Ausgangsgeneration und Review-Digest bleiben durchgängig zusammen. Die Gültigkeit
+wird auch vor dem Ausführungsstart geprüft. Abbruch behält die Ressourcen bis
+zur bestätigten Beendigung und entwertet auch ein fertiges Review.
+
+Der vollständige interne Test installiert App und Abhängigkeit aus der signierten
+Offline-Quelle, veröffentlicht den unabhängig geprüften Bestand und verifiziert
+anschließend beide Versionen und automatischen Markierungen durch echtes Reopen.
+Die neue Übergabe nutzt für private Ziele die vorhandene CE-Verankerung; der hier
+vollständig ausgeführte Test verwendet einen separaten gemeinsamen Teststore.
+[Belege und genaue Grenzen](../docs/component-tests.md).
+
+Noch offen: produktiver Netzwerkabruf, öffentliche CLI/Binder-Befehle mit frischer
+AOSP-Adminbestätigung, produktiver SELinux-Kontext und vollständiger gemeinsamer/
+persönlicher Paketablauf mit zwei Benutzern. Der native Freigabeaufruf ist kein
+Nachweis einer AOSP-Passwortprüfung. Nachfolgende Abschnitte sind historische Stände.
+
+## Vorheriger Stand: isolierter Planer im registrierten Auftrag
 
 `33482ef2` besteht **43 gezielte und alle 337 aktivierten nativen Prüfungen**.
 Der Broker übernimmt die geprüfte Generationsauswahl direkt in denselben

@@ -1,3 +1,70 @@
+## Paketplan aus signierter Quelle bis zur veröffentlichten Generation: 46 und 340 Tests bestanden
+
+Komponentenstand **b827ba82e6576c0cc08121a3a862c767f5fcb737** besteht im lokalen Mac-QEMU
+**46/46 gezielte Prüfungen** (2026-09-30T11:54:15Z, 15,602 Sekunden) und **340/340
+aktivierte native Tests aus 41 Gruppen** (2026-09-30T11:56:33Z, 110500 ms).
+Buildlauf `identity-20260930T114712Z-b827ba82-u1BhQf`, Invocation `c3483bb3d8e54ffa9f73a450b8c06736`,
+kompiliert auf `aegis-build` erfolgreich in 4:04 Minuten einschließlich neu
+erstellter Buildkonfiguration. [Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T115154Z-b827ba82-b827ba82-QZpb8I).
+Die erste lokale Releaseabfrage war unmittelbar nach Veröffentlichung noch ohne
+Treffer; erneute Abfrage und Prüfsummenprüfung bestätigen denselben Release.
+Es wurde kein zweiter Build oder Upload gestartet.
+
+Der isolierte Planer übergibt jetzt begrenzte, kanonische Metadaten aus seiner
+signierten Quellenprüfung direkt an den registrierten Brokerauftrag. Die
+geprüfte Generationsauswahl enthält auch Größe und Hash ihrer gemeinsamen Basis.
+Antragsteller, persönlicher/gemeinsamer Bereich und Store-Anlage stehen vor der
+Auflösung fest. Der Broker ergänzt diese behaltene Identität und Quellenauswahl
+zum vollständigen Review; der Aufrufer kann keine Ersatzversionen, Quellenbelege,
+Dateipfade oder Hashlisten einspeisen. Die Review-Operation gibt nur Metadaten aus.
+
+`BrokerPreparePlannedTransaction` übernimmt denselben Auftrag in die vorhandene
+Vorbereitung und Ausführung. Archive stammen ausschließlich aus dem privaten
+Planerverzeichnis nach bestätigter Beendigung aller Arbeiter. Der kurze Übergang
+prüft Dateityp/Eigentümer/Größe und übernimmt nur diese temporären Archive; Kopieren
+und erneute Hashprüfung bleiben im asynchronen Vorbereiter. Gemeinsame und private
+Zielregeln bleiben getrennt; ein privates Ziel verwendet weiterhin die bestehende
+CE-Verankerung. Ein persönlicher Ausgangsstand kann nicht zum gemeinsamen Ziel
+umgedeutet werden. Vor Review, Übergang und tatsächlichem Ausführungsstart wird
+die Repository-Gültigkeit geprüft; eine abgelaufene Vorbereitung startet nicht.
+
+Der neue vollständige native Fall verwendet die echte Werksauswahl und eine
+signierte Offline-Quelle. Er plant App und Abhängigkeit, weist einen anderen
+Freigabe-Digest schon vor der Kandidatenanlage ab, bereitet unter derselben
+Auftragskennung vor, weist eine veränderte Startfreigabe erneut ab und führt
+anschließend APT, unabhängige Bestandsprüfung und Veröffentlichung aus. Er öffnet
+die veröffentlichte Generation über den echten Selektor, prüft beide installierten
+Versionen 2 und die automatische Markierung der Abhängigkeit. Dieser Store liegt
+nur im exklusiven Testverzeichnis. Ein weiterer Fall verlangt eine überprüfte
+Quellenauswahl und bestätigt, dass STOP auch ein bereits geprüftes Review entfernt.
+Das Protokoll weist überzählige Deskriptoren, nichtkanonische Texte und unerwartete
+Restdaten ab, ohne ein vorheriges Ergebnis zu überschreiben.
+
+**Grenzen:** Der bestätigte Ablauf ist intern; der Testaufruf an die Ausführung
+steht für die spätere frische AOSP-Adminfreigabe und beweist keine ausgeführte
+Passwortabfrage. Produktiver Netzwerkabruf, öffentlicher CLI/Binder-Paketweg und
+Produkt-SELinux-Aktivierung bleiben offen. Die vier deaktivierten echten
+AOSP-CE-Integrationstests wurden nicht aktiviert. Die 130 unveränderten Java-
+Prüfungen behalten ihren früheren Beleg `95f2b925`; kein erneuter Java-Lauf.
+Der vollständige Zwei-Benutzer-Produktablauf ist damit weiterhin nicht abgeschlossen.
+
+Laufender Gast: Image `c7401f60`, Profil `39d29ee1-7587-4223-8e5d-f9872c910554`, Boot
+`6c6dc3df-cf70-4c1b-8f16-f131b5a981a5`. SELinux Enforcing, authentifiziertes ADB und Broker laufen;
+Benutzer/Seriennummern 0/10/11, CE-/DE-Schlüsselkennungen und leere Runtime-Kontexte
+sind vor/nach beiden Durchläufen unverändert. Benutzer 10/11 bleiben gesperrt.
+Kein produktives Abbild, Profilpaar oder sichtbarer Launcher wurde ersetzt.
+
+Nachweise: `out/components-b827ba82/{targeted-tests,native-regression}/`
+im primären Workspace; jeweils Protokoll, Ergebnis und Vorher-/Nachherzustand.
+
+| Datei | SHA-256 |
+| --- | --- |
+| Gezieltes Protokoll | `47fa589e335aca649ed83581f000de74670086597626f6e31b87ed7c0f64df16` |
+| Vollständiges Protokoll | `70c57e4b96dd6a0d10939f01cef40ad0b394976aac82409d507cee464e6eaf46` |
+| Vollständiges Ergebnis | `27d7e3a8f7bd50587445acba6e2228771e9ee24c28ba37af78942836a7c61d66` |
+| Zustand vor/nach Tests | `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a` |
+| Native Testdatei | `6c9690d16071c27a0398c437eeb33b6edea0a2172c088765bbaa623ffe2e9e66` |
+
 ## Eigener Planungsauftrag mit Abbruchverwaltung: 43 und 337 Tests bestanden
 
 Komponentenstand **33482ef26d714e9e8265c20f6e3d81e629e7cfa2** besteht am 30. September 2026

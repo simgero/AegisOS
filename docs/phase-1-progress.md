@@ -1,5 +1,20 @@
 # Phase 1: Implementierungsstand
 
+## 2026-09-30: Planung und Paketinstallation im selben Auftrag verbunden
+
+`b827ba82` besteht **46/46 gezielte und 340/340 aktivierte native Tests**.
+Ein Plan aus signierter Quelle durchläuft nun intern Auswahl, Review, Vorbereitung,
+Installation, unabhängige Prüfung und Veröffentlichung unter derselben Kennung.
+Der Test öffnet den vollständigen neuen Bestand erneut und prüft Versionen sowie
+Abhängigkeitsmarkierungen. Veränderte Freigabe-Digests werden abgewiesen;
+Abbruch entfernt auch bereits geprüfte Pläne. [Nachweise](component-tests.md).
+
+Offen bleiben kontrollierter Internetabruf, die öffentliche CLI/Binder-Verbindung
+mit echter frischer AOSP-Adminbestätigung und Produkt-SELinux-Einbindung, anschließend
+der vollständige Zwei-Benutzer-Ablauf. Der interne Test verwendet eine signierte
+Offline-Quelle und ersetzt keinen dieser Produktnachweise. Laufender QEMU-Gast,
+Benutzer, Schlüssel und sichtbarer Launcher bleiben unverändert.
+
 ## 2026-09-30: Paketplanungsauftrag besitzt Arbeiter und Ergebnis bis zum Abbruch
 
 `33482ef2` besteht **43/43 gezielte und 337/337 aktivierte native Tests**.
