@@ -109,6 +109,7 @@ int main(int argc,char** argv) {
 #else
     if(aegis_check_package_context(user)<0)return 78;
 #endif
+    umask(022); // Fixed policy/input directory modes, independent of broker umask.
     int fds[5]={-1,-1,-1,-1,-1};aegis_planning_request r={};
     if(aegis_planning_receive(3,&r,sizeof(r),fds,5)<0)return 79;
     aegis::PackageResolverRequest request;

@@ -54,7 +54,8 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
     }
 };
 TEST_F(RuntimePackagePlanning, OwnedChildCopiesOnlyMetadataAndReturnsEvidenceAfterReaping) {
-    int before=descriptors();ASSERT_EQ(0,Start())<<strerror(errno);
+    int before=descriptors();mode_t previous=umask(077);int started=Start();int error=errno;umask(previous);
+    ASSERT_EQ(0,started)<<strerror(error);
     aegis::PackagePlanningResult result;int fd=-1;
     ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,10000,&result,&fd))<<strerror(errno);
     ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)<<result.error<<" worker status="<<result.status;
