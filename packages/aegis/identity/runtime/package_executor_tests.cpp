@@ -138,7 +138,8 @@ class RuntimePackageExecutor : public ::testing::Test {
         EXPECT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome) << "status=" << result.status << " error=" << result.error
             << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+".log").c_str())
             << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-check.log").c_str())
-            << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-audit.log").c_str());
+            << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-audit.log").c_str())
+            << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-verify.log").c_str());
         EXPECT_EQ(0,result.status);EXPECT_EQ(0,result.error);EXPECT_EQ(nullptr,worker);EXPECT_EQ(before,CountFDs());
     }
     void Remount() { candidate.reset();candidate.reset(image->remount());ASSERT_TRUE(candidate.ok()) << strerror(errno);plan.job++; }
@@ -269,6 +270,20 @@ TEST_F(RuntimePackageExecutor, RejectsMissingDpkgControlMetadata) {
     ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
     EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);
     EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-package-1-audit.log").find("base-files"));
+}
+TEST_F(RuntimePackageExecutor, RejectsChangedPackagedProgramAfterSuccessfulMaintainerScript) {
+    Archives(1,false,"printf changed > /usr/bin/ls\n");
+    ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EBADMSG,result.error);
+    EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-package-1-verify.log").find("/usr/bin/ls"));
+}
+TEST_F(RuntimePackageExecutor, RejectsMissingPackagedProgramAfterSuccessfulMaintainerScript) {
+    Archives(1,false,"rm /usr/bin/ls\n");
+    ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EBADMSG,result.error);
+    EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-package-1-verify.log").find("/usr/bin/ls"));
 }
 TEST_F(RuntimePackageExecutor, CancelsObservedMaintainerScriptAndReapsWholeGroup) {
     Archives(1,true);ASSERT_FALSE(HasFatalFailure());int before=CountFDs();

@@ -225,9 +225,9 @@ static int regular_at(int root, const char *name, int flags, unsigned mode) {
     }
     return fd;
 }
-enum package_command { PACKAGE_ACTION, PACKAGE_CHECK, PACKAGE_AUDIT };
+enum package_command { PACKAGE_ACTION, PACKAGE_CHECK, PACKAGE_AUDIT, PACKAGE_VERIFY };
 static void log_name(char name[128], uint64_t job, enum package_command command) {
-    const char *suffix=command==PACKAGE_CHECK ? "-check" : command==PACKAGE_AUDIT ? "-audit" : "";
+    const char *suffix=command==PACKAGE_CHECK ? "-check" : command==PACKAGE_AUDIT ? "-audit" : command==PACKAGE_VERIFY ? "-verify" : "";
     snprintf(name,128,"var/log/aegis-package-%llu%s.log",(unsigned long long)job,suffix);
 }
 static _Noreturn void apt(const struct aegis_package_execution_request *r, enum package_command command) {
@@ -261,8 +261,10 @@ static _Noreturn void apt(const struct aegis_package_execution_request *r, enum 
             args[n++] = paths[i];
         } else args[n++] = (char *)r->items[i];
     }
-    if (command==PACKAGE_AUDIT) {
-        n=0;args[n++]="/usr/bin/dpkg";args[n++]="--audit";
+    if (command==PACKAGE_AUDIT || command==PACKAGE_VERIFY) {
+        n=0;args[n++]="/usr/bin/dpkg";
+        args[n++]=command==PACKAGE_AUDIT ? "--audit" : "--verify";
+        if (command==PACKAGE_VERIFY) args[n++]="--verify-format=rpm";
     }
     args[n] = NULL;
     char *env[] = {"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C", "LC_ALL=C", "HOME=/root",
@@ -300,6 +302,28 @@ static int audit_empty(int root,uint64_t job) {
     // dpkg may report warnings on stdout/stderr even when the audit command
     // itself exited successfully. Any diagnostic keeps this candidate inactive.
     return st.st_size==0 ? 0 : (errno=EBADMSG,-1);
+}
+// dpkg's file digest check detects missing/changed packaged files; it is not
+// repository authentication. Deliberately retained conffile contents may differ
+// after --force-confold. Accept only that precise rpm-format difference, never
+// missing paths, nonregular files, diagnostics or changes to ordinary programs.
+static int verify_output(int root,uint64_t job,uint32_t status) {
+    if (status>1) return (errno=EBADMSG,-1);
+    char name[128];log_name(name,job,PACKAGE_VERIFY);
+    int fd=regular_at(root,name,O_RDONLY,0);if (fd<0) return -1;
+    struct stat st;
+    if (fstat(fd,&st)<0) { int saved=errno;close(fd);errno=saved;return -1; }
+    if (st.st_size>1024*1024 || (status && !st.st_size)) { close(fd);errno=EBADMSG;return -1; }
+    FILE *stream=fdopen(fd,"r");if (!stream) { int saved=errno;close(fd);errno=saved;return -1; }
+    char *row=NULL;size_t allocated=0;ssize_t n;int error=0;
+    while ((n=getline(&row,&allocated,stream))>=0) {
+        if (n<14 || n>PATH_MAX+32 || memchr(row,0,(size_t)n) || row[n-1]!='\n'
+            || strncmp(row,"??5?????? c /",13)) { error=EBADMSG;break; }
+        for (ssize_t i=13;i<n-1;i++) if ((unsigned char)row[i]<32) { error=EBADMSG;break; }
+        if (error) break;
+    }
+    if (!error && ferror(stream)) error=errno ? errno : EIO;
+    free(row);fclose(stream);if (error) { errno=error;return -1; }return 0;
 }
 static int setup_failed(const struct aegis_package_execution_request *request) {
     int error = errno > 0 && errno <= 4095 ? errno : EIO;
@@ -343,6 +367,13 @@ int aegis_package_execute(uint32_t user, uint32_t serial) {
     if (!error && !result) error=run_command(&request,PACKAGE_CHECK,&result);
     if (!error && !result) error=run_command(&request,PACKAGE_AUDIT,&result);
     if (!error && !result && audit_empty(root,request.job)<0) error=errno;
+    if (!error && !result) {
+        error=run_command(&request,PACKAGE_VERIFY,&result);
+        if (!error) {
+            if (verify_output(root,request.job,result)<0) error=errno;
+            else result=0; // only intentional conffile differences were reported
+        }
+    }
     if (!error && !result && aegis_package_validate(root)<0) error=errno;
     if (syncfs(root) < 0 && !error) error = errno;
     close(root);
