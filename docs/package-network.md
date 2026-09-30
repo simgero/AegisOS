@@ -5,9 +5,18 @@ verwenden. Persönliche Shells und die späteren Installationsprogramme behalten
 jeweils ihren eigenen Netzwerkraum ohne diese Verbindung. Die öffentliche
 CLI/Binder-Anbindung und die frische AOSP-Adminprüfung sind im Quellstand
 `7902400f` verbunden; 400 native und 152 Java-Komponententests bestehen im
-lokalen QEMU. Ein passendes Vollimage mit dem kleinen Folgefix `73c0f3eb`
-ist der nächste Schritt. Die echte Paketinstallation in den Produktdomänen
-und der vollständige Zwei-Benutzer-Ablauf bleiben unbewiesen.
+lokalen QEMU. Das Vollimage `73c0f3eb` bootet mit Enforcing, dm-verity und
+authentifiziertem ADB. Zwei neue Testkonten wurden über die installierte CLI
+angelegt; der Paketaufruf ohne Anmeldung wird abgewiesen. Der erste angemeldete
+Aufruf `package install --user hello` erreicht den echten Broker, scheitert
+aber vor der Freigabe an dessen fehlendem `NS_GET_USERNS`-Recht (NSFS-ioctl
+`0xb701`). Der Broker benötigt es zum Vergleich des Planer-Netzwerkraums mit
+dessen eigenem Benutzerraum (`aegis_namespace_planner_network`). Die Richtlinie
+ergänzt genau dieses ioctl für die vorhandene Broker-Domäne und den eigenen
+NSFS-Typ; keine neue Domäne, Capability oder Namespace-Schreibberechtigung.
+Kompilierung und erneuter Produktpfad-Test der Korrektur stehen noch aus.
+Die echte Paketinstallation und der vollständige Zwei-Benutzer-Ablauf bleiben
+unbewiesen; erfolgreiche Komponententests allein bestätigen sie nicht.
 
 ## Stand von Broker, Richtlinie und Paketauftrag
 

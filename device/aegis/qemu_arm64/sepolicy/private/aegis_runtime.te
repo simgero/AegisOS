@@ -74,8 +74,9 @@ allow { init vold system_server installd } aegis_runtime_namespace_file:file { g
 allow dex2oat aegis_runtime_namespace_file:file read;
 allow { aegis_runtime_broker aegis_runtime_setup aegis_runtime_init }
     aegis_runtime_namespace_file:file { getattr open read ioctl };
-# NS_GET_NSTYPE; helpers additionally verify the owning user namespace.
-allowxperm aegis_runtime_broker aegis_runtime_namespace_file:file ioctl { 0xb703 };
+# NS_GET_NSTYPE and NS_GET_USERNS: the broker also compares the planner
+# network namespace owner with that exact gated child's user namespace.
+allowxperm aegis_runtime_broker aegis_runtime_namespace_file:file ioctl { 0xb701 0xb703 };
 allowxperm { aegis_runtime_setup aegis_runtime_init }
     aegis_runtime_namespace_file:file ioctl { 0xb701 0xb703 };
 allow aegis_runtime_program aegis_runtime_namespace_file:file getattr;
