@@ -1,5 +1,22 @@
 # Phase 1: Implementierungsstand
 
+## 2026-09-30: Netzwerk im bestehenden QEMU-Profil geprüft
+
+Der optionale Netzwerkmodus des Launchers verbindet den Android-Testgast nach
+geordnetem Neustart automatisch mit DHCP, DNS und der Debian-Quelle (HTTP 200).
+Das bestehende Profil, Benutzer und Schlüsselzuordnungen bleiben erhalten;
+der KeyMint-Helfer bleibt ohne Netzwerk. Eine veraltete ADB-Prozessnummer nach
+Neustart wird jetzt verworfen, ohne den fremden Android-Prozess zu beenden.
+**34/34 passende native Regressionen bestehen** unter dem Netzwerkmodus.
+[Konfiguration, Nachweise und Grenzen](persistent-qemu.md#optionales-android-netzwerk-und-adb-neustart-30-september-2026).
+
+Aktueller Hintergrundgast: `out/qemu-network-20260930/boot-2`, Boot-ID
+`6c6dc3df-cf70-4c1b-8f16-f131b5a981a5`, unverändertes Produktimage `c7401f60`.
+Die sichtbare Version bleibt unverändert. Nächster Schritt ist weiterhin die
+produktive, kontrollierte Paketbeschaffung samt Auftrags-/CE-Lebenszyklus und
+unabhängig geprüften Repository-Belegen; anschließend CLI/Binder und frische
+AOSP-Adminfreigabe. QEMU-Konnektivität allein aktiviert keine Paketverwaltung.
+
 ## 2026-09-30: Paketplanung aus unveränderlicher Werksbasis geprüft
 
 `8e500d7e` besteht **9/9 gezielte und 322/322 aktivierte native Tests** im

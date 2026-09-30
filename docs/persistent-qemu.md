@@ -63,6 +63,61 @@ beenden. Nicht bestätigte Abschlüsse werden als solche protokolliert; die
 Dateien bleiben zur Diagnose erhalten. `helper-shutdown.txt` allein beweist
 weder einen sauberen Android-Abschluss noch erfolgreiche Wiederentschlüsselung.
 
+## Optionales Android-Netzwerk und ADB-Neustart, 30. September 2026
+
+`--network user` schaltet ausschließlich für den Android-Gast QEMU-User-Networking
+zu; der Standard bleibt `--network none`. Der KeyMint-Helfer behält `-net none`.
+Es gibt keine Portweiterleitung. Das ist eine Entwicklungsverbindung, keine
+Netzwerkfreigabe für persönliche GNU-Kontexte oder eine Sicherheitsgrenze zum Mac.
+Der gewählte Modus wird in `network-mode.txt` festgehalten.
+
+Die übernommene Cuttlefish-Konfiguration verbirgt `eth0` als `buried_eth0` und
+markiert `eth1` als eingeschränkt. Der Launcher reserviert deshalb die ersten
+beiden virtio-Netzwerkkarten ohne Backend; nur die dritte Karte (`eth2`) erhält
+QEMUs User-Backend. Der externe `virtio_net`-Treiber ist im vorhandenen Image
+bereits geladen; kein neuer Kernel- oder AOSP-Build war erforderlich.
+
+Launcher `e807bc5c61a08759b70cef531368f8000cfbccec` bootet das bestehende
+Produktimage `c7401f60` mit demselben Profil
+`39d29ee1-7587-4223-8e5d-f9872c910554`. In
+`out/qemu-network-20260930/boot-2` bestätigt die neue Boot-ID
+`6c6dc3df-cf70-4c1b-8f16-f131b5a981a5`:
+
+- Androids Ethernet-Verwaltung richtet `eth2` ohne manuelle Umbenennung ein:
+  DHCP `10.0.2.15/24`, Gateway `10.0.2.2`, DNS `10.0.2.3` und validiertes
+  Standardnetz. DNS/Ping zu `deb.debian.org` und eine HTTP-HEAD-Anfrage auf
+  `/debian/dists/trixie/InRelease` liefern Erfolg beziehungsweise HTTP 200.
+- Bootabschluss, authentifiziertes ADB, SELinux Enforcing, dm-verity und der
+  gestartete Broker in seiner vorgesehenen SELinux-Domäne sind bestätigt.
+- Benutzer 0/10/11, Seriennummern, CE-/DE-Schlüsselkennungen, CE-Sperrzustand und
+  leere Runtime-Kontexte stimmen vor und nach dem Neustart und den Tests überein.
+  Das Profilmanifest ist bytegleich; beide Disks wurden gemeinsam weiterbenutzt.
+- Die vorherigen beiden Gastläufe wurden mit Android-Power-down und sauberem
+  KeyMint-Helferabschluss beendet. Der aktuelle Gast bleibt im Hintergrund aktiv.
+
+Die persistente Datei `bridge.pid` enthielt noch PID 2069, die nach dem Neustart
+zu `com.android.localtransport` gehörte. Das frühere ADB-Skript brach sicher ab.
+Korrektur `ad7196a048434ff50c9470c6036b75560f89da53` verwirft solche veralteten
+Angaben und beendet nur einen Prozess mit dem exakten Brückenskript als Argument.
+Der fremde Prozess blieb erhalten. Ein anschließender zweiter Aufruf ersetzte die
+wirklich laufende Brücke erfolgreich. Der vorhandene Mac-Schlüssel wurde benutzt;
+kein neuer Schlüssel wurde hinzugefügt und `ro.adb.secure=1` blieb erforderlich.
+
+**34/34 ausgewählte native Prüfungen** bestehen im neuen Gast: RuntimeNamespace
+24, RuntimePackageResolver 8, RuntimeFilter 1 und RuntimePackageSandbox 1.
+Verwendet wurde das erneut hashgeprüfte Komponentenartefakt `8e500d7e`, ohne neue
+Kompilation. Die vier deaktivierten CE-Integrationstests und Java-Tests wurden
+hier nicht wiederholt. Der HTTP-Test belegt weder HTTPS noch signaturgeprüften
+produktiven Paketabruf; die APT-Tests verwenden weiterhin ihre signierten lokalen
+Fixtures. Produktive Netzbeschaffung, Auftrags-/CE-Lebenszyklus und frische
+AOSP-Adminfreigabe bleiben offen.
+
+Belege unter `out/qemu-network-20260930/`: `stable-restart.json`,
+`stable-network-evidence.json`, `boot-2/boot-health.json` und
+`native-network-regression/{result.json,native.log,before.json,after.json}`.
+Hash des nativen Protokolls:
+`6445783f6259271462c80260e8ee9b8f9267ec3f5c38e336437dea3922abef94`.
+
 ## Tatsächlicher Neustarttest
 
 Die lokalen Läufe `out/qemu-first-boot/persistent-20260928-1` und `-2`
