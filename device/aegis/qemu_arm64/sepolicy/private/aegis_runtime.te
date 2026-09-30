@@ -22,6 +22,8 @@ type aegis_runtime_home_file, file_type, data_file_type, core_data_file_type;
 # Broker-only CE package backing files, never ordinary HOME or session mounts.
 type aegis_package_private_file, file_type, data_file_type, core_data_file_type;
 type aegis_package_shared_file, file_type, data_file_type, core_data_file_type;
+# Mutable, unpublished shared candidates are distinct from immutable generations.
+type aegis_package_staging_file, file_type, data_file_type, core_data_file_type;
 type aegis_runtime_devices_file, file_type;
 type aegis_runtime_scratch_file, file_type, coredomain_socket;
 type aegis_runtime_cgroup, fs_type;
@@ -304,3 +306,16 @@ neverallow { aegis_runtime_setup aegis_runtime_init aegis_runtime_program }
 # Bootstrap reads only the signed, readonly Conscrypt APEX certificates. The
 # broker validates mount/owner/label and seals its bounded copy before listening.
 r_dir_file(aegis_runtime_broker, system_security_cacerts_file)
+
+# Fixed shared working area, opened by the registered broker job only. Package
+# programs receive a private mount of candidate contents, never these host paths.
+type_transition aegis_runtime_broker aegis_runtime_state_file:dir aegis_package_staging_file "shared-staging";
+allow aegis_runtime_broker aegis_package_staging_file:dir create_dir_perms;
+allow aegis_runtime_broker aegis_package_staging_file:file create_file_perms;
+# Kernel loop I/O through the trusted opener's fd; no pathname access/execute.
+allow kernel aegis_package_staging_file:file { read write };
+neverallow aegis_runtime_domain aegis_package_staging_file:file { execute execute_no_trans map };
+neverallow { aegis_runtime_setup aegis_runtime_init aegis_runtime_program }
+    aegis_package_staging_file:dir { open read search write add_name remove_name };
+# Shared generations stay readonly to the loop driver.
+neverallow kernel aegis_package_shared_file:file { write append };

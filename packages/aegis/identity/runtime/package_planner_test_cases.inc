@@ -114,6 +114,10 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
         Fd state(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(state.ok());
         constexpr char label[]="u:object_r:aegis_package_shared_file:s0";
         ASSERT_EQ(0,fsetxattr(state.get(),"security.selinux",label,sizeof(label),0));
+        ASSERT_EQ(0,mkdirat(state.get(),"shared-staging",0700));
+        Fd staging(openat(state.get(),"shared-staging",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(staging.ok());
+        constexpr char staging_label[]="u:object_r:aegis_package_staging_file:s0";
+        ASSERT_EQ(0,fsetxattr(staging.get(),"security.selinux",staging_label,sizeof(staging_label),0));
         configured_install_fixture=true;
     }
     void RemoveFixtureTree(int parent_fd,const char* name) {

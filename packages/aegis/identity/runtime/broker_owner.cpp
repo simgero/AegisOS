@@ -829,21 +829,21 @@ static int package_empty(int directory) {
     if(closedir(entries)<0&&!error)error=errno;
     return error?fail(error):empty;
 }
-static int package_shared_child(int parent,const char* name) {
+static int package_owned_child(int parent,const char* name,const char* expected) {
     unique_fd child(package_at(parent,name,O_RDONLY|O_DIRECTORY));if(!child.ok())return -1;
     struct stat st,named,root;
     if(fstat(child.get(),&st)<0||fstat(parent,&root)<0||fstatat(parent,name,&named,AT_SYMLINK_NOFOLLOW)<0)return -1;
     if(st.st_mode!=(S_IFDIR|0700)||st.st_uid||st.st_gid||st.st_dev!=root.st_dev
        ||st.st_dev!=named.st_dev||st.st_ino!=named.st_ino)return fail(EPERM);
-    char label[128]={};constexpr char expected[]="u:object_r:aegis_package_shared_file:s0";
+    char label[128]={};const auto length=ssize_t(strlen(expected));
     ssize_t size=fgetxattr(child.get(),"security.selinux",label,sizeof(label));if(size<0)return -1;
-    if((size!=ssize_t(sizeof(expected))&&size!=ssize_t(sizeof(expected)-1))
-       ||memcmp(label,expected,sizeof(expected)-1)||(size==ssize_t(sizeof(expected))&&label[size-1]))return fail(EPERM);
+    if((size!=length && size!=length+1)||memcmp(label,expected,length)
+       ||(size==length+1 && label[size-1]))return fail(EPERM);
     if(package_no_acl(child.get())<0)return -1;
     return child.release();
 }
 static int optional_shared_store(int state,int* output) {
-    unique_fd store(package_shared_child(state,"shared-packages"));
+    unique_fd store(package_owned_child(state,"shared-packages","u:object_r:aegis_package_shared_file:s0"));
     if(!store.ok())return errno==ENOENT?0:-1;
     // Like a pristine provisioned CE store, a checked empty directory has no
     // PackageStore metadata yet. Partial/nonempty initialization is NEVER empty.
@@ -853,18 +853,18 @@ static int optional_shared_store(int state,int* output) {
 static int configured_shared_target(int state,bool create,uint32_t user,uint32_t serial,uint64_t job,
                                     unique_fd* store,unique_fd* stage) {
     if(create&&mkdirat(state,"shared-packages",0700)<0&&errno!=EEXIST)return -1;
-    store->reset(package_shared_child(state,"shared-packages"));if(!store->ok())return -1;
+    store->reset(package_owned_child(state,"shared-packages","u:object_r:aegis_package_shared_file:s0"));if(!store->ok())return -1;
     int empty=package_empty(store->get());if(empty<0)return -1;
     if(bool(empty)!=create)return fail(ESTALE);
     if(mkdirat(state,"shared-staging",0700)<0&&errno!=EEXIST)return -1;
-    unique_fd staging(package_shared_child(state,"shared-staging"));if(!staging.ok())return -1;
+    unique_fd staging(package_owned_child(state,"shared-staging","u:object_r:aegis_package_staging_file:s0"));if(!staging.ok())return -1;
     unsigned char random[16];ssize_t n;
     do { n=getrandom(random,sizeof(random),GRND_NONBLOCK); } while(n<0&&errno==EINTR);
     if(n!=ssize_t(sizeof(random)))return n<0?-1:fail(EIO);
     char hex[33];for(unsigned i=0;i<sizeof(random);++i)snprintf(hex+i*2,3,"%02x",random[i]);
     const auto name="job-"+std::to_string(user)+"-"+std::to_string(serial)+"-"+std::to_string(job)+"-"+hex;
     if(mkdirat(staging.get(),name.c_str(),0700)<0)return -1;
-    stage->reset(package_shared_child(staging.get(),name.c_str()));if(!stage->ok())return -1;
+    stage->reset(package_owned_child(staging.get(),name.c_str(),"u:object_r:aegis_package_staging_file:s0"));if(!stage->ok())return -1;
     if(fsync(stage->get())<0||fsync(staging.get())<0||fsync(store->get())<0||fsync(state)<0)return -1;
     return 0;
 }

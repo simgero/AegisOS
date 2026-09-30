@@ -135,7 +135,10 @@ bestehende vorbereitende Hilfe stammt aus der gepinnten Auswahlkonfiguration.
 Der Übergang registriert dieselbe Auftrags-ID als Installation, bevor er feste
 Speicherpfade öffnet oder anlegt. Gemeinsam genutzte Dateien liegen ausschließlich
 unter `shared-packages` und `shared-staging` im gepinnten Broker-Verzeichnis;
-Arbeitsverzeichnisse haben eine neue Zufallskennung. Besitzer, Modus, SELinux-Typ,
+Arbeitsverzeichnisse haben eine neue Zufallskennung und den eigenen SELinux-Typ
+`aegis_package_staging_file`. Nur diese Arbeitsabbilder erhalten Loop-Schreibzugriff;
+fertige gemeinsame Generationen bleiben für den Kernel schreibgeschützt.
+Besitzer, Modus, SELinux-Typ,
 Dateisystem, ACLs und Verzeichnisbindung werden geprüft. Persönliche Daten gehen
 weiter über die CE-/Seriennummer-Prüfung des ursprünglichen Antragstellers. Der
 Broker öffnet genau das zuvor ausgewählte Ausgangsabbild; die asynchrone
