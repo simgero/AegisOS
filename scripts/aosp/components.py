@@ -37,6 +37,8 @@ MODULES = {
     "data/nativetest64/AegisRuntimeNativeTests/aegis-package-execute": 0o755,
     "data/nativetest64/AegisRuntimeNativeTests/aegis-package-execute-probe": 0o755,
     "data/nativetest64/AegisRuntimeNativeTests/aegis-package-prepare": 0o755,
+    "data/nativetest64/AegisRuntimeNativeTests/aegis-package-plan": 0o755,
+    "data/nativetest64/AegisRuntimeNativeTests/aegis-package-plan-probe": 0o755,
 }
 METADATA = (
     "project-commit.txt", "status", "SHA256SUMS", "source-files.json",
