@@ -51,3 +51,13 @@ remain in an owned worker; the library is not an authentication or network API.
 
 The new actual-archive fixture and matcher are not yet compiled or guest-tested.
 The previous 53-test proof applies to the earlier metadata-only fixture.
+
+APT 3.0.3's [copy method](https://github.com/Debian/apt/blob/3.0.3/methods/copy.cc)
+compares expected hashes after copying but returns a bare failure on mismatch;
+its user-facing diagnostic is only `Undetermined Error`. The controlled test
+therefore requires nonzero acquisition status, independently confirms that the
+changed file has the same size but different bytes, restores the original and
+requires successful acquisition with identical policy/key/index inputs.
+The complete native index/archive hash checks remain separate requirements.
+The earlier file-source-only test could assert a more specific message; requiring
+that message for copy transport incorrectly stopped the otherwise valid refusal.
