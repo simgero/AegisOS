@@ -30,9 +30,24 @@ prüfen Siegel, Zugriffsmodus, Identität, ungültige Eingänge und die tatsäch
 SCM_RIGHTS-Übertragung. Die Komponenten `b6e4b93e` kompilieren; alle 67 gezielt
 betroffenen nativen Prüfungen bestehen am 30. September um 21:54:43 UTC im lokalen
 c9-QEMU. Benutzer-, Schlüssel- und Kontextaufnahmen sind davor/danach identisch.
-Vier deaktivierte reale CE-Tests bleiben aus. Der Produktdienst wurde durch die
-Komponentenprüfung nicht ersetzt; passendes Vollimage und erneuter tatsächlicher
-CLI-Aufruf bleiben erforderlich. [Prüfbelege](component-tests.md).
+Vier deaktivierte reale CE-Tests bleiben aus. [Prüfbelege](component-tests.md).
+
+Das passende Vollimage `b6e4b93e` wurde auf dem SSH-Builder gebaut, über GitHub
+verifiziert und lokal gestartet. Der erneute CLI-Aufruf am 30. September um
+22:25 UTC erreicht jetzt APT und dessen Plan-Hook; die vorherige Verweigerung
+der schreibbar geöffneten Anfrage tritt nicht mehr auf. Die Veröffentlichung
+von `/run/aegis-apt-plan.tmp` scheitert an `link`: Die Paketprogramm-Domäne darf
+in ihrem privaten Arbeitsdateisystem Dateien anlegen und umbenennen, aber keine
+Hardlinks erstellen. Eine Adminfreigabe oder Paketveröffentlichung wurde nicht
+erreicht. Beide Testkonten wurden regulär abgemeldet, ihre CE-Daten gesperrt und
+alle Runtime-Kontexte abgebaut.
+
+Der Hook veröffentlicht die vollständig geschriebene und synchronisierte Datei
+nun mit `renameat2(RENAME_NOREPLACE)`. Ein vorhandenes Ergebnis wird weiterhin
+niemals ersetzt; ein unvollständiger Datensatz erhält keinen endgültigen Namen.
+Dieser Aufruf nutzt die bestehenden Rechte im privaten Arbeitsdateisystem und
+benötigt keine zusätzliche SELinux-Freigabe. Komponenten- und Produktprüfung
+dieser Korrektur stehen noch aus.
 Die echte Paketinstallation und der vollständige Zwei-Benutzer-Ablauf bleiben
 unbewiesen; erfolgreiche Komponententests allein bestätigen sie nicht.
 

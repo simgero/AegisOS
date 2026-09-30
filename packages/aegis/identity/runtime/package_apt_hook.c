@@ -4,6 +4,7 @@
 #include "package_apt_hook.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/fs.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,9 +60,13 @@ int aegis_apt_plan_hook(void) {
         int okay=write_all(out,notice,notice_size)==0 && fsync(out)==0;int closed=close(out);
         if(!okay||closed<0) { unlink(tmp);goto done; }
         // The consumer accepts only a complete notification and completed bye.
-        // Publish without replacing any earlier result or exposing partial data.
-        if(link(tmp,"/run/aegis-apt-plan.json")<0) { unlink(tmp);goto done; }
-        if(unlink(tmp)<0)goto done;
+        // Atomic no-replace publication within this job's private scratch mount.
+        // A hardlink would need extra SELinux link authority and briefly leave
+        // two names for the record. Rename uses the existing scratch permissions.
+        if(syscall(SYS_renameat2,AT_FDCWD,tmp,AT_FDCWD,
+                   "/run/aegis-apt-plan.json",RENAME_NOREPLACE)<0) {
+            unlink(tmp);goto done;
+        }
     }
     result=0;
 done:
