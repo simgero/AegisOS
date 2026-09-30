@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/xattr.h>
@@ -111,17 +112,17 @@ static char *trim(char *s) {
     return s;
 }
 static int nss(char *data) {
-    const char *keys[]={"passwd","group","shadow","gshadow"};unsigned seen=0;
+    const char *keys[]={"passwd","group","shadow","gshadow","initgroups"};unsigned seen=0;
     char *cursor=data,*row;
     while ((row=line(&cursor))) {
         char *comment=strchr(row,'#');if (comment) *comment=0;row=trim(row);if (!*row) continue;
         char *colon=strchr(row,':');if (!colon) return -1;*colon=0;
         char *key=trim(row),*value=trim(colon+1);
-        for (unsigned i=0;i<4;i++) if (!strcmp(key,keys[i])) {
+        for (unsigned i=0;i<5;i++) if (!strcasecmp(key,keys[i])) {
             if ((seen&(1u<<i)) || strcmp(value,"files")) return -1;seen|=1u<<i;
         }
     }
-    return seen==15 ? 0 : -1;
+    return (seen&15)==15 ? 0 : -1;
 }
 static int accounts(int root) {
     const char *names[]={"etc/passwd","etc/shadow","etc/group","etc/gshadow","etc/nsswitch.conf"};

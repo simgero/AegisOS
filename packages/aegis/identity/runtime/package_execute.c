@@ -336,7 +336,7 @@ int aegis_package_execute(uint32_t user, uint32_t serial) {
     int empty = open("/run/aegis-empty.list", O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC, 0644);
     if (empty < 0 || mkdir("/run/aegis-empty.d", 0755) < 0) return setup_failed(&request);
     close(empty);
-    if (aegis_limit_package_worker(user) < 0 || reply(&request, AEGIS_PACKAGE_EXEC_READY, 0, 0) < 0) return setup_failed(&request);
+    if (aegis_limit_package_supervisor(user) < 0 || reply(&request, AEGIS_PACKAGE_EXEC_READY, 0, 0) < 0) return setup_failed(&request);
     alarm(0);
     uint32_t result=0;
     uint32_t error=run_command(&request,PACKAGE_ACTION,&result);

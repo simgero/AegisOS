@@ -208,7 +208,7 @@ int aegis_limit_shell(void) {
     return 0;
 }
 
-int aegis_limit_package_worker(uint32_t user_id) {
+static int limit_package(uint32_t user_id,int supervise) {
     uid_t r, e, saved; gid_t gr, ge, gs;
     if (user_id < 10 || user_id >= 21473 || getpid() != 1 || getppid() != 0
             || getsid(0) != 1 || getpgrp() != 1 || syscall(SYS_gettid) != 1)
@@ -244,7 +244,8 @@ int aegis_limit_package_worker(uint32_t user_id) {
     // changes still drop permitted/effective/ambient authority normally.
     struct __user_cap_header_struct header = {.version = _LINUX_CAPABILITY_VERSION_3};
     struct __user_cap_data_struct data[2] = {{0}, {0}};
-    data[0].effective = data[0].permitted = allowed | (1u << CAP_SETPCAP);
+    data[0].effective = data[0].permitted = allowed | (1u << CAP_SETPCAP)
+        | (supervise ? (1u << CAP_KILL) : 0);
     data[0].inheritable = allowed;
     if (syscall(SYS_capset, &header, data) < 0) return -1;
     for (int cap = 0; cap < 32; cap++) if (allowed & (1u << cap))
@@ -252,10 +253,16 @@ int aegis_limit_package_worker(uint32_t user_id) {
     if (prctl(PR_SET_SECUREBITS, SECBIT_NOROOT | SECBIT_NOROOT_LOCKED
             | SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED,
             0, 0, 0) < 0) return -1;
-    data[0].effective = data[0].permitted = allowed;
+    // Only trusted PID1 retains KILL in effective/permitted. It is deliberately
+    // absent from bounding, inheritable and ambient sets, so the following exec
+    // into APT/dpkg removes it. Package programs keep exactly the same six caps.
+    data[0].effective = data[0].permitted = allowed | (supervise ? (1u << CAP_KILL) : 0);
     if (syscall(SYS_capset, &header, data) < 0) return -1;
     return aegis_install_filter();
 }
+
+int aegis_limit_package_worker(uint32_t user_id) { return limit_package(user_id,0); }
+int aegis_limit_package_supervisor(uint32_t user_id) { return limit_package(user_id,1); }
 
 #define DENY(n) BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SYS_##n, 0, 1), \
                 BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | EPERM)

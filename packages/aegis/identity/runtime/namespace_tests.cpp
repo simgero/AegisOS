@@ -354,6 +354,7 @@ TEST_F(RuntimeNamespace, PackageWorkerRightsSurviveExecWithoutHostOrMountAuthori
 TEST(RuntimePackageSandbox, HostCallerRejectedBeforePrivilegeChanges) {
     int bits=prctl(PR_GET_SECUREBITS,0,0,0,0),nnp=prctl(PR_GET_NO_NEW_PRIVS,0,0,0,0);
     EXPECT_EQ(-1,aegis_limit_package_worker(10));EXPECT_EQ(EPERM,errno);
+    EXPECT_EQ(-1,aegis_limit_package_supervisor(10));EXPECT_EQ(EPERM,errno);
     EXPECT_EQ(bits,prctl(PR_GET_SECUREBITS,0,0,0,0));
     EXPECT_EQ(nnp,prctl(PR_GET_NO_NEW_PRIVS,0,0,0,0));
 }

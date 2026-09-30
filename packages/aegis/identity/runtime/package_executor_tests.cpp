@@ -254,10 +254,13 @@ TEST_F(RuntimePackageExecutor, RejectsSetidProgramCreatedByMaintainerScript) {
 }
 TEST_F(RuntimePackageExecutor, ReapsObservedBackgroundScriptBeforeConsistencyChecks) {
     Archives(1,false,
-        "(echo running > /var/log/aegis-exec-background; while :; do sleep 1; done) &\n"
-        "while [ ! -s /var/log/aegis-exec-background ]; do sleep 1; done\n");
+        "grep '^CapEff:' /proc/self/status > /var/log/aegis-exec-caps\n"
+        "setpriv --reuid=42 --regid=42 --clear-groups /bin/sh -c '"
+        "id -u > /var/lib/aegis-exec-owned/background; while :; do sleep 1; done' &\n"
+        "while [ ! -s /var/lib/aegis-exec-owned/background ]; do sleep 1; done\n");
     ASSERT_FALSE(HasFailure());Completed();ASSERT_FALSE(HasFailure());
-    EXPECT_EQ("running\n",AptImageFixture::read(candidate.get(),"var/log/aegis-exec-background"));
+    EXPECT_EQ("42\n",AptImageFixture::read(candidate.get(),"var/lib/aegis-exec-owned/background"));
+    EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-exec-caps").find("00000000000000db"));
     EXPECT_EQ("",AptImageFixture::read(candidate.get(),"var/log/aegis-package-1-audit.log"));
 }
 TEST_F(RuntimePackageExecutor, RejectsMissingDpkgControlMetadata) {

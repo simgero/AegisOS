@@ -30,6 +30,10 @@ int aegis_limit_shell(void);
  * Any partial failure is fatal to that worker; never retry or execute packages.
  */
 int aegis_limit_package_worker(uint32_t user_id);
+/* Same verified PID1 setup, plus non-inheritable/non-ambient CAP_KILL solely
+ * in the trusted supervisor until exec. Needed to reap technical-UID children
+ * before consistency checks; exec'd package programs retain only the six caps. */
+int aegis_limit_package_supervisor(uint32_t user_id);
 
 int aegis_install_filter(void);
 
