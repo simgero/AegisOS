@@ -101,8 +101,16 @@ class RuntimePackageResolver : public RuntimeNamespace {
         if(mode>=1&&mode<=4) {
             EXPECT_EQ(mode==4?3u:1u,reply.phase);EXPECT_EQ(100u,reply.status);EXPECT_EQ(0u,reply.error);
             auto log=Read(output.get(),mode==4?"download.log":"update.log");
-            const char* reason=mode==1?"not signed":mode==2?"expired":"Hash Sum mismatch";
+            // APT 3.0.3's copy method reports "Undetermined Error" for a bad
+            // hash. Check the exact failed URI, phase and missing final artifact,
+            // not transport-specific English text. Mode 0 is the identical
+            // positive control; only one byte in this fixture input differs.
+            const char* reason=mode==1?"not signed":mode==2?"expired":mode==3?
+                "E: Failed to fetch copy:/tmp/aegis-repo/./Packages":
+                "E: Failed to fetch copy:/tmp/aegis-repo/aegis-probe-app_2_all.deb";
             EXPECT_NE(std::string::npos,log.find(reason));
+            if(mode==3)EXPECT_EQ("<unavailable>",Read(output.get(),"lists/_tmp_aegis-repo_._Packages"));
+            if(mode==4)EXPECT_EQ("<unavailable>",Read(output.get(),"archives/aegis-probe-app_2_all.deb"));
             EXPECT_EQ("<unavailable>",Read(output.get(),"receipt.json"));return;
         }
         ASSERT_EQ(5u,reply.phase);ASSERT_EQ(0u,reply.status);ASSERT_EQ(0u,reply.error);ASSERT_EQ(2u,reply.count);
