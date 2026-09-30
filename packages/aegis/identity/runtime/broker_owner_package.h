@@ -5,7 +5,7 @@
 #include "package_executor.h"
 #include "package_preparer.h"
 namespace aegis {
-enum class PublicationState { Prepared, Running, Complete, Sealed, Preparing };
+enum class PublicationState { Prepared, Running, Complete, Sealed, Preparing, AwaitingValidation };
 
 // Trusted internal planner API, not a socket/CLI authorization endpoint.
 // The authenticated REQUESTER and verified source/store/helper/cgroup FDs are
@@ -37,7 +37,10 @@ int BrokerCancelPublication(aegis_broker_owner* owner,uint32_t user,uint32_t ser
 // monotonic IDs with publication, one unconsumed job per requester across both.
 // Inputs must be trusted/lifecycle-owned preparation results, not client FDs.
 // This is still an internal API; no public wire/CLI caller is enabled yet.
-// Poll NeedsValidation certifies completed execution only, never activation.
+// Successful APT remains AwaitingValidation under this same owned job. Polling
+// neither consumes it nor exposes its private staging FD. STOP/cancel still
+// close its CE reference; only a future registered validator may advance it.
+// NeedsValidation certifies completed execution only, never activation.
 // Register and start slow preparation in the SAME execution slot/job. Poll
 // yields Preparing -> Prepared only after child reap and validated mount
 // receipt. Prepared pins stage/mount until StartExecution under a NEW fresh

@@ -10,6 +10,8 @@
 #include <android-base/unique_fd.h>
 #include <dirent.h>
 #include <grp.h>
+#include <limits.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <sys/inotify.h>
@@ -36,6 +38,17 @@ int CountFDs() {
     DIR* d=opendir("/proc/self/fd");if(!d)return -1;
     int n=0;while(auto* entry=readdir(d))if(entry->d_name[0]!='.')n++;
     closedir(d);return n;
+}
+int ReferencesTo(const struct stat& original) {
+    DIR* entries=opendir("/proc/self/fd");if(!entries)return -1;
+    int count=0;
+    while(auto* entry=readdir(entries)) {
+        char* end=nullptr;long fd=strtol(entry->d_name,&end,10);
+        if(end==entry->d_name || *end || fd<0 || fd>INT_MAX)continue;
+        struct stat st;
+        if(fstat(fd,&st)==0 && st.st_dev==original.st_dev && st.st_ino==original.st_ino)count++;
+    }
+    closedir(entries);return count;
 }
 void Octal(char* out,size_t width,uint64_t value) {
     snprintf(out,width,"%0*llo",static_cast<int>(width-1),static_cast<unsigned long long>(value));
@@ -250,17 +263,42 @@ TEST_F(RuntimePackageExecutor, BrokerBindsApprovalAndUserStopCancelsActualAptOnl
     EXPECT_EQ(-1,BrokerCancelExecution(broker,10,42,other,plan.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
     ASSERT_EQ(0,BrokerCancelExecution(broker,11,42,other,plan.plan_sha256,Deadline()));
 }
-TEST_F(RuntimePackageExecutor, BrokerReapsCompletedAptAndReturnsNeedsValidationOnce) {
-    Archives(1);Broker();ASSERT_FALSE(HasFatalFailure());uint64_t job=Prepared();ASSERT_FALSE(HasFailure());
+TEST_F(RuntimePackageExecutor, SuccessfulAptRemainsOwnedUntilValidationOrCancellation) {
+    Archives(1);Broker();ASSERT_FALSE(HasFatalFailure());int before=CountFDs();
+    struct stat original;ASSERT_EQ(0,fstat(stage.get(),&original));
+    uint64_t job=Prepared();ASSERT_FALSE(HasFailure());
+    // The caller gives up its stage reference. The broker must retain the exact
+    // object beyond actual APT exit, without sending an unowned fd to a client.
+    stage.reset();before--;
     ASSERT_EQ(0,BrokerStartExecution(broker,10,42,job,plan.plan_sha256,Deadline())) << strerror(errno);
     PublicationState state=PublicationState::Running;PackageExecutionResult result;
-    for(unsigned i=0;i<900 && state!=PublicationState::Complete;i++) {
+    for(unsigned i=0;i<900 && state==PublicationState::Running;i++) {
         ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
         ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.plan_sha256,&state,&result));
-        if(state!=PublicationState::Complete)usleep(10000);
+        if(state==PublicationState::Running)usleep(10000);
     }
-    EXPECT_EQ(PublicationState::Complete,state);EXPECT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome);
+    ASSERT_EQ(PublicationState::AwaitingValidation,state);
+    EXPECT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome);
     EXPECT_EQ(0,result.status);EXPECT_EQ(0,result.error);
+    EXPECT_EQ(before+1,CountFDs());EXPECT_EQ(1,ReferencesTo(original));
+    EXPECT_EQ(-1,aegis_broker_owner_release(&broker));EXPECT_EQ(EBUSY,errno);
+    uint64_t duplicate=0;
+    EXPECT_EQ(-1,BrokerPrepareExecution(broker,plan,parent.get(),-1,candidate.get(),helper.get(),Deadline(),&duplicate));
+    EXPECT_EQ(EBUSY,errno);EXPECT_EQ(0u,duplicate);
+    EXPECT_EQ(-1,BrokerStartExecution(broker,10,42,job,plan.plan_sha256,Deadline()));EXPECT_EQ(EALREADY,errno);
+    EXPECT_EQ(-1,BrokerPollExecution(broker,11,42,job,plan.plan_sha256,&state,&result));EXPECT_EQ(ESTALE,errno);
+    EXPECT_EQ(-1,BrokerCancelExecution(broker,10,43,job,plan.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
+    EXPECT_EQ(-1,BrokerCancelExecution(broker,10,42,job,std::string(64,'b'),Deadline()));EXPECT_EQ(ESTALE,errno);
+    for(unsigned i=0;i<16;++i) {
+        ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.plan_sha256,&state,&result));
+        EXPECT_EQ(PublicationState::AwaitingValidation,state);
+    }
+    EXPECT_EQ(before+1,CountFDs());EXPECT_EQ(1,ReferencesTo(original));
+    ASSERT_EQ(0,BrokerCancelExecution(broker,10,42,job,plan.plan_sha256,Deadline()));
+    EXPECT_EQ(before,CountFDs());EXPECT_EQ(0,ReferencesTo(original));
+    ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.plan_sha256,&state,&result));
+    EXPECT_EQ(PublicationState::Complete,state);EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);
+    EXPECT_EQ(ECANCELED,result.error);
     EXPECT_EQ(-1,BrokerPollExecution(broker,10,42,job,plan.plan_sha256,&state,&result));EXPECT_EQ(ENOENT,errno);
 }
 TEST_F(RuntimePackageExecutor, BrokerCancellationRevokesAlreadyCollectedWorkerCompletion) {
@@ -491,18 +529,27 @@ TEST_F(RuntimePackagePreparation, BrokerPrivateUmaskDoesNotBreakCandidatePermiss
     ASSERT_EQ(0,fstatat(stage.get(),"candidate.ext4",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(0600u,st.st_mode&07777);
     ASSERT_EQ(0,fstatat(stage.get(),"request",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(0400u,st.st_mode&07777);
 }
-TEST_F(RuntimePackagePreparation, BrokerRetainsSameJobThroughPreparationAndApt) {
+TEST_F(RuntimePackagePreparation, BrokerRetainsSameJobThroughPreparationAptAndValidationWait) {
     Broker();ASSERT_FALSE(HasFatalFailure());
     EXPECT_EQ(-1,BrokerStartExecution(broker,10,43,job,plan.execution.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
     AwaitPrepared();ASSERT_FALSE(HasFatalFailure());EXPECT_EQ(1,MatchingLoops());
+    struct stat original;ASSERT_EQ(0,fstat(stage.get(),&original));
     ASSERT_EQ(0,BrokerStartExecution(broker,10,42,job,plan.execution.plan_sha256,Deadline()))<<strerror(errno);
     PublicationState state=PublicationState::Running;PackageExecutionResult result;
-    for(unsigned i=0;i<900 && state!=PublicationState::Complete;++i) {
+    for(unsigned i=0;i<900 && state==PublicationState::Running;++i) {
         ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));
-        if(state!=PublicationState::Complete)usleep(10000);
+        if(state==PublicationState::Running)usleep(10000);
     }
-    EXPECT_EQ(PublicationState::Complete,state);EXPECT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome);
-    EXPECT_EQ(0,result.error);NoLoop();
+    ASSERT_EQ(PublicationState::AwaitingValidation,state);
+    EXPECT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome);
+    EXPECT_EQ(0,result.error);NoLoop();EXPECT_EQ(2,ReferencesTo(original));
+    aegis_broker_request request={};request.magic=AEGIS_BROKER_MAGIC;request.version=AEGIS_BROKER_VERSION;
+    request.operation=AEGIS_BROKER_STATUS;request.user=10;request.serial=42;request.sequence=2;request.deadline_ns=Deadline();
+    aegis_broker_state current=AEGIS_BROKER_ABSENT;
+    ASSERT_EQ(0,aegis_broker_owner_apply(broker,&request,&current));
+    EXPECT_EQ(AEGIS_BROKER_SEALED,current); // no runtime context, but CE is still owned
+    ASSERT_EQ(0,Stop());EXPECT_EQ(1,ReferencesTo(original));NoLoop();
+    EXPECT_EQ(-1,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));EXPECT_EQ(ENOENT,errno);
 }
 TEST_F(RuntimePackagePreparation, ExistingVerifiedArchivesCanBeUsedAgain) {
     Ready();ASSERT_FALSE(HasFatalFailure());ReusePreparedImage();ASSERT_FALSE(HasFatalFailure());
