@@ -6,26 +6,56 @@ als [Komponenten-Release](https://github.com/simgero/AegisOS/releases/tag/compon
 verifiziert veröffentlicht. Lauf `identity-20260930T005535Z-8ef04ca6-6D0Apr`,
 Invocation `42db13853beb45afbb727d8a768a6871`.
 
+Am **2026-09-30T01:04:46Z bestehen 29/29 gezielte Gerätetests**, drei Suiten
+in 10.440 Sekunden: acht `RuntimePackageExecutor`, dreizehn
+`RuntimePackagePreparation` und acht `RuntimePackageBroker`. Kein Skip.
+Ausführung ausschließlich im lokalen Hintergrund-QEMU, Vollimage ab38cf24,
+Profil `0bbb6cf5-951e-43b4-9e08-ec952ab1b6e4`, Boot
+`6e287d8c-a75c-47c1-ba45-b72b96b2122e`.
+
 Nach erfolgreichem APT hält derselbe registrierte Auftrag die exakte
 Staging-Verzeichnisreferenz im Zustand `AwaitingValidation`. Wiederholtes
-Abfragen konsumiert den Auftrag nicht. Fremde Identität, Seriennummer oder
-Planhash bleiben abgewiesen; Abbruch und `STOP_USER` schließen die Referenz.
-Die zwei vorhandenen Integrationstests wurden dafür um tatsächliche
-Dateideskriptor-Zählung, wiederholtes Abfragen und Aufräumen erweitert.
+Abfragen konsumiert den Auftrag nicht. Der Test schließt die ursprüngliche
+Aufruferreferenz und zählt anschließend genau eine verbliebene Brokerreferenz
+zu demselben Inode, auch nach sechzehn Statusabfragen. Freigeben des Besitzers,
+zweiter Auftrag und erneuter Start bleiben blockiert. Fremde Identität,
+Seriennummer oder Plan werden abgewiesen. Abbruch schließt die letzte Referenz
+und liefert einen einmal abholbaren Fehler. Vorbereitung, echtes Offline-APT
+und Warten auf Validierung behalten dieselbe Auftragskennung; `STOP_USER`
+schließt die Referenz und bestätigt `ABSENT`. Der Schreibmount und sein
+Loopgerät sind zu diesem Zeitpunkt bereits vollständig freigegeben.
 
-**Noch nicht im Gast geprüft oder als Startversion übernommen.** Der lokale
-Mac hatte beim Empfang nur 1.76 GiB frei; der Empfänger stoppte vor dem Download.
-Alle bisherigen Profile und Dateien bleiben erhalten. Nach ausreichend freiem
-Speicher folgen die gezielten Suiten `RuntimePackageExecutor`,
-`RuntimePackagePreparation` und `RuntimePackageBroker` (29 vorhandene Tests)
-im lokalen Mac-QEMU. Die früheren 187 nativen und 119 Java-Ergebnisse sind
-keine Prüfung dieses neuen Komponentenstands. Belege und fortsetzbarer
-Empfang liegen unter `out/components-8ef04ca6/` im primären Workspace.
+Vorher-/Nachherabgleich bestätigt unveränderte AOSP-Identitäten 0/0, Alpha
+10/10 und Beta 11/11; nur Benutzer 0 ist gestartet und CE-entsperrt. Persönliche
+Kontexte bleiben leer, Enforcing und der produktive Broker laufen weiter.
+Die getestete Besitzerbibliothek wird direkt im Entwickler-Testprozess
+aufgerufen; der laufende Produkt-Broker bleibt ab38cf24. Es wurde weder ein
+Benutzer angemeldet/gelöscht noch ein Profil migriert oder der Launcher ersetzt.
 
-Die registrierte semantische Validierung sowie ihre Verbindung zu
-Veröffentlichung und Aktivierung bleiben noch zu implementieren. Diese
-Korrektur schaltet weder einen öffentlichen Paketbefehl noch eine
-Administratorfreigabe frei.
+Der zunächst angehaltene Empfang benötigte mehr lokalen Speicher. Sechs
+ungenutzte komprimierte Downloadkopien wurden erneut anhand gleicher SHA-256
+in den weiterhin veröffentlichten GitHub-Assets und fehlender Dateizugriffe
+verifiziert und entfernt (10.78 GiB). Alle 31 Profilmanifeste, Daten-/KeyMint-Paare,
+extrahierten Images, Helper und Belege blieben erhalten. Danach waren tatsächlich
+23.48 GiB frei. Der vorhandene Release wurde empfangen, ohne neu zu bauen oder
+erneut zu veröffentlichen. Die erste lokale Testvorprüfung hielt vor Gaständerung
+an, weil `dumpsys user` den Systembenutzernamen als `null` ausgibt, während
+`pm list users` ihn als `Owner` darstellt. Nur diese Vorprüfung wurde an die
+beobachtete Darstellung angepasst; IDs und Seriennummern blieben exakt geprüft.
+
+Belege: `out/components-8ef04ca6/targeted-tests/` im primären Workspace.
+Ergebnis SHA-256 `0db9d1c0d590005809cf4288497536fc6bc40e40bbe7d9daca972772ac334624`;
+Rohlog `6ea91e861619dadf84042ed2b0478d53f087af6cd2362722c9897add9fa43178`;
+identischer Vorher-/Nachherzustand
+`427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`.
+Die Cacheprüfung ist unter `out/download-cache-20260930-verified.json` erhalten.
+
+**Grenzen:** Die vollen 187 nativen und 119 Java-Tests wurden für diese Änderung
+nicht wiederholt. Registrierte semantische Validierung, Veröffentlichung und
+Aktivierung sind weiterhin nicht miteinander verbunden. Es gibt damit noch
+keinen öffentlichen Paketbefehl mit frischer AOSP-Adminfreigabe und keinen
+Nachweis produktiven privaten APTs während echter AOSP-Abmeldung. Die
+Komponentenprüfung ersetzt diese Integration und einen neuen Vollimage-Test nicht.
 
 ## Reale private CE-Paketablage mit Anmeldung, Logout und Reboot: ab38cf24
 

@@ -10,9 +10,12 @@ bevor der Besitzer Abwesenheit bestätigt. Ein erneutes Öffnen anhand eines
 vom Aufrufer gelieferten Pfads ist nicht vorgesehen. Der Validator selbst und
 die anschließende Veröffentlichung/Aktivierung sind noch nicht verbunden.
 
-Dieser Stand ist auf dem Server kompiliert und über GitHub gesichert;
-**die gezielten Gasttests warten auf lokalen Speicherplatz**.
-[Buildbeleg und ausstehende Prüfungen](../docs/component-tests.md).
+Dieser Stand ist auf dem Server kompiliert und über GitHub bezogen.
+**29/29 gezielte Tests** bestehen im lokalen Hintergrund-QEMU; die tatsächlichen
+AOSP-Benutzer, CE-Sperren und leeren Runtime-Kontexte sind davor und danach
+unverändert. Die Besitzerbibliothek wird direkt im Testprozess ausgeführt; der
+produktive Broker und der Launcher wurden noch nicht ersetzt.
+[Buildbeleg, Prüfung und verbleibende Integration](../docs/component-tests.md).
 
 ## Private CE-Ablage im vollständigen Produkt geprüft
 
