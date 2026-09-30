@@ -1,3 +1,72 @@
+## Vollimage c7401f60: private Generationen im echten Zwei-Benutzer-Ablauf
+
+Am **2026-09-30T04:53:00Z** ist die integrierte Auswahlprüfung von
+`c7401f60f2266c1fdeff5a92003b92d9ddf789f2` im lokalen Mac-QEMU abgeschlossen.
+Der [Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260930T041126Z-c7401f60-433faf9c)
+gehört zum Lauf `aosp-20260930T041126Z-c7401f60-433faf9c`, Invocation
+`964c7c2285c648f4b0e2ae4a5427d20c`. Upload und alle 21 lokalen Assets sind
+verifiziert. Die gezielte mounton-Korrektur behebt den unten dokumentierten
+Startfehler, ohne SELinux abzuschalten oder die laufende Policy zu verändern.
+
+Das eigenständige Profil `39d29ee1-7587-4223-8e5d-f9872c910554` wurde mit demselben
+Android-/KeyMint-Paar neu gestartet. Boot-IDs:
+`84d48333-63ec-4b9c-9063-0e7a9632c998` und
+`112b706c-2e59-4845-8c90-376f1e7fc048`; AVB-Digest in beiden Boots:
+`0c6c6537e71732a510eb04a150b5fe11fc4e4b7015951ea1fba3a796c57e9797`.
+Beide Boots bestätigen tatsächliches dm-verity, FBE, authentifiziertes ADB,
+Enforcing, Brokerdomäne und Cgroup-Delegation. In beiden vollständigen
+Laufzeit-Logs und im abschließenden Kernelpuffer wurden keine Runtime-/Paket-AVCs
+oder Runtime-Fehlermeldungen beobachtet.
+
+Nachgewiesen sind:
+
+- Alpha 10/10 und Beta 11/11: erste echte AOSP-Anmeldung ohne vorherigen
+  Fehlversuch, stabile Sitzung und tatsächlicher GNU-Start. Pro Kontext gelten
+  eigene UID-Zuordnung, Namensräume, HOME, schreibgeschützte Softwarebasis,
+  entfernte Capabilities und Seccomp. GNU/glibc, Bash und APT sind vorhanden.
+- Private vollständige Testgenerationen im jeweiligen CE-Speicher werden vom
+  produktiven Start ausgewählt. Acht unabhängige Beobachtungen verbinden
+  Backing-Datei, Loopgerät und tatsächlichen GNU-Mount vor und nach Reboot
+  beziehungsweise bestätigen vollständige Freigabe nach Logout.
+- Gegenseitige Datei-/proc-Leseversuche und SIGSTOP werden aus den echten
+  GNU-Kontexten abgewehrt, während der fremde Prozess vorher und nachher lebt.
+  Ein Wechsel über die zweite CLI widerruft die erste aktive GNU-PTY; ihr
+  Hintergrundprozess arbeitet weiter. Alphas Logout beendet nur Alphas Kontext;
+  Betas Hintergrundprozess arbeitet danach nachweislich weiter. Beide Logout-
+  Prüfungen liegen deutlich vor dem natürlichen 30-Minuten-Ende der Testprozesse.
+- Logout entfernt Prozesse, Kontext und private Backing-Loops und sperrt AOSP-CE.
+  Nach gepaartem Neustart lassen sich beide GNU-geschriebenen Dateien bytegleich
+  lesen. Falsches Passwort erlaubt weder CE-Zugriff noch Runtime-Start.
+- AOSP-Passwortwechsel für Beta: altes Passwort nach Logout abgewiesen, CE bleibt
+  gesperrt; neues Passwort öffnet dieselbe Generation und unveränderte Datei.
+  Terminal-Resize und Vordergrund-Unterbrechung funktionieren. In sechs Bootlogs
+  wurde kein vollständiges Testpasswort gefunden; der Testtreiber ist beendet.
+
+**14/14 zusätzliche native CE-Probeaufrufe** bestehen. Sie prüfen Publikation,
+Wiederöffnung, fremde Seriennummer, registrierte Vorbereitung/Abbruch und wirklich
+gesperrte Schlüssel. Diese Proben veröffentlichen Testabbilder als Entwicklungsroot;
+sie sind **kein öffentlicher Paketbefehl und kein Nachweis frischer Adminfreigabe**.
+Die 239 nativen und 130 Java-Komponentenbelege wurden nicht redundant wiederholt:
+die betreffenden Quellen sind gegenüber den bereits geprüften Ständen unverändert.
+
+Belege im primären Workspace: `out/full-build-c7401f60/integration-result.json`,
+SHA-256 `a4dcbf1a154a3f76387dab1bdd7b80e17074dc6dcf48b423a834107851b58593`.
+Der Beleg enthält Prüfsummen der Ereignisse, Bootprüfungen, CE-Proben und
+Mount-Beobachtungen. GNU-Dateihashes: Alpha
+`5ebf706722861c13173547a2195fe89ed729a1449445d596dfc8cac57531132b`, Beta
+`961282b42166b5851486fcaf9aaabe40704e3a35f6b7f7398488edd3051dcf09`.
+Am Ende sind beide persönlichen Benutzer gesperrt, keine persönlichen Kontexte
+oder privaten Backing-Loops vorhanden und ausschließlich Benutzer 0 entsperrt.
+Alle bisherigen Profilpaare bleiben erhalten; das QEMU-Fenster bleibt geschlossen.
+
+**Noch offen:** öffentlicher Install-/Update-/Remove-Kanal, vertrauenswürdige
+Repository-/Abhängigkeitsplanung, frische AOSP-Adminfreigabe für beide Bereiche,
+produktive Paketskript-Domäne und APT-Abbruch während AOSP-Logout. Gemeinsame/private
+Paketänderungen, Konkurrenz, Aktivierungskonflikte und die vollständige Phase-1-
+Abnahme stehen aus. Auch eine Imageaktualisierung eines bestehenden persönlichen
+Profils ist hiermit nicht nachgewiesen; der sichtbare Launcher wird nicht umgestellt.
+Dieser integrierte Lauf ist ein Teilnachweis, kein Abschluss des Gesamtauftrags.
+
 ## Vollimage 6473cf51: Boot bestätigt, erster GNU-Start bewusst nicht abgenommen
 
 Der [vollständige Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260930T033608Z-6473cf51-27531d4b)

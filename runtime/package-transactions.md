@@ -2,24 +2,28 @@
 
 ## Produktintegration der Startauswahl
 
-**Vollimage-Prüfung 6473cf51:** Boot, AOSP-Login und kontrollierter Logout nach
-Teilstart sind bestätigt, der erste GNU-Start scheiterte an einer konkreten
-SELinux-mounton-Ablehnung am privaten Broker-Anker. Die gezielte Regelkorrektur
-wird separat gebaut; erfolgreiche Komponententests sind keine Produktabnahme.
-Siehe die [Diagnose und tatsächlichen Cleanup-Belege](../docs/component-tests.md).
+**Vollimage c7401f60 ist für die integrierte Startauswahl geprüft.** Die gezielte
+SELinux-Korrektur behebt den mounton-Fehler von 6473cf51. Zwei echte AOSP-Benutzer
+starten GNU-Kontexte aus ihren privaten vollständigen CE-Generationen. Gegenseitige
+Datei-/Prozesszugriffe werden abgewehrt; Wechsel erlaubt geprüften Hintergrundbetrieb,
+Logout beendet den jeweiligen Kontext, gibt das private Abbild frei und sperrt CE.
+Derselbe Android-/KeyMint-Profilstand übersteht einen Neustart mit bytegleich
+lesbaren Dateien und denselben ausgewählten Generationen. Der AOSP-Passwortwechsel
+bewahrt Betas Daten und verweigert danach das alte Passwort.
+[Konkrete Belege und Grenzen](../docs/component-tests.md).
 
-Stand `6473cf51` verbindet das Bootstrap mit der registrierten Auswahl: feste,
-verifizierte Systembasis und Helfer; optionaler fester gemeinsamer Store;
-AOSP-geprüfte persönliche CE-Auswahl vor START. Vorhandene ungültige Stores
-verhindern den Start. Helferinstallation und SELinux-Regeln kompilieren;
-**239/239 native Tests** bestehen im bisherigen lokalen Gast. Die unveränderten
-Java-Quellen behalten den gesonderten 130-Test-Beleg von `95f2b925`.
+14 zusätzliche CE-Probeaufrufe bestehen; die Veröffentlichung ihrer Testabbilder
+läuft als Entwicklungsroot. Das ist keine Adminfreigabe oder Paketinstallation
+über die öffentliche CLI. Die unveränderten Komponenten behalten die gesonderten
+239 nativen und 130 Java-Testbelege. Enforcing, FBE und dm-verity sind in beiden
+Boots bestätigt. Frühere Profilpaare bleiben erhalten; der sichtbare Launcher
+bleibt unverändert.
 
-Das vollständige neue Abbild und die Ausführung dieses Bootstraps unter realem
-AOSP/SELinux sind noch nicht abgenommen. Es folgt der separate Hintergrundtest
-mit tatsächlicher Generation, GNU-Sitzung, Logout und gepaartem Neustart.
-Öffentliche Paketbefehle, Repository-Auflösung und frische AOSP-Adminfreigaben
-für beide Paketbereiche bleiben offen. [Belege und Grenzen](../docs/component-tests.md).
+**Nächste Verbindung:** öffentliche Paketbefehle samt vertrauenswürdiger Repository-
+und Abhängigkeitsplanung, frischer AOSP-Adminbestätigung für beide Bereiche und
+produktiver Paket-Ausführung. Danach sind gemeinsame/private Installationen,
+Updates, Entfernung, Konflikte und tatsächlicher Logout während APT unter der
+produktiven Sicherheitsrichtlinie nachzuweisen. Die fünfteilige Aufgabe bleibt offen.
 
 Die folgenden Abschnitte dokumentieren die vorangegangenen Stände.
 
