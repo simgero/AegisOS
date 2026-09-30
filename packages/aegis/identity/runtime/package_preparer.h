@@ -1,6 +1,7 @@
 #ifndef AEGIS_PACKAGE_PREPARER_H
 #define AEGIS_PACKAGE_PREPARER_H
 #include "package_executor.h"
+#include "package_store.h"
 namespace aegis {
 struct PackageInput { uint64_t bytes=0; std::string sha256; };
 struct PackagePreparation {
@@ -14,6 +15,14 @@ enum class PackagePreparationOutcome { Unconfirmed, Failed, Prepared };
 struct PackagePreparationResult {
     PackagePreparationOutcome outcome=PackagePreparationOutcome::Unconfirmed;
     int error=0;
+    // Only a runtime selection returns a generation; preparation leaves it empty.
+    PackageGeneration generation={};
+    enum class Scope { None, Factory, Shared, Personal } scope=Scope::None;
+};
+struct PackageRuntimeSelection {
+    uint32_t requester=0, serial=0;
+    uint64_t job=0;
+    PackageInput factory; // Pinned immutable system_ext receipt, never a CLI hash.
 };
 struct PackagePreparer;
 int PackagePreparationCheck(const PackagePreparation& plan);
@@ -26,6 +35,20 @@ int PackagePreparationCheck(const PackagePreparation& plan);
 int PackagePreparerStart(int groups,int stage,int source,int helper,
                          const std::vector<int>& archives,const PackagePreparation& plan,
                          PackagePreparer** worker);
+// Select and verify a complete generation in the SAME owned child machinery.
+// Caller anchors stores under admission (personal CE+serial); -1 means verified
+// absence, never an error opening/validating a present directory. No directories
+// are created. Empty initialized stores fall back personal -> shared -> factory;
+// corruption/foreign identity/lock contention never falls back. Personal base
+// must equal selected shared/factory hash; otherwise ESTALE requires rebase.
+// Returned mount is readonly/nosuid/nodev/noexec, not yet attached/idmapped.
+// Slow SHA reads stay outside the broker's short admission. The owner MUST
+// register before starting, include the worker/mount in STOP_USER, and close
+// caller originals under admission. This internal primitive is not yet wired
+// to production START or a public command. Existing mounts pin old images.
+int PackageRuntimeSelectionStart(int groups,int shared_store,int personal_store,
+                                 int factory,int helper,const PackageRuntimeSelection& request,
+                                 PackagePreparer** worker);
 int PackagePreparerCancel(PackagePreparer* worker);
 // Actual child reaping + empty/removed group first. Timeout retains *worker.
 // On Prepared only, *candidate receives ONE detached RW nosuid/nodev/noexec

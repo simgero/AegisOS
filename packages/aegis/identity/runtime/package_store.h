@@ -33,7 +33,8 @@ class PackageStore {
     PackageStore& operator=(const PackageStore&) = delete;
 
     // Returns an independently opened read-only image FD after hash verification.
-    // ENOENT means no generation selected. Returned FDs pin previous contents
+    // ENOENT means no generation selected; a missing selected image is ESTALE.
+    // Returned FDs pin previous contents
     // across later publication. Close all private FDs before AOSP CE eviction.
     int Current(PackageGeneration* generation);
 

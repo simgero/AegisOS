@@ -1,6 +1,7 @@
 // Trusted bounded-input preparation only: copy/hash/mount/cache, never APT or
 // package scripts. Production SELinux/bootstrap/CE anchoring belongs to broker.
 #include "package_preparation_protocol.h"
+#include <memory>
 #include <android-base/unique_fd.h>
 #include <openssl/sha.h>
 #include <algorithm>
@@ -89,7 +90,7 @@ int64_t Now() {
     timespec t;if(clock_gettime(CLOCK_MONOTONIC,&t)<0)return -1;
     return int64_t(t.tv_sec)*1000000000+t.tv_nsec;
 }
-int Mount(int image,uint64_t bytes) {
+int Mount(int image,uint64_t bytes,bool read_only=false) {
     struct stat backing;if(fstat(image,&backing)<0)return -1;
     unique_fd control(open("/dev/loop-control",O_RDWR|O_CLOEXEC|O_NOFOLLOW));if(!control.ok())return -1;
     struct stat st;if(fstat(control.get(),&st)<0)return -1;
@@ -108,24 +109,75 @@ int Mount(int image,uint64_t bytes) {
         if(fstat(loop.get(),&st)<0)return -1;
         if(!S_ISBLK(st.st_mode) || major(st.st_rdev)!=7 || minor(st.st_rdev)!=static_cast<unsigned>(number)
            || st.st_uid || (st.st_mode&0022))return Fail(EPERM);
-        loop_config config={};config.fd=image;config.info.lo_flags=LO_FLAGS_AUTOCLEAR;
+        loop_config config={};config.fd=image;config.info.lo_flags=LO_FLAGS_AUTOCLEAR|(read_only?LO_FLAGS_READ_ONLY:0);
         if(ioctl(loop.get(),LOOP_CONFIGURE,&config)<0) { if(errno==EBUSY)continue;return -1; }
         loop_info64 info={};uint64_t actual=0;int readonly=-1;
         if(ioctl(loop.get(),LOOP_GET_STATUS64,&info)<0 || ioctl(loop.get(),BLKGETSIZE64,&actual)<0
            || ioctl(loop.get(),BLKROGET,&readonly)<0)return -1;
         if(info.lo_device!=static_cast<uint64_t>(backing.st_dev) || info.lo_inode!=backing.st_ino
            || info.lo_number!=static_cast<unsigned>(number) || info.lo_offset || info.lo_sizelimit
-           || info.lo_flags!=LO_FLAGS_AUTOCLEAR || info.lo_encrypt_type || info.lo_encrypt_key_size
-           || actual!=bytes || readonly)return Fail(EPROTO);
+           || info.lo_flags!=config.info.lo_flags || info.lo_encrypt_type || info.lo_encrypt_key_size
+           || actual!=bytes || readonly!=int(read_only))return Fail(EPROTO);
         unique_fd fs(syscall(SYS_fsopen,"ext4",FSOPEN_CLOEXEC));if(!fs.ok())return -1;
         std::string device="/proc/self/fd/"+std::to_string(loop.get());
+        if(read_only && (syscall(SYS_fsconfig,fs.get(),FSCONFIG_SET_FLAG,"ro",nullptr,0)<0
+                        || syscall(SYS_fsconfig,fs.get(),FSCONFIG_SET_FLAG,"noload",nullptr,0)<0))return -1;
         if(syscall(SYS_fsconfig,fs.get(),FSCONFIG_SET_STRING,"source",device.c_str(),0)<0
            || syscall(SYS_fsconfig,fs.get(),FSCONFIG_SET_STRING,"context","u:object_r:aegis_runtime_base_file:s0",0)<0
            || syscall(SYS_fsconfig,fs.get(),FSCONFIG_CMD_CREATE,nullptr,nullptr,0)<0)return -1;
         // Detached mount owns the autoclearing loop; never attach or force-clear.
-        return syscall(SYS_fsmount,fs.get(),FSMOUNT_CLOEXEC,MOUNT_ATTR_NOSUID|MOUNT_ATTR_NODEV|MOUNT_ATTR_NOEXEC);
+        return syscall(SYS_fsmount,fs.get(),FSMOUNT_CLOEXEC,
+            MOUNT_ATTR_NOSUID|MOUNT_ATTR_NODEV|MOUNT_ATTR_NOEXEC|(read_only?MOUNT_ATTR_RDONLY:0));
     }
     return Fail(EBUSY);
+}
+// Clean-state guard before readonly+noload. This is not a substitute for fsck
+// or the publishing transaction's package-policy validation.
+// https://docs.kernel.org/filesystems/ext4/super.html
+int Clean(int image,uint64_t bytes) {
+    unsigned char sb[1024];
+    if(TEMP_FAILURE_RETRY(pread(image,sb,sizeof(sb),1024))!=static_cast<ssize_t>(sizeof(sb)))return Fail(EIO);
+    auto u16=[&](unsigned o) { return unsigned(sb[o])|(unsigned(sb[o+1])<<8); };
+    auto u32=[&](unsigned o) { return uint32_t(u16(o))|(uint32_t(u16(o+2))<<16); };
+    uint64_t blocks=u32(4);if(u32(0x60)&0x80)blocks|=uint64_t(u32(0x150))<<32;
+    if(u16(0x38)!=0xef53 || u16(0x3a)!=1 || (u32(0x60)&4)
+       || u32(0x18)!=2 || bytes%4096 || blocks!=bytes/4096)return Fail(EPROTO);
+    return 0;
+}
+int Select(const wire::Request& request,wire::Reply* reply) {
+    using namespace aegis;
+    // Retain shared lock until personal selection/base validation completes:
+    // publication cannot change the pair mid-selection. Never wait for locks.
+    std::unique_ptr<PackageStore> shared,personal;
+    PackageGeneration selected{request.image.hash,"",request.image.bytes};
+    unique_fd image;
+    unsigned scope=1;
+    if(request.has_shared) {
+        shared.reset(PackageStore::Open(wire::kStage,{false,0,0},false));if(!shared)return -1;
+        image.reset(shared->Current(&selected));if(!image.ok() && errno!=ENOENT)return -1;
+        if(image.ok())scope=2;
+    }
+    const auto base=selected.image_sha256;
+    if(request.has_personal) {
+        personal.reset(PackageStore::Open(wire::kArchive,{true,request.execution.user,request.execution.serial},false));
+        if(!personal)return -1;
+        PackageGeneration own;unique_fd private_image(personal->Current(&own));
+        if(!private_image.ok() && errno!=ENOENT)return -1;
+        if(private_image.ok()) {
+            if(own.shared_base_sha256!=base)return Fail(ESTALE);
+            image=std::move(private_image);selected=own;scope=3;
+        }
+    }
+    if(!image.ok()) {
+        if(Copy(wire::kSource,-1,request.image)<0)return -1;
+        image.reset(fcntl(wire::kSource,F_DUPFD_CLOEXEC,3));if(!image.ok())return -1;
+    }
+    if(Clean(image.get(),selected.bytes)<0)return -1;
+    unique_fd mount(Mount(image.get(),selected.bytes,true));if(!mount.ok())return -1;
+    reply->scope=scope;reply->selected.bytes=selected.bytes;
+    memcpy(reply->selected.hash,selected.image_sha256.c_str(),65);
+    if(scope==3)memcpy(reply->shared_base,selected.shared_base_sha256.c_str(),65);
+    return mount.release();
 }
 int Prepare(const wire::Request& request) {
     if(!Plain(wire::kStage,S_IFDIR,0700) || flock(wire::kStage,LOCK_EX|LOCK_NB)<0
@@ -182,13 +234,15 @@ int main(int argc,char**) {
     // candidate directories/cache files need0755/0644, while stage inputs are
     // explicitly0600 and the retained request is explicitly sealed0400.
     umask(0022);
-    unique_fd mount(Prepare(request));int error=mount.ok() ? 0 : errno;
+    wire::Reply reply={};
+    unique_fd mount(request.selection?Select(request,&reply):Prepare(request));int error=mount.ok() ? 0 : errno;
     // Successful transfer closes source/stage/archive references before reply;
     // the queued detached mount is still owned by the registered parent socket.
     close(wire::kStage);close(wire::kSource);
+    if(request.selection && request.has_personal)close(wire::kArchive);
     if(request.execution.kind==AEGIS_PACKAGE_ARCHIVES)
         for(unsigned i=0;i<request.execution.count;++i)close(wire::kArchive+i);
-    wire::Reply reply={};reply.magic=wire::kMagic;reply.version=wire::kVersion;
+    reply.magic=wire::kMagic;reply.version=wire::kVersion;
     reply.user=request.execution.user;reply.serial=request.execution.serial;reply.job=request.execution.job;
     reply.error=error ? error : 0;memcpy(reply.plan,request.execution.plan,65);
     alignas(cmsghdr) char ancillary[CMSG_SPACE(sizeof(int))]={};iovec io={&reply,sizeof(reply)};

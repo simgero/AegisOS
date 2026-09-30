@@ -32,7 +32,8 @@ struct PackagePreparer {
     pid_t process = 0;
     unique_fd store, source, channel;
     std::vector<unique_fd> archives;
-    bool cancelled=false;
+    bool cancelled=false,selection=false;
+    PackageInput factory;
     uint32_t user=0,serial=0;
     aegis_memory_group* group = nullptr;
     aegis_child* child = nullptr;
@@ -146,13 +147,28 @@ PackagePreparationResult Response(PackagePreparer* p,const aegis_child_exit& exi
        || reply.user!=p->user || reply.serial!=p->serial || reply.job!=p->job
        || !aegis_package_hash(reply.plan) || p->plan!=reply.plan || reply.error<0 || reply.error>4095
        || count!=(reply.error ? 0u : 1u))return result;
-    if(reply.error)return {PackagePreparationOutcome::Failed,reply.error};
+    if(reply.error) {
+        if(reply.scope || reply.selected.bytes || !aegis_package_zero(reply.selected.hash,65)
+           || !aegis_package_zero(reply.shared_base,65))return result;
+        return {PackagePreparationOutcome::Failed,reply.error};
+    }
+    PackagePreparationResult selected{PackagePreparationOutcome::Prepared,0};
+    if(p->selection) {
+        if(reply.scope<1 || reply.scope>3 || !wire::InputValid(reply.selected,uint64_t{32}<<30)
+           || reply.selected.bytes%4096)return result;
+        if(reply.scope==3 ? !aegis_package_hash(reply.shared_base) : !aegis_package_zero(reply.shared_base,65))return result;
+        if(reply.scope==1 && (reply.selected.bytes!=p->factory.bytes || reply.selected.hash!=p->factory.sha256))return result;
+        selected.generation={reply.selected.hash,reply.shared_base,reply.selected.bytes};
+        selected.scope=static_cast<PackagePreparationResult::Scope>(reply.scope);
+    } else if(reply.scope || reply.selected.bytes || !aegis_package_zero(reply.selected.hash,65)
+              || !aegis_package_zero(reply.shared_base,65))return result;
     struct stat st;struct statfs fs;struct statvfs flags;
     if(fcntl(mount.get(),F_GETFL)<0 || !(fcntl(mount.get(),F_GETFL)&O_PATH)
        || fstat(mount.get(),&st)<0 || fstatfs(mount.get(),&fs)<0 || fstatvfs(mount.get(),&flags)<0
        || st.st_mode!=(S_IFDIR|0755) || st.st_uid || st.st_gid || fs.f_type!=EXT4_SUPER_MAGIC
-       || (flags.f_flag&(ST_RDONLY|ST_NOSUID|ST_NODEV|ST_NOEXEC))!=(ST_NOSUID|ST_NODEV|ST_NOEXEC))return result;
-    *candidate=mount.release();return {PackagePreparationOutcome::Prepared,0};
+       || (flags.f_flag&(ST_RDONLY|ST_NOSUID|ST_NODEV|ST_NOEXEC))
+            !=static_cast<unsigned long>(ST_NOSUID|ST_NODEV|ST_NOEXEC|(p->selection?ST_RDONLY:0)))return result;
+    *candidate=mount.release();return selected;
 }
 } // namespace
 
@@ -169,20 +185,28 @@ int PackagePreparerCancel(PackagePreparer* p) {
     return error ? Fail(error) : 0;
 }
 
-int PackagePreparerStart(int groups,int store,int source,int helper,
-                          const std::vector<int>& archives,const PackagePreparation& request,PackagePreparer** output) {
+static int Start(int groups,int store,int source,int helper,const std::vector<int>& archives,
+                 const wire::Request& message,PackagePreparer** output) {
     if(!output || *output)return Fail(EINVAL);
     if(aegis_namespace_check_broker()<0)return -1;
-    wire::Request message={};
-    if(!Encode(request,&message) || archives.size()!=request.archives.size())return Fail(EINVAL);
-    if(!File(store,S_IFDIR,false) || !File(source,S_IFREG,false) || !File(helper,S_IFREG,true))return -1;
+    if(!wire::Valid(message))return Fail(EINVAL);
+    bool shared=message.selection && message.has_shared;
+    bool personal=message.selection && message.has_personal;
+    if(archives.size()!=(message.selection ? size_t(personal)
+        : message.execution.kind==AEGIS_PACKAGE_ARCHIVES ? message.execution.count : 0))return Fail(EINVAL);
+    if(!File(store,(!message.selection||shared)?S_IFDIR:S_IFREG,false)
+       || !File(source,S_IFREG,false) || !File(helper,S_IFREG,true))return -1;
     struct stat st;if(fstat(store,&st)<0)return -1;
-    if(st.st_mode!=(S_IFDIR|0700))return Fail(EPERM);
-    for(int archive:archives)if(!File(archive,S_IFREG,false))return -1;
+    if((!message.selection||shared) && st.st_mode!=(S_IFDIR|0700))return Fail(EPERM);
+    for(int archive:archives) {
+        if(!File(archive,personal?S_IFDIR:S_IFREG,false))return -1;
+        if(personal && (fstat(archive,&st)<0 || st.st_mode!=(S_IFDIR|0700)))return Fail(EPERM);
+    }
     auto* p=new(std::nothrow) PackagePreparer;
     if(!p)return Fail(ENOMEM);
-    p->process=syscall(SYS_getpid);p->job=request.execution.job;p->plan=request.execution.plan_sha256;
-    p->user=request.execution.requester;p->serial=request.execution.serial;
+    p->process=syscall(SYS_getpid);p->job=message.execution.job;p->plan=message.execution.plan;
+    p->user=message.execution.user;p->serial=message.execution.serial;
+    p->selection=message.selection;p->factory={message.image.bytes,message.image.hash};
     *output=p; // From here onward the caller retains partial ownership on failure.
     p->store.reset(fcntl(store,F_DUPFD_CLOEXEC,128));
     p->source.reset(fcntl(source,F_DUPFD_CLOEXEC,128));
@@ -199,8 +223,8 @@ int PackagePreparerStart(int groups,int store,int source,int helper,
     int pair[2];if(socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair)<0)return -1;
     p->channel.reset(pair[0]);unique_fd child_socket(pair[1]);
     unique_fd endpoint(fcntl(child_socket.get(),F_DUPFD_CLOEXEC,128));if(!endpoint.ok())return -1;
-    if(aegis_memory_group_create(groups,request.execution.requester,request.execution.serial,&p->group)<0)return -1;
-    int target=aegis_memory_group_claim(p->group,request.execution.requester,request.execution.serial);if(target<0)return -1;
+    if(aegis_memory_group_create(groups,p->user,p->serial,&p->group)<0)return -1;
+    int target=aegis_memory_group_claim(p->group,p->user,p->serial);if(target<0)return -1;
     p->child=static_cast<aegis_child*>(calloc(1,sizeof(aegis_child)));
     if(!p->child)return -1;
     p->child->owner=p->process;p->child->pidfd=-1;
@@ -214,6 +238,24 @@ int PackagePreparerStart(int groups,int store,int source,int helper,
     if(child==0)Exec(descriptors,count,p->process);
     if(child<0) { free(p->child);p->child=nullptr;return -1; }
     p->spawned=true;return 0;
+}
+
+int PackagePreparerStart(int groups,int stage,int source,int helper,
+                         const std::vector<int>& archives,const PackagePreparation& request,PackagePreparer** output) {
+    wire::Request message={};if(!Encode(request,&message))return Fail(EINVAL);
+    return Start(groups,stage,source,helper,archives,message,output);
+}
+int PackageRuntimeSelectionStart(int groups,int shared,int personal,int factory,int helper,
+                                 const PackageRuntimeSelection& request,PackagePreparer** output) {
+    if(shared < -1 || personal < -1 || request.factory.sha256.size()!=64)return Fail(EINVAL);
+    wire::Request message={};message.magic=wire::kMagic;message.version=wire::kVersion;
+    message.selection=1;message.has_shared=shared>=0;message.has_personal=personal>=0;
+    auto& e=message.execution;e.magic=AEGIS_PACKAGE_EXEC_MAGIC;e.version=AEGIS_PACKAGE_EXEC_VERSION;
+    e.user=request.requester;e.serial=request.serial;e.job=request.job;
+    memcpy(e.plan,request.factory.sha256.c_str(),65);
+    message.image.bytes=request.factory.bytes;memcpy(message.image.hash,e.plan,65);
+    std::vector<int> stores;if(personal>=0)stores.push_back(personal);
+    return Start(groups,shared>=0?shared:factory,factory,helper,stores,message,output);
 }
 
 int PackagePreparerFinish(PackagePreparer** pointer,bool cancel,int timeout_ms,

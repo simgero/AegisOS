@@ -230,7 +230,7 @@ cc_binary {
     name: "aegis-package-prepare",
     defaults: ["aegis-runtime-native-defaults"],
     srcs: ["runtime/package_prepare_worker.cpp"],
-    static_libs: ["libbase"],
+    static_libs: ["libaegis-package-store", "libbase"],
     shared_libs: ["libcrypto", "liblog"],
 }
 

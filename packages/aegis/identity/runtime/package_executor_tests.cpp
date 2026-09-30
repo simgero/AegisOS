@@ -683,6 +683,158 @@ class RuntimePackageTransaction : public RuntimePackagePreparation {
         RuntimePackagePreparation::TearDown();
     }
 };
+// The production START integration remains separate. These exercise the actual
+// async selector against real transaction output; no synthetic digest can stand
+// in for mounting, old-view retention, readonly behavior or cancellation cleanup.
+class RuntimePackageSelection : public RuntimePackageTransaction {
+ protected:
+    unique_fd factory;
+    PackageRuntimeSelection selection;
+    void SetUp() override {
+        RuntimePackageTransaction::SetUp();ASSERT_FALSE(HasFatalFailure());
+        factory.reset(fcntl(source.get(),F_DUPFD_CLOEXEC,3));ASSERT_TRUE(factory.ok());
+        selection={10,42,700,plan.image};
+    }
+    int SelectStart(int shared,int personal) {
+        return PackageRuntimeSelectionStart(parent.get(),shared,personal,factory.get(),prepare_helper.get(),selection,&worker);
+    }
+    void Selected(int shared,int personal,PackagePreparationResult* result) {
+        ASSERT_EQ(0,SelectStart(shared,personal))<<strerror(errno);int fd=-1;
+        ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,result,&fd))<<strerror(errno);mount.reset(fd);
+    }
+    void Readonly() {
+        ASSERT_TRUE(mount.ok());struct statvfs flags;ASSERT_EQ(0,fstatvfs(mount.get(),&flags));
+        EXPECT_EQ(static_cast<unsigned long>(ST_RDONLY|ST_NOSUID|ST_NODEV|ST_NOEXEC),
+            flags.f_flag&(ST_RDONLY|ST_NOSUID|ST_NODEV|ST_NOEXEC));
+        unique_fd attempted(openat(mount.get(),"must-not-exist",O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC,0600));
+        EXPECT_FALSE(attempted.ok());EXPECT_EQ(EROFS,errno);
+    }
+    std::string App(int fd) { return AptImageFixture::read(fd,"usr/bin/aegis-exec-app"); }
+};
+TEST_F(RuntimePackageSelection, AbsentStoresSelectVerifiedFactoryWithoutCreatingAStage) {
+    int fds=CountFDs();PackagePreparationResult result;Selected(-1,-1,&result);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(PackagePreparationOutcome::Prepared,result.outcome)<<result.error;
+    EXPECT_EQ(PackagePreparationResult::Scope::Factory,result.scope);EXPECT_EQ(selection.factory.sha256,result.generation.image_sha256);
+    Readonly();EXPECT_EQ("<unavailable>",App(mount.get()));
+    struct stat st;EXPECT_EQ(-1,fstatat(stage.get(),"candidate.ext4",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    mount.reset();EXPECT_EQ(fds,CountFDs());
+}
+TEST_F(RuntimePackageSelection, InitializedEmptyStoreFallsBackButIncompleteStoreDoesNot) {
+    PackagePreparationResult result;Selected(store.get(),-1,&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(ENOENT,result.error);EXPECT_FALSE(mount.ok());
+    std::unique_ptr<PackageStore> initialized(PackageStore::Open(store.get(),{false,0,0},true));ASSERT_TRUE(initialized);initialized.reset();
+    Selected(store.get(),-1,&result);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(PackagePreparationOutcome::Prepared,result.outcome)<<result.error;Readonly();
+    EXPECT_EQ(PackagePreparationResult::Scope::Factory,result.scope);EXPECT_EQ(selection.factory.sha256,result.generation.image_sha256);
+}
+TEST_F(RuntimePackageSelection, MountedOldVersionSurvivesRealUpdateWhileNewSelectionSeesNewVersion) {
+    PackageExecutionResult installed;Run(&installed);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(PackageExecutionOutcome::Published,installed.outcome);
+    PackagePreparationResult result;Selected(store.get(),-1,&result);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(PackagePreparationOutcome::Prepared,result.outcome)<<result.error;Readonly();
+    EXPECT_EQ(PackagePreparationResult::Scope::Shared,result.scope);EXPECT_EQ(installed.generation.image_sha256,result.generation.image_sha256);
+    EXPECT_EQ("#!/bin/sh\necho app-1\n",App(mount.get()));unique_fd old=std::move(mount);
+    Next(installed,2);ASSERT_FALSE(HasFatalFailure());PackageExecutionResult updated;Run(&updated);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(PackageExecutionOutcome::Published,updated.outcome)<<updated.error;
+    Selected(store.get(),-1,&result);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(PackagePreparationOutcome::Prepared,result.outcome)<<result.error;
+    Readonly();EXPECT_EQ(updated.generation.image_sha256,result.generation.image_sha256);
+    EXPECT_EQ("#!/bin/sh\necho app-1\n",App(old.get()));EXPECT_EQ("#!/bin/sh\necho app-2\n",App(mount.get()));
+    // Full store rehash after both mounted views proves no readonly journal replay.
+    unique_fd checked=Selection(updated);EXPECT_TRUE(checked.ok());
+}
+TEST_F(RuntimePackageSelection, PrivateInstallUpdateRemoveStayBoundToRequesterAndPinnedBase) {
+    target.personal=true;target.candidate.shared_base_sha256=selection.factory.sha256;
+    PackageExecutionResult prior;
+    for(int version=1;version<=3;++version) {
+        if(version>1) { Next(prior,version,version==3);ASSERT_FALSE(HasFatalFailure()); }
+        Run(&prior);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(PackageExecutionOutcome::Published,prior.outcome)<<prior.error;
+        PackagePreparationResult result;Selected(-1,store.get(),&result);ASSERT_FALSE(HasFatalFailure());
+        ASSERT_EQ(PackagePreparationOutcome::Prepared,result.outcome)<<result.error;Readonly();
+        EXPECT_EQ(PackagePreparationResult::Scope::Personal,result.scope);
+        EXPECT_EQ(selection.factory.sha256,result.generation.shared_base_sha256);
+        EXPECT_EQ(prior.generation.image_sha256,result.generation.image_sha256);
+        EXPECT_EQ(version==3?"<unavailable>":"#!/bin/sh\necho app-"+std::to_string(version)+"\n",App(mount.get()));
+        mount.reset();
+    }
+    for(bool wrong_user:{true,false}) {
+        selection.requester=wrong_user?11:10;selection.serial=wrong_user?42:43;
+        PackagePreparationResult result;Selected(-1,store.get(),&result);ASSERT_FALSE(HasFatalFailure());
+        EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(ESTALE,result.error);EXPECT_FALSE(mount.ok());
+    }
+}
+TEST_F(RuntimePackageSelection, PrivateVersionOverridesSharedOnlyForItsOwnerAndExactBase) {
+    PackageExecutionResult common;Run(&common);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(PackageExecutionOutcome::Published,common.outcome);
+    Next(common,2);ASSERT_FALSE(HasFatalFailure());
+    unique_fd shared=std::move(store);
+    ASSERT_EQ(0,mkdirat(root.get(),"private-store",0700));
+    store.reset(openat(root.get(),"private-store",O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(store.ok());
+    target.personal=true;target.create=true;target.has_previous=false;target.previous={};
+    target.candidate.shared_base_sha256=common.generation.image_sha256;
+    PackageExecutionResult own;Run(&own);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(PackageExecutionOutcome::Published,own.outcome)<<own.error;
+    PackagePreparationResult selected;Selected(shared.get(),store.get(),&selected);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(PackagePreparationOutcome::Prepared,selected.outcome)<<selected.error;
+    EXPECT_EQ(PackagePreparationResult::Scope::Personal,selected.scope);EXPECT_EQ("#!/bin/sh\necho app-2\n",App(mount.get()));
+    EXPECT_EQ(common.generation.image_sha256,selected.generation.shared_base_sha256);Readonly();mount.reset();
+    Selected(shared.get(),-1,&selected);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(PackagePreparationOutcome::Prepared,selected.outcome)<<selected.error;
+    EXPECT_EQ(PackagePreparationResult::Scope::Shared,selected.scope);EXPECT_EQ("#!/bin/sh\necho app-1\n",App(mount.get()));mount.reset();
+    // Dispose only this successful fixture's private store. On any failure,
+    // retain both sets of immutable files for diagnosis.
+    if(HasFailure())return;
+    unique_fd scan(openat(store.get(),".",O_RDONLY|O_DIRECTORY|O_CLOEXEC));DIR* entries=fdopendir(scan.release());ASSERT_NE(nullptr,entries);
+    while(auto* e=readdir(entries)) {
+        if(!strcmp(e->d_name,".")||!strcmp(e->d_name,".."))continue;
+        struct stat st;ASSERT_EQ(0,fstatat(store.get(),e->d_name,&st,AT_SYMLINK_NOFOLLOW));ASSERT_TRUE(S_ISREG(st.st_mode));ASSERT_EQ(0u,st.st_uid);
+        EXPECT_EQ(0,unlinkat(store.get(),e->d_name,0));
+    }
+    closedir(entries);store.reset();EXPECT_EQ(0,unlinkat(root.get(),"private-store",AT_REMOVEDIR));store=std::move(shared);
+}
+TEST_F(RuntimePackageSelection, StalePrivateBaseNeverFallsBackToFactory) {
+    target.personal=true;target.candidate.shared_base_sha256=selection.factory.sha256;
+    PackageExecutionResult installed;Run(&installed);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(PackageExecutionOutcome::Published,installed.outcome);
+    // A different trusted factory receipt represents a changed shared base.
+    // Personal store must be rejected before a fallback can hide its packages.
+    selection.factory.sha256=std::string(64,'f');PackagePreparationResult result;
+    Selected(-1,store.get(),&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(ESTALE,result.error);EXPECT_FALSE(mount.ok());
+}
+TEST_F(RuntimePackageSelection, MissingSelectedImageIsCorruptionNotAnEmptyStore) {
+    PackageExecutionResult installed;Run(&installed);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(PackageExecutionOutcome::Published,installed.outcome);
+    auto name=installed.generation.image_sha256+".image";
+    // Rename only this disposable test's generation; retain the inode for cleanup.
+    ASSERT_EQ(0,renameat(store.get(),name.c_str(),store.get(),"saved.image"));
+    PackagePreparationResult result;Selected(store.get(),-1,&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(ESTALE,result.error);EXPECT_FALSE(mount.ok());
+    ASSERT_EQ(0,renameat(store.get(),"saved.image",store.get(),name.c_str()));
+    unique_fd unchanged=Selection(installed);EXPECT_TRUE(unchanged.ok());
+}
+TEST_F(RuntimePackageSelection, BusyStoreFailsWithoutFallbackOrWaitingForPublication) {
+    std::unique_ptr<PackageStore> held(PackageStore::Open(store.get(),{false,0,0},true));ASSERT_TRUE(held);
+    PackagePreparationResult result;Selected(store.get(),-1,&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(EWOULDBLOCK,result.error);EXPECT_FALSE(mount.ok());
+}
+TEST_F(RuntimePackageSelection, CancelConsumesQueuedMountAndReleasesAllOwnedReferences) {
+    int fds=CountFDs();ASSERT_EQ(0,SelectStart(-1,-1));
+    bool exited=false;
+    for(unsigned i=0;i<900;++i) {
+        if(AptImageFixture::read(parent.get(),"u10-s42/cgroup.events").find("populated 0\n")!=std::string::npos) { exited=true;break; }
+        usleep(10000);
+    }
+    ASSERT_TRUE(exited);PackagePreparationResult result;int fd=-1;
+    ASSERT_EQ(0,PackagePreparerFinish(&worker,true,9000,&result,&fd));
+    EXPECT_EQ(-1,fd);EXPECT_EQ(nullptr,worker);EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(ECANCELED,result.error);
+    EXPECT_EQ(PackagePreparationResult::Scope::None,result.scope);EXPECT_TRUE(result.generation.image_sha256.empty());
+    EXPECT_EQ(fds,CountFDs());EXPECT_EQ("populated 0\nfrozen 0\n",AptImageFixture::read(parent.get(),"cgroup.events"));
+}
+TEST_F(RuntimePackageSelection, InvalidIdentityReceiptOrDescriptorsNeverSpawn) {
+    int fds=CountFDs();auto valid=selection;
+    selection.requester=0;EXPECT_EQ(-1,SelectStart(-1,-1));EXPECT_EQ(EINVAL,errno);EXPECT_EQ(nullptr,worker);
+    selection=valid;selection.serial=UINT32_MAX;EXPECT_EQ(-1,SelectStart(-1,-1));EXPECT_EQ(EINVAL,errno);
+    selection=valid;selection.job=0;EXPECT_EQ(-1,SelectStart(-1,-1));EXPECT_EQ(EINVAL,errno);
+    selection=valid;selection.factory.bytes++;EXPECT_EQ(-1,SelectStart(-1,-1));EXPECT_EQ(EINVAL,errno);
+    selection=valid;selection.factory.sha256[0]='z';EXPECT_EQ(-1,SelectStart(-1,-1));EXPECT_EQ(EINVAL,errno);
+    selection=valid;EXPECT_EQ(-1,SelectStart(-2,-1));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(-1,SelectStart(factory.get(),-1));EXPECT_EQ(EPERM,errno);EXPECT_EQ(nullptr,worker);EXPECT_EQ(fds,CountFDs());
+}
+
 TEST_F(RuntimePackageTransaction, OneOwnedJobPublishesRealInstallUpgradeAndRemoveWithOldImagesRetained) {
     int descriptors=CountFDs();auto original=plan.image;
     PackageExecutionResult installed;Run(&installed);ASSERT_FALSE(HasFatalFailure());

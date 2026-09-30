@@ -251,6 +251,7 @@ int PackageStore::Current(PackageGeneration* output) {
     PackageGeneration value;
     if (ReadSelection(&value) < 0) return -1;
     int fd = OpenImage(value);
+    if (fd < 0 && errno == ENOENT) return Fail(ESTALE); // Selected image missing, not an empty store.
     if (fd >= 0) *output = value;
     return fd;
 }
