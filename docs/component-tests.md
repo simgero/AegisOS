@@ -1,3 +1,70 @@
+## Konfigurierter Paketauftrag bis zur signierten Planung: 361 Tests bestanden
+
+Stand **cfbaf37a711c523ce0c8a06461c202f07c3a4d3a** besteht am
+**2026-09-30T14:28:56Z alle 361 aktivierten nativen Tests aus 42 Gruppen**
+(140355 ms, Exit 0). Kompiliert auf `aegis-build` in 35 Sekunden; Lauf
+`identity-20260930T142439Z-cfbaf37a-KyFhHU`, Invocation
+`0d3cae85976944ee8fa5869e980b8280`.
+[Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T142603Z-cfbaf37a-cfbaf37a-bK3ecx).
+Transport ausschließlich über GitHub, Laufzeittests ausschließlich im bestehenden
+lokalen Mac-QEMU mit unverändertem Produktimage `c7401f60`.
+
+`BrokerBeginConfiguredPackage` nimmt als Paketwunsch nur Aktion, Paket,
+optionale Version und Zielbereich an. Die frisch von AOSP bestätigte Identität
+wird getrennt übergeben. Der Broker speichert den Wunsch vor der Auswahl und
+vor privaten CE-Zugriffen. Der spätere Übergang
+`BrokerContinueConfiguredPackagePlanning` verwendet nur Identität, Seriennummer,
+Auftrags-ID und neue Frist. Quelle, Vertrauensdaten, Helfer, Internetmodus und
+Store-Anlage werden aus gehaltenem Produktzustand abgeleitet. Die gleiche ID
+bleibt über Auswahl, Planung und das vorhandene Review erhalten.
+
+Eine konfigurierte Auswahl kann nicht durch den allgemeinen FD-basierten
+Übergang übernommen werden; ein allgemeiner interner Planauftrag wird auch
+nicht als konfigurierter Auftrag akzeptiert. Wiederholte Fortsetzung startet
+keinen zweiten Planer. Nach bestätigtem Abbruch erzeugt die alte ID kein neues
+Werk. Teilfehler bleiben unter ihrer bereits verbrauchten ID im Besitzer.
+
+Die Anlageentscheidung unterscheidet geprüfte Abwesenheit von einem bereits
+initialisierten leeren Store. Beide können dieselbe Factory-Generation wählen,
+benötigen aber unterschiedliche veröffentlichungsgebundene Pläne. Ein
+beschädigter vorhandener Store scheitert; fehlende persönliche CE wird nicht
+erstellt. Die neue Helferübernahme ist atomar, dupliziert die geprüften
+Dateideskriptoren und lässt nach dem Start keine Ersetzung zu.
+
+Die vier neuen Prüfungen bestehen, einschließlich eines echten HTTPS-/Signatur-
+Abrufs von `hello` über die fest gepinnten Debian-Quellen (5966 ms). Der Aufrufer
+ändert nach Registrierung Paket, Aktion und Zielbereich; das Review bleibt bei
+dem ursprünglichen gemeinsamen Installationswunsch und dem erwarteten Archiv.
+Weitere Prüfungen vergleichen fehlenden und initialisierten leeren Store,
+beschädigen nur einen neu angelegten isolierten Fixture-Store, prüfen falsche
+Identität/Seriennummer, ungültige Anfragen, atomare Helferübernahme, FD-Freigabe
+und die Ablehnung einer nicht vorhandenen persönlichen CE ohne Benutzeranlage.
+[Auftragsvertrag und verbleibende Produktanbindung](package-network.md).
+
+**Grenze:** Native Fixtures rufen die neue interne Konfiguration auf. Der
+Produkt-Broker aktiviert die Planer-Helfer noch nicht; deren feste Bereitstellung
+und SELinux-Einbindung müssen folgen. Die verbleibende FD-freie Übergabe zur
+Installationsvorbereitung, öffentliche Wire-/Binder-/CLI-Operationen, frische
+AOSP-Adminbestätigung und ein neues vollständiges Systemimage sind noch offen.
+Diese Tests belegen weder eine öffentlich verfügbare Paketinstallation noch
+den vollständigen Zwei-Benutzer-Lebenszyklus. Vier deaktivierte reale CE-Tests
+bleiben ungetestet. Die 130 unveränderten Java-Tests behalten ihren früheren
+Nachweis `95f2b925`; kein erneuter Java-Lauf.
+
+Profil `39d29ee1-7587-4223-8e5d-f9872c910554`, Boot
+`6c6dc3df-cf70-4c1b-8f16-f131b5a981a5`, SELinux Enforcing, Broker läuft.
+Benutzer-/Schlüssel-/CE-Snapshot vor und nach dem Lauf identisch:
+`427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`.
+
+| Nachweis | SHA-256 |
+| --- | --- |
+| Native Testdatei | `52e0b8254ad7afba8ae140375aaff985c5e0e9497cbd4630ac8378c9c6fa5d2a` |
+| Vollständiges Protokoll | `aeb86a47c8d23d201fc0c61aead0e806dddd48fe8000184708a70b8fe387ecb2` |
+| Vollständiges Ergebnis | `2e5797bb9adae4fbc465234d4282b2b8c0c66b28110d82e91b6453aae40b1c1b` |
+
+Lokale Belege im primären Workspace: `out/components-cfbaf37a/proof.json`
+und `out/components-cfbaf37a/targeted-tests/` (Filter `*`, vollständige aktivierte Suite).
+
 ## Feste Debian-/AOSP-Vertrauensdaten: 357 native Tests bestanden
 
 Stand **e26cfd9004e89542bb3021d4429f0c3be6a267d7** besteht am

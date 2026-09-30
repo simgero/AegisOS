@@ -82,6 +82,45 @@ Verbindung werden zugelassen. Nach Abbruch beziehungsweise Planerabschluss muss
 der Broker beide direkten Kinder einsammeln und eine leere cgroup bestätigen,
 bevor er Ergebnisdateien freigibt.
 
+## Konfigurierter Paketauftrag
+
+`BrokerBeginConfiguredPackage` registriert den ursprünglichen `PackageIntent`
+(Aktion, Paket, optionale Version und gemeinsamer/persönlicher Bereich) vor der
+Auswahl beziehungsweise dem Öffnen privater Daten. Die Identität kommt getrennt
+aus der frisch geprüften AOSP-Sitzung. Die gespeicherte Kopie kann durch spätere
+Änderungen am Aufruferobjekt nicht verändert werden. Ein zweiter noch offener
+Auftrag derselben Identität bleibt ausgeschlossen.
+
+Planer und Netzwerkhelfer werden gemeinsam beim Start gepinnt. Die interne
+Übernahme prüft die readonly ausführbaren Dateien; der Produkt-Bootstrap muss
+vorher zusätzlich feste Pfade, EROFS/Schreibschutz und genaue SELinux-Typen prüfen.
+Wie bei der Richtlinie ist diese interne Setter-Funktion keine öffentliche
+Protokolloperation. Ohne vollständige Konfiguration beginnt kein Auftrag.
+
+`BrokerContinueConfiguredPackagePlanning` nimmt nur Identität, Seriennummer,
+Auftrags-ID und neue Frist entgegen. Es übergibt ausschließlich die behaltene
+Auswahl, den gespeicherten Wunsch, die festen Quellen/Schlüssel/CA und die
+gepinnte Helferkonfiguration an den Planer. Die Auftrags-ID bleibt gleich. Der
+allgemeine interne FD-basierte Übergang darf eine solche konfigurierte Auswahl
+nicht übernehmen. Umgekehrt kann die konfigurierte Fortsetzung einen allgemeinen
+internen Planauftrag nicht als eigenen verwenden.
+
+Ob ein Ziel-Store neu angelegt werden muss, folgt aus der geprüften Anwesenheit
+seines Verzeichnisses vor der Auswahl. Eine fehlende aktuelle Generation bedeutet
+nicht, dass auch der Store fehlt: Ein korrekt initialisierter leerer Store wird
+beibehalten, ein unvollständiger oder beschädigter Store abgewiesen. Diese
+Unterscheidung fließt in den späteren Plan-Digest ein. Fehlende persönliche CE
+liefert einen behaltenen fehlgeschlagenen Auftrag; auch `ENOENT` allein beweist
+keine Freigabe der Ressourcen. Abbruch/STOP/HELLO bleiben bis zur bestätigten
+Beendigung verantwortlich. Eine Fortsetzung eines entfernten Auftrags erzeugt
+keinen Ersatzauftrag.
+
+Diese Anbindung ist bislang intern implementiert und in nativen Fixtures
+geprüft. Der tatsächliche Broker-Start aktiviert die Planer-Helferkonfiguration
+noch nicht. Die feste Bereitstellung der Helfer mit Produkt-SELinux, die
+verbleibende FD-freie Übergabe zur Installationsvorbereitung sowie öffentliche
+Wire-/Binder-/CLI-Operationen und frische AOSP-Adminbestätigung müssen folgen.
+
 ## Nachweisgrenze
 
 Die Implementierung wird als Komponentensatz im lokalen QEMU geprüft.
