@@ -150,10 +150,21 @@ Die Vorbereitung führt noch keine Paketprogramme aus und wählt keine neue
 Generation aus. Erst eine weitere frisch zugelassene AOSP-Aktionsfreigabe darf
 die vorbereitete Ausführung starten. Produkt-SELinux muss insbesondere die
 festen gemeinsamen Verzeichnisse korrekt anlegen; native SU-Fixtures beweisen
-diesen Übergang nicht. Noch ausstehend sind auch automatische Begrenzung und
-Bereinigung alter Arbeitsverzeichnisse: Abbruch schließt Ressourcen, vorhandene
-Arbeitsdateien werden bislang behalten. Dieser Pfad wird deshalb noch nicht als
-öffentlicher Befehl freigeschaltet.
+diesen Übergang nicht. Der registrierte Auftrag hält jetzt seine selbst neu
+angelegten Arbeitsverzeichnisse bis zur Bereinigung. Erst nach Ende aller Helfer,
+Mounts und Loop-Verbindungen werden die festen Dateien `request` und
+`candidate.ext4` sowie genau dieses Verzeichnis entfernt. Größe, Modus, Besitzer,
+Dateityp, Linkzahl und ursprüngliche Verzeichnisbindung werden geprüft; fremde
+Einträge und ausgetauschte Verzeichnisse verhindern das Löschen. Ein Fehler
+behält Auftrag und CE-Referenzen für einen erneuten Versuch und blockiert die
+Abschluss-/STOP-Bestätigung. Das gilt auch für Hintergrundabschluss nach einer
+bereits veröffentlichten Generation. Extern übergebene Arbeitsverzeichnisse
+werden nicht gelöscht.
+
+Diese Bereinigung betrifft den Lebenszyklus des aktuell gehaltenen Auftrags.
+Die sichere Behandlung verwaister Verzeichnisse nach Prozessabsturz oder
+Neustart, Kapazitätsbegrenzung und Produktintegration bleiben ausstehend.
+Dieser Pfad wird deshalb noch nicht als öffentlicher Befehl freigeschaltet.
 
 ## Nachweisgrenze
 

@@ -139,6 +139,15 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
         }
         directory.reset();ASSERT_EQ(0,unlinkat(parent_fd,name,AT_REMOVEDIR));
     }
+    std::vector<std::string> StageNames() {
+        Fd staging(open((image->directory+"/shared-staging").c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));
+        if(!staging.ok()) { ADD_FAILURE()<<strerror(errno);return {}; }
+        DIR* entries=fdopendir(staging.release());
+        if(!entries) { ADD_FAILURE()<<strerror(errno);return {}; }
+        std::vector<std::string> names;
+        while(auto* entry=readdir(entries))if(strcmp(entry->d_name,".")&&strcmp(entry->d_name,".."))names.push_back(entry->d_name);
+        closedir(entries);return names;
+    }
     void ConfiguredReview(const aegis::PackageIntent& intent,uint64_t* job,aegis::PackageBoundPlan* bound) {
         ASSERT_EQ(0,aegis::BrokerBeginConfiguredPackage(owner,10,1234,intent,Deadline(),job));
         ContinueConfigured(10,1234,*job);ASSERT_FALSE(HasFatalFailure());
@@ -695,6 +704,7 @@ TEST_F(RuntimePackagePlanning, ConfiguredInstallPublishesAndRemovesFromTheRetain
         ASSERT_EQ(0,aegis::BrokerStartExecution(owner,10,1234,job,digest,Deadline()));
         aegis::PackageExecutionResult result;Completed(job,digest,&result);ASSERT_FALSE(HasFatalFailure());
         ASSERT_EQ(aegis::PackageExecutionOutcome::Published,result.outcome)<<result.error<<" "<<result.status;
+        EXPECT_TRUE(StageNames().empty());
         aegis::PackageRuntimeSelection select;select.requester=10;select.serial=1234;select.job=job+100;
         select.factory={image->original.bytes,image->original.sha256};aegis::PackagePreparer* worker=nullptr;
         Fd factory(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC)),prepare(Program("aegis-package-prepare"));
@@ -753,24 +763,24 @@ TEST_F(RuntimePackagePlanning, CancelledConfiguredPreparationCanReuseOnlyAPristi
     CreateOwner();ASSERT_FALSE(HasFatalFailure());ConfigureOwner(false);ASSERT_FALSE(HasFatalFailure());
     ConfigureInstallation();ASSERT_FALSE(HasFatalFailure());int before=descriptors();
     aegis::PackageIntent intent;intent.package="aegis-probe-app";intent.version="2";
+    std::vector<std::string> created;
     for(unsigned pass=0;pass<2;++pass) {
         uint64_t job=0;aegis::PackageBoundPlan bound;ConfiguredReview(intent,&job,&bound);ASSERT_FALSE(HasFatalFailure());
         EXPECT_TRUE(bound.reviewed.create_store);EXPECT_FALSE(bound.reviewed.has_previous);
         ASSERT_EQ(0,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()));
         const auto digest=bound.preparation.execution.plan_sha256;Prepared(job,digest);ASSERT_FALSE(HasFatalFailure());
+        auto names=StageNames();ASSERT_EQ(1u,names.size());created.push_back(names[0]);
         ASSERT_EQ(0,aegis::BrokerCancelExecution(owner,10,1234,job,digest,Deadline()));
         aegis::PackageExecutionResult result;Completed(job,digest,&result);ASSERT_FALSE(HasFatalFailure());
         EXPECT_EQ(aegis::PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(ECANCELED,result.error);
-        EXPECT_EQ(before,descriptors());
+        EXPECT_EQ(before,descriptors());EXPECT_TRUE(StageNames().empty());
     }
     Fd root(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(root.ok());
     EXPECT_EQ("<unavailable>",Read(root.get(),"shared-packages/current"));
-    Fd stages(openat(root.get(),"shared-staging",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(stages.ok());
-    DIR* entries=fdopendir(stages.release());ASSERT_NE(nullptr,entries);std::vector<std::string> names;
-    while(auto* entry=readdir(entries))if(strcmp(entry->d_name,".")&&strcmp(entry->d_name,".."))names.push_back(entry->d_name);
-    closedir(entries);ASSERT_EQ(2u,names.size());EXPECT_NE(names[0],names[1]);
-    for(const auto& name:names)EXPECT_EQ(0u,name.find("job-10-1234-"));
+    ASSERT_EQ(2u,created.size());EXPECT_NE(created[0],created[1]);
+    for(const auto& name:created)EXPECT_EQ(0u,name.find("job-10-1234-"));
 }
+
 TEST_F(RuntimePackagePlanning, ConfiguredPreparationRetainsFailureWhenAReviewedSourceDisappears) {
     CreateOwner();ASSERT_FALSE(HasFatalFailure());ConfigureOwner(false);ASSERT_FALSE(HasFatalFailure());
     ConfigureInstallation();ASSERT_FALSE(HasFatalFailure());
@@ -791,6 +801,66 @@ TEST_F(RuntimePackagePlanning, ConfiguredPreparationRetainsFailureWhenAReviewedS
     aegis::PackageExecutionResult result;Completed(job,bound.preparation.execution.plan_sha256,&result);ASSERT_FALSE(HasFatalFailure());
     EXPECT_EQ(aegis::PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(ENOENT,result.error);
     EXPECT_LE(descriptors(),before);EXPECT_EQ(current,Read(target.get(),"current"));
+    EXPECT_TRUE(StageNames().empty());
     EXPECT_EQ(-1,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()));EXPECT_EQ(ENOENT,errno);
     ASSERT_EQ(0,renameat(target.get(),"saved.image",target.get(),name.c_str()));
+}
+
+TEST_F(RuntimePackagePlanning, CleanupFailureRetainsItsJobUntilTheOriginalStageIsSafe) {
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());ConfigureOwner(false);ASSERT_FALSE(HasFatalFailure());
+    ConfigureInstallation();ASSERT_FALSE(HasFatalFailure());
+    aegis::PackageIntent intent;intent.package="aegis-probe-app";intent.version="2";
+    uint64_t job=0;aegis::PackageBoundPlan bound;ConfiguredReview(intent,&job,&bound);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()));
+    const auto digest=bound.preparation.execution.plan_sha256;Prepared(job,digest);ASSERT_FALSE(HasFatalFailure());
+    auto names=StageNames();ASSERT_EQ(1u,names.size());
+    Fd stage(open((image->directory+"/shared-staging/"+names[0]).c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(stage.ok());
+    ASSERT_EQ(0,Write(stage.get(),"unexpected","preserve"));
+    EXPECT_EQ(-1,aegis::BrokerCancelExecution(owner,10,1234,job,digest,Deadline()));EXPECT_EQ(ENOTEMPTY,errno);
+    EXPECT_EQ("preserve",Read(stage.get(),"unexpected"));
+    aegis::PublicationState state;aegis::PackageExecutionResult result;
+    EXPECT_EQ(-1,aegis::BrokerPollExecution(owner,10,1234,job,digest,&state,&result));EXPECT_EQ(ENOTEMPTY,errno);
+    uint64_t denied=0;EXPECT_EQ(-1,aegis::BrokerBeginConfiguredPackage(owner,10,1234,intent,Deadline(),&denied));EXPECT_EQ(EBUSY,errno);
+    EXPECT_EQ(-1,aegis_broker_owner_stop_all(owner,Deadline()));EXPECT_EQ(ENOTEMPTY,errno);
+    ASSERT_EQ(0,unlinkat(stage.get(),"unexpected",0));stage.reset();
+    ASSERT_EQ(0,aegis::BrokerCancelExecution(owner,10,1234,job,digest,Deadline()));
+    Completed(job,digest,&result);ASSERT_FALSE(HasFatalFailure());EXPECT_EQ(ECANCELED,result.error);
+    EXPECT_TRUE(StageNames().empty());
+}
+TEST_F(RuntimePackagePlanning, StopRemovesOwnedPreparationBeforeReleasingTheRequester) {
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());ConfigureOwner(false);ASSERT_FALSE(HasFatalFailure());
+    ConfigureInstallation();ASSERT_FALSE(HasFatalFailure());int before=descriptors();
+    aegis::PackageIntent intent;intent.package="aegis-probe-app";intent.version="2";
+    uint64_t job=0;aegis::PackageBoundPlan bound;ConfiguredReview(intent,&job,&bound);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()));
+    Prepared(job,bound.preparation.execution.plan_sha256);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(1u,StageNames().size());ASSERT_EQ(0,aegis_broker_owner_stop_all(owner,Deadline()));
+    EXPECT_TRUE(StageNames().empty());EXPECT_EQ(before,descriptors());
+}
+
+TEST_F(RuntimePackagePlanning, BackgroundCleanupFailurePreservesPublishedOutcomeAndStopOwnership) {
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());ConfigureOwner(false);ASSERT_FALSE(HasFatalFailure());
+    ConfigureInstallation();ASSERT_FALSE(HasFatalFailure());
+    aegis::PackageIntent intent;intent.package="aegis-probe-app";intent.version="2";
+    uint64_t job=0;aegis::PackageBoundPlan bound;ConfiguredReview(intent,&job,&bound);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()));
+    const auto digest=bound.preparation.execution.plan_sha256;Prepared(job,digest);ASSERT_FALSE(HasFatalFailure());
+    auto names=StageNames();ASSERT_EQ(1u,names.size());
+    Fd stage(open((image->directory+"/shared-staging/"+names[0]).c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(stage.ok());
+    ASSERT_EQ(0,Write(stage.get(),"unexpected","preserve"));
+    ASSERT_EQ(0,aegis::BrokerStartExecution(owner,10,1234,job,digest,Deadline()));
+    int observed=0;
+    for(unsigned i=0;i<600;++i) {
+        if(aegis_broker_owner_reap_publications(owner)<0) { observed=errno;break; }
+        usleep(50000);
+    }
+    ASSERT_EQ(ENOTEMPTY,observed);
+    EXPECT_EQ(-1,aegis_broker_owner_stop_all(owner,Deadline()));EXPECT_EQ(ENOTEMPTY,errno);
+    aegis::PublicationState state;aegis::PackageExecutionResult result;
+    EXPECT_EQ(-1,aegis::BrokerPollExecution(owner,10,1234,job,digest,&state,&result));EXPECT_EQ(ENOTEMPTY,errno);
+    EXPECT_EQ("preserve",Read(stage.get(),"unexpected"));
+    ASSERT_EQ(0,unlinkat(stage.get(),"unexpected",0));stage.reset();
+    EXPECT_EQ(-1,aegis::BrokerCancelExecution(owner,10,1234,job,digest,Deadline()));EXPECT_EQ(EALREADY,errno);
+    Completed(job,digest,&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(aegis::PackageExecutionOutcome::Published,result.outcome);EXPECT_TRUE(StageNames().empty());
 }

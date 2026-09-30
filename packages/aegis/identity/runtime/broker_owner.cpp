@@ -7,6 +7,7 @@
 #include "broker_owner_package.h"
 #include "broker_owner_selection.h"
 #include "package_policy.h"
+#include "package_preparation_protocol.h"
 #include "ce_private.h"
 #include "namespace.h"
 #include "uid_layout.h"
@@ -50,6 +51,9 @@ struct execution_slot {
     // Stay lifecycle-owned after APT exits. Never reopen by a caller pathname
     // or export this CE reference while the same transaction awaits validation.
     unique_fd validation_stage;
+    aegis_package_stage owned_stage=AEGIS_PACKAGE_STAGE_INIT;
+    uint64_t stage_bytes=0;
+    ~execution_slot() { aegis_package_stage_close(&owned_stage); }
     PackagePublisher* publisher = nullptr;
     bool has_target = false;
     PackagePublication target;
@@ -61,7 +65,7 @@ struct execution_slot {
     PackageExecutionResult result;
     void close_inputs() { for(auto& fd:inputs)fd.reset(); }
     bool resources() const {
-        return state==PublicationState::Prepared || preparer || executor || publisher || validation_stage.ok()
+        return owned_stage.parent>=0 || owned_stage.directory>=0 || state==PublicationState::Prepared || preparer || executor || publisher || validation_stage.ok()
             || target_inputs[0].ok() || target_inputs[1].ok() || target_inputs[2].ok();
     }
 };
@@ -300,7 +304,7 @@ static int publish_execution(execution_slot& slot) {
     }
     return 0;
 }
-static int reap_execution(execution_slot& slot,int wait) {
+static int reap_execution_workers(execution_slot& slot,int wait) {
     if(slot.publisher) {
         PackagePublicationResult result;
         if(PackagePublisherFinish(&slot.publisher,slot.state==PublicationState::Sealed,wait,&result)<0)return -1;
@@ -336,6 +340,19 @@ static int reap_execution(execution_slot& slot,int wait) {
         // Never publish an unowned candidate as eligible for validation.
         if(slot.result.outcome==PackageExecutionOutcome::NeedsValidation)
             slot.result={PackageExecutionOutcome::Failed,0,ECANCELED};
+    }
+    return 0;
+}
+
+static int reap_execution(execution_slot& slot,int wait) {
+    if(reap_execution_workers(slot,wait)<0)return -1;
+    if(slot.state==PublicationState::Complete) {
+        // Workers/mounts/loops have quiesced and all candidate/publication FDs
+        // are closed. Cleanup failure keeps the job and its CE references owned.
+        if(slot.preparer||slot.executor||slot.publisher||slot.validation_stage.ok())return fail(EBUSY);
+        for(const auto& fd:slot.inputs)if(fd.ok())return fail(EBUSY);
+        for(const auto& fd:slot.target_inputs)if(fd.ok())return fail(EBUSY);
+        if(aegis_package_stage_cleanup(&slot.owned_stage,slot.stage_bytes,sizeof(preparation::Request))<0)return -1;
     }
     return 0;
 }
@@ -641,9 +658,11 @@ int aegis_broker_owner_reap_publications(struct aegis_broker_owner* owner) {
         }
     }
     for(auto& slot:owner->executions)if(slot && (slot->executor || slot->preparer || slot->publisher)) {
-        if(reap_execution(*slot,0)<0 && errno!=ETIMEDOUT) {
+        if(reap_execution(*slot,0)<0 && (errno!=ETIMEDOUT || slot->state==PublicationState::Complete)) {
             if(!error)error=errno;
-            slot->state=PublicationState::Sealed;
+            // Cleanup can fail after worker completion. Keep that terminal
+            // outcome so later poll/STOP retries cleanup instead of discarding it.
+            if(slot->state!=PublicationState::Complete)slot->state=PublicationState::Sealed;
             if(slot->preparer)(void)PackagePreparerCancel(slot->preparer);
             if(slot->executor)(void)PackageExecutorCancel(slot->executor);
             if(slot->publisher)(void)PackagePublisherCancel(slot->publisher);
@@ -851,7 +870,7 @@ static int optional_shared_store(int state,int* output) {
     if(!empty)*output=store.release();return 0;
 }
 static int configured_shared_target(int state,bool create,uint32_t user,uint32_t serial,uint64_t job,
-                                    unique_fd* store,unique_fd* stage) {
+                                    unique_fd* store,unique_fd* stage,aegis_package_stage* owned_stage) {
     if(create&&mkdirat(state,"shared-packages",0700)<0&&errno!=EEXIST)return -1;
     store->reset(package_owned_child(state,"shared-packages","u:object_r:aegis_package_shared_file:s0"));if(!store->ok())return -1;
     int empty=package_empty(store->get());if(empty<0)return -1;
@@ -863,8 +882,10 @@ static int configured_shared_target(int state,bool create,uint32_t user,uint32_t
     if(n!=ssize_t(sizeof(random)))return n<0?-1:fail(EIO);
     char hex[33];for(unsigned i=0;i<sizeof(random);++i)snprintf(hex+i*2,3,"%02x",random[i]);
     const auto name="job-"+std::to_string(user)+"-"+std::to_string(serial)+"-"+std::to_string(job)+"-"+hex;
-    if(mkdirat(staging.get(),name.c_str(),0700)<0)return -1;
+    if(aegis_package_stage_create(staging.get(),name.c_str(),owned_stage)<0)return -1;
     stage->reset(package_owned_child(staging.get(),name.c_str(),"u:object_r:aegis_package_staging_file:s0"));if(!stage->ok())return -1;
+    struct stat created;if(fstat(stage->get(),&created)<0)return -1;
+    if(created.st_dev!=owned_stage->device||created.st_ino!=owned_stage->inode)return fail(ESTALE);
     if(fsync(stage->get())<0||fsync(staging.get())<0||fsync(store->get())<0||fsync(state)<0)return -1;
     return 0;
 }
@@ -1171,7 +1192,7 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
         if(!prepared->target_inputs[0].ok() || (!personal_ce && !configured_source && !prepared->target_inputs[1].ok())
            || !prepared->target_inputs[2].ok())return -1;
     }
-    prepared->plan=preparation.execution;prepared->state=PublicationState::Preparing;
+    prepared->plan=preparation.execution;prepared->state=PublicationState::Preparing;prepared->stage_bytes=preparation.image.bytes;
     prepared->inputs[0].reset(fcntl(groups,F_DUPFD_CLOEXEC,3));
     if(!personal_ce&&!configured_source)prepared->inputs[1].reset(fcntl(stage,F_DUPFD_CLOEXEC,3));
     prepared->inputs[3].reset(fcntl(execute_helper,F_DUPFD_CLOEXEC,3));
@@ -1189,8 +1210,11 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
         unique_fd area(personal_area(identity.requester,identity.serial));
         if(!area.ok())error=errno;
         else {
-            slot.inputs[1].reset(aegis_ce_new_package_stage(area.get(),identity.requester,identity.serial,*job));
-            if(!slot.inputs[1].ok())error=errno;
+            if(aegis_ce_create_package_stage(area.get(),identity.requester,identity.serial,*job,&slot.owned_stage)<0)error=errno;
+            if(!error) {
+                slot.inputs[1].reset(fcntl(slot.owned_stage.directory,F_DUPFD_CLOEXEC,3));
+                if(!slot.inputs[1].ok())error=errno;
+            }
             if(!error && target) {
                 slot.target_inputs[1].reset(aegis_ce_package_store(area.get(),identity.requester,identity.serial));
                 if(!slot.target_inputs[1].ok())error=errno;
@@ -1200,7 +1224,7 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
     unique_fd fixed_source;
     if(configured_source&&!error) {
         if(!personal_ce && configured_shared_target(owner->selection_directory.get(),slot.target.create,
-             identity.requester,identity.serial,*job,&slot.target_inputs[1],&slot.inputs[1])<0)error=errno;
+             identity.requester,identity.serial,*job,&slot.target_inputs[1],&slot.inputs[1],&slot.owned_stage)<0)error=errno;
         if(!error) {
             fixed_source.reset(configured_source_image(owner,*configured_source,
                 personal_ce?slot.target_inputs[1].get():-1));
@@ -1370,7 +1394,7 @@ int BrokerPollExecution(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                           PackageExecutionResult* result) {
     if(!state || !result)return fail(EINVAL);
     auto* slot=find_execution(owner,user,serial,job,plan);if(!slot)return -1;
-    if((slot->executor || slot->preparer || slot->publisher) && reap_execution(*slot,0)<0 && errno!=ETIMEDOUT)return -1;
+    if(reap_execution(*slot,0)<0 && (errno!=ETIMEDOUT || slot->state==PublicationState::Complete))return -1;
     *state=slot->state;
     if(slot->state==PublicationState::AwaitingValidation)*result=slot->result;
     if(slot->state==PublicationState::Complete) {
@@ -1385,7 +1409,10 @@ int BrokerCancelExecution(aegis_broker_owner* owner,uint32_t user,uint32_t seria
     int left=remaining_ms(deadline),error=left<0?errno:0;
     // Invalid/expired time still seals and requests this exact owned job's stop.
     if(slot->state==PublicationState::Complete) {
-        if(slot->result.outcome==PackageExecutionOutcome::Published)return fail(EALREADY);
+        if(slot->result.outcome==PackageExecutionOutcome::Published) {
+            if(reap_execution(*slot,0)<0)return -1;
+            return fail(EALREADY);
+        }
         // A completed failure is still an uncollected job. Cancellation is
         // terminal regardless of whether that earlier failure was polled.
         slot->result.outcome=PackageExecutionOutcome::Failed;slot->result.error=ECANCELED;
@@ -1402,6 +1429,7 @@ int BrokerCancelExecution(aegis_broker_owner* owner,uint32_t user,uint32_t seria
         slot->state=PublicationState::Sealed;(void)PackageExecutorCancel(slot->executor);
         if(reap_execution(*slot,left<0?0:left)<0)return -1;
     }
+    if(slot->state==PublicationState::Complete && reap_execution(*slot,0)<0)return -1;
     return error ? fail(error) : 0;
 }
 } // namespace aegis

@@ -2,6 +2,7 @@
 #define AEGIS_RUNTIME_CE_PRIVATE_H
 
 #include <stdint.h>
+#include "package_stage.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,6 +35,10 @@ int aegis_ce_package_store(int packages, uint32_t user_id, uint32_t serial);
 int aegis_ce_find_package_store(int data_fd,uint32_t user_id,uint32_t serial,int* store);
 /* Creates a new empty directory; no reuse, repair or cleanup of old jobs. */
 int aegis_ce_new_package_stage(int packages, uint32_t user_id, uint32_t serial, uint64_t job);
+/* Production variant: register *stage before calling. Partial creation remains
+ * owned even on failure; retain it for bounded cleanup before CE release. */
+int aegis_ce_create_package_stage(int packages, uint32_t user_id, uint32_t serial,
+                                  uint64_t job, struct aegis_package_stage *stage);
 
 /* Strictly reads AOSP's existing user.serial; never repairs or creates it. */
 int aegis_ce_require_serial(int directory, uint32_t serial);

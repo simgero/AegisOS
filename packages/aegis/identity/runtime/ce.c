@@ -418,8 +418,10 @@ int aegis_ce_find_package_store(int data,uint32_t user,uint32_t serial,int* outp
     return 0;
 }
 
-int aegis_ce_new_package_stage(int packages, uint32_t user_id, uint32_t serial, uint64_t job) {
-    if (!job || job > INT64_MAX) return reject(EINVAL);
+int aegis_ce_create_package_stage(int packages, uint32_t user_id, uint32_t serial, uint64_t job,
+                                  struct aegis_package_stage *output) {
+    if (!output || output->parent != -1 || output->directory != -1 || output->name[0]
+            || output->inode || output->removed || !job || job > INT64_MAX) return reject(EINVAL);
     char owner[64];
     struct fscrypt_policy_v2 expected;
     if (package_owner(packages, user_id, serial, owner, &expected) < 0) return -1;
@@ -437,8 +439,8 @@ int aegis_ce_new_package_stage(int packages, uint32_t user_id, uint32_t serial, 
     if (n != (ssize_t)sizeof(random)) { if (n >= 0) errno = EIO; goto done; }
     for (unsigned i = 0; i < sizeof(random); i++) snprintf(hex + i * 2, 3, "%02x", random[i]);
     snprintf(name, sizeof(name), "job-%llu-%s", (unsigned long long)job, hex);
-    if (mkdirat(staging, name, 0700) < 0) goto done;
-    stage = aegis_ce_open_directory(staging, name);
+    if (aegis_package_stage_create(staging, name, output) < 0) goto done;
+    stage = output->directory;
     if (stage < 0 || metadata(stage, 0, 0, 0700) < 0 || no_acl(stage) < 0
             || matching_policy(stage, &expected) < 0
             || fsetxattr(stage, owner_attribute, owner, strlen(owner), XATTR_CREATE) < 0
@@ -446,14 +448,19 @@ int aegis_ce_new_package_stage(int packages, uint32_t user_id, uint32_t serial, 
             || fsync(staging) < 0 || still_named(staging, name, stage) < 0
             || still_named(packages, "staging", staging) < 0 || key_present(stage, &expected) < 0)
         goto done;
-    result = stage;
-    stage = -1;
+    result = 0;
 done:;
     int saved = errno;
-    if (stage >= 0) close(stage);
     close(staging);
     errno = saved;
     return result;
+}
+
+int aegis_ce_new_package_stage(int packages,uint32_t user,uint32_t serial,uint64_t job) {
+    struct aegis_package_stage owned=AEGIS_PACKAGE_STAGE_INIT;
+    int result=aegis_ce_create_package_stage(packages,user,serial,job,&owned),saved=errno;
+    if(result==0) { result=owned.directory;owned.directory=-1; }
+    aegis_package_stage_close(&owned);errno=saved;return result;
 }
 
 int aegis_ce_clone_home(int home, uint32_t user_id) {
