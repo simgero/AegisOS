@@ -173,6 +173,7 @@ TEST(PackagePlanningProtocol, RejectsExcessDescriptorsWithoutLeaking) {
 }
 
 TEST(PackagePlanningProtocol, CarriesAllSixPolicyInputsAndRejectsAnExtraDescriptor) {
+    using Fd=android::base::unique_fd;
     int pair[2];ASSERT_EQ(0,socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair));Fd first(pair[0]),second(pair[1]);
     Fd input(open("/dev/null",O_RDONLY|O_CLOEXEC));ASSERT_TRUE(input.ok());
     int inputs[7];for(auto& fd:inputs)fd=input.get();
