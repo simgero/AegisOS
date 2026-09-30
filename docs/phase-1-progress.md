@@ -1,5 +1,20 @@
 # Phase 1: Implementierungsstand
 
+## 2026-09-30: Paket-Ausführungsprüfung in Arbeit; lokaler Buildcache bereinigt
+
+Komponentenstand `207d7aa7` kompiliert, besteht aber erst **15/18** gezielte
+QEMU-Prüfungen. Die native Bestandsprüfung besteht; positive Ausführung und
+gebundene Publikation brauchen noch Korrekturen. Keine Produktaktivierung.
+[Fehler, Belege und nächste konkrete Schritte](component-tests.md).
+
+Auf ausdrücklichen Nutzerwunsch wurden 1.595 entbehrliche lokale Build-/
+Testkopien entfernt. Tatsächlich frei wurden rund 33,7 GiB; anschließend waren
+rund 39,8 GiB verfügbar. Quellcode, Testberichte, alle 33 Profilverzeichnisse,
+Schlüssel und vorhandene Profilabhängigkeiten bleiben erhalten. Aktueller
+Testgast und sichtbarer Launcher sind vollständig vorhanden; frühere bereits
+fehlende Abhängigkeiten alter Profile wurden nicht zur Löschung ausgewählt.
+Lokaler Einzeldateinachweis: `out/cleanup-unused-20260930.json`.
+
 
 ## 2026-09-30: automatische Abhängigkeiten an den Freigabeplan gebunden
 

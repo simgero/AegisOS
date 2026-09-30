@@ -1,3 +1,66 @@
+## Ausführungsprüfung 207d7aa7: kompiliert, 15/18 Tests, noch nicht freigegeben
+
+Stand **207d7aa7f24e06ad1b02fe44dcfa1598eb21f892** wurde auf `aegis-build`
+übersetzt: Lauf `identity-20260930T075949Z-207d7aa7-i0zgnp`, Invocation
+`ffcb3d5f38e84305a500f065f8cc456e`.
+[Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T080415Z-207d7aa7-207d7aa7-PSIMik).
+Der lokale QEMU-Lauf am **2026-09-30T08:08:03Z** besteht **15 von 18 Prüfungen**
+in 4,088 Sekunden. **Kein vollständiger Erfolgsnachweis, keine Produktaktivierung.**
+
+Der neue Arbeiter erhält die versiegelten erwarteten Paketversionen und
+Abhängigkeitsmarkierungen über Ausführungsprotokoll 2 / Vorbereitungsprotokoll 3.
+Ein separates schreibgeschütztes Tmpfs enthält den statischen APT-Hook und die
+feste Konfiguration. PID1 soll anfänglichen Status/automatische Markierungen,
+strukturierte Offline-Simulation und vollständigen resultierenden installierten
+Paketbestand unabhängig vergleichen. Der Produkt-Einstieg verweigert fehlenden
+Review; nur die Entwickler-Testprobe unterstützt die alten mechanischen Fixtures.
+
+Die zwölf direkten nativen Bestandsprüfungen bestehen: exakter Effekt,
+unerwartetes zusätzliches Paket, veränderte fremde Version, entfernter Hold,
+Zwischenzustand, verlorene automatische Markierungen, Duplikate, gleich große
+anfängliche Manipulation, Symlink und FIFO. Drei reale Negativfälle bestehen:
+veralteter Status-/APT-Beleg und andere simulierte Zielversion. Die letzte
+Ablehnung ist bis zur Korrektur des positiven Simulationspfads kein isolierter
+Beweis für genau diese Versionsabweichung.
+
+Offene Fehler:
+
+- Der reale positive Install-/Update-/Remove-Test und der Test gegen Austausch
+  von Hook/Konfiguration enden bereits nach erfolgreicher APT-Simulation mit
+  `ESTALE (116)`, bevor das Installationsskript läuft. Die strukturierte
+  Simulation muss diagnostiziert und gegen den tatsächlich normalisierten
+  APT-Aufruf geprüft werden. Markierungsübernahme und Schreibschutzangriffe
+  wurden damit noch **nicht** erreicht und sind noch nicht nachgewiesen.
+- Die gebundene Publikationsfixture scheitert in ihrer neuen vorbereitenden
+  Ausgangsaufnahme mit `EINVAL`: die Transaktionsfixture setzt `job=0`, während
+  der direkte Vorbereiter eine konkrete positive ID benötigt. Für diese
+  Aufnahme eine getrennte gültige Fixture-ID verwenden und anschließend zum
+  brokervergebenen Auftrag zurückkehren.
+
+Die ersten beiden Builds wurden ebenfalls nicht als Erfolg gewertet:
+`a01dafc4` fehlte eine statische Android-Variante von `libcrypto`, `50e3c3f6`
+fehlte die direkte Metadatenbibliothek am Testprogramm. Die korrigierte
+Buildintegration nutzt `libcrypto_static` ausschließlich für Paket-SHA-256;
+eine enge Visibility-Ergänzung ist an BoringSSL-Revision
+`ecc1358826150d6a1851c517c325b0e6c0e1b8be` und Original-Builddatei-SHA
+`c64b09f64b9fb5a2ba7836c7b964895db74edeef404a8380202bc429f0738430`
+gebunden. Vorher/nachher-Prüfung im Builder; keine Änderung an AOSP-
+Anmeldeverschlüsselung oder Laufzeit-Sicherheitsrichtlinien.
+
+Produktgast, Boot-ID, Enforcing, aktiver Broker und gesperrte Benutzer bleiben
+unverändert. Vorher-/Nachher-Dateien haben weiterhin SHA-256
+`427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`.
+Alle Fehlerbelege bleiben unter `out/components-207d7aa7/targeted-tests/`:
+
+- `native.log`: `78adaae9df3091a1329014e30bb548528019384bd03db458a2463959e2a59641`
+- `result.json`: `7a93c721fc43949a4451aa3604140eec50b1c9e341eef65c7c3369ee53edeb03`
+- Native ELF: `9b1be0b26ea147624d58a113270f48c1a1b7a208fe65f7a1d87a5bc10ed6d67c`
+
+Die vollständige native Regression sowie Java wurden hier nicht wiederholt.
+Öffentlicher Paketbefehl, unveränderlicher produktiver Planer/Netzabruf und
+frische AOSP-Adminfreigabe bleiben offen. Der folgende 76/76-Nachweis gehört zum
+älteren Stand 6caa5bf2, nicht zum neuen Ausführungsarbeiter.
+
 ## Vollständiger interner Freigabeplan: 76 gezielte Gerätetests
 
 Stand **6caa5bf266edd7471c2feb33476fc7ad1a4e079f** besteht am

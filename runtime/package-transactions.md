@@ -1,5 +1,17 @@
 # Vollständige Paketgenerationen
 
+## Unabhängige Ausführungsprüfung: noch nicht freigegeben
+
+`207d7aa7` ergänzt versiegelte Ausgangs-/Zielzustände im Arbeiter, feste
+schreibgeschützte APT-Konfiguration samt Hook, native Prüfung des vollständigen
+installierten Bestands und geplante Übernahme automatischer Markierungen.
+Kompilierung bestätigt; **15/18** gezielte QEMU-Prüfungen. Die positiven
+Arbeiterfälle scheitern noch vor der Installation beim Simulationsvergleich,
+die gebundene Fixture bei der vorbereitenden Job-ID. Deshalb keine Aktivierung
+und noch kein Nachweis tatsächlicher Markierungsübernahme oder Veröffentlichung.
+[Konkrete Fehler und Belege](../docs/component-tests.md). Die nachfolgenden
+Erfolge beziehen sich jeweils auf ihre ausdrücklich genannten älteren Stände.
+
 ## Archivbefunde und vollständiger Freigabeplan: Verbindung geprüft
 
 Die Version-2-Bindung verlangt nun eine ausdrückliche Manual-/Automatic-Markierung
