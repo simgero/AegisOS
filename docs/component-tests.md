@@ -1,3 +1,69 @@
+## Kontrollierter Debian-Internetabruf: 54 und 348 Tests bestanden
+
+Komponentenstand **83744d58352dbcca34e3944efd53d1d1f522a1f7** besteht im lokalen Mac-QEMU
+**54/54 gezielte Tests** (2026-09-30T13:15:43Z) und anschließend **348/348 aktivierte
+native Tests aus 42 Gruppen** (2026-09-30T13:18:17Z, 122120 ms).
+Buildlauf `identity-20260930T131320Z-83744d58-QUY3vp`, Invocation `55861933f27946d7bf0bad6216a9ba97`,
+kompiliert auf `aegis-build` in 44 Sekunden. [Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T131447Z-83744d58-83744d58-0dhN2v).
+Entwicklung lokal, Kompilierung auf dem SSH-Builder, Transport über GitHub und
+sämtliche Gerätetests im vorhandenen lokalen QEMU.
+
+Der Planer erhält einen eigenen, vom Broker gehaltenen Netzwerkhelfer im selben
+begrenzten Auftrag. Nur der private Planer kann dessen Listener erreichen;
+persönliche Shells und Installationsprogramme behalten getrennte Netzwerkbereiche.
+Der feste Helfer lässt ausschließlich die beiden Debian-Hosts auf Port 80/443
+zu, weist numerische/unzulässige Ziele und nichtöffentliche Zieladressen ab und
+wird bei Abbruch beziehungsweise Abschluss mitsamt seinen Verbindungen beendet.
+Der bestätigte positive Abruf verwendet HTTPS mit einem festen Zertifikatsbündel;
+Signatur-, Gültigkeits-, vollständige Index- und Archivhashprüfungen bleiben aktiv.
+[Besitz, Grenzen und Datenweg](package-network.md).
+
+Der echte Abruf liefert `hello_2.10-5_arm64.deb` mit **52.660 Bytes**, SHA-256
+`7a917c7f44fbd3373dff0f35a0b6bdf8ef564ff90579d8b130ff52fbf33fce1f`. Der vollständige authentifizierte Paketindex
+hat 56.162.922 Bytes und den Hash
+`f97011263173eaccb1a215a28a6ec7ba1f6e5cebd8bb68e8fa0475b1d4021161`. Seine längste `Provides`-Zeile
+ist 75.649 Bytes lang; die frühere 64-KiB-Grenze blockierte deshalb korrekt einen
+noch nicht unterstützten Index. Jetzt werden bis zu 128 KiB pro Zeile bei
+weiterhin 1 MiB pro Absatz akzeptiert. Grenztests und abweichende Hashes bleiben
+negativ. Die Diagnosemessung aus einem separaten öffentlichen Abruf ist erst
+durch Übereinstimmung mit diesen authentifizierten Hashes dem Testindex zugeordnet.
+
+Bestätigt sind außerdem Ablehnung ungültiger TLS-Vertrauensanker und unerlaubter
+Ziele, vollständig eingesammelte Abbrüche, die Übergabe genau sechs
+Richtlinieneingaben ohne Deskriptorleck und die bisherigen signierten
+Offline-Paketabläufe bis zur veröffentlichten, erneut überprüften Generation.
+Statisches Bionic konnte Androids DNS-Proxy nicht verwenden; der Netzwerkhelfer
+nutzt nun dynamisches Bionic und die reservierte Systemdienstkennung 7502
+außerhalb aller persönlichen UID-Abbildungen. HTTPS-Prüfung wurde nicht abgeschaltet.
+
+**Grenzen:** Dies ist der echte Netzabruf im internen Komponentenpfad. Öffentliche
+CLI/Binder-Verbindung, Produktbereitstellung von Quellen/Schlüsseln/TLS-Bündel,
+SELinux-Domäne des Netzwerkhelfers und frische AOSP-Adminfreigabe sind noch nicht
+aktiviert. Die vier deaktivierten echten AOSP-CE-Tests wurden nicht ausgeführt.
+130 unveränderte Java-Tests behalten ihren früheren Beleg `95f2b925`; kein erneuter
+Java-Lauf. Der vollständige Zwei-Benutzer-Produktablauf bleibt offen.
+
+Gast `c7401f60`, Profil `39d29ee1-7587-4223-8e5d-f9872c910554`, Boot `6c6dc3df-cf70-4c1b-8f16-f131b5a981a5`:
+SELinux Enforcing, authentifiziertes ADB, laufender Broker, Benutzer 0/10/11,
+CE-/DE-Schlüsselkennungen und leere Runtime-Kontexte bleiben vor/nach beiden
+Durchläufen unverändert. Kein Produktimage oder Benutzerprofil wurde ersetzt.
+
+Nachweise: `out/components-83744d58/{targeted-tests,native-regression}/` und
+`online-receipt.json` im primären Workspace. Der erste Versuch des vorherigen
+Komponentensatzes hielt vor dem Teststart wegen Platzmangels an. 14 ausschließlich
+zu `c33c05d9` gehörende, inaktive Kopien der Testbasis wurden nach Prüfung von
+Prozessen und Loop-Zuordnungen entfernt (3,5 GiB im Gast); Nachweis
+`out/components-c33c05d9/cleanup-fixtures.json`. Benutzerdateien und Schlüssel
+waren nicht betroffen.
+
+| Datei | SHA-256 |
+| --- | --- |
+| Gezieltes Protokoll | `478c618b6c77308c39d3858d3cfc9b5475900fc631d581679f4e395c66f70ccc` |
+| Vollständiges Protokoll | `8d73e4f4be76c875b8e504e0c7b99f9f4c40a1480afe77818e4e3a6977798795` |
+| Vollständiges Ergebnis | `29729e907fe205e9de79dcd8cda6be95ca4c43d4845c1bd1b14711fa1da004a3` |
+| Zustand vor/nach Tests | `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a` |
+| Native Testdatei | `b6e9c01f6d99d46db09851f49aa778827f41fae2f47a7c735bfa2df7e76994ce` |
+
 ## Paketplan aus signierter Quelle bis zur veröffentlichten Generation: 46 und 340 Tests bestanden
 
 Komponentenstand **b827ba82e6576c0cc08121a3a862c767f5fcb737** besteht im lokalen Mac-QEMU

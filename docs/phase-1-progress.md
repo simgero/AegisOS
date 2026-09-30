@@ -1,5 +1,21 @@
 # Phase 1: Implementierungsstand
 
+## 2026-09-30: Echter Debian-Abruf mit Zertifikats-, Signatur- und Hashprüfung
+
+`83744d58` besteht **54/54 gezielte und 348/348 aktivierte native Tests** im
+lokalen QEMU. Der intern gehaltene Planer lädt `hello` aus Debian über HTTPS,
+prüft Quellenfreigabe, TLS, Signatur, Ablaufdatum, vollständigen Paketindex und
+Archivbytes. Ungültige Zertifikate, fremde Ziele und Abbrüche sind geprüft.
+Der Netzwerkhelfer gehört demselben begrenzten Auftrag; gewöhnliche Runtime-
+und Installationsumgebungen erhalten keinen Zugang zu seinem privaten Listener.
+[Nachweise und Grenzen](component-tests.md), [Datenweg](package-network.md).
+
+Als Nächstes folgen die Produktbereitstellung von Quellen/Schlüsseln/TLS-Bündel,
+SELinux-Einbindung und der öffentliche CLI/Binder-Paketweg mit frischer
+AOSP-Adminbestätigung; danach der gesamte Zwei-Benutzer-Ablauf. Dies ist noch
+keine freigeschaltete Paketverwaltung. Produktgast, Profilpaar, Benutzer und
+Schlüssel bleiben unverändert. Die vier deaktivierten AOSP-CE-Fälle bleiben offen.
+
 ## 2026-09-30: Planung und Paketinstallation im selben Auftrag verbunden
 
 `b827ba82` besteht **46/46 gezielte und 340/340 aktivierte native Tests**.
