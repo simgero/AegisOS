@@ -1,5 +1,39 @@
 # Vollständige Paketgenerationen
 
+## Durchgehende registrierte Transaktion
+
+Stand `89adbb55` verbindet Vorbereitung, echtes Offline-APT mit Konsistenzprüfung,
+Hashbildung und Auswahl des vollständigen Abbilds unter **einer Auftragskennung**.
+**76/76 gezielte Gerätetests** bestehen im lokalen Hintergrund-QEMU. Der Auftrag
+bindet Bereich, Antragsteller, Seriennummer, Plan, Store, Helfer, Größe und
+erwarteten bisherigen Stand vor der späteren frischen AOSP-Startfreigabe.
+Private Ziele bleiben beim Antragsteller; eine bestätigende Adminperson erhält
+keine eigene Zielzuordnung. Die private Variante öffnet ausschließlich den
+festen AOSP-CE-Bereich des Antragstellers nach Seriennummer-/Schlüsselprüfung.
+
+Nach bestätigtem APT-Abbau nutzt der Publisher die gehaltene Arbeitsablage,
+berechnet selbst den SHA-256 des stillgelegten Abbilds und prüft ihn beim Kopieren
+erneut. Lange Hash-/Kopierarbeiten laufen in seinem registrierten Kindprozess.
+Bestätigte Auswahl plus vollständige Ressourcenfreigabe liefern `Published`
+mit Generationsmetadaten. Statusabfragen exportieren keine privaten FDs.
+Abbruch, Benutzerstopp und Verbindungsabbau behalten auch während `Publishing`
+die Zuständigkeit. Unbestätigte Prozessenden behaupten keinen Rollback.
+Alte Generationen bleiben erhalten; zwischenzeitliche Auswahlkonflikte scheitern.
+[Konkrete Installations-/Update-/Entfernungs- und Abbruchbelege](../docs/component-tests.md).
+
+**Nächste Integration:** diese gespeicherten Generationen beim Runtime-Start
+verwenden und den öffentlichen Paketbefehl mit vertrauenswürdiger Repository-
+Planung sowie frischer AOSP-Adminbestätigung verbinden. Die produktive
+SELinux-/CE-Abnahme, private Updates/Entfernung und echte Benutzerwechsel/
+Abmeldung/Reboot unter Paketarbeit bleiben offen. Die neue Transaktion ist
+bisher direkt als Entwickler-root geprüft, nicht über eine öffentliche CLI.
+Der laufende Produkt-Broker und der sichtbare Launcher wurden nicht ersetzt.
+
+Die folgenden Abschnitte halten frühere Bausteine mit ihren damaligen Grenzen
+fest. Die ältere `BrokerPrepareCandidate`-Schnittstelle ohne gebundenes Ziel
+bleibt weiterhin in `AwaitingValidation`; nur die neue vollständige Transaktion
+führt die Veröffentlichung unter demselben Auftrag fort.
+
 ## Paketkonsistenz und Zuständigkeit nach APT
 
 Stand `ef8242a1` besteht **44/44 gezielte Tests** im lokalen Hintergrund-QEMU.

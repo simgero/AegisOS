@@ -1,3 +1,97 @@
+## Vorbereitung, APT, Hashbildung und Veröffentlichung in einem Auftrag: 89adbb55
+
+Komponentenstand `89adbb5534ddeb03196687dabc64fe0f288caeff` wurde auf `aegis-build`
+gebaut und über [GitHub mit geprüften Prüfsummen](https://github.com/simgero/AegisOS/releases/tag/components-20260930T020048Z-89adbb55-89adbb55-rzCGqf)
+bezogen. Lauf `identity-20260930T015937Z-89adbb55-VUPqV9`, Invocation
+`87d71c15765441ac8cf1b3f8a508bdb9`. Am **2026-09-30T02:02:33Z bestehen 76/76 native
+Gerätetests**, neun Suiten in 49.754 Sekunden, ohne übersprungene Fälle.
+
+Die Auswahl umfasst 21 Executor-, 13 Vorbereitungs-, neun neue Transaktions-,
+neun Publisher-, zehn Store-, acht Broker- und vier Antwortprotokolltests sowie
+zwei Rechte-/Aufruferprüfungen. Es läuft weiterhin das lokale Hintergrund-QEMU
+mit Vollimage ab38cf24, Profil `0bbb6cf5-951e-43b4-9e08-ec952ab1b6e4` und
+Boot `6e287d8c-a75c-47c1-ba45-b72b96b2122e`. Die Komponenten werden als
+Entwicklungs-root in neuen, ausschließlich test-eigenen Ablagen ausgeführt.
+
+`BrokerPrepareTransaction` bindet den späteren Store, Herausgeber-Helfer,
+Bereich, Antragsteller, Seriennummer, Plan, Abbildgröße und erwarteten bisherigen
+Stand bereits vor dem Ausführungsstart. Ein Kandidatenhash darf dort noch nicht
+vorgegeben sein. Für bestehende Generationen muss der genehmigte Ausgangsstand
+mit der tatsächlich zu kopierenden Generation übereinstimmen. Das Ziel wird
+tief kopiert; spätere Änderungen am Aufruferobjekt verändern es nicht.
+`BrokerPreparePersonalTransaction` löst den privaten CE-Bereich ausschließlich
+über die feste AOSP-Kennung samt Seriennummer des Antragstellers auf und
+registriert den Auftrag vor dem ersten CE-Zugriff. Die frische AOSP-Freigabe
+bleibt Pflicht des künftigen öffentlichen Aufrufers beim Start.
+
+Nach erfolgreichem APT einschließlich Paket-/Konten-/Dateiprüfung und bestätigtem
+Arbeiterabbau startet derselbe Slot den Publisher. Das Abbild stammt nur aus
+`candidate.ext4` im weiterhin gehaltenen Arbeitsverzeichnis; CLI-Pfade oder eine
+nachträglich gelieferte Datei werden nicht akzeptiert. Der separate Prozess
+prüft Eigentümer, Größe und sauberen ext4-Abschluss, berechnet SHA-256 und lässt
+den Store beim Kopieren erneut Inhalt und unveränderte Quelle prüfen. Die
+[ext4-Abschlussmerkmale](https://docs.kernel.org/filesystems/ext4/super.html)
+sind eine zusätzliche Zustandsprüfung, kein Ersatz für Dateisystemprüfung oder
+vorangegangene Paketvalidierung. Keine dieser langen Arbeiten läuft innerhalb
+der kurzen AOSP-Startzulassung. Alte Generationen bleiben erhalten.
+
+Erst bestätigte Auswahl, tatsächliches Reaping, leere/entfernte Cgroup und
+Freigabe aller übernommenen Dateien ergeben `Published` mit gebundener
+Generationsbeschreibung. Das private Helferprotokoll verwendet dafür Version 2;
+Größe, Basiskennung und gegebenenfalls vorher bekannter Hash werden auch beim
+Empfang abgeglichen. Fehlende, unpassende oder unvollständige Antworten bleiben
+`Unconfirmed`. Der unveränderte öffentliche Brokerkanal hat weiterhin keinen
+Paketendpunkt.
+
+Die neun neuen Transaktionstests belegen:
+
+- Gemeinsame Installation, Update und Entfernung durch den vollständigen
+  registrierten Ablauf. Nach jedem Schritt wird die tatsächlich ausgewählte
+  Generation erneut gehasht, in eine eigene Prüfarbeitskopie übernommen und auf
+  Programmversion beziehungsweise Entfernung geprüft. Konfiguration bleibt bei
+  `remove` erhalten. Eine alte geöffnete Generation und ihr Store-Inode bleiben
+  nach der nächsten Auswahl identisch. Auftragskennungen steigen weiter.
+- Private Installation mit unverändertem Antragsteller und gemeinsamer
+  Basisherkunft, obwohl das ursprüngliche Zielobjekt nach Registrierung auf
+  einen anderen Benutzer/Bereich umgestellt wird. Der resultierende private
+  Store weist andere Eigentümer, Seriennummern und gemeinsamen Zugriff ab.
+- Unpassende Identität, Plan, Größe, vorgegebener Kandidatenhash oder falscher
+  Ausgangsstand werden vor Vorbereitung und ohne neue Dateien abgewiesen.
+- Benutzerstopp vor Ausführung schließt Arbeits- und Store-Referenzen, entfernt
+  den vorbereiteten Mount und veröffentlicht nichts. Eine echte nachgelagerte
+  Kontenverletzung durch ein Paketskript initialisiert den Zielstore nicht.
+- Ein tatsächlicher Auswahlkonflikt nach APT liefert `ESTALE` und belässt die
+  vorherige Auswahl unverändert.
+- Benutzerstopp und Abbruch erfassen einen nachweislich lebenden Publisher.
+  Nur dessen eigene Cgroup wird zur kontrollierten Beobachtung eingefroren;
+  `populated 1`, `frozen 1` und noch fehlende Auswahl sind bestätigt. Anschließend
+  verschwinden Kind, Gruppe und gehaltene Store-Referenzen. Fremde Abbruchkennung
+  greift nicht ein. Ein getöteter Publisher liefert `Unconfirmed`; die separat
+  nachgeprüfte fehlende Auswahl wird nicht als allgemeine Rollbackgarantie
+  ausgegeben.
+- Fehlender echter AOSP-CE-Bereich verbraucht genau eine Auftragskennung,
+  hinterlässt aber weder neue Benutzerpfade noch offene Referenzen/Arbeiter.
+
+Benutzer-/Schlüsselzustand davor und danach ist bytegleich: 0/0, Alpha 10/10,
+Beta 11/11; nur 0 ist gestartet und CE-entsperrt. Runtime-Kontexte bleiben leer,
+SELinux Enforcing, Boot-ID und Produkt-Broker bleiben bestätigt. Keine Anmeldung,
+Kontenlöschung, Profilmigration oder Launcher-Ersetzung wurde durchgeführt.
+
+Belege: `out/components-89adbb55/targeted-tests/` im primären Workspace.
+Ergebnis SHA-256 `061b8ff78702c114f1be37a83ba8665a58d2ee711edfa1b188d9c520cca99276`;
+Rohlog `b2802d9ad141364d1e4d7978afef34362f077dbadb1947dbc4a020efa8ecab67`;
+identischer Vorher-/Nachherzustand `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`.
+
+**Offen:** öffentliche Paket-CLI und Binder-/Broker-Anbindung mit frischer
+AOSP-Adminprüfung für beide Bereiche, vertrauenswürdige Repository-/Planauflösung,
+produktive Arbeiterdomänen und Auswahl dieser Generationen beim Runtime-Start.
+Diese Tests beweisen noch keine private produktive APT-Transaktion während
+AOSP-Logout und keinen Benutzerwechsel/Reboot mit neu aktivierten Generationen.
+Die unveränderten übrigen nativen/Java-Suiten wurden nicht wiederholt. Private
+Updates/Entfernung und die vollständige Zwei-Benutzer-Abnahme müssen im
+integrierten Produkt folgen. Der sichtbare QEMU-Launcher bleibt bis dahin beim
+bekannten Stand.
+
 ## Paketkonsistenz und AOSP-Kontengrenzen nach realem APT: ef8242a1
 
 Stand `ef8242a19e3c08a04dd254cb6fc49d3b27204952` wurde auf `aegis-build`
