@@ -220,11 +220,9 @@ static int serve(int listener, int signals, struct aegis_broker_owner *owner) {
             if (info.ssi_signo != SIGCHLD) { result = 0; break; }
             // The context owner alone consumes waitid(P_PIDFD) child status.
         }
-        // Close completed publication resources even if the original client
-        // never polls its result. Cleanup failure takes the common stop path.
-        if (aegis_broker_owner_reap_publications(owner) < 0) break;
-        // Finish exited selectors even when no client is polling. Their queued
-        // private mount stays lifecycle-owned until START or confirmed STOP.
+        // Reap both publications and selectors even if no client is polling.
+        // A selected private mount stays owned until START or confirmed STOP;
+        // cleanup failure takes the common stop path.
         if (aegis_broker_owner_reap_publications(owner) < 0) break;
         uint64_t now = now_ns();
         if (!now) break;

@@ -1361,7 +1361,13 @@ TEST_F(RuntimeSelectionOwner, ConfiguredStartRegistersBeforeMissingCeAndCannotUs
 TEST_F(RuntimeSelectionOwner, ConfiguredStartDoesNotTreatSymlinkOrWrongModeSharedStoreAsAbsent) {
     ASSERT_EQ(0,Configure());uint64_t job=99;
     ASSERT_EQ(0,symlinkat("/",stage.get(),"shared-packages"));
-    EXPECT_EQ(-1,StartJob(21472,1234,0,&job));EXPECT_EQ(ELOOP,errno);EXPECT_EQ(0u,job);
+    ASSERT_EQ(-1,StartJob(21472,1234,0,&job));const int rejected=errno;
+    // O_DIRECTORY|O_NOFOLLOW may reject the final symlink as ENOTDIR before
+    // the resolver reports ELOOP. Neither is absence or permits fallback.
+    EXPECT_TRUE(rejected==ELOOP || rejected==ENOTDIR);EXPECT_EQ(0u,job);
+    RuntimeSelectionState selected;PackagePreparationResult result;
+    ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,21472,1234,1,&selected,&result));
+    EXPECT_EQ(RuntimeSelectionState::Failed,selected);EXPECT_EQ(rejected,result.error);
     aegis_broker_state state;ASSERT_EQ(0,Apply(AEGIS_BROKER_STOP_USER,21472,0,&state));
     ASSERT_EQ(0,unlinkat(stage.get(),"shared-packages",0));
     ASSERT_EQ(0,mkdirat(stage.get(),"shared-packages",0700));
