@@ -44,11 +44,11 @@
 
 struct aegis_namespace {
     struct aegis_child *child;
-    int proc_root, gate, attempted, mapped, userns, counted, package;
+    int proc_root, gate, attempted, mapped, userns, netns, counted, package;
     uint32_t user_id, serial;
 };
 
-enum { REF_UID, REF_GID, REF_GROUPS, REF_OOM, REF_USERNS, REF_COUNT };
+enum { REF_UID, REF_GID, REF_GROUPS, REF_OOM, REF_USERNS, REF_NETNS, REF_COUNT };
 
 /* One trusted, process-owned mount namespace, established while still in
  * Android init's namespaces. Keep its nsfs fd for this broker's lifetime;
@@ -381,7 +381,8 @@ static _Noreturn void child_exec(int setup, int control, int gate, int parent,
         if (refs[i] < 0) child_failed();
     }
     refs[REF_USERNS] = (int)syscall(SYS_openat, self, "ns/user", O_RDONLY | O_CLOEXEC, 0);
-    if (refs[REF_USERNS] < 0
+    refs[REF_NETNS] = (int)syscall(SYS_openat, self, "ns/net", O_RDONLY | O_CLOEXEC, 0);
+    if (refs[REF_USERNS] < 0 || refs[REF_NETNS] < 0
             || syscall(SYS_sendmsg, 5, &message, MSG_NOSIGNAL | MSG_DONTWAIT) != 1)
         child_failed();
     for (unsigned i = 0; i < REF_COUNT; i++) syscall(SYS_close, refs[i]);
@@ -424,7 +425,7 @@ static int create(uint32_t user_id, uint32_t serial, int setup_fd, int control_f
     int setup = -1, control = -1, parent = -1, pair[2] = {-1, -1}, child_gate = -1;
     if (!context || !child) { free(context); free(child); return -1; }
     context->child = child;
-    context->gate = context->proc_root = context->userns = child->pidfd = -1;
+    context->gate = context->proc_root = context->userns = context->netns = child->pidfd = -1;
     context->user_id = user_id;
     context->serial = serial;
     child->owner = (pid_t)syscall(SYS_getpid);
@@ -619,7 +620,7 @@ static int receive_references(struct aegis_namespace *context, int refs[REF_COUN
         if (i < REF_USERNS) {
             if (!(flags & O_PATH) || fs.f_type != PROC_SUPER_MAGIC) return denied();
         } else if ((flags & (O_ACCMODE | O_PATH)) != O_RDONLY
-                || fs.f_type != NSFS_MAGIC || ioctl(refs[i], NS_GET_NSTYPE) != CLONE_NEWUSER) {
+                || fs.f_type != NSFS_MAGIC || ioctl(refs[i], NS_GET_NSTYPE) != (i == REF_USERNS ? CLONE_NEWUSER : CLONE_NEWNET)) {
             return denied();
         }
         for (unsigned j = 0; j < i; j++) {
@@ -635,7 +636,7 @@ static int prepare(struct aegis_namespace *context, int package, int timeout) {
     if (owner(context) < 0) return -1;
     if (context->mapped) { errno = EALREADY; return -1; }
     char map[1024], groups[32], oom[32];
-    int refs[REF_COUNT] = {-1, -1, -1, -1, -1}, result = -1;
+    int refs[REF_COUNT] = {-1, -1, -1, -1, -1, -1}, result = -1;
     if (still_waiting(context) < 0) goto done;
     context->mapped = -1;  /* Writing either kernel map is a one-shot action. */
     if (receive_references(context, refs, timeout) < 0) goto done;
@@ -668,6 +669,8 @@ static int prepare(struct aegis_namespace *context, int package, int timeout) {
     context->package = package;
     context->userns = refs[REF_USERNS];
     refs[REF_USERNS] = -1;
+    context->netns = refs[REF_NETNS];
+    refs[REF_NETNS] = -1;
     context->mapped = 1;
     result = 0;
 done:;
@@ -689,6 +692,20 @@ int aegis_namespace_prepare_package(struct aegis_namespace *context) {
 
 int aegis_namespace_prepare_package_for(struct aegis_namespace *context, int timeout_ms) {
     return prepare(context, 1, timeout_ms);
+}
+
+int aegis_namespace_planner_network(struct aegis_namespace *context) {
+    if (still_waiting(context) < 0) return -1;
+    if (context->mapped != 1 || !context->package || context->netns < 0) return denied();
+    // Bind the network namespace to this exact gated child's mapped userns.
+    int owning = ioctl(context->netns, NS_GET_USERNS);
+    if (owning < 0) return -1;
+    struct stat expected, actual;
+    int valid = fstat(owning, &actual) == 0 && fstat(context->userns, &expected) == 0
+        && expected.st_dev == actual.st_dev && expected.st_ino == actual.st_ino;
+    close(owning);
+    if (!valid) return denied();
+    return fcntl(context->netns, F_DUPFD_CLOEXEC, 4);
 }
 
 int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_source_fd) {
@@ -797,6 +814,7 @@ void aegis_namespace_release(struct aegis_namespace *context) {
     close_gate(context);
     if (context->proc_root >= 0) close(context->proc_root);
     if (context->userns >= 0) close(context->userns);
+    if (context->netns >= 0) close(context->netns);
     aegis_child_release(context->child);
     free(context);
 }

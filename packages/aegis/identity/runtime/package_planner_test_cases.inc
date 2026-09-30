@@ -1,9 +1,10 @@
+#include "package_network.h"
 // Included after RuntimePackageResolver; reuse only its inert image/cgroup fixture.
 class RuntimePackagePlanning : public RuntimePackageResolver {
  protected:
     aegis::PackagePlanner* planner=nullptr;
     aegis_broker_owner* owner=nullptr;
-    Fd sources,key,helper;
+    Fd sources,key,helper,network;
     aegis::PackagePlanning request;
     static uint64_t Deadline() {
         timespec t={};EXPECT_EQ(0,clock_gettime(CLOCK_MONOTONIC,&t));
@@ -34,14 +35,14 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
         if(owner) { EXPECT_EQ(0,aegis_broker_owner_stop_all(owner,Deadline()));EXPECT_EQ(0,aegis_broker_owner_release(&owner)); }
         if(planner) { int fd=-1;aegis::PackagePlanningResult r;EXPECT_EQ(0,aegis::PackagePlannerFinish(&planner,true,5000,&r,&fd));if(fd>=0)close(fd); }
         if(image)for(const char* n:{"sources.list","key.asc"})EXPECT_EQ(0,unlink((image->directory+"/"+n).c_str()));
-        sources.reset();key.reset();helper.reset();RuntimePackageResolver::TearDown();
+        sources.reset();key.reset();helper.reset();network.reset();RuntimePackageResolver::TearDown();
     }
-    int Start() { return aegis::PackagePlannerStart(parent.get(),source,selected.get(),sources.get(),key.get(),helper.get(),request,Deadline(),&planner); }
+    int Start() { return aegis::PackagePlannerStart(parent.get(),source,selected.get(),sources.get(),key.get(),helper.get(),request,Deadline(),&planner,network.get()); }
     void CreateOwner() {
         ASSERT_EQ(0,aegis_broker_owner_create(parent.get(),source,setup,setup,&owner));request.job=0;
     }
     int StartOwner(uint64_t* job,int program=-2) {
-        return aegis::BrokerStartPlanning(owner,request,parent.get(),source,selected.get(),sources.get(),key.get(),program==-2?helper.get():program,Deadline(),job);
+        return aegis::BrokerStartPlanning(owner,request,parent.get(),source,selected.get(),sources.get(),key.get(),program==-2?helper.get():program,Deadline(),job,network.get());
     }
     void SelectOwner(uint64_t* job) {
         Fd factory(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC));ASSERT_TRUE(factory.ok());
@@ -59,6 +60,15 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
         char path[PATH_MAX];ssize_t n=readlink("/proc/self/exe",path,sizeof(path)-1);if(n<=0)return -1;path[n]=0;
         std::string program(path);program.resize(program.rfind('/')+1);program+=name;
         return open(program.c_str(),O_RDONLY|O_CLOEXEC|O_NOFOLLOW);
+    }
+    void Online(const char* uri) {
+        network.reset(Program("aegis-package-network"));ASSERT_TRUE(network.ok());request.request.internet=true;
+        request.request.package="hello";request.request.version.clear();
+        Fd directory(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(directory.ok());
+        std::string official=Read(source,"etc/apt/trusted.gpg.d/debian-archive-trixie-automatic.asc");
+        ASSERT_EQ(0u,official.find("-----BEGIN PGP PUBLIC KEY BLOCK-----"));
+        ASSERT_EQ(0,Write(directory.get(),"key.asc",official));
+        ASSERT_EQ(0,Write(directory.get(),"sources.list",std::string("deb [signed-by=/run/aegis-plan-policy/key.asc] ")+uri+" trixie main\n"));
     }
     void Collected(uint64_t job) {
         aegis::PlanningState state;aegis::PackagePlanningResult result;
@@ -269,4 +279,53 @@ TEST(PackagePlanningProtocol, EvidenceRejectsNoncanonicalStringsAndUnusedEntries
         EXPECT_EQ(-1,aegis::planning_wire::Decode(bad,&decoded));EXPECT_EQ(EPROTO,errno);
         EXPECT_EQ(1u,decoded.changes.size());EXPECT_EQ("pkg",decoded.changes[0].name);
     }
+}
+
+TEST(PackageNetworkPolicy, RestrictsExactHostsPortsAndPublicAddresses) {
+    using namespace aegis::network;
+    EXPECT_TRUE(Destination("deb.debian.org",80));EXPECT_TRUE(Destination("security.debian.org",443));
+    for(const char* host:{"localhost","127.0.0.1","deb.debian.org.","deb.debian.org.evil.test","DEB.DEBIAN.ORG","security.debian.org@localhost"})
+        EXPECT_FALSE(Destination(host,443));
+    EXPECT_FALSE(Destination("deb.debian.org",22));EXPECT_FALSE(Destination(nullptr,80));
+    for(uint32_t ip:{0u,0x0a000001u,0x7f000001u,0xa9fe0101u,0xac100001u,0xac1f0001u,0xc0a80001u,0x64400001u,0x647fffffu,
+                    0xc0000201u,0xc6336401u,0xcb007101u,0xe0000001u,0xffffffffu})EXPECT_FALSE(PublicAddress(ip))<<ip;
+    EXPECT_TRUE(PublicAddress(0x97650484u));EXPECT_TRUE(PublicAddress(0x01010101u));
+    for(const auto& row:aegis_uid_extents)EXPECT_FALSE(kAppId>=row.app_id&&kAppId<row.app_id+row.count);
+}
+TEST_F(RuntimePackagePlanning, OnlineRequiresPinnedHelperBeforeAnyStart) {
+    request.request.internet=true;int before=descriptors();EXPECT_EQ(-1,Start());EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(nullptr,planner);EXPECT_EQ(before,descriptors());
+}
+TEST_F(RuntimePackagePlanning, OnlineCancellationReapsRelayAndPlannerTogether) {
+    Online("https://deb.debian.org/debian");ASSERT_FALSE(HasFatalFailure());CreateOwner();ASSERT_FALSE(HasFatalFailure());
+    int before=descriptors();uint64_t job=0;ASSERT_EQ(0,StartOwner(&job))<<strerror(errno);
+    ASSERT_EQ(0,aegis_broker_owner_stop_all(owner,Deadline()))<<strerror(errno);EXPECT_EQ(before,descriptors());
+    aegis::PlanningState state;aegis::PackagePlanningResult result;
+    EXPECT_EQ(-1,aegis::BrokerPollPlanning(owner,10,1234,job,&state,&result));EXPECT_EQ(ENOENT,errno);
+}
+TEST_F(RuntimePackagePlanning, OnlineRefusesAnUnapprovedDestination) {
+    Online("http://127.0.0.1/debian");ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,Start())<<strerror(errno);
+    aegis::PackagePlanningResult result;int fd=-1;
+    ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,10000,&result,&fd))<<strerror(errno);
+    EXPECT_EQ(aegis::PackagePlanningResult::Outcome::Failed,result.outcome);EXPECT_EQ(-1,fd);
+    EXPECT_EQ(aegis::PackageResolverResult::Phase::Update,result.phase);EXPECT_EQ(100,result.status);
+}
+TEST_F(RuntimePackagePlanning, OnlineFetchesAuthenticatesAndBindsRealDebianArchive) {
+    Online("https://deb.debian.org/debian");ASSERT_FALSE(HasFatalFailure());int before=descriptors();ASSERT_EQ(0,Start())<<strerror(errno);
+    aegis::PackagePlanningResult result;int fd=-1;int finished=-1;
+    for(unsigned i=0;i<36;++i) {
+        finished=aegis::PackagePlannerFinish(&planner,false,5000,&result,&fd);
+        if(finished==0)break;ASSERT_EQ(ETIMEDOUT,errno);
+    }
+    ASSERT_EQ(0,finished);ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)
+        <<"phase="<<int(result.phase)<<" status="<<result.status<<" error="<<result.error;
+    ASSERT_GE(fd,0);Fd evidence(fd);EXPECT_GT(result.effects,0u);
+    const auto& proof=result.evidence;ASSERT_FALSE(proof.repositories.empty());ASSERT_FALSE(proof.changes.empty());
+    auto hello=std::find_if(proof.changes.begin(),proof.changes.end(),[](const auto& p){return p.name=="hello";});
+    ASSERT_NE(proof.changes.end(),hello);EXPECT_FALSE(hello->after_version.empty());EXPECT_GT(hello->archive.bytes,1000u);
+    EXPECT_EQ(64u,hello->archive.sha256.size());EXPECT_EQ(64u,proof.repositories[0].release_sha256.size());
+    EXPECT_NE(std::string::npos,Read(fd,"update.log").find("deb.debian.org"));
+    fprintf(stderr,"ONLINE_DEBIAN_RECEIPT: %s\n",Read(fd,"receipt.json").c_str());
+    EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
+    evidence.reset();EXPECT_EQ(before,descriptors());
 }

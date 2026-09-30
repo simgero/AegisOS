@@ -110,6 +110,7 @@ artifacts=(
     data/nativetest64/AegisRuntimeNativeTests/aegis-package-prepare
     data/nativetest64/AegisRuntimeNativeTests/aegis-package-plan
     data/nativetest64/AegisRuntimeNativeTests/aegis-package-plan-probe
+    data/nativetest64/AegisRuntimeNativeTests/aegis-package-network
 )
 for relative in "${artifacts[@]}"; do
     test -s "$product/$relative"
@@ -127,7 +128,8 @@ chmod 755 "$run/modules/system/bin/aegis-runtime-init" \
     "$run/modules/data/nativetest64/AegisRuntimeNativeTests/aegis-package-execute-probe" \
     "$run/modules/data/nativetest64/AegisRuntimeNativeTests/aegis-package-prepare" \
     "$run/modules/data/nativetest64/AegisRuntimeNativeTests/aegis-package-plan" \
-    "$run/modules/data/nativetest64/AegisRuntimeNativeTests/aegis-package-plan-probe"
+    "$run/modules/data/nativetest64/AegisRuntimeNativeTests/aegis-package-plan-probe" \
+    "$run/modules/data/nativetest64/AegisRuntimeNativeTests/aegis-package-network"
 (cd "$run/modules" && sha256sum "${artifacts[@]}") > "$run/SHA256SUMS"
 state IDENTITY_COMPILED_NOT_INSTALLED
 trap - EXIT

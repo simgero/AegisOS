@@ -1,4 +1,5 @@
 #include "package_planner.h"
+#include "package_network.h"
 #include "package_planning_protocol.h"
 #include "namespace.h"
 #include "memory_group.h"
@@ -15,6 +16,7 @@ struct PackagePlanner {
     pid_t process=0;
     unique_fd selected,root,metadata,devices,sources,key,channel;
     aegis_namespace* context=nullptr;
+    aegis_child* network=nullptr;
     aegis_memory_group* group=nullptr;
     aegis_planning_request request={};
     bool anchored=false,spawned=false,cancelled=false;
@@ -29,7 +31,7 @@ int Encode(const PackagePlanning& p,aegis_planning_request* r) {
     if(PackageResolverCheck(p.request)<0)return -1;
     if(p.request.package.size()>128||p.request.version.size()>128)return Fail(EINVAL);
     *r={};r->magic=AEGIS_PLANNING_MAGIC;r->version=AEGIS_PLANNING_VERSION;r->user=p.requester;r->serial=p.serial;r->job=p.job;
-    r->action=uint32_t(p.request.action);memcpy(r->package,p.request.package.data(),p.request.package.size());
+    r->internet=p.request.internet;r->action=uint32_t(p.request.action);memcpy(r->package,p.request.package.data(),p.request.package.size());
     memcpy(r->version_text,p.request.version.data(),p.request.version.size());return 0;
 }
 int PolicyFile(int fd,uint64_t maximum) {
@@ -41,12 +43,13 @@ int PolicyFile(int fd,uint64_t maximum) {
 }
 int PackagePlanningCheck(const PackagePlanning& p) { aegis_planning_request r;return Encode(p,&r); }
 int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,int helper,
-                         const PackagePlanning& plan,uint64_t deadline,PackagePlanner** output) {
+                         const PackagePlanning& plan,uint64_t deadline,PackagePlanner** output,int network_helper) {
     if(!output||*output)return Fail(EINVAL);
     if(aegis_namespace_check_broker()<0)return -1;
     auto now=Now();if(!now)return -1;
     if(deadline<=now||deadline-now>UINT64_C(10000000000))return Fail(ETIMEDOUT);
     aegis_planning_request r;if(Encode(plan,&r)<0||PolicyFile(sources,16384)<0||PolicyFile(key,1048576)<0)return -1;
+    if(plan.request.internet && network_helper<0)return Fail(EINVAL);
     auto* p=new(std::nothrow) PackagePlanner;if(!p)return Fail(ENOMEM);
     p->process=syscall(SYS_getpid);p->request=r;*output=p;
     p->selected.reset(fcntl(selected,F_DUPFD_CLOEXEC,4));p->sources.reset(fcntl(sources,F_DUPFD_CLOEXEC,4));p->key.reset(fcntl(key,F_DUPFD_CLOEXEC,4));
@@ -57,6 +60,11 @@ int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,
        ||aegis_namespace_create_limited(plan.requester,plan.serial,helper,child.get(),p->group,&p->context)<0)return -1;
     p->spawned=true;child.reset();int left=Left(deadline);if(left<=0)return Fail(ETIMEDOUT);
     if(aegis_namespace_prepare_package_for(p->context,left)<0)return -1;
+    if(plan.request.internet) {
+        unique_fd netns(aegis_namespace_planner_network(p->context));if(!netns.ok())return -1;
+        left=Left(deadline);if(left<=0)return Fail(ETIMEDOUT);
+        if(PackageNetworkStart(netns.get(),network_helper,p->group,plan.requester,plan.serial,plan.job,left,&p->network)<0)return -1;
+    }
     p->root.reset(aegis_namespace_base_mount(p->context,factory));
     p->devices.reset(aegis_namespace_devices_mount(p->context));if(!p->root.ok()||!p->devices.ok())return -1;
     if(aegis_namespace_temporary_base_begin(p->selected.get())<0)return -1;p->anchored=true;
@@ -71,6 +79,7 @@ int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,
 int PackagePlannerCancel(PackagePlanner* p) {
     if(!Owned(p))return -1;p->cancelled=true;int e=0;
     if(p->context&&aegis_namespace_stop(p->context)<0)e=errno;
+    if(p->network&&aegis_child_request_stop(p->network)<0&&!e)e=errno;
     if(p->group&&aegis_memory_group_kill_and_wait(p->group,0)<0&&errno!=ETIMEDOUT&&!e)e=errno;
     return e?Fail(e):0;
 }
@@ -83,6 +92,11 @@ int PackagePlannerFinish(PackagePlanner** pointer,bool cancel,int timeout,Packag
     if(p->context&&aegis_namespace_wait(p->context,left,&exited)<0)return -1;
     left=Left(deadline);if(left<0)return -1;
     if(p->group&&aegis_memory_group_kill_and_wait(p->group,left)<0)return -1;
+    aegis_child_exit network_exit={};
+    if(p->network) {
+        left=Left(deadline);if(left<0)return -1;
+        if(aegis_child_wait(p->network,left,&network_exit)<0)return -1;
+    }
     if(p->group&&aegis_memory_group_remove(&p->group)<0)return -1;
     if(p->anchored) { if(aegis_namespace_temporary_base_end(p->selected.get())<0)return -1;p->anchored=false; }
     PackagePlanningResult r;r.error=EIO;
@@ -109,7 +123,11 @@ int PackagePlannerFinish(PackagePlanner** pointer,bool cancel,int timeout,Packag
             } else r.error=EPROTO;
         } else r.error=errno;
     }
+    if(p->network&&!p->cancelled && (network_exit.code!=CLD_KILLED||network_exit.status!=SIGKILL)) {
+        r.outcome=PackagePlanningResult::Outcome::Failed;r.error=EIO;
+    }
     if(r.outcome==PackagePlanningResult::Outcome::Collected)*collected=directory.release();
+    if(p->network)aegis_child_release(p->network);
     if(p->context)aegis_namespace_release(p->context);
     delete p;*pointer=nullptr;*result=r;return 0;
 }

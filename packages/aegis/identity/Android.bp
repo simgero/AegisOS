@@ -273,7 +273,7 @@ cc_library_static {
 cc_library_static {
     name: "libaegis-package-planner",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/package_planner.cpp"],
+    srcs: ["runtime/package_planner.cpp", "runtime/package_network.cpp", "runtime/package_network_policy.cpp"],
     static_libs: ["libaegis-runtime-namespace", "libaegis-package-metadata", "libbase"],
     export_include_dirs: ["runtime"],
 }
@@ -293,6 +293,15 @@ cc_binary {
     name: "aegis-package-plan-probe",
     defaults: ["aegis-package-planner-defaults"],
     cflags: ["-DAEGIS_PLANNER_PROBE"],
+}
+
+cc_binary {
+    name: "aegis-package-network",
+    defaults: ["aegis-runtime-native-defaults"],
+    srcs: ["runtime/package_network_main.cpp", "runtime/package_network_policy.cpp", "runtime/sandbox.c"],
+    static_executable: true,
+    static_libs: ["libbase"],
+    stl: "libc++_static",
 }
 
 // Bounded binding of trusted resolved metadata to preparation + publication.
@@ -316,6 +325,6 @@ cc_test {
     // The test process uses the same system libcrypto as the broker. The
     // namespace setup/init/probe helpers remain separate static executables.
     shared_libs: ["libcrypto", "liblog"],
-    data_bins: ["aegis-runtime-init", "aegis-runtime-namespace-probe", "aegis-runtime-setup", "aegis-package-publish", "aegis-package-execute", "aegis-package-execute-probe", "aegis-package-prepare", "aegis-package-plan", "aegis-package-plan-probe"],
+    data_bins: ["aegis-runtime-init", "aegis-runtime-namespace-probe", "aegis-runtime-setup", "aegis-package-publish", "aegis-package-execute", "aegis-package-execute-probe", "aegis-package-prepare", "aegis-package-plan", "aegis-package-plan-probe", "aegis-package-network"],
     test_suites: ["device-tests"],
 }

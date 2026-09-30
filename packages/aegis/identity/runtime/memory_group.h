@@ -29,6 +29,11 @@ int aegis_memory_group_create(int parent_fd, uint32_t user, uint32_t serial,
  */
 int aegis_memory_group_claim(struct aegis_memory_group *group, uint32_t user, uint32_t serial);
 
+/* One trusted network companion after the primary claim, in the SAME budget.
+ * Root owner only, exact identity, populated/unchanged limits, one attempt;
+ * never available after cancellation. Caller retains and reaps its own pidfd. */
+int aegis_memory_group_claim_companion(struct aegis_memory_group *group, uint32_t user, uint32_t serial);
+
 /* Signal this owned cgroup tree, then observe populated=0 within 0..10000ms.
  * Timeout retains all references. This does NOT reap an owned child, close
  * CE references or prove AOSP key removal. Those are separate requirements.

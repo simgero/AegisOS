@@ -3,6 +3,7 @@
 #define AEGIS_RUNTIME_UID_LAYOUT_H
 #include <stdint.h>
 #define AEGIS_PER_USER_RANGE 100000u
+#define AEGIS_PACKAGE_NETWORK_APP_ID 7502u
 struct aegis_uid_extent { uint32_t inside, app_id, count; };
 static const struct aegis_uid_extent aegis_uid_extents[] = {
     {0u, 5000u, 1000u},

@@ -8,11 +8,11 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #define AEGIS_PLANNING_MAGIC UINT32_C(0x41504c4e)
-#define AEGIS_PLANNING_VERSION 2u
+#define AEGIS_PLANNING_VERSION 3u
 struct aegis_planning_request {
     uint32_t magic,version,user,serial;
     uint64_t job;
-    uint32_t action,reserved;
+    uint32_t action,internet;
     char package[129],version_text[129];
     uint8_t padding[6];
 };

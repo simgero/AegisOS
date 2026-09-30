@@ -139,6 +139,9 @@ int aegis_namespace_prepare_package_for(struct aegis_namespace *context, int tim
  * ownership is already user-specific and MUST NOT be remapped a second time.
  * Does not provide mount/exec readiness, AOSP authorization or cleanup proof.
  */
+/* Trusted planner owner only: duplicate the gated package child's own netns.
+ * Valid only after mapping and before resume. Never accept a caller's PID/path. */
+int aegis_namespace_planner_network(struct aegis_namespace *context);
 int aegis_namespace_base_mount(struct aegis_namespace *context, int verified_source_fd);
 
 /* Internal package staging only, NOT authorization or a production worker.

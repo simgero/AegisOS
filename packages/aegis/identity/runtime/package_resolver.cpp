@@ -106,7 +106,12 @@ bool Same(const std::vector<PackageAptEffect>& a,const std::vector<PackageAptEff
     return true;
 }
 }
-const char* PackageResolverConfiguration() { return policy; }
+const char* PackageResolverConfiguration(bool internet) {
+    static const std::string online=std::string(policy)+
+        "Acquire::http::Proxy \"socks5h://127.0.0.1:1080\";\n"
+        "Acquire::https::Proxy \"socks5h://127.0.0.1:1080\";\n";
+    return internet?online.c_str():policy;
+}
 PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequest& r) {
     PackageResolverResult result;
     auto fail=[&](int e) { result.error=e;return result; };
@@ -119,7 +124,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
        ||Read("/run/aegis-plan-policy/sources.list",16384,true,&sources)<0
        ||Read("/run/aegis-plan-policy/key.asc",1048576,true,&key)<0
        ||Read("/run/aegis-plan-input/status",64u<<20,true,&status)<0)return fail(errno);
-    if(config!=policy||sources.empty()||key.empty())return fail(EPERM);
+    if(config!=PackageResolverConfiguration(r.internet)||sources.empty()||key.empty())return fail(EPERM);
     bool present=Read("/run/aegis-plan-input/extended_states",16u<<20,true,&automatic)==0;
     if(!present&&errno!=ENOENT)return fail(errno);
     if(mkdir("/tmp/aegis-planner",0755)<0)return fail(errno);

@@ -11,6 +11,7 @@ import sys
 PROJECT = Path(__file__).resolve().parents[2]
 CONFIG = "device/aegis/qemu_arm64/runtime-ids.fs"
 JAVA = "packages/aegis/identity/src/org/aegisos/identity/RuntimeUidLayout.java"
+NETWORK_APP_ID = 7502  # Host-only relay identity, deliberately absent from user maps.
 C_HEADER = "packages/aegis/identity/runtime/uid_layout.h"
 HEADER = "system/core/libcutils/include/private/android_filesystem_config.h"
 PARSER = "build/make/tools/fs_config/fs_config_generator.py"
@@ -62,6 +63,9 @@ def generated(layout):
             inside = row["inside"] + offset
             aid = row["aid"] if row["count"] == 1 else f"{row['aid']}_{inside:04d}"
             config += [f"[AID_{aid}]", f"value: {row['app_id'] + offset}", ""]
+    if any(row["app_id"] <= NETWORK_APP_ID < row["app_id"] + row["count"] for row in rows):
+        raise ValueError("Network companion ID must remain outside every runtime mapping")
+    config += ["[AID_SYSTEM_EXT_AEGIS_PACKAGE_NETWORK]", f"value: {NETWORK_APP_ID}", ""]
     triples = ",\n".join(f"            {{{r['inside']}, {r['app_id']}, {r['count']}}}" for r in rows)
     java = ("// Generated from runtime/uid-map.json by scripts/runtime/uid_layout.py.\n"
             "package org.aegisos.identity;\n\n"
@@ -77,6 +81,7 @@ def generated(layout):
               "#ifndef AEGIS_RUNTIME_UID_LAYOUT_H\n#define AEGIS_RUNTIME_UID_LAYOUT_H\n"
               "#include <stdint.h>\n"
               "#define AEGIS_PER_USER_RANGE 100000u\n"
+              f"#define AEGIS_PACKAGE_NETWORK_APP_ID {NETWORK_APP_ID}u\n"
               "struct aegis_uid_extent { uint32_t inside, app_id, count; };\n"
               "static const struct aegis_uid_extent aegis_uid_extents[] = {\n"
               + c_rows + "\n};\n#endif\n")
@@ -120,6 +125,7 @@ def check_aosp(layout, aosp, fs_configs, project=PROJECT):
     header = parser.AIDHeaderParser(str(aosp / HEADER))
     product = parser.FSConfigFileParser(paths, header.ranges)
     expected = {row["app_id"] + i for row in validate(layout) for i in range(row["count"])}
+    expected.add(NETWORK_APP_ID)
     actual = {int(aid.value, 0) for aid in product.aids}
     if not expected <= actual:
         raise ValueError("AOSP did not register every runtime ID")

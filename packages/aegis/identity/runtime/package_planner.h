@@ -29,9 +29,10 @@ int PackagePlanningCheck(const PackagePlanning& request);
 // the returned partial worker in STOP_USER even when Start returns failure.
 // Startup only maps/passes descriptors; metadata copying and APT run in the child.
 // No package execution, approval or publication. This initial worker retains the
-// private network namespace; productive network admission is a separate step.
+// private network namespace. Internet mode requires a separately pinned network
+// helper; its fixed loopback proxy cannot be used by ordinary runtimes/installers.
 int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,int helper,
-                         const PackagePlanning& request,uint64_t deadline,PackagePlanner** worker);
+                         const PackagePlanning& request,uint64_t deadline,PackagePlanner** worker,int network_helper=-1);
 int PackagePlannerCancel(PackagePlanner* worker);
 // Actual pidfd reap, cgroup emptiness/removal and temporary-anchor detach precede
 // success. Timeout retains ownership and all outputs. A Collected result returns

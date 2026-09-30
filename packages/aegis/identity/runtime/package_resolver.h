@@ -12,6 +12,7 @@ namespace aegis {
 struct PackageResolverRequest {
     PackageAction action=PackageAction::Install;
     std::string package, version;
+    bool internet=false; // Trusted product policy; never a proxy address from a caller.
 };
 struct PackageResolverResult {
     enum class Phase { Validate, Update, Simulate, Download, Indexes, Collected };
@@ -25,7 +26,7 @@ struct PackageResolverResult {
 // Write these exact bytes to the readonly policy/config before any APT starts.
 // policy/sources.list and policy/key.asc are immutable product inputs, not
 // client strings. A source must specify this exact keyring via signed-by.
-const char* PackageResolverConfiguration();
+const char* PackageResolverConfiguration(bool internet=false);
 int PackageResolverCheck(const PackageResolverRequest& request);
 // On success /tmp/aegis-planner retains signed APT lists, downloaded archives,
 // exact simulation, index-targets, and a native snapshot receipt. The owner MUST

@@ -17,7 +17,7 @@
 #include <unistd.h>
 
 struct aegis_memory_group {
-    int parent, directory, procs, ready;
+    int parent, directory, procs, ready, claimed, companion, stopped;
     pid_t owner;
     uint32_t user, serial;
     char name[48];
@@ -189,7 +189,19 @@ int aegis_memory_group_claim(struct aegis_memory_group *group, uint32_t user, ui
     int state = populated(group->directory);
     if (state < 0) return -1;
     if (state) return reject(EBUSY);
-    group->ready = 0;
+    group->ready = 0;group->claimed = 1;
+    return group->directory;
+}
+
+int aegis_memory_group_claim_companion(struct aegis_memory_group *group, uint32_t user, uint32_t serial) {
+    if (owned(group) < 0) return -1;
+    if (group->user != user || group->serial != serial) return reject(ESTALE);
+    if (!group->claimed || group->companion || group->stopped) return reject(EPERM);
+    if (private_directory(group->directory) < 0 || limits_match(group->directory) < 0) return -1;
+    int state = populated(group->directory);
+    if (state < 0) return -1;
+    if (!state) return reject(ESRCH);
+    group->companion = 1;
     return group->directory;
 }
 
@@ -204,7 +216,7 @@ int aegis_memory_group_kill_and_wait(struct aegis_memory_group *group, int timeo
     if (owned(group) < 0) return -1;
     int64_t start = now_ms();
     if (start < 0) return -1;
-    group->ready = 0; /* Stop seals this group; it can never be reused for start. */
+    group->ready = 0;group->stopped = 1; /* Stop seals this group; it can never be reused for start. */
     if (write_value(group->directory, "cgroup.kill", "1\n") < 0) return -1;
     for (;;) {
         int state = populated(group->directory);
