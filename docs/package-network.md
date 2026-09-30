@@ -3,8 +3,9 @@
 Der unveränderliche Paketplaner kann einen vom Broker zugelassenen Internetmodus
 verwenden. Persönliche Shells und die späteren Installationsprogramme behalten
 jeweils ihren eigenen Netzwerkraum ohne diese Verbindung. Die öffentliche
-CLI/Binder-Anbindung, frische AOSP-Adminfreigabe und Produkt-SELinux-Einbindung
-sind noch nicht aktiviert.
+CLI/Binder-Anbindung, frische AOSP-Adminfreigabe und die Produkt-Ausführungsdomänen
+für Paketprogramme sind noch nicht aktiviert. Der reguläre Broker-Start mit
+fest gepinnten Produkteingaben und Helfern ist im Vollimage `2f7b18e2` geprüft.
 
 ## Datenweg und Besitz
 
@@ -52,11 +53,14 @@ Eingangsprüfung akzeptiert weiterhin normale geprüfte Dateien für isolierte
 Fixtures; sie allein beweist weder Herkunft noch Berechtigung. Der Produktpfad
 verwendet ausschließlich die festen, versiegelten Eingaben.
 
-Diese Startanbindung ist implementiert, aber noch nicht im laufenden Produktimage
-installiert. Ein Komponentenlauf prüft die Funktionen im lokalen Gast; erst ein
-neues Vollimage und dessen tatsächlicher Brokerstart können die Start- und
-SELinux-Anbindung zur Laufzeit belegen. Die Verbindung zum öffentlichen
-Paketauftrag bleibt ebenfalls offen.
+Diese Startanbindung ist im Vollimage `2f7b18e2` installiert und am 30.09.2026
+im lokalen Mac-QEMU mit dem tatsächlichen init-gestarteten Broker geprüft.
+Der Start erreicht nach der festen Richtlinienübernahme auch
+`AEGIS_PACKAGE_HELPERS_PINNED` und `AEGIS_RUNTIME_BROKER_LISTENING` in der
+vorgesehenen Broker-Domäne bei aktivem SELinux Enforcing. Der öffentliche
+Paketauftrag und die Ausführungsdomänen bleiben offen.
+[Genauer Bootnachweis und Grenzen](component-tests.md).
+
 Dieser Proxy erlaubt ausschließlich CONNECT zu `deb.debian.org` und
 `security.debian.org`, jeweils Port 80 oder 443. Numerische Ziele, weitere
 SOCKS-Befehle, andere Namen/Ports und spezielle oder lokale IPv4-Adressen nach
@@ -131,8 +135,11 @@ lokalen Deskriptoren werden nach Übernahme geschlossen. Ein fester Logmarker
 Die Ausführungsdomänen, öffentliche Wire-/Binder-/CLI-Operationen und frische
 AOSP-Adminbestätigung bleiben ausstehend. Die readonly Startberechtigungen
 aktivieren keinen allgemeinen Exec-, Netzwerk- oder Dateischreibzugriff.
-Kompilierung und tatsächlicher Vollimage-Start dieser Anbindung sind separat
-nachzuweisen.
+Kompilierung, GitHub-Übertragung und der tatsächliche Vollimage-Start sind für
+`2f7b18e2` nachgewiesen. Alle vier festen Dateitypen, root:shell/0755, einfache
+Linkzahl und Hashes sind im Gast dokumentiert. Der normale Android-Shell-Zugriff
+auf die Metadaten des Planers wurde verweigert. Die wiederholte Zusatzprüfung
+verwendet den vorhandenen Diagnosezugang und erweitert keine Produktberechtigungen.
 
 `BrokerPrepareConfiguredTransaction` übernimmt inzwischen ausschließlich den
 behaltenen geprüften Auftrag (Identität, Seriennummer, Auftrags-ID und neue Frist).
@@ -174,6 +181,35 @@ Diese Bereinigung betrifft den Lebenszyklus des aktuell gehaltenen Auftrags.
 Die sichere Behandlung verwaister Verzeichnisse nach Prozessabsturz oder
 Neustart, Kapazitätsbegrenzung und Produktintegration bleiben ausstehend.
 Dieser Pfad wird deshalb noch nicht als öffentlicher Befehl freigeschaltet.
+
+## Ausstehende Trennung des beschreibbaren Kandidaten
+
+Die bisherigen nativen Fixtures laufen mit `su` und beweisen keine erfolgreiche
+Paketinstallation in einer Produktdomäne. `package_prepare_worker.cpp::Mount`
+verwendet derzeit auch für einen beschreibbaren Kandidaten noch
+`context=u:object_r:aegis_runtime_base_file:s0`. Das ist für die Produktanbindung
+ungeeignet: AOSPs `system/sepolicy/private/domain.te` verbietet regulären
+Domänen das Erstellen und Beschreiben von `contextmount_type`-Inhalten.
+Diese Schutzregeln und der unveränderliche Basistyp müssen erhalten bleiben.
+
+Der tatsächlich gepinnte Kernelstand
+`50eb8d5d443b43f38d6e72f005f1b8601ac88a05` unterscheidet in
+`security/selinux/hooks.c::selinux_set_mnt_opts` zwischen `context`, `rootcontext`
+und `defcontext`. Die letzten beiden prüfen über
+`may_context_mount_inode_relabel` die bisherige Dateisystemzuordnung sowie
+`filesystem associate`; `defcontext` setzt nur den Standard für Inodes ohne
+eigenes Label. Vorhandene SELinux-Xattrs werden dadurch nicht neutralisiert.
+
+Der nächste Implementierungsschritt muss deshalb einen eigenen beschreibbaren
+Kandidatentyp, feste Mountoptionen und die Ablehnung fremder Inode-Labels verbinden.
+Es reicht nicht, nur die Mountoption auszutauschen. Die Prüfung muss auch
+Symlinks erfassen und vor Übergabe an Paketprogramme sowie vor Veröffentlichung
+wirksam sein. Die jetzige Baumprüfung in `package_validate.c` prüft Dateirechte,
+Kennungen, Capabilities und ACLs, aber noch nicht diese Labelbindung. Separate
+Domänen für vertrauenswürdige Vorbereitung, gewöhnliche Paketprogramme und den
+begrenzten Netzwerkhelfer müssen anschließend im realen Dienst getestet werden.
+Dies ist eine aus dem eingesetzten Kernel und der Policy abgeleitete Anforderung,
+noch keine implementierte oder durch Laufzeittests belegte Freigabe.
 
 ## Nachweisgrenze
 

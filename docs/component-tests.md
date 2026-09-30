@@ -1,3 +1,57 @@
+## Regulärer Brokerstart mit vier fest gepinnten Pakethelfern
+
+Vollimage `2f7b18e2a7da19821f0a602632e0154105d97e14` wurde ausschließlich auf
+`aegis-build` gebaut und über den
+[verifizierten GitHub-Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260930T164048Z-2f7b18e2-d951591e) übertragen.
+Lauf `aosp-20260930T164048Z-2f7b18e2-d951591e`, Invocation `b3abb846eb154a1e91b08b0d14705ba1`.
+22 Release-Assets mit zusammen 1933827350 Bytes; das Manifest
+bestätigt die Prüfsummen der übrigen 21 Dateien. AVB wurde lokal geprüft,
+anschließend erfolgte der Start in einem neuen gepaarten Mac-QEMU-Profil.
+
+Am **2026-09-30T17:11:15.644412+00:00** ist der echte init-gestartete Dienst in
+`u:r:aegis_runtime_broker:s0` aktiv, SELinux bleibt **Enforcing**.
+`AEGIS_PACKAGE_HELPERS_PINNED` und `AEGIS_RUNTIME_BROKER_LISTENING` stammen
+vom tatsächlichen Dienststart. Planung, Netzwerk, Ausführung und Veröffentlichung
+liegen unter ihren vier festen Systempfaden mit jeweils eigenem Ausführungstyp,
+root:shell, Modus 0755 und Linkzahl 1. Die im Gast gelesenen Hashes stehen im
+vollständigen Bootnachweis. Der Startup-Code prüft diese Eingänge vor Übernahme
+auf dem schreibgeschützten EROFS; keine Laufzeit-Ersetzung ist aktiviert.
+
+FBE, authentifiziertes ADB, die tatsächlichen dm-verity-Tabellen für `system` und
+`system_ext`, die feste verwaltete Runtime-Konfiguration und der Identitätsdienst
+sind geprüft. AVB-Digest `263134cee5b03a43a7bfc97485fbdb546a318a2d337967dd2fd11af76955e670`.
+Profil `9029a357-cba5-4058-aac3-e07fa70a6278`, Boot `4adbd778-2267-4bd4-b2f1-029d3dd84700`.
+Die vorherige c740-Installation läuft weiterhin mit ihrer ursprünglichen
+Bootkennung und unverändertem Profilmanifest; das gestoppte 178-Profil bleibt erhalten.
+
+Der erste Beobachter las die Helfermetadaten irrtümlich als normale Android-Shell.
+Deren `getattr` auf `/system/bin/aegis-package-plan` wurde korrekt verweigert:
+Audit-Ereignis 5, `shell` → `aegis_package_plan_exec`, `permissive=0`.
+Der davor gespeicherte reale Dienststart war bereits erfolgreich und ohne
+Runtime-AVCs. Die wiederholte reine Metadatenprüfung nutzt den Diagnosezugang.
+Der erste Fehlversuch, seine zwei Logcat-Zeilen und die Kernel-Zeile bleiben
+unverändert erhalten; ausschließlich diese exakten Zeilen derselben Bootkennung
+werden als erwarteter Beobachterfehler zugeordnet. Andere Runtime-/Paket-AVCs
+würden weiterhin fehlschlagen; es gibt keine weiteren. Produktcode und Policy
+wurden für diese Wiederholung nicht geändert, kein neuer Build war erforderlich.
+
+**Grenze:** Das ist der Nachweis des fest konfigurierten Dienststarts, keiner
+Paketinstallation. Produkt-Ausführungsdomänen, korrekte Labels im beschreibbaren
+Kandidaten, öffentliche Wire-/Binder-/CLI-Operationen, frische AOSP-Adminfreigabe
+und der vollständige Zwei-Benutzer-Ablauf fehlen noch. Die 375 nativen Tests
+behalten ihren vorherigen Komponenten-Nachweis `9270ca79`; sie wurden hier
+nicht erneut ausgeführt. Vier reale CE-Integrationstests bleiben deaktiviert.
+Die Entwicklungs-Testschlüssel und der direkte QEMU-Kernelstart sind kein
+Nachweis einer Hardware-Vertrauenskette.
+
+Lokale Belege: `out/full-build-2f7b18e2/proof.json`, `boot-1/boot-health.json`,
+`verified-release.json`, `boot-check-first-attempt.log`,
+`boot-check-privileged.log` und `expected-observer-denial.json` im primären Workspace.
+Bootnachweis SHA-256: `c7d7658dbfa3ad24c505af98ca23b65a0d53ee401dc625e9581e2e2c1765ded9`.
+Profilmanifest SHA-256: `0be3676ef2f0407d01929b7aee5f23b58d53e52cd2226f0d549c3b51b2024c27`.
+Das erfolgreich entpackte und gestartete lokale Download-Archiv ist danach
+entfernt worden; Release, Metadaten, Abbilder und alle sieben Profile bleiben erhalten.
+
 ## Auftragsgebundene Bereinigung: 375 native Tests bestanden
 
 Commit `9270ca79a56c3cfa3a2d0bfd7e048f2d6dd914e5` besteht am **2026-09-30T16:27:52Z alle 375 aktivierten
