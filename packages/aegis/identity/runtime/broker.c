@@ -112,7 +112,8 @@ error:;
     int saved = errno;
     close(fd); return fail(saved);
 }
-static int exclusive_lock(void) {
+static int exclusive_lock(int *state) {
+    if(!state || *state!=-1)return fail(EINVAL);
     int data = open("/data", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (data < 0) return -1;
     struct open_how how = {
@@ -139,7 +140,8 @@ static int exclusive_lock(void) {
 done:;
     saved = errno;
     if (result < 0 && fd >= 0) close(fd);
-    close(directory); errno = saved;
+    if(result>=0)*state=directory;else close(directory);
+    errno = saved;
     return result;
 }
 static int inherited_listener(void) {
@@ -220,6 +222,9 @@ static int serve(int listener, int signals, struct aegis_broker_owner *owner) {
         }
         // Close completed publication resources even if the original client
         // never polls its result. Cleanup failure takes the common stop path.
+        if (aegis_broker_owner_reap_publications(owner) < 0) break;
+        // Finish exited selectors even when no client is polling. Their queued
+        // private mount stays lifecycle-owned until START or confirmed STOP.
         if (aegis_broker_owner_reap_publications(owner) < 0) break;
         uint64_t now = now_ns();
         if (!now) break;
@@ -326,11 +331,13 @@ int main(int argc, char **argv) {
     int signals = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
     int lock = -1, root = -1, delegation = -1, entry = -1, parent = -1;
     int base = -1, setup = -1, init = -1, listener = -1;
+    int image = -1, selector = -1, state_directory = -1;
+    struct aegis_base_receipt receipt = {0};
     struct aegis_broker_owner *owner = NULL;
     const char *phase = "signals";
     int result = 1;
     if (signals < 0) goto done;
-    phase = "exclusive lock"; lock = exclusive_lock(); if (lock < 0) goto done;
+    phase = "exclusive lock"; lock = exclusive_lock(&state_directory); if (lock < 0) goto done;
     phase = "init cgroup delegation";
     root = open("/sys/fs/cgroup", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (root < 0) goto done;
@@ -340,7 +347,7 @@ int main(int argc, char **argv) {
     parent = aegis_broker_cgroup_prepare(delegation, 10000); if (parent < 0) goto done;
     phase = "private mount namespace";
     if (aegis_namespace_private_mounts() < 0) goto done;
-    phase = "immutable base"; base = aegis_base_open(); if (base < 0) goto done;
+    phase = "immutable base"; base = aegis_base_open_selection(&image, &receipt); if (base < 0) goto done;
     phase = "private base anchor";
     if (aegis_namespace_attach_base(base) < 0) goto done;
     phase = "setup helper";
@@ -351,6 +358,11 @@ int main(int argc, char **argv) {
     if (init < 0) goto done;
     phase = "context owner";
     if (aegis_broker_owner_create(parent, base, setup, init, &owner) < 0) goto done;
+    phase = "selection helper";
+    selector = helper("/system/bin/aegis-package-prepare", "u:object_r:aegis_runtime_prepare_exec:s0");
+    if (selector < 0) goto done;
+    phase = "generation selection bootstrap";
+    if (aegis_broker_owner_enable_selection(owner, image, &receipt, selector, state_directory) < 0) goto done;
     phase = "init socket"; listener = inherited_listener(); if (listener < 0) goto done;
     if (clearenv() < 0 || listen(listener, 4) < 0) goto done;
     __android_log_print(ANDROID_LOG_INFO, "AegisRuntimeBroker", "AEGIS_RUNTIME_BROKER_LISTENING");
@@ -371,7 +383,7 @@ done:;
     else __android_log_print(ANDROID_LOG_INFO, "AegisRuntimeBroker", "AEGIS_RUNTIME_BROKER_STOPPED");
     // On incomplete cleanup no ACK is sent. Process death closes remaining
     // references; the next owner must recover the private group before HELLO.
-    int descriptors[] = {init, setup, base, parent, entry, delegation, root, signals, lock};
+    int descriptors[] = {selector, image, state_directory, init, setup, base, parent, entry, delegation, root, signals, lock};
     for (unsigned i = 0; i < sizeof(descriptors) / sizeof(descriptors[0]); ++i)
         if (descriptors[i] >= 0) close(descriptors[i]);
     return result;

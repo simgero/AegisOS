@@ -1,6 +1,7 @@
 #ifndef AEGIS_BROKER_OWNER_H
 #define AEGIS_BROKER_OWNER_H
 #include "broker_protocol.h"
+#include "base_image.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -15,6 +16,15 @@ extern "C" {
 struct aegis_broker_owner;
 int aegis_broker_owner_create(int parent_fd, int base_fd, int setup_fd, int init_fd,
                               struct aegis_broker_owner **output);
+
+/* Startup-only, before any context/job. Bootstrap has verified immutable
+ * source/helper provenance and the exclusively locked fixed state directory.
+ * Duplicates all three FDs; no personal CE FD persists in this configuration.
+ * Once enabled, every first START must register CE+shared generation selection;
+ * a lookup/selection error MUST NOT use the legacy factory-mount path. */
+int aegis_broker_owner_enable_selection(struct aegis_broker_owner *owner,
+                                        int image, const struct aegis_base_receipt *receipt,
+                                        int helper, int state_directory);
 
 /* Caller has already authenticated the system_server peer, validated framing
  * and enforced per-connection sequence ordering. AOSP admission/CE serialization
@@ -32,7 +42,7 @@ int aegis_broker_owner_apply(struct aegis_broker_owner *owner,
  * reply returns that owned job. CONTINUE_START requires that exact live job,
  * user and serial and MUST NOT re-create work removed by STOP/HELLO. No FD
  * escapes. Other errors clear job, preserving incomplete cleanup ownership.
- * Product bootstrap must still register the initial selection. */
+ * With enabled bootstrap, the first START registers the initial selection. */
 int aegis_broker_owner_start(struct aegis_broker_owner *owner,
                              const struct aegis_broker_call *call,
                              uint64_t *job, enum aegis_broker_state *state);

@@ -26,6 +26,10 @@ int aegis_base_parse_receipt(const char *json, size_t length, struct aegis_base_
  * Closing the last mount/clone reference releases the autoclearing loop device.
  */
 int aegis_base_open(void);
+/* Same immutable validation/mount, also retain the EXACT verified source file
+ * and receipt for later asynchronous generation selection. image starts -1;
+ * outputs change only after complete success. Caller owns both returned FDs. */
+int aegis_base_open_selection(int *image, struct aegis_base_receipt *receipt);
 
 #ifdef __cplusplus
 }

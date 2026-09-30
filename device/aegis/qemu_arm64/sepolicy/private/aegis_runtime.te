@@ -10,6 +10,8 @@ type aegis_runtime_program, domain, coredomain, aegis_runtime_domain,
 type aegis_runtime_broker_exec, exec_type, file_type, system_file_type;
 type aegis_runtime_setup_exec, exec_type, file_type, system_file_type;
 type aegis_runtime_init_exec, exec_type, file_type, system_file_type;
+# Immutable trusted hash/mount worker. It runs no GNU code or package scripts.
+type aegis_runtime_prepare_exec, exec_type, file_type, system_file_type;
 
 type aegis_runtime_image_file, file_type, system_file_type;
 # A context-mounted filesystem is an fs_type, never also a file_type.
@@ -19,6 +21,7 @@ type aegis_runtime_state_file, file_type, data_file_type, core_data_file_type;
 type aegis_runtime_home_file, file_type, data_file_type, core_data_file_type;
 # Broker-only CE package backing files, never ordinary HOME or session mounts.
 type aegis_package_private_file, file_type, data_file_type, core_data_file_type;
+type aegis_package_shared_file, file_type, data_file_type, core_data_file_type;
 type aegis_runtime_devices_file, file_type;
 type aegis_runtime_scratch_file, file_type, coredomain_socket;
 type aegis_runtime_cgroup, fs_type;
@@ -274,3 +277,20 @@ neverallow aegis_runtime_program self:user_namespace create;
 neverallow { aegis_runtime_init aegis_runtime_program } fs_type:filesystem { mount remount relabelfrom relabelto };
 neverallow aegis_runtime_domain { aegis_runtime_home_file aegis_runtime_scratch_file }:file execute;
 neverallow aegis_runtime_program { aegis_runtime_broker aegis_runtime_setup aegis_runtime_init system_server }:process { ptrace signal sigkill sigstop };
+
+# Generation selection is trusted broker work, executed only from the pinned
+# immutable helper after registering the requester. It remains in the owner's
+# domain and bounded workload cgroup; it never executes package contents.
+allow aegis_runtime_broker aegis_runtime_prepare_exec:file { rx_file_perms execute_no_trans };
+# A sealed memfd carries only bounded selection metadata into the worker. The
+# existing broker tmpfs transition labels it with this non-executable type.
+allow aegis_runtime_broker aegis_runtime_devices_file:file { create open read write getattr setattr };
+# Read-only existing package stores, including flock on a read-only lock FD.
+# No package bytes or metadata writes are enabled by selection integration.
+allow aegis_runtime_broker aegis_package_private_file:file { getattr open read lock };
+allow aegis_runtime_broker aegis_package_shared_file:dir { getattr open read search };
+allow aegis_runtime_broker aegis_package_shared_file:file { getattr open read lock };
+allow kernel aegis_package_shared_file:file read;
+neverallow aegis_runtime_domain aegis_package_shared_file:file { execute execute_no_trans map };
+neverallow { aegis_runtime_setup aegis_runtime_init aegis_runtime_program }
+    aegis_package_shared_file:dir { open read search write add_name remove_name };

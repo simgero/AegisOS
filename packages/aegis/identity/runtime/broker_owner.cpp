@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <linux/openat2.h>
 #include <sys/stat.h>
+#include <sys/xattr.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/syscall.h>
@@ -74,6 +75,9 @@ struct aegis_broker_owner {
     int inputs[4];
     struct slot slots[MAX_CONTEXTS];
     uint64_t next_command, next_publication;
+    bool selection_enabled=false;
+    unique_fd selection_image,selection_helper,selection_directory;
+    PackageInput selection_factory;
     std::array<std::unique_ptr<publication_slot>,MAX_PUBLICATIONS> publications;
     std::array<std::unique_ptr<execution_slot>,MAX_PUBLICATIONS> executions;
     std::array<std::unique_ptr<runtime_selection_slot>,MAX_CONTEXTS> selections;
@@ -107,6 +111,37 @@ static int remaining_ms(uint64_t deadline) {
     if (deadline <= now) return 0;
     if (deadline > INT64_MAX || deadline - now > AEGIS_BROKER_MAX_WAIT_NS) return fail(EINVAL);
     return (int)((deadline - now) / 1000000); // Never extend the caller's budget.
+}
+
+int aegis_broker_owner_enable_selection(aegis_broker_owner* owner,int image,
+        const aegis_base_receipt* receipt,int helper,int directory) {
+    if(owned(owner)<0)return -1;
+    if(owner->selection_enabled || owner->next_command || owner->next_publication)return fail(EALREADY);
+    for(const auto& slot:owner->slots)if(slot.context)return fail(EBUSY);
+    if(!receipt || receipt->sha256[64])return fail(EINVAL);
+    PackageRuntimeSelection check;check.requester=10;check.serial=0;check.job=1;
+    check.factory={receipt->bytes,std::string(receipt->sha256,64)};
+    if(PackageRuntimeSelectionCheck(check)<0)return -1;
+    unique_fd source(fcntl(image,F_DUPFD_CLOEXEC,3)),program(fcntl(helper,F_DUPFD_CLOEXEC,3)),
+              state(fcntl(directory,F_DUPFD_CLOEXEC,3));
+    if(!source.ok() || !program.ok() || !state.ok())return -1;
+    struct stat st;
+    for(int fd:{source.get(),program.get(),state.get()}) {
+        int flags=fcntl(fd,F_GETFL);
+        if(flags<0 || fstat(fd,&st)<0)return -1;
+        if((flags&(O_ACCMODE|O_PATH))!=O_RDONLY || st.st_uid || (st.st_mode&07022))return fail(EPERM);
+        if(fd==state.get()) {
+            if(st.st_mode!=(S_IFDIR|0700) || st.st_gid)return fail(EPERM);
+        } else if(!S_ISREG(st.st_mode) || st.st_nlink!=1)return fail(EPERM);
+        if(fd==source.get() && (st.st_gid || st.st_size!=static_cast<off_t>(receipt->bytes)))return fail(ESTALE);
+        if(fd==program.get() && ((st.st_gid!=0 && st.st_gid!=2000) || (st.st_mode&0555)!=0555))return fail(EPERM);
+    }
+    // Receipt/helper/system labels and immutable EROFS trust are established
+    // by bootstrap, never by a CLI path or hash. Commit after all duplication.
+    owner->selection_factory=check.factory;
+    owner->selection_image=std::move(source);owner->selection_helper=std::move(program);
+    owner->selection_directory=std::move(state);owner->selection_enabled=true;
+    return 0;
 }
 
 int aegis_broker_owner_create(int parent_fd, int base_fd, int setup_fd, int init_fd,
@@ -558,9 +593,30 @@ execution_slot* find_execution(aegis_broker_owner* owner,uint32_t user,uint32_t 
     fail(ENOENT);return nullptr;
 }
 }
+static int optional_shared_store(int state,int* output) {
+    open_how how={};how.flags=O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW;
+    how.resolve=RESOLVE_BENEATH|RESOLVE_NO_SYMLINKS|RESOLVE_NO_XDEV;
+    unique_fd store(syscall(SYS_openat2,state,"shared-packages",&how,sizeof(how)));
+    if(!store.ok())return errno==ENOENT ? 0 : -1;
+    struct stat st,named,parent;
+    if(fstat(store.get(),&st)<0 || fstat(state,&parent)<0
+            || fstatat(state,"shared-packages",&named,AT_SYMLINK_NOFOLLOW)<0)return -1;
+    if(st.st_mode!=(S_IFDIR|0700) || st.st_uid || st.st_gid || st.st_dev!=parent.st_dev
+            || st.st_dev!=named.st_dev || st.st_ino!=named.st_ino)return fail(EPERM);
+    char label[128]={};constexpr char expected[]="u:object_r:aegis_package_shared_file:s0";
+    ssize_t count=fgetxattr(store.get(),"security.selinux",label,sizeof(label));
+    if(count<0)return -1;
+    if((count!=static_cast<ssize_t>(sizeof(expected)) && count!=static_cast<ssize_t>(sizeof(expected))-1)
+            || memcmp(label,expected,sizeof(expected)-1)
+            || (count==static_cast<ssize_t>(sizeof(expected)) && label[count-1]))return fail(EPERM);
+    // Presence, even empty/corrupt, is passed to the strict read-only selector.
+    // Only an absent fixed child is fallback. No directory creation or repair.
+    *output=store.release();return 0;
+}
+
 static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRuntimeSelection& request,
                                      int groups,int shared,int personal,int factory,int helper,
-                                     uint64_t deadline,uint64_t* job,bool ce) {
+                                     uint64_t deadline,uint64_t* job,bool ce,int state_root=-1) {
     if(!job || *job || request.job || shared < -1 || personal < -1)return fail(EINVAL);
     if(admission(owner,request.requester,request.serial,deadline)<0)return -1;
     for(const auto& slot:owner->slots)if(slot.context && slot.user==request.requester)return fail(EALREADY);
@@ -576,8 +632,12 @@ static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRunt
     if(!slot)return fail(ENOMEM);slot->plan=plan;
     *job=++owner->next_publication;*empty=std::move(slot);
     auto& registered=**empty; // Own BEFORE opening CE, without deferred CLI FDs.
-    unique_fd private_store;int error=0;
-    if(ce) {
+    unique_fd private_store,shared_store;int error=0;
+    if(state_root>=0) {
+        int fd=-1;if(optional_shared_store(state_root,&fd)<0)error=errno;
+        shared_store.reset(fd);shared=fd;
+    }
+    if(!error && ce) {
         if(aegis_namespace_check_broker()<0)error=errno;
         else {
             unique_fd data(open("/data",O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC));
@@ -945,6 +1005,18 @@ int aegis_broker_owner_start(aegis_broker_owner* owner,const aegis_broker_call* 
     }
     if(selected && selected->plan.serial!=request.serial)return fail(ESTALE);
     if(continuation && (!selected || selected->plan.job!=call->command))return fail(ESTALE);
+    if(!selected && owner->selection_enabled) {
+        // Existing contexts must already own their registered generation. No
+        // post-bootstrap fallback to the factory-mount compatibility path.
+        for(const auto& slot:owner->slots)if(slot.context && slot.user==request.user)return fail(ESTALE);
+        PackageRuntimeSelection plan;plan.requester=request.user;plan.serial=request.serial;
+        plan.factory=owner->selection_factory;uint64_t registered=0;
+        if(prepare_runtime_selection(owner,plan,owner->inputs[0],-1,-1,
+                owner->selection_image.get(),owner->selection_helper.get(),request.deadline_ns,
+                &registered,true,owner->selection_directory.get())<0)return -1;
+        for(auto& slot:owner->selections)if(slot && slot->plan.job==registered) { selected=slot.get();break; }
+        if(!selected)return fail(EIO);
+    }
     uint64_t selected_job=selected ? selected->plan.job : 0;
     int result=aegis_broker_owner_apply(owner,&start,state),error=errno;
     if(result==0 || (error==EAGAIN && selected_job)) *job=selected_job;

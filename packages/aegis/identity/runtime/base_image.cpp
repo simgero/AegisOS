@@ -255,7 +255,8 @@ int aegis_base_parse_receipt(const char* json, size_t length, aegis_base_receipt
     return 0;
 }
 
-int aegis_base_open(void) {
+int aegis_base_open_selection(int* source,aegis_base_receipt* output) {
+    if(!source || *source!=-1 || !output)return fail(EINVAL);
     FailureTrace trace{"initial credentials"};
     if (getuid() || geteuid() || getgid() || getegid()) return fail(EPERM);
     trace.phase = "open immutable system_ext";
@@ -332,6 +333,14 @@ int aegis_base_open(void) {
     trace.phase = "open labeled detached root";
     unique_fd root(openat(mount.get(), ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
     if (root.get() < 0 || label(root.get(), kBaseLabel) < 0) return -1;
+    *source=image.release();*output=checked;
     trace.complete = true;
     return mount.release();
+}
+
+int aegis_base_open(void) {
+    int image=-1;aegis_base_receipt receipt={};
+    int mount=aegis_base_open_selection(&image,&receipt),saved=errno;
+    if(image>=0)close(image);
+    errno=saved;return mount;
 }

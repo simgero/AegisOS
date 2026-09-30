@@ -202,7 +202,7 @@ PackageStore* PackageStore::Open(int directory, PackageOwner owner, bool create)
     unique_fd root(OpenAt(directory, ".", O_RDONLY | O_DIRECTORY));
     if (!root.ok() || !Metadata(root.get(), S_IFDIR, 0700, false)) return nullptr;
     if (create && !Empty(root.get())) return nullptr;
-    unique_fd lock(OpenAt(root.get(), "lock", O_RDWR | (create ? O_CREAT | O_EXCL : 0), create ? 0600 : 0));
+    unique_fd lock(OpenAt(root.get(), "lock", create ? O_RDWR | O_CREAT | O_EXCL : O_RDONLY, create ? 0600 : 0));
     if (!lock.ok() || !Metadata(lock.get(), S_IFREG, 0600, true)
             || flock(lock.get(), LOCK_EX | LOCK_NB) < 0 || !Named(root.get(), "lock", lock.get()))
         return nullptr;

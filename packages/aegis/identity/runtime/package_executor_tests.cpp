@@ -722,6 +722,11 @@ class RuntimeSelectionOwner : public RuntimePackageSelection {
         RuntimePackageSelection::SetUp();ASSERT_FALSE(HasFatalFailure());
         ASSERT_EQ(0,aegis_namespace_private_mounts());selection.job=0;
     }
+    int Configure() {
+        aegis_base_receipt receipt={};receipt.bytes=selection.factory.bytes;
+        memcpy(receipt.sha256,selection.factory.sha256.c_str(),65);
+        return aegis_broker_owner_enable_selection(broker,factory.get(),&receipt,prepare_helper.get(),stage.get());
+    }
     int RegisterSelection(int shared=-1,int personal=-1) {
         selected_job=0;return BrokerPrepareRuntimeSelection(broker,selection,parent.get(),shared,personal,
             factory.get(),prepare_helper.get(),Deadline(),&selected_job);
@@ -1327,4 +1332,46 @@ TEST_F(RuntimeSelectionOwner, FailedSelectionIsNotPendingAndCannotSilentlyRestar
     ASSERT_EQ(RuntimeSelectionState::Failed,state);uint64_t job=99;
     EXPECT_EQ(-1,StartJob(10,42,selected_job,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
     EXPECT_EQ(-1,StartJob(10,42,0,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);ASSERT_EQ(0,Stop());
+}
+
+TEST_F(RuntimeSelectionOwner, BootstrapCopiesInputsOnceAndRejectsInvalidConfigurationWithoutLeaks) {
+    int before=CountFDs();aegis_base_receipt receipt={};receipt.bytes=selection.factory.bytes;
+    memcpy(receipt.sha256,selection.factory.sha256.c_str(),65);
+    EXPECT_EQ(-1,aegis_broker_owner_enable_selection(broker,-1,&receipt,prepare_helper.get(),stage.get()));
+    EXPECT_EQ(before,CountFDs());
+    EXPECT_EQ(-1,aegis_broker_owner_enable_selection(broker,factory.get(),&receipt,factory.get(),stage.get()));
+    EXPECT_EQ(before,CountFDs());
+    receipt.bytes+=4096;EXPECT_EQ(-1,aegis_broker_owner_enable_selection(broker,factory.get(),&receipt,prepare_helper.get(),stage.get()));
+    EXPECT_EQ(ESTALE,errno);EXPECT_EQ(before,CountFDs());
+    ASSERT_EQ(0,Configure());EXPECT_EQ(before+3,CountFDs());
+    EXPECT_EQ(-1,Configure());EXPECT_EQ(EALREADY,errno);EXPECT_EQ(before+3,CountFDs());
+    ASSERT_EQ(0,aegis_broker_owner_release(&broker));EXPECT_EQ(before-4,CountFDs());
+}
+TEST_F(RuntimeSelectionOwner, ConfiguredStartRegistersBeforeMissingCeAndCannotUseLegacyBase) {
+    struct stat absent;ASSERT_EQ(-1,lstat("/data/system_ce/21472",&absent));ASSERT_EQ(ENOENT,errno);
+    ASSERT_EQ(0,Configure());int before=CountFDs();uint64_t job=99;
+    EXPECT_EQ(-1,StartJob(21472,1234,0,&job));EXPECT_EQ(ENOENT,errno);EXPECT_EQ(0u,job);
+    RuntimeSelectionState state;PackagePreparationResult result;
+    ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,21472,1234,1,&state,&result));
+    EXPECT_EQ(RuntimeSelectionState::Failed,state);EXPECT_EQ(ENOENT,result.error);EXPECT_EQ(before,CountFDs());
+    aegis_broker_state native;
+    ASSERT_EQ(0,Apply(AEGIS_BROKER_STOP_USER,21472,0,&native));
+    EXPECT_EQ(-1,StartJob(21472,1234,1,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
+}
+TEST_F(RuntimeSelectionOwner, ConfiguredStartDoesNotTreatSymlinkOrWrongModeSharedStoreAsAbsent) {
+    ASSERT_EQ(0,Configure());uint64_t job=99;
+    ASSERT_EQ(0,symlinkat("/",stage.get(),"shared-packages"));
+    EXPECT_EQ(-1,StartJob(21472,1234,0,&job));EXPECT_EQ(ELOOP,errno);EXPECT_EQ(0u,job);
+    aegis_broker_state state;ASSERT_EQ(0,Apply(AEGIS_BROKER_STOP_USER,21472,0,&state));
+    ASSERT_EQ(0,unlinkat(stage.get(),"shared-packages",0));
+    ASSERT_EQ(0,mkdirat(stage.get(),"shared-packages",0700));
+    unique_fd directory(openat(stage.get(),"shared-packages",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(directory.ok());
+    ASSERT_EQ(0,fchmod(directory.get(),0755));
+    EXPECT_EQ(-1,StartJob(21472,1234,0,&job));EXPECT_EQ(EPERM,errno);EXPECT_EQ(0u,job);
+    ASSERT_EQ(0,Apply(AEGIS_BROKER_STOP_USER,21472,0,&state));
+    directory.reset();ASSERT_EQ(0,unlinkat(stage.get(),"shared-packages",AT_REMOVEDIR));
+}
+TEST_F(RuntimeSelectionOwner, BootstrapCannotChangeFactoryAfterWorkHasBeenRegistered) {
+    ASSERT_EQ(0,RegisterSelection());EXPECT_EQ(-1,Configure());EXPECT_EQ(EALREADY,errno);
+    ASSERT_EQ(0,Stop());EXPECT_EQ(-1,Configure());EXPECT_EQ(EALREADY,errno);
 }

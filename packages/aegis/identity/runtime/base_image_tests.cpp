@@ -87,3 +87,11 @@ TEST(RuntimeBaseImage, QuotedBracketsAndEscapesDoNotAffectNestingLimit) {
     text = changed(receipt(), "test fixture", "https://example.invalid/path/* data */");
     EXPECT_EQ(0, aegis_base_parse_receipt(text.data(), text.size(), &output));
 }
+
+TEST(RuntimeBaseImage, SelectionOutputsRejectAliasedOrMissingOutputBeforeOpeningSystemFiles) {
+    aegis_base_receipt value={};value.bytes=42;int image=-1;
+    EXPECT_EQ(-1,aegis_base_open_selection(nullptr,&value));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(-1,aegis_base_open_selection(&image,nullptr));EXPECT_EQ(EINVAL,errno);EXPECT_EQ(-1,image);
+    image=7;EXPECT_EQ(-1,aegis_base_open_selection(&image,&value));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(7,image);EXPECT_EQ(42u,value.bytes);
+}

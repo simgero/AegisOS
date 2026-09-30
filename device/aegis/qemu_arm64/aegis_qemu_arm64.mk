@@ -47,7 +47,7 @@ ifeq ($(wildcard device/aegis/qemu_arm64/aegis-runtime-kernel.mk),)
 $(error AEGIS managed runtime requires a checked runtime kernel selection)
 endif
 PRODUCT_SYSTEM_PROPERTIES += ro.aegis.runtime.mode=managed-v1
-PRODUCT_PACKAGES += aegis-runtime-broker aegis-runtime-setup aegis-runtime-init
+PRODUCT_PACKAGES += aegis-runtime-broker aegis-runtime-setup aegis-runtime-init aegis-package-prepare
 # Add one vendor profile; AOSP loads it after retaining all platform profiles.
 # JoinCgroup deliberately ignores cgroup v2 in this pin. WriteFile is the
 # supported profile action, run by Init before dropping to the broker domain.
@@ -57,7 +57,8 @@ PRODUCT_COPY_FILES += \
 # Keep generic_system's artifact-path checks; allow only these exact outputs.
 PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
     system/bin/aegis-runtime-init \
-    system/bin/aegis-runtime-setup
+    system/bin/aegis-runtime-setup \
+    system/bin/aegis-package-prepare
 endif
 
 PRODUCT_PACKAGES += \
