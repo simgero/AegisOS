@@ -246,14 +246,14 @@ cc_library_static {
 cc_binary {
     name: "aegis-package-execute",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/package_exec_main.c", "runtime/package_execute.c", "runtime/package_execution_control.c", "runtime/sandbox.c"],
+    srcs: ["runtime/package_exec_main.c", "runtime/package_execute.c", "runtime/package_validate.c", "runtime/package_execution_control.c", "runtime/sandbox.c"],
     static_executable: true,
     stl: "none",
 }
 cc_binary {
     name: "aegis-package-execute-probe",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/package_exec_probe.c", "runtime/package_execute.c", "runtime/package_execution_control.c", "runtime/sandbox.c"],
+    srcs: ["runtime/package_exec_probe.c", "runtime/package_execute.c", "runtime/package_validate.c", "runtime/package_execution_control.c", "runtime/sandbox.c"],
     static_executable: true,
     stl: "none",
 }

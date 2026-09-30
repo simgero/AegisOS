@@ -2,6 +2,7 @@
 #define _GNU_SOURCE
 #endif
 #include "package_execution_protocol.h"
+#include "package_validate.h"
 #include "sandbox.h"
 #include <dirent.h>
 #include <errno.h>
@@ -224,13 +225,18 @@ static int regular_at(int root, const char *name, int flags, unsigned mode) {
     }
     return fd;
 }
-static _Noreturn void apt(const struct aegis_package_execution_request *r) {
+enum package_command { PACKAGE_ACTION, PACKAGE_CHECK, PACKAGE_AUDIT };
+static void log_name(char name[128], uint64_t job, enum package_command command) {
+    const char *suffix=command==PACKAGE_CHECK ? "-check" : command==PACKAGE_AUDIT ? "-audit" : "";
+    snprintf(name,128,"var/log/aegis-package-%llu%s.log",(unsigned long long)job,suffix);
+}
+static _Noreturn void apt(const struct aegis_package_execution_request *r, enum package_command command) {
     // Drop the private broker socket and every inherited descriptor BEFORE
     // giving control to Debian. Fresh opens cannot refer outside the pivot.
     if (syscall(SYS_close_range, 0u, UINT_MAX, 0u) < 0) _exit(126);
     int in = open("/dev/null", O_RDONLY | O_CLOEXEC);
     int root = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    char name[128];snprintf(name, sizeof(name), "var/log/aegis-package-%llu.log", (unsigned long long)r->job);
+    char name[128];log_name(name,r->job,command);
     int log = root < 0 ? -1 : regular_at(root, name, O_CREAT | O_WRONLY, 0600);
     if (in != 0 || root < 0 || log < 0) _exit(126);
     // IDs may start again after a broker reboot. Only this inactive copy is
@@ -248,17 +254,52 @@ static _Noreturn void apt(const struct aegis_package_execution_request *r) {
     args[n++] = "-o";args[n++] = "Dpkg::Options::=--force-confold";
     args[n++] = "-o";args[n++] = "Dir::Etc::sourcelist=/run/aegis-empty.list";
     args[n++] = "-o";args[n++] = "Dir::Etc::sourceparts=/run/aegis-empty.d";
-    args[n++] = r->kind == AEGIS_PACKAGE_ARCHIVES ? "install" : "remove";
-    for (unsigned i = 0; i < r->count; i++) {
+    args[n++] = command==PACKAGE_CHECK ? "check" : r->kind == AEGIS_PACKAGE_ARCHIVES ? "install" : "remove";
+    for (unsigned i = 0; command==PACKAGE_ACTION && i < r->count; i++) {
         if (r->kind == AEGIS_PACKAGE_ARCHIVES) {
             snprintf(paths[i], sizeof(paths[i]), "/var/cache/apt/archives/%s", r->items[i]);
             args[n++] = paths[i];
         } else args[n++] = (char *)r->items[i];
     }
+    if (command==PACKAGE_AUDIT) {
+        n=0;args[n++]="/usr/bin/dpkg";args[n++]="--audit";
+    }
     args[n] = NULL;
     char *env[] = {"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C", "LC_ALL=C", "HOME=/root",
                    "DEBIAN_FRONTEND=noninteractive", NULL};
     execve(args[0], args, env);_exit(127);
+}
+// Only our independently verified PID namespace is visible here. PID1 cannot
+// leave a background maintainer script mutating metadata during validation.
+static int reap_descendants(void) {
+    if (getpid()!=1) return denied();
+    if (kill(-1,SIGKILL)<0 && errno!=ESRCH) return -1;
+    for (;;) {
+        int status;pid_t child=waitpid(-1,&status,0);
+        if (child>0 || (child<0 && errno==EINTR)) continue;
+        return child<0 && errno==ECHILD ? 0 : -1;
+    }
+}
+static uint32_t run_command(const struct aegis_package_execution_request *request,
+                            enum package_command command,uint32_t *result) {
+    pid_t child=fork();if (!child) apt(request,command);
+    uint32_t error=child<0 ? (uint32_t)errno : 0;int status;
+    if (child>0) {
+        pid_t waited;do { waited=waitpid(child,&status,0); } while (waited<0&&errno==EINTR);
+        if (waited<0) error=errno;
+        else *result=WIFEXITED(status) ? (uint32_t)WEXITSTATUS(status) : 128u+(uint32_t)WTERMSIG(status);
+    }
+    if (reap_descendants()<0 && !error) error=errno;
+    return error;
+}
+static int audit_empty(int root,uint64_t job) {
+    char name[128];log_name(name,job,PACKAGE_AUDIT);
+    int fd=regular_at(root,name,O_RDONLY,0);if (fd<0) return -1;
+    struct stat st;int result=fstat(fd,&st),saved=errno;close(fd);
+    if (result<0) { errno=saved;return -1; }
+    // dpkg may report warnings on stdout/stderr even when the audit command
+    // itself exited successfully. Any diagnostic keeps this candidate inactive.
+    return st.st_size==0 ? 0 : (errno=EBADMSG,-1);
 }
 static int setup_failed(const struct aegis_package_execution_request *request) {
     int error = errno > 0 && errno <= 4095 ? errno : EIO;
@@ -297,15 +338,12 @@ int aegis_package_execute(uint32_t user, uint32_t serial) {
     close(empty);
     if (aegis_limit_package_worker(user) < 0 || reply(&request, AEGIS_PACKAGE_EXEC_READY, 0, 0) < 0) return setup_failed(&request);
     alarm(0);
-    pid_t child = fork();
-    if (!child) apt(&request);
-    uint32_t error = child < 0 ? errno : 0, result = 0;
-    int status;
-    if (child > 0) {
-        pid_t waited;do { waited = waitpid(child, &status, 0); } while (waited < 0 && errno == EINTR);
-        if (waited < 0) error = errno;
-        else result = WIFEXITED(status) ? WEXITSTATUS(status) : 128u + WTERMSIG(status);
-    }
+    uint32_t result=0;
+    uint32_t error=run_command(&request,PACKAGE_ACTION,&result);
+    if (!error && !result) error=run_command(&request,PACKAGE_CHECK,&result);
+    if (!error && !result) error=run_command(&request,PACKAGE_AUDIT,&result);
+    if (!error && !result && audit_empty(root,request.job)<0) error=errno;
+    if (!error && !result && aegis_package_validate(root)<0) error=errno;
     if (syncfs(root) < 0 && !error) error = errno;
     close(root);
     // PID1 exit tears down any script descendants; owning broker still must

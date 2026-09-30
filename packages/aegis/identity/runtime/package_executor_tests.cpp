@@ -66,7 +66,7 @@ void Ar(std::string& archive,const char* name,const std::string& data) {
     char h[61];int n=snprintf(h,sizeof(h),"%-16s%-12u%-6u%-6u%-8o%-10zu`\n",name,0,0,0,0100644,data.size());
     EXPECT_EQ(60,n);archive.append(h,60);archive+=data;if(data.size()%2)archive+='\n';
 }
-std::string Deb(const char* kind,int version,bool waiting=false) {
+std::string Deb(const char* kind,int version,bool waiting=false,const std::string& after="") {
     std::string v=std::to_string(version),control,data;
     std::string fields="Package: aegis-exec-"+std::string(kind)+"\nVersion: "+v+
         "\nArchitecture: all\nMaintainer: AEGIS fixture <test@invalid>\nDescription: Local device fixture\n";
@@ -76,7 +76,7 @@ std::string Deb(const char* kind,int version,bool waiting=false) {
         Tar(control,"./conffiles","/etc/aegis-exec.conf\n");
         Tar(control,"./postinst","#!/bin/sh\nset -eu\necho postinst-"+v+" >> /var/log/aegis-exec-script\n"
             "mkdir -p /var/lib/aegis-exec-owned\nchown 42:42 /var/lib/aegis-exec-owned\n"
-            +std::string(waiting?"echo waiting > /var/log/aegis-exec-waiting\nwhile :; do sleep 1; done\n":"echo done >> /var/log/aegis-exec-script\n"),0755);
+            +std::string(waiting?"echo waiting > /var/log/aegis-exec-waiting\nwhile :; do sleep 1; done\n":"echo done >> /var/log/aegis-exec-script\n")+after,0755);
         Tar(control,"./prerm","#!/bin/sh\necho prerm >> /var/log/aegis-exec-script\n",0755);
         Tar(data,"./usr/bin/aegis-exec-app","#!/bin/sh\necho app-"+v+"\n",0755);
         Tar(data,"./etc/aegis-exec.conf","version="+v+"\n");
@@ -117,7 +117,7 @@ class RuntimePackageExecutor : public ::testing::Test {
         std::string executable(path);executable.resize(executable.find_last_of('/')+1);executable+=name;
         helper.reset(open(executable.c_str(),O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(helper.ok());
     }
-    void Archives(int version,bool waiting=false) {
+    void Archives(int version,bool waiting=false,const std::string& after="") {
         plan.archives=true;plan.items.clear();
         for(const char* name:{"var/cache","var/cache/apt","var/cache/apt/archives"}) {
             int made=mkdirat(candidate.get(),name,0755);
@@ -126,7 +126,7 @@ class RuntimePackageExecutor : public ::testing::Test {
         for(const char* kind:{"lib","app"}) {
             std::string name="aegis-exec-"+std::string(kind)+"_"+std::to_string(version)+"_all.deb";
             std::string path="var/cache/apt/archives/"+name;
-            ASSERT_EQ(0,WriteAt(candidate.get(),path.c_str(),Deb(kind,version,waiting))) << strerror(errno);
+            ASSERT_EQ(0,WriteAt(candidate.get(),path.c_str(),Deb(kind,version,waiting,after))) << strerror(errno);
             plan.items.push_back(name);
         }
     }
@@ -135,7 +135,10 @@ class RuntimePackageExecutor : public ::testing::Test {
         int before=CountFDs();ASSERT_GT(before,0);
         ASSERT_EQ(0,Start()) << strerror(errno);
         PackageExecutionResult result;ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result)) << strerror(errno);
-        EXPECT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome) << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+".log").c_str());
+        EXPECT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome) << "status=" << result.status << " error=" << result.error
+            << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+".log").c_str())
+            << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-check.log").c_str())
+            << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-audit.log").c_str());
         EXPECT_EQ(0,result.status);EXPECT_EQ(0,result.error);EXPECT_EQ(nullptr,worker);EXPECT_EQ(before,CountFDs());
     }
     void Remount() { candidate.reset();candidate.reset(image->remount());ASSERT_TRUE(candidate.ok()) << strerror(errno);plan.job++; }
@@ -209,6 +212,60 @@ TEST_F(RuntimePackageExecutor, ExecutesActualInstallUpgradeRemoveAndClosesOwnedR
     // Defined remove action keeps the conffile; purge is a distinct policy.
     EXPECT_EQ("personal=kept\n",AptImageFixture::read(candidate.get(),"etc/aegis-exec.conf"));
     EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-exec-script").find("prerm\n"));
+}
+// Each policy violation is written by a real successfully completing Debian
+// maintainer script in the exclusive candidate, not by a mocked result flag.
+TEST_F(RuntimePackageExecutor, RejectsPersonalAccountIntroducedByMaintainerScript) {
+    Archives(1,false,
+        "printf 'rogue:x:1001:1001:rogue:/home/rogue:/bin/sh\\n' >> /etc/passwd\n"
+        "printf 'rogue:!:0:0:99999:7:::\\n' >> /etc/shadow\n"
+        "printf 'rogue:x:1001:\\n' >> /etc/group\n"
+        "printf 'rogue:!::\\n' >> /etc/gshadow\n");
+    ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EPERM,result.error);
+    EXPECT_EQ(0,result.status);EXPECT_EQ(nullptr,worker);
+    EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"etc/passwd").find("rogue:x:1001"));
+}
+TEST_F(RuntimePackageExecutor, RejectsUnlockedLinuxCredentialAfterSuccessfulApt) {
+    Archives(1,false,"sed -i 's/^runtime:[^:]*:/runtime:active:/' /etc/shadow\n");
+    ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EPERM,result.error);EXPECT_EQ(0,result.status);
+}
+TEST_F(RuntimePackageExecutor, RejectsAlternateNssIdentityAuthority) {
+    Archives(1,false,"sed -i 's/^passwd:.*/passwd: files ldap/' /etc/nsswitch.conf\n");
+    ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EPERM,result.error);EXPECT_EQ(0,result.status);
+}
+TEST_F(RuntimePackageExecutor, RejectsPersistentFifoInsteadOfHangingWhileOpeningIt) {
+    Archives(1,false,"mkfifo /var/lib/aegis-exec-fifo\n");
+    ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EPERM,result.error);EXPECT_EQ(0,result.status);
+    ASSERT_EQ(0,unlinkat(candidate.get(),"var/lib/aegis-exec-fifo",0));
+}
+TEST_F(RuntimePackageExecutor, RejectsSetidProgramCreatedByMaintainerScript) {
+    Archives(1,false,"chmod 4755 /usr/bin/aegis-exec-app\n");
+    ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EPERM,result.error);EXPECT_EQ(0,result.status);
+}
+TEST_F(RuntimePackageExecutor, ReapsObservedBackgroundScriptBeforeConsistencyChecks) {
+    Archives(1,false,
+        "(echo running > /var/log/aegis-exec-background; while :; do sleep 1; done) &\n"
+        "while [ ! -s /var/log/aegis-exec-background ]; do sleep 1; done\n");
+    ASSERT_FALSE(HasFailure());Completed();ASSERT_FALSE(HasFailure());
+    EXPECT_EQ("running\n",AptImageFixture::read(candidate.get(),"var/log/aegis-exec-background"));
+    EXPECT_EQ("",AptImageFixture::read(candidate.get(),"var/log/aegis-package-1-audit.log"));
+}
+TEST_F(RuntimePackageExecutor, RejectsMissingDpkgControlMetadata) {
+    Archives(1,false,"rm /var/lib/dpkg/info/base-files.list\n");
+    ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);
+    EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-package-1-audit.log").find("base-files"));
 }
 TEST_F(RuntimePackageExecutor, CancelsObservedMaintainerScriptAndReapsWholeGroup) {
     Archives(1,true);ASSERT_FALSE(HasFatalFailure());int before=CountFDs();
