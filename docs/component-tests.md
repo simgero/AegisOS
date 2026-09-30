@@ -1,3 +1,58 @@
+## Produkt-Bootstrap registriert die Generationenauswahl: 6473cf51
+
+Stand `6473cf51871f3bc73eb8afe979fa3bbff82ede3d` wurde auf `aegis-build`
+kompiliert und über [GitHub](https://github.com/simgero/AegisOS/releases/tag/components-20260930T033157Z-6473cf51-6473cf51-JznVgr)
+übertragen. Lauf `identity-20260930T033047Z-6473cf51-nyakjv`, Invocation
+`b384c12f6c7649669873d1107ad1aeab`. Am **2026-09-30T03:34:11Z bestehen
+239/239 native Tests**, 32 Suiten in 82.113 Sekunden, ohne ausgelassenen aktiven
+Test. Die vier CE-Opt-in-Tests wurden hier nicht aktiviert. Die Java-Quellen sind
+gegenüber `95f2b925` unverändert; dessen 130 Tests wurden nicht erneut ausgeführt.
+
+Das Bootstrap hält nun den exakt aus dem unveränderlichen `system_ext` geprüften
+Image-FD samt Receipt, den fest installierten Auswahlhelfer und das exklusiv
+gehaltene Zustandsverzeichnis. Der erste START registriert die Auswahl vor
+CE-Zugriff und Prozessstart. Fortsetzungen setzen ausschließlich diese Auswahl
+fort. Der optionale gemeinsame Store ist ausschließlich `shared-packages` unter
+diesem Verzeichnis; nur tatsächliche Abwesenheit erlaubt die Systembasis.
+Symlinks, falscher Modus, falsches Label und beschädigte vorhandene Metadaten
+werden nicht als Abwesenheit behandelt. Persönliche Auswahl erfolgt anhand der
+AOSP-Identität und des tatsächlich entsperrten CE-Schlüssels. Der Helfer liest
+Store und Image; sein Lock-FD benötigt kein Schreibrecht.
+
+Produktkonfiguration, feste Helfer-/Store-Labels und präzise SELinux-Regeln sind
+kompiliert. Der Auswahlhelfer läuft als vertrauenswürdiger Hash-/Mountprozess im
+Brokerbereich; dadurch werden keine Paketprogramme oder Maintainer-Skripte zur
+Ausführung freigegeben. Der Ereignisloop reapet registrierte Arbeit einmal pro
+Durchlauf auch ohne abfragenden Client. Die fünf neuen Tests prüfen Bootstrap-
+FD-Eigentum, einmalige Konfiguration, Registrierung vor fehlendem CE, keine
+stillschweigende Basiswahl bei unsicherem gemeinsamem Store und Unveränderlichkeit
+nach registrierter Arbeit.
+
+Der ursprüngliche Stand `549d6daa` scheiterte an einer Variablenkollision beim
+Kompilieren. `3c09511c` kompilierte und bestand 238/239 Tests: ein Test erwartete
+ELOOP, während der Kernel `O_DIRECTORY|O_NOFOLLOW` mit ENOTDIR ablehnte. Die
+Korrektur akzeptiert beide Ablehnungen und prüft zusätzlich den tatsächlich
+registrierten Failed-Zustand mit demselben Fehler. Kein Lauf schwächte die
+Pfadprüfung oder aktivierte einen Fallback.
+
+Belege im primären Workspace: `out/components-6473cf51/targeted-tests/`.
+Ergebnis SHA-256 `1cdda1effabec2bb2b773e23a47a89d9dbec8742e8f2ab304248d8bf7a2cca15`;
+Native-Log `75c32daf99f7e172e21bc50de9c36a58464640ad4a2d07bf507c6920ca48ac38`;
+Native-Binary `caa45c5f0b36a5a97aa0168355aec21c4fe42c4c577a045bccc230917926cd1c`.
+Vorher-/Nachherzustand identisch:
+`427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`.
+Das bestehende Profil `0bbb6cf5-951e-43b4-9e08-ec952ab1b6e4` bootet weiterhin
+`ab38cf24`; Benutzer Alpha/Beta bleiben gesperrt und nur Benutzer 0 entsperrt.
+Der Test ersetzte weder Broker noch Service oder Daten-/KeyMint-Paar.
+
+**Offene Integration:** Das neue vollständige Abbild muss noch im lokalen
+Hintergrund-QEMU booten. Tatsächlicher erster START, ausgewählte private
+Generation, GNU-Ausführung sowie CE-Sperre/Logout und gepaarter Neustart unter
+Enforcing sind mit diesem Bootstrap noch nicht nachgewiesen. Öffentlicher
+Paketkanal, vertrauenswürdige Repository-Planung und frische AOSP-Adminfreigabe
+für gemeinsame und persönliche Änderungen bleiben zusätzlich offen.
+Der sichtbare Launcher bleibt bis zur integrierten Abnahme unverändert.
+
 ## Startfortsetzung bleibt an denselben Auftrag gebunden: 95f2b925
 
 Komponentenstand `95f2b925b7c2814cf4dd970ec4f6b7569bd6fe48` wurde auf `aegis-build`

@@ -1,5 +1,22 @@
 # Vollständige Paketgenerationen
 
+## Produktintegration der Startauswahl
+
+Stand `6473cf51` verbindet das Bootstrap mit der registrierten Auswahl: feste,
+verifizierte Systembasis und Helfer; optionaler fester gemeinsamer Store;
+AOSP-geprüfte persönliche CE-Auswahl vor START. Vorhandene ungültige Stores
+verhindern den Start. Helferinstallation und SELinux-Regeln kompilieren;
+**239/239 native Tests** bestehen im bisherigen lokalen Gast. Die unveränderten
+Java-Quellen behalten den gesonderten 130-Test-Beleg von `95f2b925`.
+
+Das vollständige neue Abbild und die Ausführung dieses Bootstraps unter realem
+AOSP/SELinux sind noch nicht abgenommen. Es folgt der separate Hintergrundtest
+mit tatsächlicher Generation, GNU-Sitzung, Logout und gepaartem Neustart.
+Öffentliche Paketbefehle, Repository-Auflösung und frische AOSP-Adminfreigaben
+für beide Paketbereiche bleiben offen. [Belege und Grenzen](../docs/component-tests.md).
+
+Die folgenden Abschnitte dokumentieren die vorangegangenen Stände.
+
 ## Auftragssichere Fortsetzung im AEGIS-Service
 
 Stand `95f2b925` besteht **234/234 native und 130/130 Java-Gerätetests** im lokalen
