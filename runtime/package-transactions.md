@@ -2,6 +2,12 @@
 
 ## Produktintegration der Startauswahl
 
+**Vollimage-Prüfung 6473cf51:** Boot, AOSP-Login und kontrollierter Logout nach
+Teilstart sind bestätigt, der erste GNU-Start scheiterte an einer konkreten
+SELinux-mounton-Ablehnung am privaten Broker-Anker. Die gezielte Regelkorrektur
+wird separat gebaut; erfolgreiche Komponententests sind keine Produktabnahme.
+Siehe die [Diagnose und tatsächlichen Cleanup-Belege](../docs/component-tests.md).
+
 Stand `6473cf51` verbindet das Bootstrap mit der registrierten Auswahl: feste,
 verifizierte Systembasis und Helfer; optionaler fester gemeinsamer Store;
 AOSP-geprüfte persönliche CE-Auswahl vor START. Vorhandene ungültige Stores

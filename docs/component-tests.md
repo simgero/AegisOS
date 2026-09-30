@@ -1,3 +1,52 @@
+## Vollimage 6473cf51: Boot bestätigt, erster GNU-Start bewusst nicht abgenommen
+
+Der [vollständige Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20260930T033608Z-6473cf51-27531d4b)
+ist hochgeladen und durch Rückdownload bytegenau geprüft. Lauf
+`aosp-20260930T033608Z-6473cf51-27531d4b`, Invocation
+`97e6119b88d14026991b3844a20ecdf7`. Lokal sind alle 21 Assets und AVB-Metadaten
+geprüft. Das alte ab38-Profil wurde mit bestätigt sauberem Android-/Helper-Ende
+beendet; beide Datenträger bleiben erhalten.
+
+Das neue separate Profil `008b9efe-663a-448b-a3f8-ab42128e1b83` bootet ohne Fenster,
+Boot-ID `1eea1952-9fbd-4c72-8086-653b3b947d86`, AVB-Digest
+`bd7f16b202eba8125c0aee85bf22d8fd1fb35e977c21e6adbdfcba8e13ef73e5`.
+Tatsächliche dm-verity-Tabellen, verschlüsseltes FBE, authentifiziertes ADB,
+Enforcing, init-gestarteter Broker und dessen Cgroup-Delegation bestehen die
+Startprüfung. Das bestätigt noch keine GNU-Sitzung.
+
+Alpha 10/10 wurde über die echte CLI/AOSP angelegt. Der erste Login hielt CE bis
+zur Passwortübermittlung gesperrt, entsperrte nur Alpha und blieb sechs Sekunden
+später authentifiziert. **Der anschließende erste Linux-Start scheiterte**:
+SELinux verweigerte dem Broker `dir mounton` auf `/mnt` mit Label
+`aegis_runtime_base_file`. Dort liegt bereits die globale geprüfte Werksbasis.
+Die neue Auswahl muss ihre geprüfte schreibgeschützte Generation kurz über diesem
+Anker im privaten Broker-Mount-Namensraum einhängen, klonen und wieder lösen.
+Die native Komponentenprüfung lief als Entwicklungsroot und konnte diese
+fehlende produktive Regel nicht nachweisen.
+
+Die Korrektur ergänzt ausschließlich Broker -> Basisverzeichnis `mounton`;
+Init/Programme erhalten dafür ein ausdrückliches neverallow. Unverändert bleiben
+Pfad, Herkunfts-, Mount-ID- und Namensraumprüfungen, schreibgeschützte Generationen
+und durchsetzendes SELinux. Kein Live-Policy-Patch und kein permissiver Ersatz.
+Die Korrektur benötigt einen neuen vollständigen Build und den realen Starttest.
+
+Auch der Fehlpfad wurde tatsächlich geprüft: `logout` stoppte Alpha und sperrte
+CE; der Kontext verschwand, Cgroup `populated 0`, nur Benutzer 0 blieb gestartet
+und entsperrt. Genau ein absichtlich global gehaltener Werksbasis-Loop blieb;
+die ausgewählte zusätzliche Referenz wurde freigegeben. Der native Opt-in-Test
+`LockedAospKeyCannotOpenOrProvisionPackageStorage` bestand mit Alpha im wirklich
+gesperrten Zustand. Die vollständigen Testpasswörter wurden in keinem der drei
+Bootlogs gefunden; der Treiber wird nach dieser Fehlprüfung beendet.
+Keine Benutzerlöschung oder Promotion des sichtbaren Launchers.
+
+Belege: `out/full-build-6473cf51/` im primären Workspace.
+`integration-rejection.json` SHA-256 `e73e240f5a3d5765e301c3f494a0de4e1b16ed34b20b9e918b112afbacc3e1a2`;
+Diagnose `e091e9be1b320013eb9be095ba433c98beb6fb4899e4af90d5bb22086144cdbd`;
+Ereignisse `efe840fe2617d50762e3966b6e36002d0b1b908be145cb13cf371cab44fcc4c4`;
+gesperrter CE-Test `b15841e92c8bb3f369b1925831ff7b49575af6b62e0a6c063ebc131cd6973745`.
+Die Produktintegration bleibt nicht abgenommen; persönliche Generationen,
+GNU-Ausführung und Persistenz über Reboot stehen für den korrigierten Stand aus.
+
 ## Produkt-Bootstrap registriert die Generationenauswahl: 6473cf51
 
 Stand `6473cf51871f3bc73eb8afe979fa3bbff82ede3d` wurde auf `aegis-build`

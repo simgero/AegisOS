@@ -175,6 +175,12 @@ allow aegis_runtime_broker aegis_runtime_base_file:filesystem { mount remount re
 # may isolate this inherited root; ordinary programs get no root mount rights.
 allow aegis_runtime_broker rootfs:dir mounton;
 allow aegis_runtime_broker tmpfs:dir mounton;
+# The fixed private /mnt anchor already holds the verified factory mount.
+# Selecting another generation briefly stacks its checked readonly mount there
+# for open_tree(CLONE), then verifies its mount ID and detaches that top layer.
+# Actual product denial: broker -> base root /mnt, dir mounton (6473cf51).
+allow aegis_runtime_broker aegis_runtime_base_file:dir mounton;
+neverallow { aegis_runtime_init aegis_runtime_program } aegis_runtime_base_file:dir mounton;
 r_dir_file(aegis_runtime_mount_domain, aegis_runtime_base_file)
 
 # fs_use_trans selects a transition using the actual inode class. A new
