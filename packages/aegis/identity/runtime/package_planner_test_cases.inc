@@ -78,8 +78,9 @@ TEST_F(RuntimePackagePlanning, CollectedBrokerEvidenceStaysOwnedUntilRequesterSt
     ASSERT_EQ(0,StartOwner(&job));ASSERT_NE(0u,job);Collected(job);ASSERT_FALSE(HasFatalFailure());
     uint64_t another=0;EXPECT_EQ(-1,StartOwner(&another));EXPECT_EQ(EBUSY,errno);EXPECT_EQ(0u,another);
     EXPECT_EQ(-1,aegis_broker_owner_release(&owner));EXPECT_EQ(EBUSY,errno);
-    aegis_broker_request stop={};stop.magic=AEGIS_BROKER_MAGIC;stop.version=AEGIS_BROKER_VERSION;stop.operation=AEGIS_BROKER_STOP_USER;stop.user=10;stop.serial=1234;stop.sequence=1;stop.deadline_ns=Deadline();
-    aegis_broker_state state;ASSERT_EQ(0,aegis_broker_owner_apply(owner,&stop,&state));
+    aegis_broker_request stop={};stop.magic=AEGIS_BROKER_MAGIC;stop.version=AEGIS_BROKER_VERSION;stop.operation=AEGIS_BROKER_STOP_USER;stop.user=10;stop.serial=0;stop.sequence=2;stop.deadline_ns=Deadline();
+    aegis_broker_state state;ASSERT_EQ(0,aegis_broker_owner_apply(owner,&stop,&state))<<strerror(errno);
+    EXPECT_EQ(AEGIS_BROKER_ABSENT,state);
     EXPECT_EQ(before,descriptors());
     aegis::PlanningState ps;aegis::PackagePlanningResult result;
     EXPECT_EQ(-1,aegis::BrokerPollPlanning(owner,10,1234,job,&ps,&result));EXPECT_EQ(ENOENT,errno);
