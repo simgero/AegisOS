@@ -1,3 +1,65 @@
+## APT-Auflösung mit signierten Testmetadaten: 53 gezielte Gerätetests
+
+Stand **322ac8a2e5eacc59553d1cc665cda7aa46bf4cb5** besteht am
+**2026-09-30T05:52:41Z** im lokalen Hintergrund-QEMU **53/53 Tests**
+aus vier Gruppen, Laufzeit 14,580 Sekunden. Die Kompilierung auf `aegis-build`
+dauerte 6:28 Minuten; Lauf `identity-20260930T054425Z-322ac8a2-VuHGXs`,
+Invocation `4abda1fc9633426385f885601e742dea`.
+[Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T055130Z-322ac8a2-322ac8a2-7saoCF).
+
+- 10 neue Parserprüfungen: ausgewählte statt angebotener Version, genaue
+  Abhängigkeiten, automatische Markierung, Upgrade/Downgrade, abhängige Entfernung,
+  unveränderte No-op-Ergebnisse sowie Ablehnung widersprüchlicher, doppelter,
+  fremder, unvollständiger und übergroßer Protokolldaten.
+- 24 Namespaceprüfungen einschließlich der erweiterten echten APT-Prüfung.
+- 18 erneut bestandene Prüfungen der eindeutigen Paketplanbindung.
+- Ein vollständiger registrierter Vorbereitung-/Offline-APT-/Publikationslauf,
+  der einen abweichenden Freigabe-Digest vor der Ausführung ablehnt.
+
+Der echte APT-Lauf akzeptiert das mit einem weggeworfenen Testschlüssel signierte
+Release und den passenden Packages-Index. Frische, getrennte Indexverzeichnisse
+verhindern bei den negativen Fällen einen Erfolg aus alten Daten. Fehlende
+Signaturen werden abgewiesen; veränderte Release-Bytes erzeugen die bestätigte
+sqv-Meldung „Message has been manipulated“. Ein korrekt signiertes abgelaufenes
+Release scheitert an seiner Frist, ein veränderter Packages-Index am SHA-256.
+Die nicht vorhandene Version 999 scheitert ohne fertige Planmeldung.
+
+Bei der Installation wird ausschließlich `aegis-probe-app=2` angefordert. APT
+wählt selbst `aegis-probe-lib=2` als automatische Abhängigkeit. Ein späteres
+Upgrade plant beide Pakete von Version 1 auf 2; das Entfernen der Bibliothek
+plant auch die abhängige App ein. Alle drei strukturierten Meldungen werden vom
+neuen Adapter gelesen. Während der Simulation bleibt der Paketstatus bytegleich
+und kein Installationsskript läuft. Im getrennten tatsächlichen Offline-APT-Test
+bestehen Installation, Upgrade, Konfigurationserhalt, Skriptaufrufe, technische
+UID 42 und Purge weiterhin.
+
+**Grenze:** Dies ist ein isolierter Komponententest als Entwicklungsroot mit
+separaten Testquellen. Die Metadaten sind wirklich signiert, ihre Archiveinträge
+haben aber Platzhalter-Prüfsummen und werden nicht heruntergeladen. Damit ist
+noch keine Signatur-bis-Archiv-Prüfkette im Produkt nachgewiesen. Unveränderlicher
+produktiver Planer, vertrauenswürdige Quellenbeschaffung, Auftrag/Lebenszyklus,
+Bindung und Übernahme automatischer Paketmarkierungen, unabhängiger Vergleich
+der tatsächlichen Effekte sowie öffentliche CLI mit frischer AOSP-Adminfreigabe
+fehlen weiterhin. Kein produktiver Paketendpunkt wurde aktiviert.
+[Testdaten, Protokoll und Grenzen](../packages/aegis/identity/runtime/package-apt-fixture.md).
+
+Der Gast bleibt auf `c7401f60`, Profil `39d29ee1-7587-4223-8e5d-f9872c910554`, Boot
+`112b706c-2e59-4845-8c90-376f1e7fc048`, Enforcing und Broker aktiv. Benutzer,
+Seriennummern, laufende Benutzer, CE-Sperren, Schlüsselverzeichnisse und
+Runtime-Cgroups sind vorher/nachher gleich. Beide persönlichen Benutzer bleiben
+gesperrt. Die vorhandenen Android-/KeyMint-Paare und der sichtbare Launcher
+bleiben erhalten. Nur Testbinärdatei und Namespace-Testprobe unterscheiden sich
+vom vorherigen Komponentenlauf. Die übrigen sechs mechanischen Helfer sind
+bytegleich. 130 unveränderte Java-Prüfungen und der frühere 239er-Nativlauf sind
+**separate ältere Belege**, kein hier wiederholter Gesamtlauf.
+
+Belege im primären Workspace unter `out/components-322ac8a2/targeted-tests/`:
+
+- `result.json`: `132a48c55854b3c420b7861176508b65b533a2aad0a55c43afe5a146655a85bb`
+- `native.log`: `f30d1a64fd7a3814b316b8eb7e101726180b1db677d599fd2d7ad1f788c1fc1e`
+- native Testbinärdatei: `306c6bdc0204788d09a8e3056db43f856e0d85b78a106a80374475f6c89027c8`
+- `before.json` und `after.json`: `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`
+
 ## Aufgelöster Paketplan: 19 gezielte Komponententests
 
 Stand **e9361b4ecbc39d8ff69f937b4d1bf55612bced66** besteht am

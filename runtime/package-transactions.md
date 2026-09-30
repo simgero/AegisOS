@@ -11,8 +11,9 @@ Ein getrenntes Testrepository trägt echte Signaturen eines ausschließlich daf�
 erzeugten Schlüssels. Die Gastprüfung verlangt eine gültige Signatur und
 Index-Prüfsumme, lehnt fehlende/veränderte Signaturen sowie abgelaufene Releases
 ab und lässt APT Installation, Update und abhängige Entfernung planen. Während
-der Simulation sind dpkg und Zustandsänderungen gesperrt. **Dieser neue Schritt
-ist noch nicht kompiliert oder im Gast nachgewiesen.**
+der Simulation sind dpkg und Zustandsänderungen gesperrt. **Dieser Schritt besteht am 2026-09-30T05:52:41Z im lokalen QEMU
+53/53 gezielte Gerätetests**, einschließlich der tatsächlichen Signatur-/Frist-/
+Indexablehnungen und der drei APT-Pläne. [Belege](../docs/component-tests.md).
 
 Produktive Quellenbeschaffung, Archivbelege, unveränderlicher Planer samt
 Auftragslebenszyklus, Übernahme automatischer Installationsmarkierungen und

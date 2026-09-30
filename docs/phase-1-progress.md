@@ -1,5 +1,20 @@
 # Phase 1: Implementierungsstand
 
+
+## 2026-09-30: echte APT-Auflösung gegen signierte Testquellen
+
+Komponentenstand `322ac8a2` besteht **53/53 gezielte Prüfungen** im lokalen
+Hintergrund-QEMU. Echte APT-Auflösung ermittelt exakte Abhängigkeiten und abhängige
+Entfernungen. Unsignierte, veränderte und abgelaufene Testquellen werden abgewiesen;
+Simulationen verändern weder Paketstatus noch führen sie Installationsskripte aus.
+[Nachweis und Grenzen](component-tests.md).
+
+Die öffentliche Paketverwaltung ist noch nicht aktiviert. Produktive
+Quellen-/Archivprüfung, unveränderlicher Planer, Lebenszyklus, automatische
+Paketmarkierungen und die Verbindung mit frischer AOSP-Adminfreigabe fehlen noch.
+Der Produktgast bleibt `c7401f60`; vorhandene Benutzer und Profilpaare sind erhalten.
+
+
 Stand: 29. September 2026. **Das vollständige Phase-1-Ziel ist nicht erreicht.**
 Entwicklung erfolgt lokal, Kompilierung auf `aegis-build`, Systemtests in lokalem
 Mac-QEMU und Quell-/Artefakttransport über GitHub.
