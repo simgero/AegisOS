@@ -308,6 +308,7 @@ TEST_F(RuntimePackagePlanning, OnlineRefusesAnUnapprovedDestination) {
     ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,10000,&result,&fd))<<strerror(errno);
     EXPECT_EQ(aegis::PackagePlanningResult::Outcome::Failed,result.outcome);EXPECT_EQ(-1,fd);
     EXPECT_EQ(aegis::PackageResolverResult::Phase::Update,result.phase);EXPECT_EQ(100,result.status);
+    EXPECT_FALSE(result.diagnostic.empty());EXPECT_LE(result.diagnostic.size(),8192u);
 }
 TEST_F(RuntimePackagePlanning, OnlineFetchesAuthenticatesAndBindsRealDebianArchive) {
     Online("https://deb.debian.org/debian");ASSERT_FALSE(HasFatalFailure());int before=descriptors();ASSERT_EQ(0,Start())<<strerror(errno);
@@ -317,7 +318,7 @@ TEST_F(RuntimePackagePlanning, OnlineFetchesAuthenticatesAndBindsRealDebianArchi
         if(finished==0)break;ASSERT_EQ(ETIMEDOUT,errno);
     }
     ASSERT_EQ(0,finished);ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)
-        <<"phase="<<int(result.phase)<<" status="<<result.status<<" error="<<result.error;
+        <<"phase="<<int(result.phase)<<" status="<<result.status<<" error="<<result.error<<"\n"<<result.diagnostic;
     ASSERT_GE(fd,0);Fd evidence(fd);EXPECT_GT(result.effects,0u);
     const auto& proof=result.evidence;ASSERT_FALSE(proof.repositories.empty());ASSERT_FALSE(proof.changes.empty());
     auto hello=std::find_if(proof.changes.begin(),proof.changes.end(),[](const auto& p){return p.name=="hello";});

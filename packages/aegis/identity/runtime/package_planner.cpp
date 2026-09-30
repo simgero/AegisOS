@@ -5,6 +5,8 @@
 #include "memory_group.h"
 #include <android-base/unique_fd.h>
 #include <fcntl.h>
+#include <linux/magic.h>
+#include <sys/statfs.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
@@ -125,6 +127,26 @@ int PackagePlannerFinish(PackagePlanner** pointer,bool cancel,int timeout,Packag
     }
     if(p->network&&!p->cancelled && (network_exit.code!=CLD_KILLED||network_exit.status!=SIGKILL)) {
         r.outcome=PackagePlanningResult::Outcome::Failed;r.error=EIO;
+    }
+    if(r.outcome==PackagePlanningResult::Outcome::Failed && !p->cancelled && directory.ok()) {
+        const char* log=nullptr;
+        switch(r.phase) {
+            case PackageResolverResult::Phase::Update:log="update.log";break;
+            case PackageResolverResult::Phase::Simulate:log="simulate.log";break;
+            case PackageResolverResult::Phase::Download:log="download.log";break;
+            case PackageResolverResult::Phase::Indexes:log="index-targets";break;
+            default:break;
+        }
+        if(log) {
+            unique_fd file(openat(directory.get(),log,O_RDONLY|O_CLOEXEC|O_NOFOLLOW|O_NONBLOCK));
+            struct stat st;struct statfs fs;
+            if(file.ok()&&fstat(file.get(),&st)==0&&fstatfs(file.get(),&fs)==0&&fs.f_type==TMPFS_MAGIC
+               &&S_ISREG(st.st_mode)&&st.st_nlink==1&&st.st_uid==p->request.user*100000+5000
+               &&st.st_size>=0&&st.st_size<=(int64_t{512}<<20)) {
+                char buffer[8192];off_t offset=st.st_size>sizeof(buffer)?st.st_size-sizeof(buffer):0;
+                ssize_t n=pread(file.get(),buffer,sizeof(buffer),offset);if(n>0)r.diagnostic.assign(buffer,n);
+            }
+        }
     }
     if(r.outcome==PackagePlanningResult::Outcome::Collected)*collected=directory.release();
     if(p->network)aegis_child_release(p->network);

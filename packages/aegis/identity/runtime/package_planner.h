@@ -13,6 +13,7 @@ struct PackagePlanningResult {
     PackageResolverResult::Phase phase=PackageResolverResult::Phase::Validate;
     int status=0,error=0;
     uint32_t effects=0;
+    std::string diagnostic; // At most 8 KiB from the failed immutable APT phase, after reap.
     PackageResolvedPlan evidence; // Bounded metadata only, no private descriptor.
 };
 struct PackagePlanner;
