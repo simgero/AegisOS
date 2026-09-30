@@ -7,6 +7,9 @@
 #include <fcntl.h>
 #include <grp.h>
 #include <linux/capability.h>
+#include <linux/filter.h>
+#include <linux/seccomp.h>
+#include <stddef.h>
 #include <linux/nsfs.h>
 #include <net/if.h>
 #include <netdb.h>
@@ -135,13 +138,28 @@ int Setup() {
     // outbound sockets are in the helper's original Android network namespace.
     if(listener.get()!=0) { if(dup3(listener.get(),0,O_CLOEXEC)<0)return -1;listener.reset(); }else if(listener.release()!=0)return Fail(EPROTO);
     for(unsigned cap=0;cap<=CAP_LAST_CAP;++cap)if(prctl(PR_CAPBSET_DROP,cap,0,0,0)<0)return -1;
-    gid_t inet=3003;uid_t uid=request.user*100000+net::kAppId;
+    gid_t inet=3003;uid_t uid=net::kAppId;
     if(setgroups(1,&inet)<0||setresgid(uid,uid,uid)<0||setresuid(uid,uid,uid)<0)return -1;
     __user_cap_header_struct header={_LINUX_CAPABILITY_VERSION_3,0};__user_cap_data_struct caps[2]={};
     if(syscall(SYS_capset,&header,caps)<0||prctl(PR_SET_NO_NEW_PRIVS,1,0,0,0)<0
        ||prctl(PR_SET_PDEATHSIG,SIGKILL,0,0,0)<0||prctl(PR_SET_DUMPABLE,0,0,0,0)<0)return -1;
     pollfd parent={6,POLLIN,0};if(poll(&parent,1,0)!=0)return Fail(ECHILD);
     if(aegis_install_filter()<0)return -1;
+    // Dedicated Android system-service UID, outside ALL personal mappings.
+    // Multiple jobs share this network-only identity, so forbid every signal
+    // syscall as well as the existing ptrace/process-memory restrictions.
+    sock_filter rules[]={
+        BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(seccomp_data,nr)),
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_kill,0,1),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|EPERM),
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_tkill,0,1),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|EPERM),
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_tgkill,0,1),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|EPERM),
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_pidfd_send_signal,0,1),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|EPERM),
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_rt_sigqueueinfo,0,1),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|EPERM),
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_rt_tgsigqueueinfo,0,1),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|EPERM),
+        BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ALLOW)};
+    sock_fprog filter={static_cast<unsigned short>(sizeof(rules)/sizeof(rules[0])),rules};
+    if(syscall(SYS_seccomp,SECCOMP_SET_MODE_FILTER,0,&filter)<0)return -1;
+    errno=0;if(syscall(SYS_kill,getpid(),0)!=-1||errno!=EPERM)return Fail(EPERM);
     net::Ready ready={net::kMagic,0};if(send(5,&ready,sizeof(ready),MSG_NOSIGNAL)!=static_cast<ssize_t>(sizeof(ready)))return -1;
     return syscall(SYS_close_range,1u,~0u,0u);
 }

@@ -66,6 +66,7 @@ int Setup(int* fds,bool internet) {
        ||Text(policy.get(),"config",aegis::PackageResolverConfiguration(internet))<0
        ||CopyFd(fds[3],policy.get(),"sources.list",16384)<0
        ||CopyFd(fds[4],policy.get(),"key.asc",1048576)<0
+       ||(internet&&CopyFd(fds[5],policy.get(),"ca.pem",1048576)<0)
        ||Copy(fds[2],"var/lib/dpkg/status",input.get(),"status",64u<<20)<0)return -1;
     if(Copy(fds[2],"var/lib/apt/extended_states",input.get(),"extended_states",16u<<20)<0&&errno!=ENOENT)return -1;
 #ifdef AEGIS_PLANNER_PROBE
@@ -110,8 +111,8 @@ int main(int argc,char** argv) {
     if(aegis_check_package_context(user)<0)return 78;
 #endif
     umask(022); // Fixed policy/input directory modes, independent of broker umask.
-    int fds[5]={-1,-1,-1,-1,-1};aegis_planning_request r={};
-    if(aegis_planning_receive(3,&r,sizeof(r),fds,5)<0)return 79;
+    int fds[6]={-1,-1,-1,-1,-1,-1};aegis_planning_request r={};
+    if(aegis_planning_receive(3,&r,sizeof(r),fds,6)<0)return 79;
     aegis::PackageResolverRequest request;
     bool valid=r.magic==AEGIS_PLANNING_MAGIC&&r.version==AEGIS_PLANNING_VERSION
         &&r.user==user&&r.serial==serial&&r.job&&r.job<=INT64_MAX&&r.internet<=1

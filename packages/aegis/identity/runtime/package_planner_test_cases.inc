@@ -3,7 +3,7 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
  protected:
     aegis::PackagePlanner* planner=nullptr;
     aegis_broker_owner* owner=nullptr;
-    Fd sources,key,helper,network;
+    Fd sources,key,helper,network,ca;
     aegis::PackagePlanning request;
     static uint64_t Deadline() {
         timespec t={};EXPECT_EQ(0,clock_gettime(CLOCK_MONOTONIC,&t));
@@ -33,15 +33,15 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
     void TearDown() override {
         if(owner) { EXPECT_EQ(0,aegis_broker_owner_stop_all(owner,Deadline()));EXPECT_EQ(0,aegis_broker_owner_release(&owner)); }
         if(planner) { int fd=-1;aegis::PackagePlanningResult r;EXPECT_EQ(0,aegis::PackagePlannerFinish(&planner,true,5000,&r,&fd));if(fd>=0)close(fd); }
-        if(image)for(const char* n:{"sources.list","key.asc"})EXPECT_EQ(0,unlink((image->directory+"/"+n).c_str()));
-        sources.reset();key.reset();helper.reset();network.reset();RuntimePackageResolver::TearDown();
+        if(image)for(const char* n:{"sources.list","key.asc","ca.pem"})if(unlink((image->directory+"/"+n).c_str())<0)EXPECT_EQ(ENOENT,errno);
+        sources.reset();key.reset();helper.reset();network.reset();ca.reset();RuntimePackageResolver::TearDown();
     }
-    int Start() { return aegis::PackagePlannerStart(parent.get(),source,selected.get(),sources.get(),key.get(),helper.get(),request,Deadline(),&planner,network.get()); }
+    int Start() { return aegis::PackagePlannerStart(parent.get(),source,selected.get(),sources.get(),key.get(),helper.get(),request,Deadline(),&planner,network.get(),ca.get()); }
     void CreateOwner() {
         ASSERT_EQ(0,aegis_broker_owner_create(parent.get(),source,setup,setup,&owner));request.job=0;
     }
     int StartOwner(uint64_t* job,int program=-2) {
-        return aegis::BrokerStartPlanning(owner,request,parent.get(),source,selected.get(),sources.get(),key.get(),program==-2?helper.get():program,Deadline(),job,network.get());
+        return aegis::BrokerStartPlanning(owner,request,parent.get(),source,selected.get(),sources.get(),key.get(),program==-2?helper.get():program,Deadline(),job,network.get(),ca.get());
     }
     void SelectOwner(uint64_t* job) {
         Fd factory(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC));ASSERT_TRUE(factory.ok());
@@ -64,6 +64,20 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
         network.reset(Program("aegis-package-network"));ASSERT_TRUE(network.ok());request.request.internet=true;
         request.request.package="hello";request.request.version.clear();
         Fd directory(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(directory.ok());
+        Fd certs(open("/apex/com.android.conscrypt/cacerts",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(certs.ok());
+        struct statvfs fs;ASSERT_EQ(0,fstatvfs(certs.get(),&fs));ASSERT_TRUE(fs.f_flag&ST_RDONLY);
+        Fd scan(openat(certs.get(),".",O_RDONLY|O_DIRECTORY|O_CLOEXEC));DIR* entries=fdopendir(scan.release());ASSERT_NE(nullptr,entries);
+        std::vector<std::string> names;
+        while(auto* entry=readdir(entries))if(strcmp(entry->d_name,".")&&strcmp(entry->d_name,".."))names.push_back(entry->d_name);
+        closedir(entries);std::sort(names.begin(),names.end());ASSERT_GE(names.size(),100u);ASSERT_LE(names.size(),300u);
+        std::string pem;
+        for(const auto& name:names) {
+            struct stat st;ASSERT_EQ(0,fstatat(certs.get(),name.c_str(),&st,AT_SYMLINK_NOFOLLOW));
+            ASSERT_TRUE(S_ISREG(st.st_mode));ASSERT_EQ(0u,st.st_uid);ASSERT_FALSE(st.st_mode&0022);
+            auto contents=Read(certs.get(),name.c_str());ASSERT_NE(std::string::npos,contents.find("-----BEGIN CERTIFICATE-----"));pem+=contents; pem+="\n";
+        }
+        ASSERT_LT(pem.size(),1048576u);ASSERT_EQ(0,Write(directory.get(),"ca.pem",pem));
+        ca.reset(openat(directory.get(),"ca.pem",O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(ca.ok());
         std::string official=Read(source,"etc/apt/trusted.gpg.d/debian-archive-trixie-automatic.asc");
         ASSERT_EQ(0u,official.find("-----BEGIN PGP PUBLIC KEY BLOCK-----"));
         ASSERT_EQ(0,Write(directory.get(),"key.asc",official));
@@ -328,4 +342,15 @@ TEST_F(RuntimePackagePlanning, OnlineFetchesAuthenticatesAndBindsRealDebianArchi
     fprintf(stderr,"ONLINE_DEBIAN_RECEIPT: %s\n",Read(fd,"receipt.json").c_str());
     EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
     evidence.reset();EXPECT_EQ(before,descriptors());
+}
+
+TEST_F(RuntimePackagePlanning, OnlineRejectsUntrustedTlsAuthority) {
+    Online("https://deb.debian.org/debian");ASSERT_FALSE(HasFatalFailure());
+    Fd directory(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(directory.ok());
+    ASSERT_EQ(0,Write(directory.get(),"ca.pem","No trusted TLS certificate\n"));
+    ASSERT_EQ(0,Start())<<strerror(errno);aegis::PackagePlanningResult result;int fd=-1;int finished=-1;
+    for(unsigned i=0;i<12;++i) { finished=aegis::PackagePlannerFinish(&planner,false,5000,&result,&fd);if(!finished)break;ASSERT_EQ(ETIMEDOUT,errno); }
+    ASSERT_EQ(0,finished);EXPECT_EQ(-1,fd);EXPECT_EQ(aegis::PackagePlanningResult::Outcome::Failed,result.outcome);
+    EXPECT_EQ(aegis::PackageResolverResult::Phase::Update,result.phase);EXPECT_EQ(100,result.status);
+    EXPECT_NE(std::string::npos,result.diagnostic.find("certificate"))<<result.diagnostic;
 }

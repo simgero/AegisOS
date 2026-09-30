@@ -16,7 +16,7 @@ using android::base::unique_fd;
 namespace aegis {
 struct PackagePlanner {
     pid_t process=0;
-    unique_fd selected,root,metadata,devices,sources,key,channel;
+    unique_fd selected,root,metadata,devices,sources,key,ca,channel;
     aegis_namespace* context=nullptr;
     aegis_child* network=nullptr;
     aegis_memory_group* group=nullptr;
@@ -45,17 +45,19 @@ int PolicyFile(int fd,uint64_t maximum) {
 }
 int PackagePlanningCheck(const PackagePlanning& p) { aegis_planning_request r;return Encode(p,&r); }
 int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,int helper,
-                         const PackagePlanning& plan,uint64_t deadline,PackagePlanner** output,int network_helper) {
+                         const PackagePlanning& plan,uint64_t deadline,PackagePlanner** output,int network_helper,int ca_bundle) {
     if(!output||*output)return Fail(EINVAL);
     if(aegis_namespace_check_broker()<0)return -1;
     auto now=Now();if(!now)return -1;
     if(deadline<=now||deadline-now>UINT64_C(10000000000))return Fail(ETIMEDOUT);
     aegis_planning_request r;if(Encode(plan,&r)<0||PolicyFile(sources,16384)<0||PolicyFile(key,1048576)<0)return -1;
-    if(plan.request.internet && network_helper<0)return Fail(EINVAL);
+    if(plan.request.internet && (network_helper<0||ca_bundle<0))return Fail(EINVAL);
+    if(plan.request.internet && PolicyFile(ca_bundle,1048576)<0)return -1;
     auto* p=new(std::nothrow) PackagePlanner;if(!p)return Fail(ENOMEM);
     p->process=syscall(SYS_getpid);p->request=r;*output=p;
     p->selected.reset(fcntl(selected,F_DUPFD_CLOEXEC,4));p->sources.reset(fcntl(sources,F_DUPFD_CLOEXEC,4));p->key.reset(fcntl(key,F_DUPFD_CLOEXEC,4));
-    if(!p->selected.ok()||!p->sources.ok()||!p->key.ok())return -1;
+    p->ca.reset(fcntl(plan.request.internet?ca_bundle:key,F_DUPFD_CLOEXEC,4));
+    if(!p->selected.ok()||!p->sources.ok()||!p->key.ok()||!p->ca.ok())return -1;
     int pair[2];if(socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair)<0)return -1;
     p->channel.reset(pair[0]);unique_fd child(pair[1]);
     if(aegis_memory_group_create(groups,plan.requester,plan.serial,&p->group)<0
@@ -72,9 +74,9 @@ int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,
     if(aegis_namespace_temporary_base_begin(p->selected.get())<0)return -1;p->anchored=true;
     p->metadata.reset(aegis_namespace_base_mount(p->context,p->selected.get()));if(!p->metadata.ok())return -1;
     if(aegis_namespace_temporary_base_end(p->selected.get())<0)return -1;p->anchored=false;
-    int fds[]={p->root.get(),p->devices.get(),p->metadata.get(),p->sources.get(),p->key.get()};
+    int fds[]={p->root.get(),p->devices.get(),p->metadata.get(),p->sources.get(),p->key.get(),p->ca.get()};
     if(Left(deadline)<=0)return Fail(ETIMEDOUT);
-    if(aegis_planning_send(p->channel.get(),&r,sizeof(r),fds,5)<0||aegis_namespace_resume(p->context)<0)return -1;
+    if(aegis_planning_send(p->channel.get(),&r,sizeof(r),fds,6)<0||aegis_namespace_resume(p->context)<0)return -1;
     // Channel owns queued copies; originals remain registered until reaping.
     return Left(deadline)>0?0:Fail(ETIMEDOUT);
 }

@@ -299,9 +299,9 @@ cc_binary {
     name: "aegis-package-network",
     defaults: ["aegis-runtime-native-defaults"],
     srcs: ["runtime/package_network_main.cpp", "runtime/package_network_policy.cpp", "runtime/sandbox.c"],
-    static_executable: true,
     static_libs: ["libbase"],
     stl: "libc++_static",
+    shared_libs: ["liblog"],
 }
 
 // Bounded binding of trusted resolved metadata to preparation + publication.

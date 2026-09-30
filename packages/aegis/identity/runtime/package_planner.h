@@ -33,7 +33,7 @@ int PackagePlanningCheck(const PackagePlanning& request);
 // private network namespace. Internet mode requires a separately pinned network
 // helper; its fixed loopback proxy cannot be used by ordinary runtimes/installers.
 int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,int helper,
-                         const PackagePlanning& request,uint64_t deadline,PackagePlanner** worker,int network_helper=-1);
+                         const PackagePlanning& request,uint64_t deadline,PackagePlanner** worker,int network_helper=-1,int ca_bundle=-1);
 int PackagePlannerCancel(PackagePlanner* worker);
 // Actual pidfd reap, cgroup emptiness/removal and temporary-anchor detach precede
 // success. Timeout retains ownership and all outputs. A Collected result returns

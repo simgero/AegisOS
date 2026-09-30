@@ -109,7 +109,8 @@ bool Same(const std::vector<PackageAptEffect>& a,const std::vector<PackageAptEff
 const char* PackageResolverConfiguration(bool internet) {
     static const std::string online=std::string(policy)+
         "Acquire::http::Proxy \"socks5h://127.0.0.1:1080\";\n"
-        "Acquire::https::Proxy \"socks5h://127.0.0.1:1080\";\n";
+        "Acquire::https::Proxy \"socks5h://127.0.0.1:1080\";\n"
+        "Acquire::https::CaInfo \"/run/aegis-plan-policy/ca.pem\";\n";
     return internet?online.c_str():policy;
 }
 PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequest& r) {
@@ -119,11 +120,12 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     if(getpid()!=1||getppid()||getuid()||getgid())return fail(EPERM);
     if(View("/",true,true)<0||View("/run/aegis-plan-policy",true,true)<0
        ||View("/run/aegis-plan-input",true,false)<0)return fail(errno);
-    std::string config,sources,key,status,automatic;
+    std::string config,sources,key,status,automatic,ca;
     if(Read("/run/aegis-plan-policy/config",16384,true,&config)<0
        ||Read("/run/aegis-plan-policy/sources.list",16384,true,&sources)<0
        ||Read("/run/aegis-plan-policy/key.asc",1048576,true,&key)<0
        ||Read("/run/aegis-plan-input/status",64u<<20,true,&status)<0)return fail(errno);
+    if(r.internet&&Read("/run/aegis-plan-policy/ca.pem",1048576,true,&ca)<0)return fail(errno);
     if(config!=PackageResolverConfiguration(r.internet)||sources.empty()||key.empty())return fail(EPERM);
     bool present=Read("/run/aegis-plan-input/extended_states",16u<<20,true,&automatic)==0;
     if(!present&&errno!=ENOENT)return fail(errno);
@@ -178,7 +180,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     receipt["initial_apt_state_sha256"]=present?Hash(automatic):"";
     receipt["configuration_sha256"]=Hash(config);receipt["sources_sha256"]=Hash(sources);receipt["keyring_sha256"]=Hash(key);
     receipt["effect_count"]=Json::UInt(result.effects.size());
-    receipt["policy_sha256"]=Hash("aegis-resolver-policy-v1:"+Hash(config)+Hash(sources)+Hash(key));
+    receipt["policy_sha256"]=Hash("aegis-resolver-policy-v1:"+Hash(config)+Hash(sources)+Hash(key)+(r.internet?Hash(ca):""));
     receipt["repositories"]=Json::Value(Json::arrayValue);
     for(const auto& repo:result.repositories) {
         Json::Value row;row["id"]=repo.id;row["release_sha256"]=repo.release_sha256;
@@ -197,7 +199,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     proof.initial_status_sha256=Hash(status);
     proof.initial_apt_state_presence=present?PackageStatePresence::Present:PackageStatePresence::Absent;
     if(present)proof.initial_apt_state={automatic.size(),Hash(automatic)};
-    proof.policy_sha256=Hash("aegis-resolver-policy-v1:"+Hash(config)+Hash(sources)+Hash(key));
+    proof.policy_sha256=Hash("aegis-resolver-policy-v1:"+Hash(config)+Hash(sources)+Hash(key)+(r.internet?Hash(ca):""));
     proof.repositories=result.repositories;
     for(const auto& a:result.archives)proof.changes.push_back({a.effect.name,a.effect.architecture,
         a.effect.before_version,a.effect.after_version,a.repository,a.archive,
