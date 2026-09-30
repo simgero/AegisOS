@@ -130,7 +130,6 @@ struct IndexReader {
 int PackageMatchAptArchives(const std::vector<PackageAptEffect>& effects,
     const std::vector<PackageAptIndex>& indexes,uint64_t now,std::vector<PackageAptArchive>* output) {
     if(!output||!now||now>INT64_MAX||effects.size()>64||indexes.size()>16)return Fail(EINVAL);
-    if(effects.empty())return Fail(EALREADY);
     std::string previous;std::map<std::string,size_t> names;std::vector<PackageAptArchive> found;
     for(const auto& e:effects) {
         if(!PackagePlanNameValid(e.name)||(!previous.empty()&&previous>=e.name)

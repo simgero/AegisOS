@@ -24,6 +24,8 @@ struct PackageAptArchive {
 // repositories, missing selected versions and expiry fail closed. Identical
 // content in distinct repositories picks the first sorted configured source.
 // Filename is a bounded relative repository path, never a URL or host path.
+// Empty effects still verify every supplied index and return no changes; only
+// plan binding decides EALREADY.
 // No output change on failure; the caller retains all input FDs and lifecycle.
 int PackageMatchAptArchives(const std::vector<PackageAptEffect>& effects,
     const std::vector<PackageAptIndex>& indexes,uint64_t now_unix,

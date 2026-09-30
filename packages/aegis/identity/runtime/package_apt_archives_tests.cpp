@@ -121,7 +121,9 @@ TEST_F(PackageAptArchives, ExpirySourceIdentityAndCanonicalEffectsAreRequired) {
     EXPECT_EQ(-1,PackageMatchAptArchives(effects,{index},2000,&result));EXPECT_EQ(ESTALE,errno);
     EXPECT_EQ(-1,PackageMatchAptArchives(effects,{index,index},1000,&result));EXPECT_EQ(EINVAL,errno);
     auto duplicate=effects;duplicate.push_back(effects[0]);EXPECT_EQ(-1,PackageMatchAptArchives(duplicate,{index},1000,&result));EXPECT_EQ(EINVAL,errno);
-    EXPECT_EQ(-1,PackageMatchAptArchives({}, {},1000,&result));EXPECT_EQ(EALREADY,errno);
+    EXPECT_EQ(0,PackageMatchAptArchives({}, {index},1000,&result));EXPECT_TRUE(result.empty());
+    index.repository.index_sha256=Hash("changed");
+    EXPECT_EQ(-1,PackageMatchAptArchives({}, {index},1000,&result));EXPECT_EQ(EBADMSG,errno);
 }
 TEST_F(PackageAptArchives, RemovalPreservesEffectWithoutInventingArchive) {
     effects[0].before_version="2";effects[0].after_version.clear();effects[0].automatic=true;std::vector<PackageAptArchive> result;

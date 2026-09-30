@@ -1,6 +1,6 @@
 #ifndef AEGIS_PACKAGE_RESOLVER_H
 #define AEGIS_PACKAGE_RESOLVER_H
-#include "package_apt_plan.h"
+#include "package_apt_release.h"
 namespace aegis {
 // Runs only inside an owned, isolated PID1 with the verified immutable factory
 // root, fixed readonly /run/aegis-plan-policy and readonly metadata snapshot at
@@ -18,6 +18,8 @@ struct PackageResolverResult {
     Phase phase=Phase::Validate;
     int status=0, error=0;
     std::vector<PackageAptEffect> effects;
+    std::vector<PackageRepository> repositories;
+    std::vector<PackageAptArchive> archives;
 };
 // Write these exact bytes to the readonly policy/config before any APT starts.
 // policy/sources.list and policy/key.asc are immutable product inputs, not

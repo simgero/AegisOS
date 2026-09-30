@@ -134,6 +134,50 @@ class RuntimePackageResolver : public RuntimeNamespace {
             }
         }
         EXPECT_NE(std::string::npos,Read(output.get(),"index-targets").find("Packages"));
+        std::vector<aegis::PackageRepository> repositories;
+        std::vector<aegis::PackageAptArchive> archives;
+        auto targets=Read(output.get(),"index-targets");const auto now=uint64_t(time(nullptr));
+        ASSERT_EQ(0,aegis::PackageCollectAptEvidence(output.get(),targets,effects,now,&repositories,&archives))<<strerror(errno);
+        ASSERT_EQ(1u,repositories.size());ASSERT_EQ(2u,archives.size());
+        ASSERT_EQ(1u,receipt["repositories"].size());
+        EXPECT_EQ(repositories[0].release_sha256,receipt["repositories"][0]["release_sha256"].asString());
+        EXPECT_EQ(repositories[0].index_sha256,receipt["repositories"][0]["index_sha256"].asString());
+        EXPECT_EQ(repositories[0].valid_until_unix,receipt["repositories"][0]["valid_until_unix"].asUInt64());
+        aegis::PackageResolvedPlan plan;plan.requester=10;plan.serial=1234;plan.personal=true;plan.create_store=true;
+        plan.action=action;plan.requested_package=mode==6?"aegis-probe-lib":mode==7?"":"aegis-probe-app";
+        plan.requested_version=mode>=6?"":"2";
+        plan.source=plan.shared={image->original.bytes,image->original.sha256};
+        plan.planner_image_sha256=image->original.sha256;plan.policy_sha256=receipt["policy_sha256"].asString();
+        plan.initial_status_sha256=Hash(initial);plan.initial_apt_state_presence=aegis::PackageStatePresence::Present;
+        plan.initial_apt_state={automatic.size(),Hash(automatic)};plan.repositories=repositories;
+        std::vector<Fd> pinned;std::vector<int> fds;
+        for(const auto& a:archives) {
+            if(a.effect.after_version.empty()) { fds.push_back(-1);continue; }
+            auto name="archives/"+a.effect.name+"_"+a.effect.after_version+"_"+a.effect.architecture+".deb";
+            pinned.emplace_back(openat(output.get(),name.c_str(),O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(pinned.back().ok());fds.push_back(pinned.back().get());
+        }
+        aegis::PackageBoundPlan bound;
+        ASSERT_EQ(0,aegis::PackageBindAptArchives(plan,archives,fds,now,&bound))<<strerror(errno);
+        EXPECT_EQ(2u,bound.reviewed.changes.size());EXPECT_EQ(aegis::PackageInstallReason::Automatic,bound.reviewed.changes[1].reason);
+        auto original_repositories=repositories;auto original_archives=archives;
+        auto bad_targets=targets;auto at=bad_targets.find("Trusted: yes");ASSERT_NE(std::string::npos,at);bad_targets.replace(at,12,"Trusted: no ");
+        EXPECT_EQ(-1,aegis::PackageCollectAptEvidence(output.get(),bad_targets,effects,now,&repositories,&archives));EXPECT_EQ(EPERM,errno);
+        EXPECT_EQ(original_repositories[0].release_sha256,repositories[0].release_sha256);
+        EXPECT_EQ(original_archives[0].effect.name,archives[0].effect.name);
+        // All APT children are dead; only this fixture can mutate these files.
+        // Independent collection must still reject a same-size changed index.
+        const char* index="lists/_tmp_aegis-repo_._Packages";auto index_bytes=Read(output.get(),index);ASSERT_NE("<unavailable>",index_bytes);
+        auto changed=index_bytes;changed[0]^=1;ASSERT_EQ(0,Write(output.get(),index,changed));
+        EXPECT_EQ(-1,aegis::PackageCollectAptEvidence(output.get(),targets,effects,now,&repositories,&archives));EXPECT_EQ(EBADMSG,errno);
+        ASSERT_EQ(0,Write(output.get(),index,index_bytes));
+        if(mode!=6) {
+            const char* archive="archives/aegis-probe-app_2_all.deb";auto archive_bytes=Read(output.get(),archive);ASSERT_NE("<unavailable>",archive_bytes);
+            changed=archive_bytes;changed[0]^=1;ASSERT_EQ(0,Write(output.get(),archive,changed));
+            EXPECT_EQ(-1,aegis::PackageCollectAptEvidence(output.get(),targets,effects,now,&repositories,&archives));EXPECT_EQ(EBADMSG,errno);
+            ASSERT_EQ(0,Write(output.get(),archive,archive_bytes));
+        }
+        ASSERT_EQ(0,aegis::PackageCollectAptEvidence(output.get(),targets,effects,now,&repositories,&archives));
+
     }
 };
 TEST_F(RuntimePackageResolver, ImmutableFactoryIgnoresHostileSelectedExecutablesAndConfiguration) { Run(0); }

@@ -12,6 +12,7 @@
 #include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <time.h>
 #include <array>
 using android::base::unique_fd;
 namespace aegis {
@@ -36,6 +37,8 @@ const char policy[]=
     "Acquire::AllowDowngradeToInsecureRepositories \"false\";\n"
     "Acquire::AllowWeakRepositories \"false\";\nAcquire::Check-Date \"true\";\n"
     "Acquire::Check-Valid-Until \"true\";\nAcquire::Languages \"none\";\n"
+    "Acquire::Max-ValidTime \"10368000\";\nAcquire::GzipIndexes \"false\";\n"
+    "Acquire::IndexTargets::deb::Packages::KeepCompressed \"false\";\n"
     "Acquire::Retries \"0\";\nAcquire::http::Timeout \"30\";\nAcquire::https::Timeout \"30\";\n"
     "AptCli::Hooks::Install { \"/run/aegis-plan-policy/hook --apt-plan-hook\"; };\n"
     "AptCli::Hooks::Upgrade { \"/run/aegis-plan-policy/hook --apt-plan-hook\"; };\n";
@@ -160,6 +163,12 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     }
     result.phase=PackageResolverResult::Phase::Indexes;
     if(!command({"/usr/bin/apt-get","indextargets"},"/tmp/aegis-planner/index-targets"))return result;
+    std::string targets;
+    unique_fd collected(open("/tmp/aegis-planner",O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW));
+    const auto now=time(nullptr);
+    if(!collected.ok()||now<=0||Read("/tmp/aegis-planner/index-targets",4u<<20,false,&targets)<0
+       ||PackageCollectAptEvidence(collected.get(),targets,result.effects,uint64_t(now),
+                                  &result.repositories,&result.archives)<0)return fail(errno);
     std::string after;
     if(Read("/run/aegis-plan-input/status",64u<<20,true,&after)<0)return fail(errno);
     if(after!=status)return fail(ESTALE);
@@ -171,6 +180,19 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     receipt["initial_apt_state_sha256"]=present?Hash(automatic):"";
     receipt["configuration_sha256"]=Hash(config);receipt["sources_sha256"]=Hash(sources);receipt["keyring_sha256"]=Hash(key);
     receipt["effect_count"]=Json::UInt(result.effects.size());
+    receipt["policy_sha256"]=Hash("aegis-resolver-policy-v1:"+Hash(config)+Hash(sources)+Hash(key));
+    receipt["repositories"]=Json::Value(Json::arrayValue);
+    for(const auto& repo:result.repositories) {
+        Json::Value row;row["id"]=repo.id;row["release_sha256"]=repo.release_sha256;
+        row["index_sha256"]=repo.index_sha256;row["valid_until_unix"]=Json::UInt64(repo.valid_until_unix);
+        receipt["repositories"].append(row);
+    }
+    receipt["archives"]=Json::Value(Json::arrayValue);
+    for(const auto& archive:result.archives) {
+        Json::Value row;row["name"]=archive.effect.name;row["repository"]=archive.repository;
+        row["filename"]=archive.filename;row["bytes"]=Json::UInt64(archive.archive.bytes);
+        row["sha256"]=archive.archive.sha256;receipt["archives"].append(row);
+    }
     Json::StreamWriterBuilder writer;writer["indentation"]="";
     if(Write("/tmp/aegis-planner/receipt.json",Json::writeString(writer,receipt))<0)return fail(errno);
     result.phase=PackageResolverResult::Phase::Collected;return result;
