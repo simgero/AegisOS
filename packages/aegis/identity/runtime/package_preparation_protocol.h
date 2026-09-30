@@ -3,7 +3,7 @@
 #include "package_preparer.h"
 #include "package_execution_protocol.h"
 namespace aegis::preparation {
-constexpr uint32_t kMagic=0x41455052,kVersion=3;
+constexpr uint32_t kMagic=0x41455052,kVersion=4;
 constexpr int kStage=3,kSource=4,kReply=5,kRequest=6,kExecutable=7,kArchive=8;
 struct Input { uint64_t bytes; char hash[65]; };
 struct Request {
@@ -13,7 +13,7 @@ struct Request {
 };
 struct Reply {
     uint32_t magic,version,user,serial; uint64_t job; int32_t error; char plan[65];
-    uint32_t scope; Input selected; char shared_base[65];
+    uint32_t scope; Input selected; char shared_base[65]; Input shared;
 };
 inline bool InputValid(const Input& in,uint64_t max) {
     return in.bytes && in.bytes<=max && aegis_package_hash(in.hash);

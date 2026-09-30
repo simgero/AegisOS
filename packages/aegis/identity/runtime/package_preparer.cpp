@@ -150,7 +150,7 @@ PackagePreparationResult Response(PackagePreparer* p,const aegis_child_exit& exi
        || count!=(reply.error ? 0u : 1u))return result;
     if(reply.error) {
         if(reply.scope || reply.selected.bytes || !aegis_package_zero(reply.selected.hash,65)
-           || !aegis_package_zero(reply.shared_base,65))return result;
+           || !aegis_package_zero(reply.shared_base,65) || reply.shared.bytes || !aegis_package_zero(reply.shared.hash,65))return result;
         return {PackagePreparationOutcome::Failed,reply.error};
     }
     PackagePreparationResult selected{PackagePreparationOutcome::Prepared,0};
@@ -160,10 +160,14 @@ PackagePreparationResult Response(PackagePreparer* p,const aegis_child_exit& exi
            || reply.selected.bytes%4096)return result;
         if(reply.scope==3 ? !aegis_package_hash(reply.shared_base) : !aegis_package_zero(reply.shared_base,65))return result;
         if(reply.scope==1 && (reply.selected.bytes!=p->factory.bytes || reply.selected.hash!=p->factory.sha256))return result;
+        if(!wire::InputValid(reply.shared,uint64_t{32}<<30) || reply.shared.bytes%4096
+           || (reply.scope==3 ? strcmp(reply.shared.hash,reply.shared_base)!=0
+                             : reply.shared.bytes!=reply.selected.bytes||strcmp(reply.shared.hash,reply.selected.hash)!=0))return result;
+        selected.shared={reply.shared.bytes,reply.shared.hash};
         selected.generation={reply.selected.hash,reply.shared_base,reply.selected.bytes};
         selected.scope=static_cast<PackagePreparationResult::Scope>(reply.scope);
     } else if(reply.scope || reply.selected.bytes || !aegis_package_zero(reply.selected.hash,65)
-              || !aegis_package_zero(reply.shared_base,65))return result;
+              || !aegis_package_zero(reply.shared_base,65) || reply.shared.bytes || !aegis_package_zero(reply.shared.hash,65))return result;
     struct stat st;struct statfs fs;struct statvfs flags;
     if(fcntl(mount.get(),F_GETFL)<0 || !(fcntl(mount.get(),F_GETFL)&O_PATH)
        || fstat(mount.get(),&st)<0 || fstatfs(mount.get(),&fs)<0 || fstatvfs(mount.get(),&flags)<0

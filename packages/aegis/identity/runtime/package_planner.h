@@ -6,12 +6,14 @@ struct PackagePlanning {
     uint32_t requester=0, serial=0;
     uint64_t job=0;
     PackageResolverRequest request;
+    bool personal=false,create_store=false; // Trusted target fixed before resolution.
 };
 struct PackagePlanningResult {
     enum class Outcome { Unconfirmed, Failed, Collected } outcome=Outcome::Unconfirmed;
     PackageResolverResult::Phase phase=PackageResolverResult::Phase::Validate;
     int status=0,error=0;
     uint32_t effects=0;
+    PackageResolvedPlan evidence; // Bounded metadata only, no private descriptor.
 };
 struct PackagePlanner;
 int PackagePlanningCheck(const PackagePlanning& request);

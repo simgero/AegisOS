@@ -8,6 +8,9 @@
 #include "broker_owner_selection.h"
 #include "ce_private.h"
 #include "namespace.h"
+#include "uid_layout.h"
+#include <sys/vfs.h>
+#include <linux/magic.h>
 #include <android-base/unique_fd.h>
 #include <array>
 #include <memory>
@@ -38,6 +41,7 @@ struct publication_slot {
 };
 struct execution_slot {
     PackageExecution plan;
+    uint64_t valid_until_unix=0; // Carried from the owned authenticated planning result.
     std::array<unique_fd,4> inputs;
     // Stay lifecycle-owned after APT exits. Never reopen by a caller pathname
     // or export this CE reference while the same transaction awaits validation.
@@ -63,6 +67,7 @@ struct planning_slot {
     PackageInput factory;
     PackagePlanner* worker=nullptr;
     unique_fd evidence;
+    PackageBoundPlan bound;
     PlanningState state=PlanningState::Running;
     PackagePlanningResult result;
     bool resources() const { return worker || evidence.ok(); }
@@ -603,9 +608,9 @@ int admission(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t d
     }
     return 0;
 }
-int capacity(aegis_broker_owner* owner,uint32_t user,const runtime_selection_slot* transferring=nullptr) {
+int capacity(aegis_broker_owner* owner,uint32_t user,const runtime_selection_slot* transferring=nullptr, const planning_slot* planning=nullptr) {
     unsigned count=0;
-    for(const auto& slot:owner->planners)if(slot) {
+    for(const auto& slot:owner->planners)if(slot && slot.get()!=planning) {
         count++;if(slot->plan.requester==user)return fail(EBUSY);
     }
     for(const auto& slot:owner->selections)if(slot && slot.get()!=transferring && slot->resources()) {
@@ -648,6 +653,7 @@ static int start_planning(aegis_broker_owner* owner,const PackagePlanning& reque
     if(!job||*job||request.job)return fail(EINVAL);
     if(admission(owner,request.requester,request.serial,deadline)<0||capacity(owner,request.requester,transferring)<0)return -1;
     if(!transferring&&owner->next_publication==INT64_MAX)return fail(EOVERFLOW);
+    if(transferring && !request.personal && transferring->result.scope==PackagePreparationResult::Scope::Personal)return fail(EINVAL);
     PackagePlanning plan=request;plan.job=transferring?transferring->plan.job:owner->next_publication+1;
     if(PackagePlanningCheck(plan)<0)return -1;
     std::unique_ptr<planning_slot>* empty=nullptr;
@@ -705,6 +711,29 @@ int BrokerPollPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,u
     *state=slot->state;*result=slot->result;
     if(slot->state==PlanningState::Complete)for(auto& item:owner->planners)if(item.get()==slot) { item.reset();break; }
     return 0;
+}
+int BrokerReviewPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job,
+                           uint64_t deadline,PackageBoundPlan* output) {
+    if(!output)return fail(EINVAL);
+    if(admission(owner,user,serial,deadline)<0)return -1;
+    auto* slot=find_planning(owner,user,serial,job);if(!slot)return -1;
+    if(reap_planning(*slot,0)<0)return errno==ETIMEDOUT?fail(EAGAIN):-1;
+    if(slot->state!=PlanningState::Collected && slot->state!=PlanningState::Reviewed)return fail(EBUSY);
+    if(slot->selected_source.outcome!=PackagePreparationOutcome::Prepared
+       ||slot->selected_source.scope==PackagePreparationResult::Scope::None)return fail(EPERM);
+    const auto& selected=slot->selected_source;
+    auto plan=slot->result.evidence;
+    plan.requester=user;plan.serial=serial;plan.personal=slot->plan.personal;plan.create_store=slot->plan.create_store;
+    plan.action=slot->plan.request.action;plan.requested_package=slot->plan.request.package;plan.requested_version=slot->plan.request.version;
+    plan.source={selected.generation.bytes,selected.generation.image_sha256};plan.shared=selected.shared;
+    plan.planner_image_sha256=slot->factory.sha256;
+    plan.has_previous=plan.personal ? selected.scope==PackagePreparationResult::Scope::Personal
+                                   : selected.scope==PackagePreparationResult::Scope::Shared;
+    if(plan.has_previous)plan.previous=selected.generation;
+    auto now=time(nullptr);if(now<=0)return fail(EIO);
+    PackageBoundPlan bound;if(PackageBindResolvedPlan(plan,uint64_t(now),&bound)<0)return -1;
+    if(slot->state==PlanningState::Reviewed && slot->bound.preparation.execution.plan_sha256!=bound.preparation.execution.plan_sha256)return fail(ESTALE);
+    slot->bound=bound;slot->state=PlanningState::Reviewed;*output=std::move(bound);return 0;
 }
 int BrokerCancelPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job,uint64_t deadline) {
     auto* slot=find_planning(owner,user,serial,job);if(!slot)return -1;
@@ -916,12 +945,12 @@ int BrokerCancelPublication(aegis_broker_owner* owner,uint32_t user,uint32_t ser
 static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation& request,
                               int groups,int stage,int source,int prepare_helper,int execute_helper,
                               const std::vector<int>& archives,uint64_t deadline,uint64_t* job,bool personal_ce,
-                              const PackagePublication* target=nullptr,int store=-1,int publish_helper=-1) {
+                              const PackagePublication* target=nullptr,int store=-1,int publish_helper=-1,planning_slot* transferring=nullptr) {
     if(!job || *job || request.execution.job)return fail(EINVAL);
     const auto& identity=request.execution;
-    if(admission(owner,identity.requester,identity.serial,deadline)<0 || capacity(owner,identity.requester)<0)return -1;
-    if(owner->next_publication==INT64_MAX)return fail(EOVERFLOW);
-    PackagePreparation preparation=request;preparation.execution.job=owner->next_publication+1;
+    if(admission(owner,identity.requester,identity.serial,deadline)<0 || capacity(owner,identity.requester,nullptr,transferring)<0)return -1;
+    if(!transferring && owner->next_publication==INT64_MAX)return fail(EOVERFLOW);
+    PackagePreparation preparation=request;preparation.execution.job=transferring?transferring->plan.job:owner->next_publication+1;
     if(PackagePreparationCheck(preparation)<0 || archives.size()!=preparation.archives.size())return fail(EINVAL);
     std::unique_ptr<execution_slot>* empty=nullptr;
     for(auto& slot:owner->executions)if(!slot) { empty=&slot;break; }
@@ -942,7 +971,12 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
     prepared->inputs[3].reset(fcntl(execute_helper,F_DUPFD_CLOEXEC,3));
     if(!prepared->inputs[0].ok() || (!personal_ce && !prepared->inputs[1].ok()) || !prepared->inputs[3].ok())return -1;
     if(remaining_ms(deadline)<=0)return fail(ETIMEDOUT);
-    *job=++owner->next_publication;*empty=std::move(prepared);auto& slot=**empty;
+    if(transferring)prepared->valid_until_unix=transferring->bound.valid_until_unix;
+    *job=preparation.execution.job;if(!transferring)owner->next_publication=*job;
+    *empty=std::move(prepared);auto& slot=**empty;
+    // The same job is now registered in its execution phase. Pinned local
+    // archive FDs remain owned by the handoff until PreparerStart duplicates them.
+    if(transferring)for(auto& old:owner->planners)if(old.get()==transferring) { old.reset();break; }
     // Register BEFORE any private CE reference, disk mutation or child.
     int error=0;
     if(personal_ce) {
@@ -986,6 +1020,36 @@ int BrokerPrepareTransaction(aegis_broker_owner* owner,const PackagePreparation&
     if(transaction_target(plan,target)<0)return -1;
     return prepare_candidate(owner,plan,groups,stage,source,prepare_helper,execute_helper,
                              archives,deadline,job,false,&target,store,publish_helper);
+}
+int BrokerPreparePlannedTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t job,const std::string& digest,int groups,int stage,int store,int source,
+    int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline) {
+    auto* slot=find_planning(owner,user,serial,job);if(!slot)return -1;
+    if(slot->state!=PlanningState::Reviewed)return fail(EBUSY);
+    if(slot->bound.preparation.execution.plan_sha256!=digest)return fail(ESTALE);
+    if(slot->plan.personal && (stage!=-1 || store!=-1))return fail(EINVAL);
+    PackageBoundPlan bound;if(BrokerReviewPlanning(owner,user,serial,job,deadline,&bound)<0)return -1;
+    if(transaction_target(bound.preparation,bound.publication)<0)return -1;
+    struct stat directory;struct statfs fs;
+    if(fstat(slot->evidence.get(),&directory)<0||fstatfs(slot->evidence.get(),&fs)<0)return -1;
+    const uid_t root=user*AEGIS_PER_USER_RANGE+aegis_uid_extents[0].app_id;
+    if(!S_ISDIR(directory.st_mode)||directory.st_uid!=root||directory.st_gid!=root||fs.f_type!=TMPFS_MAGIC)return fail(EPERM);
+    std::vector<unique_fd> pinned;std::vector<int> archives;
+    for(size_t i=0;i<bound.preparation.archives.size();++i) {
+        open_how how={};how.flags=O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_NOFOLLOW;
+        how.resolve=RESOLVE_BENEATH|RESOLVE_NO_SYMLINKS|RESOLVE_NO_XDEV;
+        std::string name="archives/"+bound.preparation.execution.items[i];
+        unique_fd fd(syscall(SYS_openat2,slot->evidence.get(),name.c_str(),&how,sizeof(how)));
+        if(!fd.ok())return -1;struct stat st;if(fstat(fd.get(),&st)<0)return -1;
+        if(!S_ISREG(st.st_mode)||st.st_nlink!=1||(st.st_mode&07022)||st.st_dev!=directory.st_dev
+           ||((st.st_uid!=root||st.st_gid!=root)&&(st.st_uid||st.st_gid))
+           ||st.st_size<=0||uint64_t(st.st_size)!=bound.preparation.archives[i].bytes)return fail(EPERM);
+        if(fchown(fd.get(),0,0)<0||fchmod(fd.get(),0444)<0)return -1;
+        archives.push_back(fd.get());pinned.push_back(std::move(fd));
+    }
+    uint64_t same=0;const bool personal=slot->plan.personal;
+    return prepare_candidate(owner,bound.preparation,groups,stage,source,prepare_helper,execute_helper,
+        archives,deadline,&same,personal,&bound.publication,store,publish_helper,slot);
 }
 int BrokerPreparePersonalTransaction(aegis_broker_owner* owner,const PackagePreparation& plan,
                                       const PackagePublication& target,int groups,int source,
@@ -1042,6 +1106,12 @@ int BrokerStartExecution(aegis_broker_owner* owner,uint32_t user,uint32_t serial
     auto* slot=find_execution(owner,user,serial,job,plan);if(!slot)return -1;
     if(slot->state!=PublicationState::Prepared)return fail(EALREADY);
     if(admission(owner,user,serial,deadline)<0)return -1;
+    const auto wall=time(nullptr);
+    if(slot->valid_until_unix && (wall<=0 || uint64_t(wall)>=slot->valid_until_unix)) {
+        slot->close_inputs();slot->close_target();slot->validation_stage.reset();
+        slot->result={PackageExecutionOutcome::Failed,0,ESTALE};slot->state=PublicationState::Complete;
+        return fail(ESTALE);
+    }
     // This consumes the preparation even on failure. Every partial child/FD
     // remains in the pre-registered slot before caller admission is released.
     slot->state=PublicationState::Running;

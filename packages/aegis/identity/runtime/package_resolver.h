@@ -20,6 +20,7 @@ struct PackageResolverResult {
     std::vector<PackageAptEffect> effects;
     std::vector<PackageRepository> repositories;
     std::vector<PackageAptArchive> archives;
+    PackageResolvedPlan evidence; // Only authenticated resolver fields; no caller identity/source.
 };
 // Write these exact bytes to the readonly policy/config before any APT starts.
 // policy/sources.list and policy/key.asc are immutable product inputs, not

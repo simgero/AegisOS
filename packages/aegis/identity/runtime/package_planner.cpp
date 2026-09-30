@@ -102,6 +102,10 @@ int PackagePlannerFinish(PackagePlanner** pointer,bool cancel,int timeout,Packag
                 r.phase=static_cast<PackageResolverResult::Phase>(reply.phase);r.status=reply.status;r.error=reply.error;r.effects=reply.effects;
                 r.outcome=reply.phase==uint32_t(PackageResolverResult::Phase::Collected)&&!r.status&&!r.error
                     ? PackagePlanningResult::Outcome::Collected : PackagePlanningResult::Outcome::Failed;
+                if(r.outcome==PackagePlanningResult::Outcome::Collected
+                   &&(planning_wire::Decode(reply.evidence,&r.evidence)<0 || r.evidence.changes.size()!=r.effects)) {
+                    r.outcome=PackagePlanningResult::Outcome::Failed;r.error=EPROTO;
+                }
             } else r.error=EPROTO;
         } else r.error=errno;
     }

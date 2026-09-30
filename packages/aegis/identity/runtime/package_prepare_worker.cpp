@@ -157,7 +157,7 @@ int Select(const wire::Request& request,wire::Reply* reply) {
         image.reset(shared->Current(&selected));if(!image.ok() && errno!=ENOENT)return -1;
         if(image.ok())scope=2;
     }
-    const auto base=selected.image_sha256;
+    const auto base=selected.image_sha256;const auto shared_generation=selected;
     if(request.has_personal) {
         personal.reset(PackageStore::Open(wire::kArchive,{true,request.execution.user,request.execution.serial},false));
         if(!personal)return -1;
@@ -174,6 +174,7 @@ int Select(const wire::Request& request,wire::Reply* reply) {
     }
     if(Clean(image.get(),selected.bytes)<0)return -1;
     unique_fd mount(Mount(image.get(),selected.bytes,true));if(!mount.ok())return -1;
+    reply->shared.bytes=shared_generation.bytes;memcpy(reply->shared.hash,shared_generation.image_sha256.c_str(),65);
     reply->scope=scope;reply->selected.bytes=selected.bytes;
     memcpy(reply->selected.hash,selected.image_sha256.c_str(),65);
     if(scope==3)memcpy(reply->shared_base,selected.shared_base_sha256.c_str(),65);

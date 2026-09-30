@@ -188,6 +188,15 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     }
     Json::StreamWriterBuilder writer;writer["indentation"]="";
     if(Write("/tmp/aegis-planner/receipt.json",Json::writeString(writer,receipt))<0)return fail(errno);
+    auto& proof=result.evidence;
+    proof.initial_status_sha256=Hash(status);
+    proof.initial_apt_state_presence=present?PackageStatePresence::Present:PackageStatePresence::Absent;
+    if(present)proof.initial_apt_state={automatic.size(),Hash(automatic)};
+    proof.policy_sha256=Hash("aegis-resolver-policy-v1:"+Hash(config)+Hash(sources)+Hash(key));
+    proof.repositories=result.repositories;
+    for(const auto& a:result.archives)proof.changes.push_back({a.effect.name,a.effect.architecture,
+        a.effect.before_version,a.effect.after_version,a.repository,a.archive,
+        a.effect.automatic?PackageInstallReason::Automatic:PackageInstallReason::Manual});
     result.phase=PackageResolverResult::Phase::Collected;return result;
 }
 }

@@ -6,11 +6,11 @@
 #include "package_preparer.h"
 #include "package_planner.h"
 namespace aegis {
-enum class PlanningState { Running, Collected, Complete, Sealed };
+enum class PlanningState { Running, Collected, Reviewed, Complete, Sealed };
 // Register before snapshot copying/APT. Same requester admission, 16-slot budget,
 // monotonically minted IDs and STOP/HELLO/disconnect ownership as execution.
 // Collected retains its private evidence directory inside the owner; Poll never
-// hands out descriptors or releases the slot. Binding/approval is a later step.
+// hands out descriptors or releases the slot. Review and preparation consume only this retained result; approval stays separate.
 // No client-supplied factory/selected/policy/helper is accepted by a public API.
 int BrokerStartPlanning(aegis_broker_owner* owner,const PackagePlanning& request,
                          int groups,int factory,int selected,int sources,int key,int helper,
@@ -24,6 +24,20 @@ int BrokerStartPlanningFromSelection(aegis_broker_owner* owner,const PackagePlan
                                       uint64_t deadline,uint64_t* job);
 int BrokerPollPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job,
                         PlanningState* state,PackagePlanningResult* result);
+// Bounded review from this owned worker and its retained verified selection.
+// The caller supplies no hashes/effects/source identity. Rechecks repository
+// expiry each time; returns metadata only, never authority or private FDs.
+int BrokerReviewPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job,
+                         uint64_t deadline,PackageBoundPlan* output);
+// Continue the same Reviewed job through candidate preparation. Archives come
+// exclusively from the quiescent owned planner directory; copy/hash is async.
+// Source/stage/store/helper FDs are internally pinned under fresh admission,
+// never CLI inputs; the preparer checks source bytes against retained selection.
+// Personal scope uses its CE-anchored stage/store; supplied stage/store must be -1.
+// NEW fresh AOSP admin approval is still required before BrokerStartExecution.
+int BrokerPreparePlannedTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t job,const std::string& digest,int groups,int stage,int store,int source,
+    int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline);
 int BrokerCancelPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                           uint64_t job,uint64_t deadline);
 

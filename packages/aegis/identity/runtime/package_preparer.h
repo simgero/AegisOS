@@ -18,6 +18,7 @@ struct PackagePreparationResult {
     // Only a runtime selection returns a generation; preparation leaves it empty.
     PackageGeneration generation={};
     enum class Scope { None, Factory, Shared, Personal } scope=Scope::None;
+    PackageInput shared; // Verified shared/factory selection preceding personal selection.
 };
 struct PackageRuntimeSelection {
     uint32_t requester=0, serial=0;
