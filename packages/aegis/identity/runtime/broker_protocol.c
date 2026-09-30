@@ -22,6 +22,13 @@ _Static_assert(offsetof(struct aegis_broker_request, user) == 24, "Request ident
 _Static_assert(offsetof(struct aegis_broker_reply, error) == 24, "Reply error offset");
 
 static int fail(int error) { errno = error; return -1; }
+int aegis_broker_package_operation(unsigned operation) {
+    return operation >= AEGIS_BROKER_PACKAGE_BEGIN && operation <= AEGIS_BROKER_PACKAGE_CANCEL;
+}
+static int printable(const unsigned char *value, size_t bytes) {
+    for (size_t i=0;i<bytes;i++) if(value[i]<0x21 || value[i]>0x7e)return 0;
+    return 1;
+}
 
 int aegis_broker_check_peer(int fd) {
     int type = 0;
@@ -54,7 +61,7 @@ static int parse_header(const void *packet, size_t size, uint64_t previous,
     struct aegis_broker_request value;
     memcpy(&value, packet, sizeof(value));
     if (value.magic != AEGIS_BROKER_MAGIC || value.version != AEGIS_BROKER_VERSION
-            || value.operation < AEGIS_BROKER_HELLO || value.operation > AEGIS_BROKER_CONTINUE_START
+            || value.operation < AEGIS_BROKER_HELLO || value.operation > AEGIS_BROKER_PACKAGE_CANCEL
             || !value.sequence || value.sequence > INT64_MAX || value.sequence <= previous
             || now_ns > INT64_MAX || value.deadline_ns > INT64_MAX || value.deadline_ns <= now_ns
             || value.deadline_ns - now_ns > AEGIS_BROKER_MAX_WAIT_NS || value.serial > INT32_MAX)
@@ -115,6 +122,27 @@ int aegis_broker_decode(const void *packet, size_t size, uint64_t previous,
         if (size != 40) return fail(EPROTO);
         memcpy(&checked.command, bytes + 32, 8);
         if (!checked.command || checked.command > INT64_MAX) return fail(EPROTO);
+    } else if (checked.request.operation == AEGIS_BROKER_PACKAGE_BEGIN) {
+        if(size<48)return fail(EPROTO);
+        uint32_t name_bytes,version_bytes;
+        memcpy(&checked.package_action,bytes+32,4);memcpy(&checked.package_scope,bytes+36,4);
+        memcpy(&name_bytes,bytes+40,4);memcpy(&version_bytes,bytes+44,4);
+        if(checked.package_action<1 || checked.package_action>3
+           || checked.package_scope<1 || checked.package_scope>2
+           || name_bytes>128 || version_bytes>128 || size!=48u+name_bytes+version_bytes
+           || !printable(bytes+48,name_bytes+version_bytes))return fail(EPROTO);
+        memcpy(checked.package_name,bytes+48,name_bytes);
+        memcpy(checked.package_version,bytes+48+name_bytes,version_bytes);
+    } else if (aegis_broker_package_operation(checked.request.operation)) {
+        size_t expected=checked.request.operation==AEGIS_BROKER_PACKAGE_START?104u:40u;
+        if(size!=expected)return fail(EPROTO);
+        memcpy(&checked.command,bytes+32,8);
+        if(!checked.command || checked.command>INT64_MAX)return fail(EPROTO);
+        if(expected==104u) {
+            for(size_t i=40;i<104;i++)if(!((bytes[i]>='0'&&bytes[i]<='9')||(bytes[i]>='a'&&bytes[i]<='f')))
+                return fail(EPROTO);
+            memcpy(checked.package_digest,bytes+40,64);
+        }
     } else if (size != 32) {
         return fail(EPROTO);
     }
@@ -227,4 +255,27 @@ int aegis_broker_reply_start(int fd, const struct aegis_broker_request *request,
     ssize_t sent=send(fd,&reply,sizeof(reply),MSG_DONTWAIT|MSG_NOSIGNAL);
     if(sent<0)return -1;
     return sent==(ssize_t)sizeof(reply) ? 0 : fail(EIO);
+}
+
+int aegis_broker_reply_package(int fd,const struct aegis_broker_request *request,
+                                int error,const struct aegis_broker_package_reply *package) {
+    if(!request || !package || request->magic!=AEGIS_BROKER_MAGIC || request->version!=AEGIS_BROKER_VERSION
+       || !aegis_broker_package_operation(request->operation) || !request->sequence || request->sequence>INT64_MAX
+       || request->user<10 || request->user>=21473 || request->serial>INT32_MAX
+       || error<0 || error>4095 || package->job>INT64_MAX || (!error && !package->job)
+       || (request->operation!=AEGIS_BROKER_PACKAGE_BEGIN && !package->job)
+       || package->bytes>sizeof(package->data) || package->kind>2
+       || ((package->kind==0)!=(package->bytes==0)) || (error && (package->kind || package->bytes))
+       || (!error && package->kind!=(request->operation==AEGIS_BROKER_PACKAGE_REVIEW?2u:
+                                    request->operation==AEGIS_BROKER_PACKAGE_STATUS?1u:0u)))return fail(EINVAL);
+    struct aegis_broker_reply header={.magic=AEGIS_BROKER_MAGIC,.version=AEGIS_BROKER_VERSION,
+        .operation=request->operation,.sequence=request->sequence,.user=request->user,.serial=request->serial,
+        .error=error,.state=error?AEGIS_BROKER_SEALED:AEGIS_BROKER_READY};
+    struct { uint64_t job; uint32_t kind,bytes; } tail={package->job,package->kind,package->bytes};
+    _Static_assert(sizeof(tail)==16,"Package reply tail wire layout");
+    struct iovec io[]={{&header,sizeof(header)},{&tail,sizeof(tail)},{(void*)package->data,package->bytes}};
+    struct msghdr message={.msg_iov=io,.msg_iovlen=3};
+    ssize_t sent=sendmsg(fd,&message,MSG_DONTWAIT|MSG_NOSIGNAL);
+    if(sent<0)return -1;
+    return sent==(ssize_t)(48u+package->bytes)?0:fail(EIO);
 }

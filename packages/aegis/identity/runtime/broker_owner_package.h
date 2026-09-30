@@ -41,6 +41,12 @@ int BrokerPollConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t
 // in the same owner. Completed published execution returns EALREADY, not rollback.
 int BrokerCancelConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                                    uint64_t job,uint64_t deadline);
+int BrokerReviewConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                   uint64_t job,uint64_t deadline,PackageBoundPlan* output);
+// Only after a NEW successful AOSP admin approval for this exact retained plan,
+// plus revalidated requester/session/CE admission. No authority from the digest.
+int BrokerStartConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                  uint64_t job,const std::string& digest,uint64_t deadline);
 // Start selection with the original intent registered before opening any CE.
 // Uses startup-pinned product inputs exclusively. A returned nonzero job on
 // failure still belongs to the owner and must be cancelled/reaped normally.

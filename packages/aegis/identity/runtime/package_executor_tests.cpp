@@ -12,6 +12,7 @@
 #include "context.h"
 #include "namespace.h"
 #include <gtest/gtest.h>
+#include <json/json.h>
 #include <android-base/unique_fd.h>
 #include <dirent.h>
 #include <grp.h>

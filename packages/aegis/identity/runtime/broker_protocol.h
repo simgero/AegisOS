@@ -20,7 +20,11 @@ extern "C" {
 #define AEGIS_BROKER_MAX_WAIT_NS UINT64_C(10000000000)
 enum aegis_broker_operation { AEGIS_BROKER_HELLO = 1, AEGIS_BROKER_START = 2,
     AEGIS_BROKER_STOP_USER = 3, AEGIS_BROKER_STATUS = 4,
-    AEGIS_BROKER_EXEC = 5, AEGIS_BROKER_RESULT = 6, AEGIS_BROKER_CONTINUE_START = 7 };
+    AEGIS_BROKER_EXEC = 5, AEGIS_BROKER_RESULT = 6, AEGIS_BROKER_CONTINUE_START = 7,
+    AEGIS_BROKER_PACKAGE_BEGIN = 8, AEGIS_BROKER_PACKAGE_PLAN = 9,
+    AEGIS_BROKER_PACKAGE_REVIEW = 10, AEGIS_BROKER_PACKAGE_PREPARE = 11,
+    AEGIS_BROKER_PACKAGE_STATUS = 12, AEGIS_BROKER_PACKAGE_START = 13,
+    AEGIS_BROKER_PACKAGE_CANCEL = 14 };
 enum aegis_broker_state { AEGIS_BROKER_ABSENT = 0, AEGIS_BROKER_READY = 1,
     AEGIS_BROKER_SEALED = 2 };
 struct aegis_broker_request {
@@ -48,6 +52,8 @@ struct aegis_broker_call {
     uint64_t command;
     uint32_t argc, payload_bytes;
     char payload[AEGIS_BROKER_MAX_ARG_BYTES];
+    uint32_t package_action, package_scope;
+    char package_name[129], package_version[129], package_digest[65];
 };
 /* Both terminal replies are 48 bytes. EXEC success carries exactly one private
  * PTY master; RESULT carries no fd. exited=0 means running, not exit status 0.
@@ -67,6 +73,26 @@ struct aegis_broker_terminal_reply {
     int32_t wait_status;
     uint32_t exited;
 };
+
+/* Additive package operations keep the lifecycle/terminal v3 frames unchanged.
+ * BEGIN: header + action/scope/nameBytes/versionBytes (4x uint32), then exact
+ * printable ASCII name/version bytes, no NUL/padding. Scope 1=personal, 2=shared.
+ * Other package calls: header + positive job; START additionally carries exactly
+ * 64 lowercase hex digest bytes from the service's retained native review.
+ * Replies: normal 32-byte header, job(uint64), kind(uint32), bytes(uint32), body.
+ * kind 0=receipt, 1=status JSON, 2=complete review JSON. At most 64 KiB total.
+ * No incoming/outgoing descriptors. BEGIN can return a retained job on error;
+ * other responses always echo the same job. No credential or path is transported.
+ */
+#define AEGIS_BROKER_PACKAGE_MAX_REPLY 65536u
+struct aegis_broker_package_reply {
+    uint64_t job;
+    uint32_t kind, bytes;
+    unsigned char data[AEGIS_BROKER_PACKAGE_MAX_REPLY - 48u];
+};
+int aegis_broker_package_operation(unsigned operation);
+int aegis_broker_reply_package(int fd, const struct aegis_broker_request *request,
+                                int error, const struct aegis_broker_package_reply *package);
 
 /* Kernel-supplied UID/GID 1000 AND exact system_server SELinux socket context.
  * Accepted fd must be connected AF_UNIX/SOCK_SEQPACKET. No name-based trust. */

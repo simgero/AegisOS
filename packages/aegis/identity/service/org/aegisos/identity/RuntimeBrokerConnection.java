@@ -19,11 +19,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * One private system-server connection to the forthcoming native resource owner.
+ * One private system-server connection to the native resource owner.
  * No CLI endpoint or authority cache. Caller MUST hold RuntimeAdmission plus
  * current AOSP user/serial/CE authorization across start and publication.
- * Not registered by the current runtime-absent service. Package cancellation,
- * native owner recovery and SELinux/init integration are separate obligations.
+ * All package requests share this connection and its disconnect cleanup.
+ * Fresh AOSP package approval and session ownership remain service duties.
  */
 final class RuntimeBrokerConnection {
     private static final String SOCKET = "/dev/socket/aegis_runtime";
@@ -89,15 +89,28 @@ final class RuntimeBrokerConnection {
         return result.reply;
     }
 
+    /** Errors retain the owned job; the service must register it before leaving admission. */
+    PackageBrokerProtocol.Reply packageCall(int operation, int user, int serial, long job,
+            PackageBrokerProtocol.Intent intent, String digest, long deadlineNanos) {
+        byte[] payload = PackageBrokerProtocol.payload(operation, job, intent, digest);
+        PackageBrokerProtocol.Reply reply = call(operation, user, serial, deadlineNanos, payload, job).packageReply;
+        return reply; // A native error never implicitly abandons a registered job.
+    }
+
     private static final class Exchange {
         final RuntimeBrokerProtocol.Reply reply;
         final ParcelFileDescriptor master;
         final RuntimeBrokerProtocol.StartReply start;
+        final PackageBrokerProtocol.Reply packageReply;
         Exchange(RuntimeBrokerProtocol.Reply reply, ParcelFileDescriptor master) {
             this(reply, master, null);
         }
         Exchange(RuntimeBrokerProtocol.Reply reply, ParcelFileDescriptor master, RuntimeBrokerProtocol.StartReply start) {
-            this.reply = reply; this.master = master; this.start = start;
+            this(reply, master, start, null);
+        }
+        Exchange(RuntimeBrokerProtocol.Reply reply, ParcelFileDescriptor master, RuntimeBrokerProtocol.StartReply start,
+                PackageBrokerProtocol.Reply packageReply) {
+            this.reply = reply; this.master = master; this.start = start; this.packageReply = packageReply;
         }
     }
 
@@ -167,7 +180,9 @@ final class RuntimeBrokerConnection {
         if (sequence == Long.MAX_VALUE) throw new IOException("Runtime sequence exhausted");
         long current = ++sequence;
         byte[] request;
-        if (operation == RuntimeBrokerProtocol.EXEC) {
+        if (PackageBrokerProtocol.operation(operation)) {
+            request = PackageBrokerProtocol.request(operation, current, deadline, user, serial, System.nanoTime(), arguments);
+        } else if (operation == RuntimeBrokerProtocol.EXEC) {
             request = RuntimeBrokerProtocol.execRequest(current, deadline, user, serial, System.nanoTime(), arguments);
         } else if (operation == RuntimeBrokerProtocol.CONTINUE_START) {
             request = RuntimeBrokerProtocol.continueStartRequest(current, deadline, user, serial, System.nanoTime(), command);
@@ -190,7 +205,8 @@ final class RuntimeBrokerConnection {
         await(OsConstants.POLLIN, deadline);
         boolean terminal = operation == RuntimeBrokerProtocol.EXEC || operation == RuntimeBrokerProtocol.RESULT;
         boolean starting = operation == RuntimeBrokerProtocol.START || operation == RuntimeBrokerProtocol.CONTINUE_START;
-        int expected = starting ? RuntimeBrokerProtocol.START_REPLY_SIZE
+        boolean packaging = PackageBrokerProtocol.operation(operation);
+        int expected = packaging ? PackageBrokerProtocol.MAX_REPLY : starting ? RuntimeBrokerProtocol.START_REPLY_SIZE
                 : terminal ? RuntimeBrokerProtocol.TERMINAL_REPLY_SIZE : RuntimeBrokerProtocol.SIZE;
         byte[] bytes = new byte[expected + 1];
         FileDescriptor[] received = null;
@@ -204,7 +220,12 @@ final class RuntimeBrokerConnection {
             remaining(deadline);
             RuntimeBrokerProtocol.Reply reply;
             RuntimeBrokerProtocol.StartReply start = null;
-            if (starting) {
+            PackageBrokerProtocol.Reply packageReply = null;
+            if (packaging) {
+                packageReply = PackageBrokerProtocol.reply(bytes, length, operation, current, user, serial, command, descriptors);
+                reply = new RuntimeBrokerProtocol.Reply(packageReply.error,
+                        packageReply.error == 0 ? RuntimeBrokerProtocol.READY : RuntimeBrokerProtocol.SEALED);
+            } else if (starting) {
                 start = RuntimeBrokerProtocol.startReply(bytes, length, operation, current, user, serial, command, descriptors);
                 reply = new RuntimeBrokerProtocol.Reply(RuntimeBrokerProtocol.startError(bytes),
                         start.ready ? RuntimeBrokerProtocol.READY : RuntimeBrokerProtocol.SEALED);
@@ -231,7 +252,7 @@ final class RuntimeBrokerConnection {
                 Os.fcntlInt(master.getFileDescriptor(), OsConstants.F_SETFD, OsConstants.FD_CLOEXEC);
             }
             remaining(deadline);
-            Exchange result = new Exchange(reply, master, start);
+            Exchange result = new Exchange(reply, master, start, packageReply);
             master = null; // The successful result now owns the duplicate.
             return result;
         } finally {

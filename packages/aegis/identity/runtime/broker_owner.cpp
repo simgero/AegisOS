@@ -1535,6 +1535,18 @@ int BrokerCancelConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32
     }
     return fail(ENOENT);
 }
+int BrokerReviewConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                    uint64_t job,uint64_t deadline,PackageBoundPlan* output) {
+    auto* slot=find_planning(owner,user,serial,job);if(!slot)return -1;
+    if(!slot->configured)return fail(EPERM);
+    return BrokerReviewPlanning(owner,user,serial,job,deadline,output);
+}
+int BrokerStartConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                   uint64_t job,const std::string& digest,uint64_t deadline) {
+    auto* slot=find_execution(owner,user,serial,job,digest);if(!slot)return -1;
+    if(!slot->configured_intent)return fail(EPERM);
+    return BrokerStartExecution(owner,user,serial,job,digest,deadline);
+}
 } // namespace aegis
 
 int aegis_broker_owner_start(aegis_broker_owner* owner,const aegis_broker_call* call,

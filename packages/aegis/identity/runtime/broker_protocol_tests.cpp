@@ -345,3 +345,111 @@ TEST(RuntimeBrokerStartup, PendingAndErrorsCannotLoseOrInventOwnedSelection) {
     ASSERT_EQ(ssize_t(40),aegis_receive(pair.fd[1],&reply,sizeof(reply),&received));
     EXPECT_EQ(0u,reply.job);EXPECT_EQ(ESTALE,reply.header.error);EXPECT_EQ(AEGIS_BROKER_SEALED,reply.header.state);
 }
+
+namespace {
+std::vector<unsigned char> package_begin() {
+    // Also pinned literally by PackageBrokerProtocolTest on Android/Java.
+    return {0x41,0x47,0x52,0x42,3,0,8,0,2,0,0,0,0,0,0,0,
+        0x64,0xca,0x9a,0x3b,0,0,0,0,10,0,0,0,0xd2,4,0,0,
+        1,0,0,0,2,0,0,0,4,0,0,0,3,0,0,0,'b','a','s','h','5','.','2'};
+}
+std::vector<unsigned char> package_job(unsigned op,uint64_t job=44) {
+    auto h=start();h.operation=op;
+    std::vector<unsigned char> packet(op==AEGIS_BROKER_PACKAGE_START?104:40,'a');
+    memcpy(packet.data(),&h,32);memcpy(packet.data()+32,&job,8);return packet;
+}
+}
+TEST(RuntimeBrokerPackage, BeginGoldenOwnsIntentWithoutCallerIdentityOrSourcePayload) {
+    auto data=package_begin();aegis_broker_call call={};
+    ASSERT_EQ(0,aegis_broker_decode(data.data(),data.size(),1,100,&call));
+    EXPECT_EQ(AEGIS_BROKER_PACKAGE_BEGIN,call.request.operation);
+    EXPECT_EQ(1u,call.package_action);EXPECT_EQ(2u,call.package_scope);
+    EXPECT_EQ(0u,call.command);EXPECT_EQ(0u,call.argc);
+    memset(data.data(),0,data.size());
+    EXPECT_STREQ("bash",call.package_name);EXPECT_STREQ("5.2",call.package_version);
+}
+TEST(RuntimeBrokerPackage, BeginRejectsLengthsControlsEnumsAndTrailingDataWithoutOutput) {
+    aegis_broker_call output,before;memset(&output,0xa5,sizeof(output));before=output;
+    for(unsigned variation=0;variation<10;variation++) {
+        auto p=package_begin();
+        if(variation==0)p[32]=0;
+        if(variation==1)p[32]=4;
+        if(variation==2)p[36]=0;
+        if(variation==3)p[36]=3;
+        if(variation==4)p[40]=129;
+        if(variation==5)p[44]=129;
+        if(variation==6)p[49]=0;
+        if(variation==7)p[49]='\n';
+        if(variation==8)p.resize(47);
+        if(variation==9)p.push_back(0);
+        EXPECT_EQ(-1,aegis_broker_decode(p.data(),p.size(),1,100,&output));
+        EXPECT_EQ(EPROTO,errno);EXPECT_EQ(0,memcmp(&output,&before,sizeof(output)));
+    }
+}
+TEST(RuntimeBrokerPackage, EveryContinuationRequiresSamePositiveBoundedJobAndExactPayload) {
+    for(unsigned op=AEGIS_BROKER_PACKAGE_PLAN;op<=AEGIS_BROKER_PACKAGE_CANCEL;op++) {
+        auto data=package_job(op);aegis_broker_call call={};
+        ASSERT_EQ(0,aegis_broker_decode(data.data(),data.size(),1,100,&call));EXPECT_EQ(44u,call.command);
+        if(op==AEGIS_BROKER_PACKAGE_START)EXPECT_EQ(std::string(64,'a'),call.package_digest);
+        for(uint64_t job:{UINT64_C(0),UINT64_C(1)<<63,UINT64_MAX}) {
+            auto invalid=package_job(op,job);
+            EXPECT_EQ(-1,aegis_broker_decode(invalid.data(),invalid.size(),1,100,&call));
+        }
+        EXPECT_EQ(-1,aegis_broker_decode(data.data(),data.size()-1,1,100,&call));
+        data.push_back(0);EXPECT_EQ(-1,aegis_broker_decode(data.data(),data.size(),1,100,&call));
+    }
+    auto data=package_job(AEGIS_BROKER_PACKAGE_START);aegis_broker_call call={};
+    for(unsigned char bad:{'A','g','/',char(0)}) {
+        data[40]=bad;EXPECT_EQ(-1,aegis_broker_decode(data.data(),data.size(),1,100,&call));
+    }
+}
+TEST(RuntimeBrokerPackage, PackageExtensionCannotBypassHandshakeIdentitySequenceOrDeadline) {
+    auto p=package_begin();aegis_broker_call call={};
+    EXPECT_EQ(-1,aegis_broker_decode(p.data(),p.size(),0,100,&call));
+    EXPECT_EQ(-1,aegis_broker_decode(p.data(),p.size(),2,100,&call));
+    EXPECT_EQ(-1,aegis_broker_decode(p.data(),p.size(),1,1000000100,&call));
+    p[24]=0;EXPECT_EQ(-1,aegis_broker_decode(p.data(),p.size(),1,100,&call));
+    p=package_begin();p[6]=15;EXPECT_EQ(-1,aegis_broker_decode(p.data(),p.size(),1,100,&call));
+}
+TEST(RuntimeBrokerPackage, ErrorReceiptRetainsPartialBeginOwnershipAndContinuationIdentity) {
+    Pair pair;ASSERT_EQ(0,socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair.fd));
+    auto h=start();h.operation=AEGIS_BROKER_PACKAGE_BEGIN;
+    aegis_broker_package_reply p={};p.job=44;
+    ASSERT_EQ(0,aegis_broker_reply_package(pair.fd[0],&h,EIO,&p));
+    unsigned char bytes[49]={};ASSERT_EQ(48,recv(pair.fd[1],bytes,sizeof(bytes),MSG_DONTWAIT));
+    aegis_broker_reply header;memcpy(&header,bytes,32);
+    EXPECT_EQ(EIO,header.error);EXPECT_EQ(AEGIS_BROKER_SEALED,header.state);EXPECT_EQ(h.sequence,header.sequence);
+    uint64_t job;memcpy(&job,bytes+32,8);EXPECT_EQ(44u,job);
+    p.job=0;EXPECT_EQ(-1,aegis_broker_reply_package(pair.fd[0],&h,0,&p));
+    h.operation=AEGIS_BROKER_PACKAGE_CANCEL;
+    EXPECT_EQ(-1,aegis_broker_reply_package(pair.fd[0],&h,EIO,&p));
+    p.job=44;EXPECT_EQ(0,aegis_broker_reply_package(pair.fd[0],&h,EIO,&p));
+}
+TEST(RuntimeBrokerPackage, MetadataReplyHasStrictKindAndOneBoundedPacketWithoutDescriptors) {
+    Pair pair;ASSERT_EQ(0,socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair.fd));
+    auto h=start();h.operation=AEGIS_BROKER_PACKAGE_REVIEW;
+    aegis_broker_package_reply p={};p.job=44;p.kind=2;p.bytes=sizeof(p.data);memset(p.data,'x',p.bytes);
+    ASSERT_EQ(0,aegis_broker_reply_package(pair.fd[0],&h,0,&p));
+    std::vector<unsigned char> bytes(AEGIS_BROKER_PACKAGE_MAX_REPLY+1);
+    char ancillary[CMSG_SPACE(sizeof(int))]={};iovec io={bytes.data(),bytes.size()};msghdr message={};
+    message.msg_iov=&io;message.msg_iovlen=1;message.msg_control=ancillary;message.msg_controllen=sizeof(ancillary);
+    ASSERT_EQ(AEGIS_BROKER_PACKAGE_MAX_REPLY,recvmsg(pair.fd[1],&message,MSG_DONTWAIT));
+    EXPECT_EQ(nullptr,CMSG_FIRSTHDR(&message));EXPECT_EQ(0,message.msg_flags&(MSG_TRUNC|MSG_CTRUNC));
+    p.bytes++;EXPECT_EQ(-1,aegis_broker_reply_package(pair.fd[0],&h,0,&p));p.bytes=1;
+    EXPECT_EQ(-1,aegis_broker_reply_package(pair.fd[0],&h,EIO,&p));
+    p.kind=1;EXPECT_EQ(-1,aegis_broker_reply_package(pair.fd[0],&h,0,&p));
+    p.kind=2;p.bytes=0;EXPECT_EQ(-1,aegis_broker_reply_package(pair.fd[0],&h,0,&p));
+}
+TEST(RuntimeBrokerPackage, PackageCannotSupplyFileDescriptorsAndRejectedRightsAreClosed) {
+    Pair pair;ASSERT_EQ(0,socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair.fd));
+    auto packet=package_begin();int original=open("/dev/null",O_RDONLY|O_CLOEXEC);ASSERT_GE(original,0);
+    int before=open_fds();ASSERT_GT(before,0);
+    union { cmsghdr align;char bytes[CMSG_SPACE(sizeof(int))]; } control={};
+    iovec io={packet.data(),packet.size()};msghdr m={};m.msg_iov=&io;m.msg_iovlen=1;
+    m.msg_control=control.bytes;m.msg_controllen=sizeof(control.bytes);
+    auto* c=CMSG_FIRSTHDR(&m);c->cmsg_level=SOL_SOCKET;c->cmsg_type=SCM_RIGHTS;c->cmsg_len=CMSG_LEN(sizeof(int));
+    memcpy(CMSG_DATA(c),&original,sizeof(int));
+    ASSERT_EQ(static_cast<ssize_t>(packet.size()),sendmsg(pair.fd[1],&m,MSG_NOSIGNAL));
+    aegis_broker_call call={};EXPECT_EQ(-1,aegis_broker_receive_call(pair.fd[0],1,100,&call));
+    EXPECT_EQ(EPROTO,errno);EXPECT_EQ(before,open_fds());close(original);
+}

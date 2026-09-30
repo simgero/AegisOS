@@ -80,6 +80,15 @@ int aegis_broker_owner_result(struct aegis_broker_owner *owner,
                               const struct aegis_broker_request *request,
                               uint64_t command, int *wait_status, int *exited);
 
+/* Package frames from the already authenticated and decoded system_server
+ * connection. Caller holds fresh AOSP requester/session/CE admission; START
+ * additionally requires fresh AOSP admin approval for its retained review.
+ * Partial registration returns an owned job even on failure. No FD escapes.
+ */
+int aegis_broker_owner_package(struct aegis_broker_owner *owner,
+                                const struct aegis_broker_call *call,
+                                struct aegis_broker_package_reply *output);
+
 /* Nonblocking housekeeping of owned publication children; never authenticates
  * a caller or confirms CE eviction. Incomplete cleanup remains owned. */
 int aegis_broker_owner_reap_publications(struct aegis_broker_owner *owner);

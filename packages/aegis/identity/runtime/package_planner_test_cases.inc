@@ -887,7 +887,13 @@ TEST_F(RuntimePackagePlanning, ConfiguredStatusRejectsInternalJobsAndWrongOwnerW
 TEST_F(RuntimePackagePlanning, ConfiguredSelectionHasOnePhaseIndependentCancellationIdentity) {
     CreateOwner();ASSERT_FALSE(HasFatalFailure());ConfigureOwner(false);ASSERT_FALSE(HasFatalFailure());
     int before=descriptors();aegis::PackageIntent intent;intent.package="aegis-probe-app";intent.version="2";
-    uint64_t job=0;ASSERT_EQ(0,aegis::BrokerBeginConfiguredPackage(owner,10,1234,intent,Deadline(),&job));
+    aegis_broker_call call={};call.request.operation=AEGIS_BROKER_PACKAGE_BEGIN;
+    call.request.user=10;call.request.serial=1234;call.request.deadline_ns=Deadline();
+    call.package_action=1;call.package_scope=2;
+    strcpy(call.package_name,intent.package.c_str());strcpy(call.package_version,intent.version.c_str());
+    aegis_broker_package_reply wire={};
+    ASSERT_EQ(0,aegis_broker_owner_package(owner,&call,&wire));
+    const uint64_t job=wire.job;ASSERT_NE(0u,job);EXPECT_EQ(0u,wire.kind);EXPECT_EQ(0u,wire.bytes);
     aegis::ConfiguredPackageStatus status;status.plan_sha256="untouched";
     EXPECT_EQ(-1,aegis::BrokerPollConfiguredPackage(owner,10,1235,job,&status));EXPECT_EQ(ESTALE,errno);
     EXPECT_EQ("untouched",status.plan_sha256);
@@ -896,7 +902,16 @@ TEST_F(RuntimePackagePlanning, ConfiguredSelectionHasOnePhaseIndependentCancella
     EXPECT_TRUE(status.phase==aegis::ConfiguredPackagePhase::Selecting || status.phase==aegis::ConfiguredPackagePhase::Selected);
     EXPECT_EQ(intent.package,status.intent.package);EXPECT_EQ(intent.version,status.intent.version);
     EXPECT_FALSE(status.intent.personal);EXPECT_TRUE(status.plan_sha256.empty());
-    ASSERT_EQ(0,aegis::BrokerCancelConfiguredPackage(owner,10,1234,job,Deadline()));
+    call.command=job;call.request.operation=AEGIS_BROKER_PACKAGE_STATUS;
+    ASSERT_EQ(0,aegis_broker_owner_package(owner,&call,&wire));EXPECT_EQ(job,wire.job);EXPECT_EQ(1u,wire.kind);
+    Json::CharReaderBuilder builder;std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+    Json::Value metadata;std::string errors;const char* body=reinterpret_cast<const char*>(wire.data);
+    ASSERT_TRUE(reader->parse(body,body+wire.bytes,&metadata,&errors));
+    EXPECT_EQ(intent.package,metadata["package"].asString());EXPECT_EQ(intent.version,metadata["version"].asString());
+    EXPECT_EQ(2,metadata["scope"].asInt());EXPECT_TRUE(metadata["generation"]["image"].asString().empty());
+    call.request.operation=AEGIS_BROKER_PACKAGE_CANCEL;call.request.deadline_ns=Deadline();
+    ASSERT_EQ(0,aegis_broker_owner_package(owner,&call,&wire));
+    EXPECT_EQ(job,wire.job);EXPECT_EQ(0u,wire.kind);EXPECT_EQ(0u,wire.bytes);
     EXPECT_EQ(before,descriptors());
     EXPECT_EQ(-1,aegis::BrokerPollConfiguredPackage(owner,10,1234,job,&status));EXPECT_EQ(ENOENT,errno);
     EXPECT_EQ(-1,aegis::BrokerCancelConfiguredPackage(owner,10,1234,job,Deadline()));EXPECT_EQ(ENOENT,errno);
@@ -906,6 +921,22 @@ TEST_F(RuntimePackagePlanning, ConfiguredStatusPreservesReviewedIntentAcrossPrep
     ConfigureInstallation();ASSERT_FALSE(HasFatalFailure());
     aegis::PackageIntent intent;intent.package="aegis-probe-app";intent.version="2";
     uint64_t job=0;aegis::PackageBoundPlan bound;ConfiguredReview(intent,&job,&bound);ASSERT_FALSE(HasFatalFailure());
+    aegis_broker_call call={};call.request.operation=AEGIS_BROKER_PACKAGE_REVIEW;
+    call.request.user=10;call.request.serial=1234;call.request.deadline_ns=Deadline();call.command=job;
+    aegis_broker_package_reply wire={};ASSERT_EQ(0,aegis_broker_owner_package(owner,&call,&wire));
+    EXPECT_EQ(job,wire.job);EXPECT_EQ(2u,wire.kind);
+    Json::CharReaderBuilder builder;std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+    Json::Value metadata;std::string errors;const char* body=reinterpret_cast<const char*>(wire.data);
+    ASSERT_TRUE(reader->parse(body,body+wire.bytes,&metadata,&errors));
+    EXPECT_EQ(bound.preparation.execution.plan_sha256,metadata["digest"].asString());
+    EXPECT_EQ(bound.valid_until_unix,metadata["validUntil"].asUInt64());
+    EXPECT_EQ(bound.reviewed.changes.size(),metadata["changes"].size());
+    for(unsigned i=0;i<metadata["changes"].size();i++) {
+        const auto& original=bound.reviewed.changes[i];const auto& change=metadata["changes"][i];
+        EXPECT_EQ(original.name,change["name"].asString());EXPECT_EQ(original.architecture,change["architecture"].asString());
+        EXPECT_EQ(original.before_version,change["before"].asString());EXPECT_EQ(original.after_version,change["after"].asString());
+        EXPECT_EQ(static_cast<unsigned>(original.reason),change["reason"].asUInt());
+    }
     aegis::ConfiguredPackageStatus status;
     ASSERT_EQ(0,aegis::BrokerPollConfiguredPackage(owner,10,1234,job,&status));
     EXPECT_EQ(aegis::ConfiguredPackagePhase::Reviewed,status.phase);

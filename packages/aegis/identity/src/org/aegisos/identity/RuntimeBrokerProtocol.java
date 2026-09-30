@@ -19,7 +19,7 @@ final class RuntimeBrokerProtocol {
     private RuntimeBrokerProtocol() {}
 
     static void identity(int operation, int user, int serial) {
-        if (operation < HELLO || operation > CONTINUE_START || serial < 0
+        if (operation < HELLO || operation > PackageBrokerProtocol.CANCEL || serial < 0
                 || (operation == HELLO ? user != 0 || serial != 0 : user < 10 || user >= 21473)
                 || (operation == STOP_USER && serial != 0)) {
             throw new IllegalArgumentException("Invalid internal runtime request");
@@ -31,7 +31,7 @@ final class RuntimeBrokerProtocol {
         return header(operation, sequence, deadline, user, serial, now, SIZE).array();
     }
 
-    private static ByteBuffer header(int operation, long sequence, long deadline, int user, int serial,
+    static ByteBuffer header(int operation, long sequence, long deadline, int user, int serial,
             long now, int size) {
         identity(operation, user, serial);
         if (sequence <= 0 || deadline <= now || now < 0 || deadline - now > MAX_WAIT_NANOS) {
@@ -138,7 +138,7 @@ final class RuntimeBrokerProtocol {
         return parse(bytes, length, operation, sequence, user, serial, SIZE);
     }
 
-    private static Reply parse(byte[] bytes, int length, int operation, long sequence, int user, int serial,
+    static Reply parse(byte[] bytes, int length, int operation, long sequence, int user, int serial,
             int size) {
         identity(operation, user, serial);
         if (bytes == null || length != size || bytes.length < size || sequence <= 0) {
@@ -152,7 +152,7 @@ final class RuntimeBrokerProtocol {
         int error = reply.getInt(), state = reply.getInt();
         if (error < 0 || error > 4095 || state < ABSENT || state > SEALED
                 || (error != 0 && state != SEALED)
-                || (error == 0 && (operation == START || operation == CONTINUE_START || operation == EXEC || operation == RESULT) && state != READY)
+                || (error == 0 && (operation == START || operation == CONTINUE_START || operation == EXEC || operation == RESULT || PackageBrokerProtocol.operation(operation)) && state != READY)
                 || (error == 0 && (operation == HELLO || operation == STOP_USER) && state != ABSENT)) {
             throw new IllegalArgumentException("Invalid internal runtime completion state");
         }
