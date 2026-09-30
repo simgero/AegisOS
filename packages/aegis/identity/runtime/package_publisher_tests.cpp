@@ -237,7 +237,7 @@ TEST_F(RuntimePackagePublisher, CancelDuringObservedCopyReapsChildAndRetainsOldS
     unique_fd notify(inotify_init1(IN_CLOEXEC|IN_NONBLOCK));ASSERT_TRUE(notify.ok());
     ASSERT_GE(inotify_add_watch(notify.get(),(path+"/store").c_str(),IN_MODIFY),0);
     ASSERT_EQ(0,Start()) << strerror(errno);
-    unique_fd group(openat(parent.get(),"u10-s42",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(group.ok());
+    unique_fd group(openat(parent.get(),"p10-s42",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(group.ok());
     pollfd ready{notify.get(),POLLIN,0};ASSERT_EQ(1,poll(&ready,1,5000));
     // Freeze this exclusively owned test cgroup after a real file modification.
     // Verify an incomplete copied file before testing forced cancellation.
@@ -350,7 +350,7 @@ TEST_F(RuntimePackageBroker, PreparationOwnsItsFdsAndIdleReapingClosesThem) {
     for(int i=0;i<5000;++i) {
         ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
         struct stat st={};
-        if(fstatat(parent.get(),"u10-s42",&st,AT_SYMLINK_NOFOLLOW)<0&&errno==ENOENT) { removed=true;break; }
+        if(fstatat(parent.get(),"p10-s42",&st,AT_SYMLINK_NOFOLLOW)<0&&errno==ENOENT) { removed=true;break; }
         usleep(1000);
     }
     ASSERT_TRUE(removed);
@@ -376,7 +376,7 @@ TEST_F(RuntimePackageBroker, FailedStartKeepsPartialOwnershipAndBlocksAdmissionU
 TEST_F(RuntimePackageBroker, UserStopReapsPublicationWithoutCancellingOtherUsersPreparation) {
     uint64_t a=0,b=0;ASSERT_EQ(0,Prepare(&a,10));ASSERT_EQ(0,Run(a,10));ASSERT_EQ(0,Prepare(&b,11));
     aegis_broker_state state;ASSERT_EQ(0,Apply(AEGIS_BROKER_STOP_USER,10,0,&state));EXPECT_EQ(AEGIS_BROKER_ABSENT,state);
-    struct stat st={};EXPECT_EQ(-1,fstatat(parent.get(),"u10-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    struct stat st={};EXPECT_EQ(-1,fstatat(parent.get(),"p10-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
     PublicationState phase=PublicationState::Complete;PackagePublicationResult result;
     ASSERT_EQ(0,BrokerPollPublication(broker,11,42,b,request.plan_sha256,&phase,&result));
     EXPECT_EQ(PublicationState::Prepared,phase);
@@ -397,7 +397,7 @@ TEST_F(RuntimePackageBroker, CleanupFaultRetainsItsOwnerButDoesNotAbandonOtherJo
     ASSERT_EQ(0,Prepare(&b,11));ASSERT_EQ(0,Run(b,11));
     // cgroup v2 forbids rename. Fault only the first owned test group's GID;
     // its retained inode/pidfd must remain tracked while the second is reaped.
-    fault_group.reset(openat(parent.get(),"u10-s42",O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW));
+    fault_group.reset(openat(parent.get(),"p10-s42",O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW));
     ASSERT_TRUE(fault_group.ok());struct stat original={};ASSERT_EQ(0,fstat(fault_group.get(),&original));
     ASSERT_EQ(0u,original.st_uid);ASSERT_EQ(0u,original.st_gid);
     ASSERT_EQ(0,fchown(fault_group.get(),0,1)) << strerror(errno);ownership_fault=true;
@@ -409,16 +409,16 @@ TEST_F(RuntimePackageBroker, CleanupFaultRetainsItsOwnerButDoesNotAbandonOtherJo
     // If it retained an in-flight kill, finish that same handle, without a new job.
     for(int i=0;i<5000;++i) {
         struct stat st={};
-        if(fstatat(parent.get(),"u11-s42",&st,AT_SYMLINK_NOFOLLOW)<0&&errno==ENOENT)break;
+        if(fstatat(parent.get(),"p11-s42",&st,AT_SYMLINK_NOFOLLOW)<0&&errno==ENOENT)break;
         (void)aegis_broker_owner_reap_publications(broker);
         usleep(1000);
     }
-    struct stat st={};EXPECT_EQ(-1,fstatat(parent.get(),"u11-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
-    ASSERT_EQ(0,fstatat(parent.get(),"u10-s42",&st,AT_SYMLINK_NOFOLLOW));
+    struct stat st={};EXPECT_EQ(-1,fstatat(parent.get(),"p11-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    ASSERT_EQ(0,fstatat(parent.get(),"p10-s42",&st,AT_SYMLINK_NOFOLLOW));
     EXPECT_EQ(original.st_ino,st.st_ino);EXPECT_EQ(original.st_dev,st.st_dev);EXPECT_EQ(1u,st.st_gid);
     ASSERT_EQ(0,fchown(fault_group.get(),0,0));ownership_fault=false;fault_group.reset();
     ASSERT_EQ(0,aegis_broker_owner_stop_all(broker,Deadline()));
-    EXPECT_EQ(-1,fstatat(parent.get(),"u10-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    EXPECT_EQ(-1,fstatat(parent.get(),"p10-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
 }
 TEST_F(RuntimePackageBroker, PreparationsAreBoundedAndForkCannotUseTheOwnersJobs) {
     int baseline=Descriptors();uint64_t first=0;

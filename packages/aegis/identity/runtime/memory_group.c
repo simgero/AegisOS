@@ -127,8 +127,8 @@ static int populated(int directory) {
     return found >= 0 ? found : reject(EPROTO);
 }
 
-int aegis_memory_group_create(int parent_fd, uint32_t user, uint32_t serial,
-                              struct aegis_memory_group **output) {
+static int create(int parent_fd, uint32_t user, uint32_t serial,
+                  struct aegis_memory_group **output, char purpose) {
     if (!output || *output || user < 10 || user >= 21473 || serial > INT32_MAX)
         return reject(EINVAL);
     if (getuid() || geteuid() || getgid() || getegid()) return reject(EPERM);
@@ -141,7 +141,7 @@ int aegis_memory_group_create(int parent_fd, uint32_t user, uint32_t serial,
     group->serial = serial;
     group->directory = group->procs = -1;
     group->parent = fcntl(parent_fd, F_DUPFD_CLOEXEC, 4);
-    snprintf(group->name, sizeof(group->name), "u%u-s%u", user, serial);
+    snprintf(group->name, sizeof(group->name), "%c%u-s%u", purpose, user, serial);
     if (group->parent < 0 || mkdirat(group->parent, group->name, 0700) < 0) {
         int saved = errno;
         if (group->parent >= 0) close(group->parent);
@@ -179,6 +179,15 @@ int aegis_memory_group_create(int parent_fd, uint32_t user, uint32_t serial,
     if (private_directory(group->directory) < 0 || limits_match(group->directory) < 0) return -1;
     group->ready = 1;
     return 0;
+}
+
+int aegis_memory_group_create(int parent_fd, uint32_t user, uint32_t serial,
+                              struct aegis_memory_group **output) {
+    return create(parent_fd,user,serial,output,'u');
+}
+int aegis_memory_group_create_package(int parent_fd, uint32_t user, uint32_t serial,
+                                      struct aegis_memory_group **output) {
+    return create(parent_fd,user,serial,output,'p');
 }
 
 int aegis_memory_group_claim(struct aegis_memory_group *group, uint32_t user, uint32_t serial) {

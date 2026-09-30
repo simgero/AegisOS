@@ -60,7 +60,7 @@ int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,
     if(!p->selected.ok()||!p->sources.ok()||!p->key.ok()||!p->ca.ok())return -1;
     int pair[2];if(socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair)<0)return -1;
     p->channel.reset(pair[0]);unique_fd child(pair[1]);
-    if(aegis_memory_group_create(groups,plan.requester,plan.serial,&p->group)<0
+    if(aegis_memory_group_create_package(groups,plan.requester,plan.serial,&p->group)<0
        ||aegis_namespace_create_limited(plan.requester,plan.serial,helper,child.get(),p->group,&p->context)<0)return -1;
     p->spawned=true;child.reset();int left=Left(deadline);if(left<=0)return Fail(ETIMEDOUT);
     if(aegis_namespace_prepare_package_for(p->context,left)<0)return -1;

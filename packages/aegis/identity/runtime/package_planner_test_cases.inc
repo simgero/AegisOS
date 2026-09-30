@@ -48,7 +48,7 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
         Fd prepare(Program("aegis-package-prepare"));ASSERT_TRUE(prepare.ok());
         aegis::PackageRuntimeSelection selection;selection.requester=request.requester;selection.serial=request.serial;
         selection.factory={image->original.bytes,image->original.sha256};uint64_t selected_job=0;
-        ASSERT_EQ(0,aegis::BrokerPrepareRuntimeSelection(owner,selection,parent.get(),-1,-1,factory.get(),prepare.get(),Deadline(),&selected_job));
+        ASSERT_EQ(0,aegis::BrokerPreparePackageSelection(owner,selection,request.personal,parent.get(),-1,-1,factory.get(),prepare.get(),Deadline(),&selected_job));
         for(int i=0;i<200;++i) {
             if(aegis::BrokerStartPlanningFromSelection(owner,request,selected_job,parent.get(),source,sources.get(),key.get(),helper.get(),Deadline(),job)==0)break;
             ASSERT_EQ(EAGAIN,errno);ASSERT_EQ(0u,*job);usleep(50000);
@@ -201,7 +201,7 @@ TEST_F(RuntimePackagePlanning, VerifiedSelectionTransfersDirectlyIntoSamePlannin
     Fd prepare(open(program.c_str(),O_RDONLY|O_CLOEXEC));ASSERT_TRUE(prepare.ok());
     aegis::PackageRuntimeSelection selection;selection.requester=10;selection.serial=1234;
     selection.factory={image->original.bytes,image->original.sha256};uint64_t selected_job=0,job=0;
-    ASSERT_EQ(0,aegis::BrokerPrepareRuntimeSelection(owner,selection,parent.get(),-1,-1,factory.get(),prepare.get(),Deadline(),&selected_job));
+    ASSERT_EQ(0,aegis::BrokerPreparePackageSelection(owner,selection,request.personal,parent.get(),-1,-1,factory.get(),prepare.get(),Deadline(),&selected_job));
     int started=-1;
     for(int i=0;i<200;++i) {
         started=aegis::BrokerStartPlanningFromSelection(owner,request,selected_job,parent.get(),source,sources.get(),key.get(),helper.get(),Deadline(),&job);
@@ -375,4 +375,41 @@ TEST_F(RuntimePackagePlanning, OnlineRejectsUntrustedTlsAuthority) {
     ASSERT_EQ(0,finished);EXPECT_EQ(-1,fd);EXPECT_EQ(aegis::PackagePlanningResult::Outcome::Failed,result.outcome);
     EXPECT_EQ(aegis::PackageResolverResult::Phase::Update,result.phase);EXPECT_EQ(100,result.status);
     EXPECT_NE(std::string::npos,result.diagnostic.find("certificate"))<<result.diagnostic;
+}
+
+TEST_F(RuntimePackagePlanning, RuntimeSelectionAndPackageScopeCannotBeRepurposedByPlanning) {
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());
+    Fd factory(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC));ASSERT_TRUE(factory.ok());
+    Fd prepare(Program("aegis-package-prepare"));ASSERT_TRUE(prepare.ok());
+    aegis::PackageRuntimeSelection selection;selection.requester=10;selection.serial=1234;
+    selection.factory={image->original.bytes,image->original.sha256};uint64_t selected_job=0,job=0;
+    ASSERT_EQ(0,aegis::BrokerPrepareRuntimeSelection(owner,selection,parent.get(),-1,-1,factory.get(),prepare.get(),Deadline(),&selected_job));
+    EXPECT_EQ(-1,aegis::BrokerStartPlanningFromSelection(owner,request,selected_job,parent.get(),source,sources.get(),key.get(),helper.get(),Deadline(),&job));
+    EXPECT_EQ(EPERM,errno);EXPECT_EQ(0u,job);
+    ASSERT_EQ(0,aegis_broker_owner_stop_all(owner,Deadline()));selected_job=0;
+    EXPECT_EQ(-1,aegis::BrokerPreparePackageSelection(owner,selection,false,parent.get(),-1,selected.get(),factory.get(),prepare.get(),Deadline(),&selected_job));
+    EXPECT_EQ(EINVAL,errno);EXPECT_EQ(0u,selected_job);
+    ASSERT_EQ(0,aegis::BrokerPreparePackageSelection(owner,selection,true,parent.get(),-1,-1,factory.get(),prepare.get(),Deadline(),&selected_job));
+    // Scope is bound even when the private store is absent and the selected
+    // content would otherwise be identical to the shared factory generation.
+    request.personal=false;
+    EXPECT_EQ(-1,aegis::BrokerStartPlanningFromSelection(owner,request,selected_job,parent.get(),source,sources.get(),key.get(),helper.get(),Deadline(),&job));
+    EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
+    ASSERT_EQ(0,aegis::BrokerCancelPackageSelection(owner,10,1234,selected_job,Deadline()));
+}
+TEST_F(RuntimePackagePlanning, SelectionAndPlannerPreserveAnExistingRuntimeNamespaceForTheSameUser) {
+    // An actual inert namespace in the runtime leaf, no AOSP CE/users changed.
+    ASSERT_EQ(0,aegis_memory_group_create(parent.get(),10,1234,&group));
+    int pair[2];ASSERT_EQ(0,socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair));
+    peers[0]=pair[0];Fd peer(pair[1]);
+    ASSERT_EQ(0,aegis_namespace_create_limited(10,1234,setup,peer.get(),group,&contexts[0]));peer.reset();
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());uint64_t job=0;
+    SelectOwner(&job);ASSERT_FALSE(HasFatalFailure());Collected(job);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,aegis::BrokerCancelPlanning(owner,10,1234,job,Deadline()));
+    EXPECT_NE(std::string::npos,Read(parent.get(),"u10-s1234/cgroup.events").find("populated 1\n"));
+    EXPECT_EQ("1073741824\n",Read(parent.get(),"u10-s1234/memory.max"));
+    struct stat absent;EXPECT_EQ(-1,fstatat(parent.get(),"p10-s1234",&absent,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    ASSERT_EQ(0,aegis_namespace_stop(contexts[0]));aegis_child_exit exited={};
+    ASSERT_EQ(0,aegis_namespace_wait(contexts[0],5000,&exited));
+    EXPECT_EQ(CLD_KILLED,exited.code);EXPECT_EQ(SIGKILL,exited.status);
 }

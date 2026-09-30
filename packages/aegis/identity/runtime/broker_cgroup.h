@@ -18,7 +18,8 @@ int aegis_broker_cgroup_open_delegation(int root, int *entry);
 /* Startup-only, while holding the exclusive broker lock and before listening.
  * Validated private delegation FD; never supplied by a client. Creates/validates the
  * fixed private parent, kills predecessor members, proves populated=0, removes
- * only canonical personal child groups, then configures aggregate limits.
+ * only canonical runtime (u...) and package (p...) child groups, then configures
+ * aggregate limits shared by both purposes (16 leaves and 2 GiB in total).
  * Does NOT change controllers at the shared Android root or move the broker.
  * Returns an owned directory FD. Failure never authorizes HELLO/CE eviction.
  * Runtime child pidfd reaping is handled separately by the live context owner.

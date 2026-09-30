@@ -457,7 +457,8 @@ TEST_F(RuntimeBrokerCgroup, StaleMembersAreKilledAndRemovedWithoutTouchingAnothe
 TEST_F(RuntimeBrokerCgroup, ForeignOrNonCanonicalNamesArePreservedBeforeAnyMutation) {
     prepare(); ASSERT_FALSE(HasFatalFailure());
     for (const char* name : {"foreign", "u9-s1", "u21473-s1", "u010-s1", "u10-s01",
-                             "u10-s2147483648", "u+10-s1", "u4294967306-s1", "u10-s"}) {
+                             "u10-s2147483648", "u+10-s1", "u4294967306-s1", "u10-s",
+                             "p9-s1", "p010-s1", "p10-s01", "p10-s2147483648", "p21473-s1", "p10-s"}) {
         int foreign = child(name);
         ASSERT_GE(foreign, 0); close(foreign);
         // If validation fails, even the aggregate limits remain untouched.
@@ -874,6 +875,39 @@ TEST_F(RuntimeMemoryGroup, NamespaceIsAlreadyBoundedWhileExecGateIsClosed) {
     aegis_child_exit result = {};
     ASSERT_EQ(0, aegis_namespace_wait(context, 5000, &result));
     EXPECT_EQ(CLD_KILLED, result.code); EXPECT_EQ(SIGKILL, result.status);
+}
+
+
+TEST_F(RuntimeMemoryGroup, PackageCancellationPreservesLiveRuntimeOfTheSameIdentity) {
+    ASSERT_EQ(0,make(0,10));ASSERT_EQ(0,spawn(0,10));
+    ASSERT_EQ(0,aegis_memory_group_create_package(parent,10,1234,&groups[1]));
+    ASSERT_EQ(0,spawn(1,10));
+    aegis_memory_group* duplicate=nullptr;
+    EXPECT_EQ(-1,aegis_memory_group_create_package(parent,10,1234,&duplicate));
+    EXPECT_EQ(EEXIST,errno);EXPECT_EQ(nullptr,duplicate);
+    EXPECT_EQ(-1,aegis_memory_group_claim_companion(groups[1],10,1235));EXPECT_EQ(ESTALE,errno);
+    ASSERT_EQ(0,aegis_memory_group_kill_and_wait(groups[1],5000));
+    ASSERT_EQ(0,aegis_memory_group_remove(&groups[1]));
+    pollfd package={pidfds[1],POLLIN,0},runtime={pidfds[0],POLLIN,0};
+    ASSERT_EQ(1,poll(&package,1,5000));EXPECT_EQ(0,poll(&runtime,1,0));
+    siginfo_t info={};ASSERT_EQ(0,waitid(P_PIDFD,static_cast<id_t>(pidfds[1]),&info,WEXITED|WNOHANG));
+    EXPECT_EQ(CLD_KILLED,info.si_code);EXPECT_EQ(SIGKILL,info.si_status);
+    close(pidfds[1]);pidfds[1]=-1;
+    EXPECT_NE(std::string::npos,get(parent,"u10-s1234/cgroup.events").find("populated 1\n"));
+    EXPECT_EQ("1073741824\n",get(parent,"u10-s1234/memory.max"));
+}
+TEST_F(RuntimeBrokerCgroup, RecoveryAcceptsBothCanonicalPurposesWithinTheSameAggregateBudget) {
+    prepare();ASSERT_FALSE(HasFatalFailure());
+    for(const char* name:{"u10-s1234","p10-s1234","p21472-s2147483647"}) {
+        int fd=child(name);ASSERT_GE(fd,0);close(fd);
+    }
+    int recovered=aegis_broker_cgroup_prepare(parent,5000);ASSERT_GE(recovered,0)<<strerror(errno);
+    EXPECT_EQ("16\n",get(recovered,"cgroup.max.descendants"));
+    EXPECT_EQ("2147483648\n",get(recovered,"memory.max"));
+    for(const auto& name:children) {
+        struct stat st;EXPECT_EQ(-1,fstatat(recovered,name.c_str(),&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    }
+    close(recovered);
 }
 
 }  // namespace

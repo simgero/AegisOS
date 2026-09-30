@@ -230,7 +230,7 @@ static int Start(int groups,int store,int source,int helper,const std::vector<in
     int pair[2];if(socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair)<0)return -1;
     p->channel.reset(pair[0]);unique_fd child_socket(pair[1]);
     unique_fd endpoint(fcntl(child_socket.get(),F_DUPFD_CLOEXEC,128));if(!endpoint.ok())return -1;
-    if(aegis_memory_group_create(groups,p->user,p->serial,&p->group)<0)return -1;
+    if(aegis_memory_group_create_package(groups,p->user,p->serial,&p->group)<0)return -1;
     int target=aegis_memory_group_claim(p->group,p->user,p->serial);if(target<0)return -1;
     p->child=static_cast<aegis_child*>(calloc(1,sizeof(aegis_child)));
     if(!p->child)return -1;

@@ -20,6 +20,11 @@ struct aegis_memory_group;
  */
 int aegis_memory_group_create(int parent_fd, uint32_t user, uint32_t serial,
                               struct aegis_memory_group **output);
+/* Package workers use a separate canonical leaf for the same identity. This
+ * keeps their cancellation/limits independent of an open personal runtime.
+ * Never adopts an existing leaf; the broker permits one package job per user. */
+int aegis_memory_group_create_package(int parent_fd, uint32_t user, uint32_t serial,
+                                      struct aegis_memory_group **output);
 
 /* Claim once for this exact id+serial. Returns a borrowed CLOEXEC directory fd
  * for CLONE_INTO_CGROUP ONLY; never transfer to a client or close it. Rechecks

@@ -167,7 +167,9 @@ static int decimal(const char **cursor, uint32_t maximum, uint32_t *output) {
 static int canonical(const char *name) {
     uint32_t user, serial;
     const char *p = name;
-    if (*p++ != 'u' || !decimal(&p, 21472, &user) || user < 10
+    if (*p != 'u' && *p != 'p') return 0;
+    ++p;
+    if (!decimal(&p, 21472, &user) || user < 10
             || *p++ != '-' || *p++ != 's' || !decimal(&p, INT32_MAX, &serial)) return 0;
     return !*p;
 }

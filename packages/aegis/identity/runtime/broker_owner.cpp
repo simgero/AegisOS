@@ -72,7 +72,9 @@ struct planning_slot {
     PackagePlanningResult result;
     bool resources() const { return worker || evidence.ok(); }
 };
+enum class SelectionPurpose { Runtime, SharedPackage, PersonalPackage };
 struct runtime_selection_slot {
+    SelectionPurpose purpose=SelectionPurpose::Runtime;
     PackageRuntimeSelection plan;
     PackagePreparer* worker=nullptr;
     unique_fd mount;
@@ -96,7 +98,7 @@ struct aegis_broker_owner {
     std::array<std::unique_ptr<planning_slot>,MAX_PUBLICATIONS> planners;
     std::array<std::unique_ptr<publication_slot>,MAX_PUBLICATIONS> publications;
     std::array<std::unique_ptr<execution_slot>,MAX_PUBLICATIONS> executions;
-    std::array<std::unique_ptr<runtime_selection_slot>,MAX_CONTEXTS> selections;
+    std::array<std::unique_ptr<runtime_selection_slot>,MAX_CONTEXTS+MAX_PUBLICATIONS> selections;
 };
 
 static int fail(int error) { errno = error; return -1; }
@@ -439,9 +441,12 @@ int aegis_broker_owner_apply(struct aegis_broker_owner *owner,
     }
     if (!empty) return fail(ENOSPC);
     runtime_selection_slot* selected=nullptr;
-    for(auto& candidate:owner->selections)if(candidate && candidate->plan.requester==request->user) {
+    for(auto& candidate:owner->selections)if(candidate && candidate->purpose==SelectionPurpose::Runtime && candidate->plan.requester==request->user) {
         selected=candidate.get();break;
     }
+    if(!selected)for(const auto& candidate:owner->selections)
+        if(candidate && candidate->plan.requester==request->user
+                && candidate->purpose!=SelectionPurpose::Runtime)return fail(EBUSY);
     if(selected) {
         if(reap_selection(*selected,0)<0)return errno==ETIMEDOUT ? fail(EAGAIN) : -1;
         if(selected->state!=RuntimeSelectionState::Selected || !selected->mount.ok())
@@ -613,7 +618,8 @@ int capacity(aegis_broker_owner* owner,uint32_t user,const runtime_selection_slo
     for(const auto& slot:owner->planners)if(slot && slot.get()!=planning) {
         count++;if(slot->plan.requester==user)return fail(EBUSY);
     }
-    for(const auto& slot:owner->selections)if(slot && slot.get()!=transferring && slot->resources()) {
+    for(const auto& slot:owner->selections)if(slot && slot.get()!=transferring
+            && !(slot->purpose==SelectionPurpose::Runtime && slot->state==RuntimeSelectionState::Activated)) {
         count++;if(slot->plan.requester==user)return fail(EBUSY);
     }
     for(const auto& slot:owner->publications)if(slot) {
@@ -688,6 +694,8 @@ int BrokerStartPlanningFromSelection(aegis_broker_owner* owner,const PackagePlan
     if(admission(owner,request.requester,request.serial,deadline)<0)return -1;
     for(auto& selected:owner->selections)if(selected && selected->plan.job==selection_job) {
         if(selected->plan.requester!=request.requester||selected->plan.serial!=request.serial)return fail(ESTALE);
+        if(selected->purpose==SelectionPurpose::Runtime)return fail(EPERM);
+        if((selected->purpose==SelectionPurpose::PersonalPackage)!=request.personal)return fail(ESTALE);
         if(reap_selection(*selected,0)<0)return errno==ETIMEDOUT?fail(EAGAIN):-1;
         if(selected->state!=RuntimeSelectionState::Selected||!selected->mount.ok())return fail(EBUSY);
         return start_planning(owner,request,groups,factory,selected->mount.get(),sources,key,helper,deadline,job,selected.get(),network_helper,ca_bundle);
@@ -766,11 +774,16 @@ static int optional_shared_store(int state,int* output) {
 
 static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRuntimeSelection& request,
                                      int groups,int shared,int personal,int factory,int helper,
-                                     uint64_t deadline,uint64_t* job,bool ce,int state_root=-1) {
+                                     uint64_t deadline,uint64_t* job,bool ce,int state_root=-1,
+                                     SelectionPurpose purpose=SelectionPurpose::Runtime) {
     if(!job || *job || request.job || shared < -1 || personal < -1)return fail(EINVAL);
     if(admission(owner,request.requester,request.serial,deadline)<0)return -1;
-    for(const auto& slot:owner->slots)if(slot.context && slot.user==request.requester)return fail(EALREADY);
-    for(const auto& slot:owner->selections)if(slot && slot->plan.requester==request.requester)return fail(EALREADY);
+    if(purpose==SelectionPurpose::SharedPackage && (ce || personal!=-1))return fail(EINVAL);
+    if(purpose==SelectionPurpose::Runtime) {
+        for(const auto& slot:owner->slots)if(slot.context && slot.user==request.requester)return fail(EALREADY);
+        for(const auto& slot:owner->selections)if(slot && slot->purpose==purpose
+                && slot->plan.requester==request.requester)return fail(EALREADY);
+    }
     if(capacity(owner,request.requester)<0)return -1;
     if(owner->next_publication==INT64_MAX)return fail(EOVERFLOW);
     auto plan=request;plan.job=owner->next_publication+1;
@@ -779,7 +792,7 @@ static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRunt
     for(auto& slot:owner->selections)if(!slot) { empty=&slot;break; }
     if(!empty)return fail(ENOSPC);
     auto slot=std::unique_ptr<runtime_selection_slot>(new(std::nothrow) runtime_selection_slot);
-    if(!slot)return fail(ENOMEM);slot->plan=plan;
+    if(!slot)return fail(ENOMEM);slot->plan=plan;slot->purpose=purpose;
     *job=++owner->next_publication;*empty=std::move(slot);
     auto& registered=**empty; // Own BEFORE opening CE, without deferred CLI FDs.
     unique_fd private_store,shared_store;int error=0;
@@ -815,6 +828,35 @@ int BrokerPrepareRuntimeSelection(aegis_broker_owner* owner,const PackageRuntime
 int BrokerPrepareCeRuntimeSelection(aegis_broker_owner* owner,const PackageRuntimeSelection& request,
                                     int groups,int shared,int factory,int helper,uint64_t deadline,uint64_t* job) {
     return prepare_runtime_selection(owner,request,groups,shared,-1,factory,helper,deadline,job,true);
+}
+int BrokerPreparePackageSelection(aegis_broker_owner* owner,const PackageRuntimeSelection& request,
+                                  bool personal_scope,int groups,int shared,int personal,int factory,int helper,
+                                  uint64_t deadline,uint64_t* job) {
+    return prepare_runtime_selection(owner,request,groups,shared,personal,factory,helper,deadline,job,false,-1,
+        personal_scope ? SelectionPurpose::PersonalPackage : SelectionPurpose::SharedPackage);
+}
+int BrokerPrepareConfiguredPackageSelection(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                             bool personal,uint64_t deadline,uint64_t* job) {
+    if(owned(owner)<0)return -1;
+    if(!owner->selection_enabled)return fail(ENOTSUP);
+    PackageRuntimeSelection plan;plan.requester=user;plan.serial=serial;plan.factory=owner->selection_factory;
+    return prepare_runtime_selection(owner,plan,owner->inputs[0],-1,-1,
+        owner->selection_image.get(),owner->selection_helper.get(),deadline,job,personal,
+        owner->selection_directory.get(),personal ? SelectionPurpose::PersonalPackage : SelectionPurpose::SharedPackage);
+}
+int BrokerCancelPackageSelection(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job,uint64_t deadline) {
+    if(owned(owner)<0)return -1;
+    if(!job || job>INT64_MAX)return fail(EINVAL);
+    for(auto& slot:owner->selections)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial)return fail(ESTALE);
+        if(slot->purpose==SelectionPurpose::Runtime)return fail(EPERM);
+        slot->state=RuntimeSelectionState::Sealed;
+        if(slot->worker)(void)PackagePreparerCancel(slot->worker);
+        int left=remaining_ms(deadline);if(left<0)return -1;
+        if(reap_selection(*slot,left)<0)return -1;
+        slot.reset();return 0;
+    }
+    return fail(ENOENT);
 }
 int BrokerPollRuntimeSelection(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job,
                                RuntimeSelectionState* state,PackagePreparationResult* result) {
@@ -1191,7 +1233,7 @@ int aegis_broker_owner_start(aegis_broker_owner* owner,const aegis_broker_call* 
     aegis_broker_request checked;
     if(aegis_broker_parse(&start,sizeof(start),start.sequence>1?start.sequence-1:0,now,&checked)<0)return -1;
     runtime_selection_slot* selected=nullptr;
-    for(auto& slot:owner->selections)if(slot && slot->plan.requester==request.user) {
+    for(auto& slot:owner->selections)if(slot && slot->purpose==SelectionPurpose::Runtime && slot->plan.requester==request.user) {
         selected=slot.get();break;
     }
     if(selected && selected->plan.serial!=request.serial)return fail(ESTALE);

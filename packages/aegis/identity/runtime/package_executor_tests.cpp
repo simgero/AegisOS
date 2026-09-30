@@ -708,10 +708,10 @@ class RuntimePackageTransaction : public RuntimePackagePreparation {
         ASSERT_EQ(PublicationState::Publishing,state)<<result.error;
         // Freeze only this observed job's exclusively owned cgroup. No numeric
         // PID signaling or timing-based inference that publication is in flight.
-        ASSERT_EQ(0,WriteAt(parent.get(),"u10-s42/cgroup.freeze","1\n",0));
+        ASSERT_EQ(0,WriteAt(parent.get(),"p10-s42/cgroup.freeze","1\n",0));
         bool frozen=false;
         for(unsigned i=0;i<1000;i++) {
-            auto events=AptImageFixture::read(parent.get(),"u10-s42/cgroup.events");
+            auto events=AptImageFixture::read(parent.get(),"p10-s42/cgroup.events");
             if(events.find("populated 1\n")!=std::string::npos && events.find("frozen 1\n")!=std::string::npos) { frozen=true;break; }
             usleep(1000);
         }
@@ -849,7 +849,7 @@ class RuntimeSelectionOwner : public RuntimePackageSelection {
         return aegis_broker_owner_start(broker,&call,job,&state);
     }
     void Freeze() {
-        auto name="u"+std::to_string(selection.requester)+"-s"+std::to_string(selection.serial);
+        auto name="p"+std::to_string(selection.requester)+"-s"+std::to_string(selection.serial);
         ASSERT_EQ(0,WriteAt(parent.get(),(name+"/cgroup.freeze").c_str(),"1\n",0));
         bool frozen=false;
         for(unsigned i=0;i<1000;++i) {
@@ -1057,7 +1057,7 @@ TEST_F(RuntimePackageSelection, CancelConsumesQueuedMountAndReleasesAllOwnedRefe
     int fds=CountFDs();ASSERT_EQ(0,SelectStart(-1,-1));
     bool exited=false;
     for(unsigned i=0;i<900;++i) {
-        if(AptImageFixture::read(parent.get(),"u10-s42/cgroup.events").find("populated 0\n")!=std::string::npos) { exited=true;break; }
+        if(AptImageFixture::read(parent.get(),"p10-s42/cgroup.events").find("populated 0\n")!=std::string::npos) { exited=true;break; }
         usleep(10000);
     }
     ASSERT_TRUE(exited);PackagePreparationResult result;int fd=-1;
@@ -1158,7 +1158,7 @@ TEST_F(RuntimePackageTransaction, StopUserReapsObservedPublishingAndClosesSource
     FreezePublishing();ASSERT_FALSE(HasFatalFailure());
     struct stat original;ASSERT_EQ(0,fstat(store.get(),&original));EXPECT_GT(ReferencesTo(original),1);
     ASSERT_EQ(0,Stop());EXPECT_EQ(1,ReferencesTo(original));
-    struct stat st;EXPECT_EQ(-1,fstatat(parent.get(),"u10-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    struct stat st;EXPECT_EQ(-1,fstatat(parent.get(),"p10-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
     EXPECT_EQ(-1,fstatat(store.get(),"current",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
     PublicationState state;PackageExecutionResult result;
     EXPECT_EQ(-1,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));EXPECT_EQ(ENOENT,errno);
@@ -1166,13 +1166,13 @@ TEST_F(RuntimePackageTransaction, StopUserReapsObservedPublishingAndClosesSource
 TEST_F(RuntimePackageTransaction, CancelPublishingReturnsUnconfirmedAfterActualReapNeverFalseRollback) {
     FreezePublishing();ASSERT_FALSE(HasFatalFailure());
     EXPECT_EQ(-1,BrokerCancelExecution(broker,11,42,job,plan.execution.plan_sha256,Deadline()));EXPECT_EQ(ESTALE,errno);
-    EXPECT_NE(std::string::npos,AptImageFixture::read(parent.get(),"u10-s42/cgroup.events").find("populated 1\n"));
+    EXPECT_NE(std::string::npos,AptImageFixture::read(parent.get(),"p10-s42/cgroup.events").find("populated 1\n"));
     ASSERT_EQ(0,BrokerCancelExecution(broker,10,42,job,plan.execution.plan_sha256,Deadline()));
     PublicationState state;PackageExecutionResult result;
     ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));
     EXPECT_EQ(PublicationState::Complete,state);EXPECT_EQ(PackageExecutionOutcome::Unconfirmed,result.outcome);
     EXPECT_TRUE(result.generation.image_sha256.empty());
-    struct stat st;EXPECT_EQ(-1,fstatat(parent.get(),"u10-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    struct stat st;EXPECT_EQ(-1,fstatat(parent.get(),"p10-s42",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
     EXPECT_EQ(-1,fstatat(store.get(),"current",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
 }
 TEST_F(RuntimePackageTransaction, MissingPrivateCeConsumesOneBoundJobWithoutStoreOrWorkerLeak) {
@@ -1344,7 +1344,7 @@ TEST_F(RuntimePackagePreparation, StopDuringObservedCopyReapsWorkerAndRetainsPar
     for(unsigned i=0;i<32;++i)snprintf(digest+2*i,3,"%02x",bytes[i]);plan.image={total,digest};
     unique_fd notify(inotify_init1(IN_CLOEXEC|IN_NONBLOCK));ASSERT_TRUE(notify.ok());
     ASSERT_GE(inotify_add_watch(notify.get(),(directory+"/stage").c_str(),IN_MODIFY),0);
-    Broker();ASSERT_FALSE(HasFatalFailure());unique_fd own(openat(parent.get(),"u10-s42",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(own.ok());
+    Broker();ASSERT_FALSE(HasFatalFailure());unique_fd own(openat(parent.get(),"p10-s42",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(own.ok());
     bool modified=false;
     for(unsigned i=0;i<100 && !modified;++i) {
         pollfd ready={notify.get(),POLLIN,0};ASSERT_GE(poll(&ready,1,50),0);
@@ -1521,4 +1521,40 @@ TEST_F(RuntimePackageTransaction, BoundPlanFeedsRealAptAndRejectsDifferentApprov
     ASSERT_EQ(PublicationState::Complete,state);
     ASSERT_EQ(PackageExecutionOutcome::Published,result.outcome)<<result.error;
     VerifyContents(result,1);ASSERT_FALSE(HasFailure());
+}
+
+TEST_F(RuntimeSelectionOwner, PackageSelectionCannotAuthorizeRuntimeStartAndCancellationIsBoundToItsJob) {
+    ASSERT_EQ(0,Configure());int fds=CountFDs();
+    ASSERT_EQ(0,BrokerPreparePackageSelection(broker,selection,false,parent.get(),-1,-1,
+        factory.get(),prepare_helper.get(),Deadline(),&selected_job));
+    PackagePreparationResult result;AwaitSelection(&result);ASSERT_FALSE(HasFatalFailure());
+    const auto first=selected_job;uint64_t unexpected=0;
+    EXPECT_EQ(-1,StartJob(10,42,0,&unexpected));EXPECT_EQ(EBUSY,errno);EXPECT_EQ(0u,unexpected);
+    EXPECT_EQ(-1,StartJob(10,42,first,&unexpected));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,unexpected);
+    EXPECT_EQ(-1,BrokerCancelPackageSelection(broker,11,42,first,Deadline()));EXPECT_EQ(ESTALE,errno);
+    EXPECT_EQ(-1,BrokerCancelPackageSelection(broker,10,43,first,Deadline()));EXPECT_EQ(ESTALE,errno);
+    uint64_t second=0;
+    EXPECT_EQ(-1,BrokerPreparePackageSelection(broker,selection,true,parent.get(),-1,-1,
+        factory.get(),prepare_helper.get(),Deadline(),&second));EXPECT_EQ(EBUSY,errno);EXPECT_EQ(0u,second);
+    ASSERT_EQ(0,BrokerCancelPackageSelection(broker,10,42,first,Deadline()));EXPECT_EQ(fds,CountFDs());
+    ASSERT_EQ(0,RegisterSelection());EXPECT_GT(selected_job,first);
+    EXPECT_EQ(-1,BrokerCancelPackageSelection(broker,10,42,selected_job,Deadline()));EXPECT_EQ(EPERM,errno);
+    ASSERT_EQ(0,Stop());EXPECT_EQ(fds,CountFDs());
+}
+TEST_F(RuntimeSelectionOwner, ConfiguredPackageScopeUsesPinnedInputsAndOnlyPersonalScopeOpensCe) {
+    struct stat absent;ASSERT_EQ(-1,lstat("/data/system_ce/21472",&absent));ASSERT_EQ(ENOENT,errno);
+    selection.requester=21472;selection.serial=1234;
+    EXPECT_EQ(-1,BrokerPrepareConfiguredPackageSelection(broker,21472,1234,false,Deadline(),&selected_job));
+    EXPECT_EQ(ENOTSUP,errno);EXPECT_EQ(0u,selected_job);
+    ASSERT_EQ(0,Configure());int fds=CountFDs();
+    ASSERT_EQ(0,BrokerPrepareConfiguredPackageSelection(broker,21472,1234,false,Deadline(),&selected_job));
+    PackagePreparationResult result;AwaitSelection(&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(PackagePreparationResult::Scope::Factory,result.scope);
+    ASSERT_EQ(0,BrokerCancelPackageSelection(broker,21472,1234,selected_job,Deadline()));
+    const auto shared_job=selected_job;selected_job=0;
+    EXPECT_EQ(-1,BrokerPrepareConfiguredPackageSelection(broker,21472,1234,true,Deadline(),&selected_job));
+    EXPECT_EQ(ENOENT,errno);EXPECT_GT(selected_job,shared_job);
+    RuntimeSelectionState state;ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,21472,1234,selected_job,&state,&result));
+    EXPECT_EQ(RuntimeSelectionState::Failed,state);EXPECT_EQ(ENOENT,result.error);
+    ASSERT_EQ(0,BrokerCancelPackageSelection(broker,21472,1234,selected_job,Deadline()));EXPECT_EQ(fds,CountFDs());
 }
