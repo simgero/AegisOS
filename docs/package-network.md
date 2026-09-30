@@ -219,8 +219,9 @@ die feste Mount-Inventur prüfen und alle Paketkinder vor Abschluss einsammeln.
 Sieben neue Labelprüfungen und zwei Tests mit tatsächlich kopierten ext4-Abbildern
 sind ergänzt. Die ext4-Tests setzen absichtlich fremde Root-/Symlink-Labels in
 neuen isolierten Testkopien, berechnen deren neuen Eingabehash und verlangen die
-Ablehnung vor dem Mount-Handoff. Build und Laufzeitnachweis dieses neuen Standes
-stehen noch aus. Native SU-Fixtures allein beweisen weiterhin keine erfolgreiche
+Ablehnung vor dem Mount-Handoff. Commit `c6f43096` besteht im passenden Vollimage
+alle 384 aktivierten nativen Tests; Nachweise stehen in
+[component-tests.md](component-tests.md). Native SU-Fixtures allein beweisen weiterhin keine erfolgreiche
 Installation in einer Produktdomäne. Öffentliche Befehle und AOSP-Freigabe
 bleiben ausstehend; die folgende Domänentrennung benötigt einen neuen Build.
 

@@ -1,3 +1,46 @@
+## Beschreibbare Kandidaten: 384 native Tests im passenden Vollimage
+
+Commit `c6f43096e5a686faa8666c560c430b2d3b983bd8` besteht am **2026-09-30T18:11:28Z alle 384
+aktivierten nativen Tests aus 44 Suiten**, ohne Überspringen oder Abwahl,
+Exitcode 0, Laufzeit 199794 ms. Image und Testmodule stammen vom selben Commit.
+Build und Komponentenkompilierung liefen ausschließlich auf `aegis-build`,
+Transport über die geprüften [Image-Assets](https://github.com/simgero/AegisOS/releases/tag/aosp-20260930T173838Z-c6f43096-3588256e) und
+[Komponenten-Assets](https://github.com/simgero/AegisOS/releases/tag/components-20260930T180710Z-c6f43096-c6f43096-deW8CK),
+Ausführung ausschließlich in einer neuen lokalen Mac-QEMU-Instanz.
+
+Sieben Labeltests und zwei zusätzliche Vorbereitungstests bestätigen die
+vollständige Kandidatenprüfung, einschließlich tatsächlicher ext4-Kopien mit
+fremdem Root- bzw. Symlink-Label. Diese Eingänge werden vor dem Handoff
+abgewiesen. Auch die bestehenden Prüfungen für signierte Paketquellen,
+Installation/Aktualisierung/Entfernen, Auftragsbindung, Abbruch und sichere
+Bereinigung bestehen. Vorher-/Nachher-Nachweise für Benutzer, CE-Schlüssel und
+Runtime-Kontexte sind bytegleich. Vier reale CE-Tests bleiben deaktiviert;
+der unveränderte Nachweis von 130 Java-Tests wird aus `95f2b925` übernommen,
+nicht erneut ausgeführt.
+
+Das neue Vollimage bootet mit SELinux **Enforcing**, authentifiziertem ADB,
+FBE, geprüften dm-verity-Tabellen und dem echten init-gestarteten Broker in
+`u:r:aegis_runtime_broker:s0`. Alle vier unveränderlichen Pakethelfer sind gepinnt.
+Die strenge Startprüfung meldet keine Runtime-/Paket-AVCs und enthält keine
+Ausnahme für Beobachterfehler. Profil `26ba98ef-845b-4d51-98a7-a007e2afc0dd`,
+Boot `c623189d-91d5-4067-ade3-48ca931842f2`, AVB-Digest `598229848b6879a23c2aa7eb67439ace2160a77f16683ff4870952911c89e72f`.
+Die vorherige separate 2f-Test-VM wurde geordnet beendet; Android und KeyMint
+bestätigten sauberes Herunterfahren. Beide zugehörigen Zustandsdateien bleiben
+erhalten. Die ursprüngliche c740-VM läuft mit unveränderter Bootkennung weiter.
+
+**Grenze:** Interne privilegierte Fixtures belegen noch keine Installation in
+Produkt-Paketdomänen. Öffentliche Wire-/Binder-/CLI-Befehle, frische
+AOSP-Adminfreigabe und der vollständige Zwei-Benutzer-Paketablauf sind offen.
+Die folgenden neuen Worker-/Programm-/Netzwerkdomänen und der feste
+Wiedereinstieg gehören zum noch separat zu prüfenden Stand `2308ea46`.
+AOSP-Testschlüssel und direkter QEMU-Kernelstart bilden keine Hardware-Vertrauenskette.
+
+Lokale Nachweise: `out/components-c6f43096/proof.json`,
+`targeted-tests/{native.log,result.json,before.json,after.json}` sowie
+`out/full-build-c6f43096/{proof.json,boot-1/boot-health.json,verified-release.json}`.
+Native-Protokoll SHA-256: `2445f163f22545e1928e80af11bfd990ee682b41f21b2223711e07bbac5a6066`.
+Bootnachweis SHA-256: `0a150f0929140ef3d40ebccc32251336f86fb88badc5c7ef98d191ce5d75b8f4`.
+
 ## Regulärer Brokerstart mit vier fest gepinnten Pakethelfern
 
 Vollimage `2f7b18e2a7da19821f0a602632e0154105d97e14` wurde ausschließlich auf
