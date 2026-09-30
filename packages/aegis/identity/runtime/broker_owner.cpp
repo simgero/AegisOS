@@ -6,6 +6,7 @@
 #include "control.h"
 #include "broker_owner_package.h"
 #include "broker_owner_selection.h"
+#include "package_policy.h"
 #include "ce_private.h"
 #include "namespace.h"
 #include "uid_layout.h"
@@ -92,7 +93,8 @@ struct aegis_broker_owner {
     int inputs[4];
     struct slot slots[MAX_CONTEXTS];
     uint64_t next_command, next_publication;
-    bool selection_enabled=false;
+    bool selection_enabled=false,package_policy_enabled=false;
+    std::array<unique_fd,3> package_policy;
     unique_fd selection_image,selection_helper,selection_directory;
     PackageInput selection_factory;
     std::array<std::unique_ptr<planning_slot>,MAX_PUBLICATIONS> planners;
@@ -160,6 +162,20 @@ int aegis_broker_owner_enable_selection(aegis_broker_owner* owner,int image,
     owner->selection_image=std::move(source);owner->selection_helper=std::move(program);
     owner->selection_directory=std::move(state);owner->selection_enabled=true;
     return 0;
+}
+
+int aegis_broker_owner_enable_package_policy(aegis_broker_owner* owner,const int inputs[3]) {
+    if(owned(owner)<0)return -1;
+    if(!owner->selection_enabled || owner->package_policy_enabled
+       ||owner->next_command||owner->next_publication)return fail(EALREADY);
+    if(!inputs)return fail(EINVAL);
+    for(const auto& slot:owner->slots)if(slot.context)return fail(EBUSY);
+    std::array<unique_fd,3> pinned;
+    for(unsigned i=0;i<3;++i) {
+        if(aegis_package_policy_file(inputs[i],i==0?16384:1048576)<0)return -1;
+        pinned[i].reset(fcntl(inputs[i],F_DUPFD_CLOEXEC,3));if(!pinned[i].ok())return -1;
+    }
+    owner->package_policy=std::move(pinned);owner->package_policy_enabled=true;return 0;
 }
 
 int aegis_broker_owner_create(int parent_fd, int base_fd, int setup_fd, int init_fd,

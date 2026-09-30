@@ -413,3 +413,67 @@ TEST_F(RuntimePackagePlanning, SelectionAndPlannerPreserveAnExistingRuntimeNames
     ASSERT_EQ(0,aegis_namespace_wait(contexts[0],5000,&exited));
     EXPECT_EQ(CLD_KILLED,exited.code);EXPECT_EQ(SIGKILL,exited.status);
 }
+
+TEST_F(RuntimePackagePlanning, ProductPolicySealsPinnedTrustAndAuthenticatesDebianUpdateSources) {
+    int inputs[3]={-1,-1,-1};ASSERT_EQ(0,aegis_package_policy_open(source,inputs))<<strerror(errno);
+    sources.reset(inputs[0]);key.reset(inputs[1]);ca.reset(inputs[2]);
+    for(int fd:inputs) {
+        EXPECT_EQ(0,aegis_package_policy_file(fd,1048576));
+        EXPECT_EQ(O_RDONLY,fcntl(fd,F_GETFL)&O_ACCMODE);
+        EXPECT_EQ(F_SEAL_WRITE|F_SEAL_GROW|F_SEAL_SHRINK|F_SEAL_SEAL,fcntl(fd,F_GET_SEALS));
+        char path[64];snprintf(path,sizeof(path),"/proc/self/fd/%d",fd);Fd write(open(path,O_RDWR|O_CLOEXEC));
+        ASSERT_TRUE(write.ok());EXPECT_EQ(-1,pwrite(write.get(),"x",1,0));EXPECT_EQ(EPERM,errno);
+        EXPECT_EQ(-1,ftruncate(write.get(),0));EXPECT_EQ(EPERM,errno);
+    }
+    char configuration[1024]={};ssize_t size=pread(sources.get(),configuration,sizeof(configuration)-1,0);ASSERT_GT(size,0);
+    std::string configured(configuration,size);
+    EXPECT_NE(std::string::npos,configured.find("https://deb.debian.org/debian trixie main\n"));
+    EXPECT_NE(std::string::npos,configured.find("https://deb.debian.org/debian trixie-updates main\n"));
+    EXPECT_NE(std::string::npos,configured.find("https://security.debian.org/debian-security trixie-security main\n"));
+    EXPECT_EQ(std::string::npos,configured.find("http://"));
+    network.reset(Program("aegis-package-network"));ASSERT_TRUE(network.ok());
+    request.request.internet=true;request.request.package="hello";request.request.version.clear();
+    ASSERT_EQ(0,Start())<<strerror(errno);int fd=-1;aegis::PackagePlanningResult result;
+    int finished=-1;
+    for(unsigned i=0;i<36;++i) {
+        finished=aegis::PackagePlannerFinish(&planner,false,5000,&result,&fd);
+        if(!finished)break;ASSERT_EQ(ETIMEDOUT,errno);
+    }
+    ASSERT_EQ(0,finished);Fd evidence(fd);ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)
+        <<result.error<<" "<<result.status<<" "<<result.diagnostic;
+    EXPECT_TRUE(evidence.ok());EXPECT_GE(result.evidence.repositories.size(),3u);
+    EXPECT_GE(result.effects,1u);
+    const auto updates=Read(fd,"update.log");
+    EXPECT_NE(std::string::npos,updates.find("trixie-updates"));
+    EXPECT_NE(std::string::npos,updates.find("trixie-security"));
+    fprintf(stderr,"PRODUCT_POLICY_DEBIAN_RECEIPT: %s\n",Read(fd,"receipt.json").c_str());
+    EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));
+    EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
+}
+TEST_F(RuntimePackagePlanning, ProductPolicyRejectsUnsealedInputsAndInvalidFactoryWithoutLeaking) {
+    int before=descriptors();int outputs[3]={-1,-1,-1};
+    EXPECT_EQ(-1,aegis_package_policy_open(-1,outputs));EXPECT_EQ(before,descriptors());
+    for(int fd:outputs)EXPECT_EQ(-1,fd);
+    Fd writable(syscall(SYS_memfd_create,"unsealed-package-policy",MFD_CLOEXEC|MFD_ALLOW_SEALING));ASSERT_TRUE(writable.ok());
+    ASSERT_EQ(1,write(writable.get(),"x",1));ASSERT_EQ(0,fchmod(writable.get(),0400));
+    char path[64];snprintf(path,sizeof(path),"/proc/self/fd/%d",writable.get());Fd readonly(open(path,O_RDONLY|O_CLOEXEC));ASSERT_TRUE(readonly.ok());
+    EXPECT_EQ(-1,aegis_package_policy_file(readonly.get(),16384));EXPECT_EQ(EPERM,errno);
+    EXPECT_EQ(-1,aegis_package_policy_file(writable.get(),16384));EXPECT_EQ(EPERM,errno);
+}
+
+TEST_F(RuntimePackagePlanning, ProductPolicyBootstrapPinsTogetherOnceBeforeAnyJob) {
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());
+    int inputs[3]={-1,-1,-1};ASSERT_EQ(0,aegis_package_policy_open(source,inputs));
+    Fd first(inputs[0]),second(inputs[1]),third(inputs[2]);
+    EXPECT_EQ(-1,aegis_broker_owner_enable_package_policy(owner,inputs));EXPECT_EQ(EALREADY,errno);
+    Fd factory(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC));ASSERT_TRUE(factory.ok());
+    Fd prepare(Program("aegis-package-prepare"));ASSERT_TRUE(prepare.ok());
+    Fd state(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(state.ok());
+    aegis_base_receipt receipt={};receipt.bytes=image->original.bytes;memcpy(receipt.sha256,image->original.sha256.c_str(),65);
+    ASSERT_EQ(0,aegis_broker_owner_enable_selection(owner,factory.get(),&receipt,prepare.get(),state.get()));
+    int before=descriptors();int invalid[3]={inputs[0],inputs[1],-1};
+    EXPECT_EQ(-1,aegis_broker_owner_enable_package_policy(owner,invalid));EXPECT_EQ(before,descriptors());
+    ASSERT_EQ(0,aegis_broker_owner_enable_package_policy(owner,inputs));EXPECT_EQ(before+3,descriptors());
+    EXPECT_EQ(-1,aegis_broker_owner_enable_package_policy(owner,inputs));EXPECT_EQ(EALREADY,errno);
+    EXPECT_EQ(before+3,descriptors());
+}

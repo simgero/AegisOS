@@ -5,6 +5,7 @@
 #include "broker_cgroup.h"
 #include "broker_owner.h"
 #include "namespace.h"
+#include "package_policy.h"
 #include <cutils/sockets.h>
 #include <log/log.h>
 #include <private/android_filesystem_config.h>
@@ -330,6 +331,7 @@ int main(int argc, char **argv) {
     int lock = -1, root = -1, delegation = -1, entry = -1, parent = -1;
     int base = -1, setup = -1, init = -1, listener = -1;
     int image = -1, selector = -1, state_directory = -1;
+    int package_policy[3] = {-1, -1, -1};
     struct aegis_base_receipt receipt = {0};
     struct aegis_broker_owner *owner = NULL;
     const char *phase = "signals";
@@ -361,6 +363,10 @@ int main(int argc, char **argv) {
     if (selector < 0) goto done;
     phase = "generation selection bootstrap";
     if (aegis_broker_owner_enable_selection(owner, image, &receipt, selector, state_directory) < 0) goto done;
+    phase = "fixed Debian and AOSP package policy";
+    if (aegis_package_policy_open(base, package_policy) < 0
+            || aegis_broker_owner_enable_package_policy(owner, package_policy) < 0) goto done;
+    for (unsigned i = 0; i < 3; ++i) { close(package_policy[i]); package_policy[i] = -1; }
     phase = "init socket"; listener = inherited_listener(); if (listener < 0) goto done;
     if (clearenv() < 0 || listen(listener, 4) < 0) goto done;
     __android_log_print(ANDROID_LOG_INFO, "AegisRuntimeBroker", "AEGIS_RUNTIME_BROKER_LISTENING");
@@ -381,7 +387,7 @@ done:;
     else __android_log_print(ANDROID_LOG_INFO, "AegisRuntimeBroker", "AEGIS_RUNTIME_BROKER_STOPPED");
     // On incomplete cleanup no ACK is sent. Process death closes remaining
     // references; the next owner must recover the private group before HELLO.
-    int descriptors[] = {selector, image, state_directory, init, setup, base, parent, entry, delegation, root, signals, lock};
+    int descriptors[] = {package_policy[0], package_policy[1], package_policy[2], selector, image, state_directory, init, setup, base, parent, entry, delegation, root, signals, lock};
     for (unsigned i = 0; i < sizeof(descriptors) / sizeof(descriptors[0]); ++i)
         if (descriptors[i] >= 0) close(descriptors[i]);
     return result;

@@ -10,6 +10,7 @@
 #include "package_apt_archives.h"
 #include "package_resolver.h"
 #include "package_planner.h"
+#include "package_policy.h"
 #include "package_planning_protocol.h"
 #include "broker_owner_package.h"
 #include "broker_owner_selection.h"
@@ -33,6 +34,7 @@
 #include <grp.h>
 #include <limits.h>
 #include <linux/mount.h>
+#include <linux/memfd.h>
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>

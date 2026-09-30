@@ -1,5 +1,6 @@
 #include "package_planner.h"
 #include "package_network.h"
+#include "package_policy.h"
 #include "package_planning_protocol.h"
 #include "namespace.h"
 #include "memory_group.h"
@@ -36,12 +37,7 @@ int Encode(const PackagePlanning& p,aegis_planning_request* r) {
     r->internet=p.request.internet;r->action=uint32_t(p.request.action);memcpy(r->package,p.request.package.data(),p.request.package.size());
     memcpy(r->version_text,p.request.version.data(),p.request.version.size());return 0;
 }
-int PolicyFile(int fd,uint64_t maximum) {
-    struct stat s;int f=fcntl(fd,F_GETFL);if(f<0||fstat(fd,&s)<0)return -1;
-    if((f&(O_ACCMODE|O_PATH))!=O_RDONLY||!S_ISREG(s.st_mode)||s.st_uid||s.st_gid
-       ||s.st_nlink!=1||(s.st_mode&07022)||s.st_size<=0||uint64_t(s.st_size)>maximum)return Fail(EPERM);
-    return 0;
-}
+
 }
 int PackagePlanningCheck(const PackagePlanning& p) { aegis_planning_request r;return Encode(p,&r); }
 int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,int helper,
@@ -50,9 +46,9 @@ int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,
     if(aegis_namespace_check_broker()<0)return -1;
     auto now=Now();if(!now)return -1;
     if(deadline<=now||deadline-now>UINT64_C(10000000000))return Fail(ETIMEDOUT);
-    aegis_planning_request r;if(Encode(plan,&r)<0||PolicyFile(sources,16384)<0||PolicyFile(key,1048576)<0)return -1;
+    aegis_planning_request r;if(Encode(plan,&r)<0||aegis_package_policy_file(sources,16384)<0||aegis_package_policy_file(key,1048576)<0)return -1;
     if(plan.request.internet && (network_helper<0||ca_bundle<0))return Fail(EINVAL);
-    if(plan.request.internet && PolicyFile(ca_bundle,1048576)<0)return -1;
+    if(plan.request.internet && aegis_package_policy_file(ca_bundle,1048576)<0)return -1;
     auto* p=new(std::nothrow) PackagePlanner;if(!p)return Fail(ENOMEM);
     p->process=syscall(SYS_getpid);p->request=r;*output=p;
     p->selected.reset(fcntl(selected,F_DUPFD_CLOEXEC,4));p->sources.reset(fcntl(sources,F_DUPFD_CLOEXEC,4));p->key.reset(fcntl(key,F_DUPFD_CLOEXEC,4));

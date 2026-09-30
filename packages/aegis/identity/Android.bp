@@ -273,7 +273,7 @@ cc_library_static {
 cc_library_static {
     name: "libaegis-package-planner",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/package_planner.cpp", "runtime/package_network.cpp", "runtime/package_network_policy.cpp"],
+    srcs: ["runtime/package_planner.cpp", "runtime/package_policy.cpp", "runtime/package_network.cpp", "runtime/package_network_policy.cpp"],
     static_libs: ["libaegis-runtime-namespace", "libaegis-package-metadata", "libbase"],
     export_include_dirs: ["runtime"],
 }

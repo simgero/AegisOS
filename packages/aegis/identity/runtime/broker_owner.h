@@ -26,6 +26,12 @@ int aegis_broker_owner_enable_selection(struct aegis_broker_owner *owner,
                                         int image, const struct aegis_base_receipt *receipt,
                                         int helper, int state_directory);
 
+/* Startup-only fixed Debian/AOSP policy from aegis_package_policy_open, after
+ * selection bootstrap and before any work. Duplicates sources/key/CA together;
+ * cannot replace live policy. Does not expose a package command or grant. */
+int aegis_broker_owner_enable_package_policy(struct aegis_broker_owner *owner,
+                                             const int inputs[3]);
+
 /* Caller has already authenticated the system_server peer, validated framing
  * and enforced per-connection sequence ordering. AOSP admission/CE serialization
  * remains held by that peer. Success writes ABSENT/READY/SEALED as appropriate;
