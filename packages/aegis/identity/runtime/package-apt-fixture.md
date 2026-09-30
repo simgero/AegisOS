@@ -61,3 +61,11 @@ requires successful acquisition with identical policy/key/index inputs.
 The complete native index/archive hash checks remain separate requirements.
 The earlier file-source-only test could assert a more specific message; requiring
 that message for copy transport incorrectly stopped the otherwise valid refusal.
+
+The pinned [APT install flow](https://github.com/Debian/apt/blob/3.0.3/apt-private/private-install.cc)
+processes `--no-download` before its simulation branch. With `copy:` sources this
+rejects uncached archives even during simulation. Planning therefore uses only
+`--simulate`, which returns before acquisition or dpkg execution. The fixture
+independently requires the archive cache to remain empty around the initial
+simulation, unchanged dpkg state and no maintainer-script output. Actual archive
+acquisition remains a separate `--download-only` operation with unchanged trust.
