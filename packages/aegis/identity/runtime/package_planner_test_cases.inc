@@ -73,7 +73,8 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
         std::string pem;
         for(const auto& name:names) {
             struct stat st;ASSERT_EQ(0,fstatat(certs.get(),name.c_str(),&st,AT_SYMLINK_NOFOLLOW));
-            ASSERT_TRUE(S_ISREG(st.st_mode));ASSERT_EQ(0u,st.st_uid);ASSERT_FALSE(st.st_mode&0022);
+            // Verified readonly Conscrypt APEX uses the Android system owner.
+            ASSERT_TRUE(S_ISREG(st.st_mode));ASSERT_EQ(1000u,st.st_uid);ASSERT_EQ(1000u,st.st_gid);ASSERT_FALSE(st.st_mode&0022);
             auto contents=Read(certs.get(),name.c_str());ASSERT_NE(std::string::npos,contents.find("-----BEGIN CERTIFICATE-----"));pem+=contents; pem+="\n";
         }
         ASSERT_LT(pem.size(),1048576u);ASSERT_EQ(0,Write(directory.get(),"ca.pem",pem));
@@ -169,6 +170,26 @@ TEST(PackagePlanningProtocol, RejectsExcessDescriptorsWithoutLeaking) {
     ASSERT_EQ(0,aegis_planning_send(first.get(),&sent,sizeof(sent),fds,2));
     int output=-1;EXPECT_EQ(-1,aegis_planning_receive(second.get(),&received,sizeof(received),&output,1));
     EXPECT_EQ(EPROTO,errno);EXPECT_EQ(-1,output);EXPECT_EQ(before,descriptors());
+}
+
+TEST(PackagePlanningProtocol, CarriesAllSixPolicyInputsAndRejectsAnExtraDescriptor) {
+    int pair[2];ASSERT_EQ(0,socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair));Fd first(pair[0]),second(pair[1]);
+    Fd input(open("/dev/null",O_RDONLY|O_CLOEXEC));ASSERT_TRUE(input.ok());
+    int inputs[7];for(auto& fd:inputs)fd=input.get();
+    aegis_planning_request sent={},received={};sent.magic=AEGIS_PLANNING_MAGIC;sent.version=AEGIS_PLANNING_VERSION;
+    int before=descriptors();int outputs[AEGIS_PLANNING_INPUT_FDS];for(auto& fd:outputs)fd=-1;
+    ASSERT_EQ(0,aegis_planning_send(first.get(),&sent,sizeof(sent),inputs,AEGIS_PLANNING_INPUT_FDS));
+    ASSERT_EQ(0,aegis_planning_receive(second.get(),&received,sizeof(received),outputs,AEGIS_PLANNING_INPUT_FDS));
+    EXPECT_EQ(0,memcmp(&sent,&received,sizeof(sent)));
+    struct stat original;ASSERT_EQ(0,fstat(input.get(),&original));
+    for(int fd:outputs) {
+        struct stat st;EXPECT_EQ(0,fstat(fd,&st));EXPECT_EQ(original.st_dev,st.st_dev);EXPECT_EQ(original.st_ino,st.st_ino);
+        EXPECT_TRUE(fcntl(fd,F_GETFD)&FD_CLOEXEC);close(fd);
+    }
+    EXPECT_EQ(before,descriptors());
+    EXPECT_EQ(-1,aegis_planning_send(first.get(),&sent,sizeof(sent),inputs,7));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(-1,aegis_planning_receive(second.get(),&received,sizeof(received),outputs,AEGIS_PLANNING_INPUT_FDS));EXPECT_EQ(EAGAIN,errno);
+    EXPECT_EQ(before,descriptors());
 }
 
 TEST_F(RuntimePackagePlanning, VerifiedSelectionTransfersDirectlyIntoSamePlanningJob) {

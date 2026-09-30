@@ -111,8 +111,8 @@ int main(int argc,char** argv) {
     if(aegis_check_package_context(user)<0)return 78;
 #endif
     umask(022); // Fixed policy/input directory modes, independent of broker umask.
-    int fds[6]={-1,-1,-1,-1,-1,-1};aegis_planning_request r={};
-    if(aegis_planning_receive(3,&r,sizeof(r),fds,6)<0)return 79;
+    int fds[AEGIS_PLANNING_INPUT_FDS]={-1,-1,-1,-1,-1,-1};aegis_planning_request r={};
+    if(aegis_planning_receive(3,&r,sizeof(r),fds,AEGIS_PLANNING_INPUT_FDS)<0)return 79;
     aegis::PackageResolverRequest request;
     bool valid=r.magic==AEGIS_PLANNING_MAGIC&&r.version==AEGIS_PLANNING_VERSION
         &&r.user==user&&r.serial==serial&&r.job&&r.job<=INT64_MAX&&r.internet<=1

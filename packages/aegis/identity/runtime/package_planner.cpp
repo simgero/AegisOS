@@ -76,7 +76,7 @@ int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,
     if(aegis_namespace_temporary_base_end(p->selected.get())<0)return -1;p->anchored=false;
     int fds[]={p->root.get(),p->devices.get(),p->metadata.get(),p->sources.get(),p->key.get(),p->ca.get()};
     if(Left(deadline)<=0)return Fail(ETIMEDOUT);
-    if(aegis_planning_send(p->channel.get(),&r,sizeof(r),fds,6)<0||aegis_namespace_resume(p->context)<0)return -1;
+    if(aegis_planning_send(p->channel.get(),&r,sizeof(r),fds,AEGIS_PLANNING_INPUT_FDS)<0||aegis_namespace_resume(p->context)<0)return -1;
     // Channel owns queued copies; originals remain registered until reaping.
     return Left(deadline)>0?0:Fail(ETIMEDOUT);
 }

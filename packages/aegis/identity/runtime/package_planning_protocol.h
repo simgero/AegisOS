@@ -9,6 +9,7 @@
 #include <unistd.h>
 #define AEGIS_PLANNING_MAGIC UINT32_C(0x41504c4e)
 #define AEGIS_PLANNING_VERSION 4u
+#define AEGIS_PLANNING_INPUT_FDS 6u
 struct aegis_planning_request {
     uint32_t magic,version,user,serial;
     uint64_t job;
@@ -105,8 +106,8 @@ static inline int aegis_planning_receive(int channel,void* payload,size_t bytes,
     return 0;
 }
 static inline int aegis_planning_send(int channel,const void* payload,size_t bytes,const int* fds,size_t count) {
-    if(count>5) { errno=EINVAL;return -1; }
-    alignas(cmsghdr) char controls[CMSG_SPACE(5*sizeof(int))]={};
+    if(count>AEGIS_PLANNING_INPUT_FDS) { errno=EINVAL;return -1; }
+    alignas(cmsghdr) char controls[CMSG_SPACE(AEGIS_PLANNING_INPUT_FDS*sizeof(int))]={};
     iovec io={const_cast<void*>(payload),bytes};msghdr m={};m.msg_iov=&io;m.msg_iovlen=1;
     if(count) {
         m.msg_control=controls;m.msg_controllen=CMSG_SPACE(count*sizeof(int));
