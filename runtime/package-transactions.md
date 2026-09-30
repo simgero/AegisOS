@@ -2,28 +2,30 @@
 
 ## Auswahl einer gespeicherten Generation für die Runtime
 
-Stand `c60d6ea2` besteht **86/86 gezielte Gerätetests** im lokalen Hintergrund-QEMU.
-Ein asynchroner, beaufsichtigter Helfer wählt und prüft die persönliche Generation,
-sonst den gemeinsamen Stand, sonst die unveränderliche Systembasis. Vorhandene
-beschädigte Stores, fremde Identitäten, fehlende ausgewählte Abbilder und gesperrte
-Stores ergeben einen Fehler. Persönliche Ableitungen müssen zur gemeinsamen
-Basis passen; Konflikte werden nicht durch stilles Zurückfallen verdeckt.
+Stand `93270f09` besteht **229/229 native Gerätetests und zwei zusätzliche Prüfungen
+mit real gesperrtem AOSP-CE** im lokalen Hintergrund-QEMU. Der Brokerbesitzer hält
+die gesamte Auswahl vom registrierten Auftrag vor CE-Zugriff über den fertigen
+Mount bis zur nativen START-Übernahme oder dem bestätigten STOP/HELLO-Abbau.
+Eine laufende Auswahl liefert EAGAIN; fehlgeschlagene Auswahl startet niemals
+stillschweigend die Systembasis. Teilstarts behalten sämtliche Ressourcen.
 
-Der Helfer liefert einen vollständigen readonly/nosuid/nodev/noexec-Mount nach
-bestätigtem Prozess-/Cgroup-Abbau. Langsame Prüfsummen bleiben außerhalb der kurzen
-Anmeldezulassung. Die neuen Tests führen auch private Installation, Update und
-Entfernung aus. Nach einem gemeinsamen Update zeigt ein weiterhin geöffneter Mount
-die alte Version, ein neu ausgewählter die neue. [Belege und Grenzen](../docs/component-tests.md).
+Der asynchrone Helfer prüft persönlich -> gemeinsam -> unveränderliche Systembasis.
+Beschädigte Stores, fremde Identitäten, fehlende ausgewählte Abbilder und
+Sperrkonflikte ergeben Fehler. Persönliche Ableitungen müssen zur gemeinsamen
+Basis passen. Ein weiterhin geöffneter alter Mount behält nach einem Update
+seinen Inhalt. Der nur vorübergehend eingehängte private Anker wird nach dem
+Klonen wieder entfernt und anhand echter Kernel-Mount-IDs kontrolliert.
+Die optionale CE-Auflösung prüft Schlüssel und Identität vor Abwesenheit; sie
+legt nichts an und repariert nichts. [Konkrete Belege und Grenzen](../docs/component-tests.md).
 
-**Nächste Verbindung:** `Broker START` und STOP/HELLO/Logout müssen diese Auswahl
-selbst besitzen: Registrierung vor CE-Zugriff, sichere read-only-Auflösung eines
-optional vorhandenen privaten Stores, asynchrone Statusabfrage, Übernahme genau
-des geprüften Mounts und vollständiger Abbau bei Stopp. Bestehende Kontexte bleiben
-bis zum kontrollierten Neustart auf ihrem Stand. Der Auswahlhelfer allein aktiviert
-noch keine Produkt-Runtime. Anschließend bleiben öffentlicher Paketkanal,
-vertrauenswürdige Repository-Planung, frische AOSP-Adminfreigabe und produktive
-SELinux-/CE-/Zwei-Benutzer-Abnahme zu verbinden. Benutzer und sichtbarer Launcher
-wurden nicht verändert; das QEMU-Fenster bleibt geschlossen.
+**Nächste Verbindung:** Produkt-Bootstrap sowie asynchroner Java-/CLI-Start mit
+frischer Zulassung bei jeder Anfrage und Warten außerhalb des CE-Gates.
+Der native Teilstart belegt Mount-Übernahme, noch keinen erfolgreichen vollständigen
+GNU-Kontext mit ausgewählter Generation. Positiver entsperrter CE-Nachweis,
+öffentlicher Paketkanal, vertrauenswürdige Repository-Planung, frische
+AOSP-Adminfreigabe und produktive SELinux-/Zwei-Benutzer-Abnahme bleiben erforderlich.
+Benutzer und sichtbarer Launcher wurden nicht verändert; das QEMU-Fenster bleibt
+auf Wunsch geschlossen.
 
 Die folgenden Abschnitte dokumentieren die früheren Komponentenstände.
 

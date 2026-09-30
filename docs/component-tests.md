@@ -1,3 +1,62 @@
+## Registrierte Generation bis START und vollständigem Abbau: 93270f09
+
+Komponentenstand `93270f09d249882c8db7e245ce3ca868009787cf` wurde auf `aegis-build`
+gebaut und über [den verifizierten GitHub-Release](https://github.com/simgero/AegisOS/releases/tag/components-20260930T024124Z-93270f09-93270f09-mLlmAo) bezogen.
+Lauf `identity-20260930T024005Z-93270f09-wDwLks`, Invocation `312f78f272fe4f0c82d1050d840fd813`.
+Am **2026-09-30T02:43:27Z bestehen alle 229/229 standardmäßig aktivierten nativen
+Gerätetests**, 31 Suiten in 82.102 Sekunden. Zusätzlich bestehen je eine explizite
+Prüfung der tatsächlich gesperrten AOSP-CE-Speicher von Alpha 10/10 und Beta 11/11.
+Die unveränderten 119 Java-Tests wurden in diesem Lauf nicht wiederholt.
+
+Der native Besitzer registriert die Auswahl samt Antragsteller, Seriennummer und
+monotoner Auftragskennung **vor** CE-Zugriff oder Prozessstart. Statusabfragen
+geben ausschließlich Metadaten zurück. Ein fertiger Mount bleibt bis zur Übernahme
+oder zum bestätigten Abbau im Register. STOP_USER, HELLO, Verbindungsverlust und
+Abschaltung versiegeln auch laufende Auswahlprozesse und behalten die Zuständigkeit
+bis zum tatsächlichen Reaping und Schließen aller Mountreferenzen. Ein Timeout
+behauptet weder Abwesenheit noch erfolgreiche Schlüsselsperre.
+
+Ein nachfolgend frisch zugelassener nativer START übernimmt die registrierte
+Generation. Solange die Auswahl läuft, liefert er EAGAIN; eine gescheiterte Auswahl
+darf niemals die Systembasis starten. Bestehende Kontexte behalten ihren Stand.
+Für die Kerneloperation open_tree(CLONE) hängt der Broker den ausgewählten Mount
+kurz in seinem privaten Namensraum ein, klont die feste Benutzerabbildung und
+hängt den temporären Anker vor weiteren Kontextschritten wieder ab. Tatsächliche
+Kernel-Mount-IDs verhindern Ersetzung oder Abhängen eines fremden Mounts. Teilstarts
+und fehlgeschlagenes Abhängen bleiben ebenfalls bis zum vollständigen STOP registriert.
+
+Neun neue Besitzertests prüfen fertige und eingefrorene laufende Auswahl, fremde
+Benutzer/Seriennummern, monotone Aufträge, STOP, abgelaufenen Verbindungsabbau, HELLO,
+fehlende CE-Daten, gescheiterte Auswahl und vorübergehende Mountanker. Ein Teilstart
+klont den echten ausgewählten Mount und entfernt den Anker, bevor er erwartungsgemäß
+an den fehlenden CE-Daten eines unbenutzten Testbenutzers scheitert. Das ist **noch
+kein positiver vollständiger START/READY-Nachweis mit dieser Generation**.
+
+Die neue nur lesende CE-Auflösung unterscheidet geprüfte Abwesenheit von beschädigten
+privaten Ablagen. Sie verlangt zuvor AOSP-Identität, passende fscrypt-Policy und einen
+vorhandenen CE-Schlüssel. Sie erstellt und repariert nichts. Die beiden zusätzlichen
+Prüfungen bestätigen wiederholt ENOKEY bei real gesperrten Benutzern und unveränderte
+Deskriptorzahlen. Positivfälle für fehlende/pristine Ablagen unter entsperrtem echtem
+CE sowie die produktive Auswahl bleiben Teil der noch offenen Integration.
+
+Belege: `out/components-93270f09/targeted-tests/` im primären Workspace.
+Ergebnis SHA-256 `b5add8fb1bb30193d8e59746347542c38fd7ea58912642046a1f38c8af5dd62b`;
+Rohlog `c9744adffa7f5c9569dd443e05653bf165aff3d3a239ef968edda84e12c09cfc`;
+CE-10 `af60f475da4e3b3162f239843382fb6d29340ff50b2b0804855b9fb06ded880a`;
+CE-11 `b94dffa63cf0c054c3c44cc2ca95e8308a6d5dac28d863dfb8229cf6c2b1af2f`.
+Vorher-/Nachherzustand identisch:
+`427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`.
+
+**Nächster Schritt:** Auswahl im Produkt-Bootstrap registrieren und den Java-/CLI-Start
+so verbinden, dass langsame Hasharbeit außerhalb der kurzen AOSP-Zulassung wartet,
+aber jede erneute Anfrage Benutzer, Sitzung und CE frisch prüft. Öffentlicher
+Paketkanal, vertrauenswürdige Repository-Planung, frische Adminfreigabe für beide
+Bereiche und produktive SELinux-/Zwei-Benutzer-/Logout-/Reboot-Abnahme bleiben offen.
+Der Produkt-Broker ab38cf24, Profil `0bbb6cf5-951e-43b4-9e08-ec952ab1b6e4`, Boot
+`6e287d8c-a75c-47c1-ba45-b72b96b2122e`, alle drei Benutzer und deren Schlüsselzustand
+sind unverändert. SELinux bleibt Enforcing. Das sichtbare QEMU-Fenster bleibt
+geschlossen; der sichtbare Launcher bleibt beim geprüften Stand 2a766ab5.
+
 ## Schreibgeschützte Paketstände asynchron auswählen: c60d6ea2
 
 Komponentenstand `c60d6ea29d4d25745a38bf21c117521c893e24ae` wurde auf `aegis-build`
