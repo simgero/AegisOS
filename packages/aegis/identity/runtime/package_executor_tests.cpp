@@ -271,6 +271,34 @@ TEST_F(RuntimePackageExecutor, RejectsMissingDpkgControlMetadata) {
     EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);
     EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-package-1-audit.log").find("base-files"));
 }
+TEST_F(RuntimePackageExecutor, RejectsNewMissingDocumentationInsteadOfBroadSlimExemption) {
+    Archives(1,false,"rm /usr/share/doc/coreutils/copyright\n");
+    ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EBADMSG,result.error);
+    EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-package-1-verify.log").find("/usr/share/doc/coreutils/copyright"));
+}
+TEST_F(RuntimePackageExecutor, CannotExtendMissingBaselineByRewritingItsLog) {
+    // Upstream keeps this empty directory. Its path qualifies for the narrow
+    // slim family, but it was PRESENT during the pre-action verification.
+    struct stat original;
+    ASSERT_EQ(0,fstatat(candidate.get(),"usr/share/man/man1",&original,AT_SYMLINK_NOFOLLOW));
+    ASSERT_TRUE(S_ISDIR(original.st_mode));
+    Archives(1,false,"rmdir /usr/share/man/man1\n"
+        "printf 'missing     /usr/share/man/man1\\n' >> /var/log/aegis-package-1-verify-before.log\n");
+    ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EBADMSG,result.error);
+    EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-package-1-verify.log").find("missing     /usr/share/man/man1\n"));
+}
+TEST_F(RuntimePackageExecutor, MissingProgramInInitialCandidateRejectsBeforePackageScripts) {
+    ASSERT_EQ(0,unlinkat(candidate.get(),"usr/bin/ls",0));
+    Archives(1);ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EBADMSG,result.error);
+    EXPECT_EQ("<unavailable>",AptImageFixture::read(candidate.get(),"var/log/aegis-exec-script"));
+    EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-package-1-verify-before.log").find("/usr/bin/ls"));
+}
 TEST_F(RuntimePackageExecutor, RejectsChangedPackagedProgramAfterSuccessfulMaintainerScript) {
     Archives(1,false,"printf changed > /usr/bin/ls\n");
     ASSERT_FALSE(HasFailure());ASSERT_EQ(0,Start());PackageExecutionResult result;

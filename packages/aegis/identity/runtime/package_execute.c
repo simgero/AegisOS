@@ -225,9 +225,9 @@ static int regular_at(int root, const char *name, int flags, unsigned mode) {
     }
     return fd;
 }
-enum package_command { PACKAGE_ACTION, PACKAGE_CHECK, PACKAGE_AUDIT, PACKAGE_VERIFY };
+enum package_command { PACKAGE_ACTION, PACKAGE_CHECK, PACKAGE_AUDIT, PACKAGE_VERIFY, PACKAGE_VERIFY_BASELINE };
 static void log_name(char name[128], uint64_t job, enum package_command command) {
-    const char *suffix=command==PACKAGE_CHECK ? "-check" : command==PACKAGE_AUDIT ? "-audit" : command==PACKAGE_VERIFY ? "-verify" : "";
+    const char *suffix=command==PACKAGE_VERIFY_BASELINE ? "-verify-before" : command==PACKAGE_CHECK ? "-check" : command==PACKAGE_AUDIT ? "-audit" : command==PACKAGE_VERIFY ? "-verify" : "";
     snprintf(name,128,"var/log/aegis-package-%llu%s.log",(unsigned long long)job,suffix);
 }
 static _Noreturn void apt(const struct aegis_package_execution_request *r, enum package_command command) {
@@ -261,10 +261,10 @@ static _Noreturn void apt(const struct aegis_package_execution_request *r, enum 
             args[n++] = paths[i];
         } else args[n++] = (char *)r->items[i];
     }
-    if (command==PACKAGE_AUDIT || command==PACKAGE_VERIFY) {
+    if (command==PACKAGE_AUDIT || command==PACKAGE_VERIFY || command==PACKAGE_VERIFY_BASELINE) {
         n=0;args[n++]="/usr/bin/dpkg";
         args[n++]=command==PACKAGE_AUDIT ? "--audit" : "--verify";
-        if (command==PACKAGE_VERIFY) args[n++]="--verify-format=rpm";
+        if (command==PACKAGE_VERIFY || command==PACKAGE_VERIFY_BASELINE) args[n++]="--verify-format=rpm";
     }
     args[n] = NULL;
     char *env[] = {"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C", "LC_ALL=C", "HOME=/root",
@@ -303,13 +303,51 @@ static int audit_empty(int root,uint64_t job) {
     // itself exited successfully. Any diagnostic keeps this candidate inactive.
     return st.st_size==0 ? 0 : (errno=EBADMSG,-1);
 }
-// dpkg's file digest check detects missing/changed packaged files; it is not
-// repository authentication. Deliberately retained conffile contents may differ
-// after --force-confold. Accept only that precise rpm-format difference, never
-// missing paths, nonregular files, diagnostics or changes to ordinary programs.
-static int verify_output(int root,uint64_t job,uint32_t status) {
+// The pinned upstream slim image deliberately removed documentary files after
+// dpkg recorded them. Capture only those pre-existing missing rows BEFORE APT
+// in PID1 memory, never in a candidate-controlled allow-list or reread logfile.
+// Source image/hash admission remains the caller's obligation. This is dpkg
+// consistency, not repository authentication or a security digest proof.
+struct verification_baseline { char **rows;size_t count; };
+static int compare_rows(const void *a,const void *b) {
+    return strcmp(*(const char *const *)a,*(const char *const *)b);
+}
+static void baseline_free(struct verification_baseline *baseline) {
+    for (size_t i=0;i<baseline->count;i++) free(baseline->rows[i]);
+    free(baseline->rows);baseline->rows=NULL;baseline->count=0;
+}
+static int canonical_path(const char *path) {
+    if (*path++!='/') return 0;
+    while (*path) {
+        const char *start=path;
+        while (*path && *path!='/') { if ((unsigned char)*path<=32) return 0;path++; }
+        size_t n=(size_t)(path-start);
+        if (!n || (n==1 && *start=='.') || (n==2 && start[0]=='.' && start[1]=='.')) return 0;
+        if (*path && !*++path) return 0;
+    }
+    return 1;
+}
+static int slim_missing_path(const char *path) {
+    // A bounded policy for the pinned upstream base, not globs supplied by a
+    // package. In particular, no executable/library/account/DB path qualifies.
+    const char *prefixes[]={"/usr/share/doc/","/usr/share/info/","/usr/share/man/",
+        "/usr/share/locale/","/usr/share/lintian/overrides/"};
+    if (!canonical_path(path)) return 0;
+    for (unsigned i=0;i<COUNT(prefixes);i++) {
+        size_t n=strlen(prefixes[i]);
+        if (!strncmp(path,prefixes[i],n) && path[n]) {
+            // Upstream explicitly retains copyright files.
+            const char *last=strrchr(path,'/');
+            return strcmp(last+1,"copyright")!=0;
+        }
+    }
+    return !strcmp(path,"/var/cache/apt/archives") || !strcmp(path,"/var/cache/apt/archives/partial")
+        || !strcmp(path,"/var/lib/apt/lists/partial");
+}
+static int verify_output(int root,uint64_t job,uint32_t status,
+                          struct verification_baseline *baseline,int before) {
     if (status>1) return (errno=EBADMSG,-1);
-    char name[128];log_name(name,job,PACKAGE_VERIFY);
+    char name[128];log_name(name,job,before ? PACKAGE_VERIFY_BASELINE : PACKAGE_VERIFY);
     int fd=regular_at(root,name,O_RDONLY,0);if (fd<0) return -1;
     struct stat st;
     if (fstat(fd,&st)<0) { int saved=errno;close(fd);errno=saved;return -1; }
@@ -317,13 +355,25 @@ static int verify_output(int root,uint64_t job,uint32_t status) {
     FILE *stream=fdopen(fd,"r");if (!stream) { int saved=errno;close(fd);errno=saved;return -1; }
     char *row=NULL;size_t allocated=0;ssize_t n;int error=0;
     while ((n=getline(&row,&allocated,stream))>=0) {
-        if (n<14 || n>PATH_MAX+32 || memchr(row,0,(size_t)n) || row[n-1]!='\n'
-            || strncmp(row,"??5?????? c /",13)) { error=EBADMSG;break; }
-        for (ssize_t i=13;i<n-1;i++) if ((unsigned char)row[i]<32) { error=EBADMSG;break; }
-        if (error) break;
+        if (n<14 || n>PATH_MAX+32 || memchr(row,0,(size_t)n) || row[n-1]!='\n') { error=EBADMSG;break; }
+        row[n-1]=0;
+        // --force-confold deliberately preserves locally changed conffiles.
+        if (!strncmp(row,"??5?????? c /",13) && canonical_path(row+12)) continue;
+        if (strncmp(row,"missing     /",13) || !slim_missing_path(row+12)) { error=EBADMSG;break; }
+        if (before) {
+            if (baseline->count==16384) { error=E2BIG;break; }
+            char **rows=realloc(baseline->rows,(baseline->count+1)*sizeof(*rows));
+            if (!rows) { error=ENOMEM;break; }baseline->rows=rows;
+            char *copy=strdup(row);if (!copy) { error=ENOMEM;break; }
+            baseline->rows[baseline->count++]=copy;
+        } else if (!baseline->count || !bsearch(&row,baseline->rows,baseline->count,sizeof(char *),compare_rows)) {
+            error=EBADMSG;break;
+        }
     }
     if (!error && ferror(stream)) error=errno ? errno : EIO;
-    free(row);fclose(stream);if (error) { errno=error;return -1; }return 0;
+    free(row);fclose(stream);
+    if (!error && before && baseline->count) qsort(baseline->rows,baseline->count,sizeof(char *),compare_rows);
+    if (error) { errno=error;return -1; }return 0;
 }
 static int setup_failed(const struct aegis_package_execution_request *request) {
     int error = errno > 0 && errno <= 4095 ? errno : EIO;
@@ -363,17 +413,24 @@ int aegis_package_execute(uint32_t user, uint32_t serial) {
     if (aegis_limit_package_supervisor(user) < 0 || reply(&request, AEGIS_PACKAGE_EXEC_READY, 0, 0) < 0) return setup_failed(&request);
     alarm(0);
     uint32_t result=0;
-    uint32_t error=run_command(&request,PACKAGE_ACTION,&result);
+    struct verification_baseline baseline={0};
+    uint32_t error=run_command(&request,PACKAGE_VERIFY_BASELINE,&result);
+    if (!error) {
+        if (verify_output(root,request.job,result,&baseline,1)<0) error=errno;
+        else result=0;
+    }
+    if (!error && !result) error=run_command(&request,PACKAGE_ACTION,&result);
     if (!error && !result) error=run_command(&request,PACKAGE_CHECK,&result);
     if (!error && !result) error=run_command(&request,PACKAGE_AUDIT,&result);
     if (!error && !result && audit_empty(root,request.job)<0) error=errno;
     if (!error && !result) {
         error=run_command(&request,PACKAGE_VERIFY,&result);
         if (!error) {
-            if (verify_output(root,request.job,result)<0) error=errno;
+            if (verify_output(root,request.job,result,&baseline,0)<0) error=errno;
             else result=0; // only intentional conffile differences were reported
         }
     }
+    baseline_free(&baseline);
     if (!error && !result && aegis_package_validate(root)<0) error=errno;
     if (syncfs(root) < 0 && !error) error = errno;
     close(root);
