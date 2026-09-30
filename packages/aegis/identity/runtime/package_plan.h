@@ -48,8 +48,8 @@ struct PackageBoundPlan {
     // Earliest repository expiry. 0 only for repository-free removal.
     uint64_t valid_until_unix=0;
     // Complete validated review, including dependency marks and initial APT state.
-    // Execution must still enforce these expected effects/marks independently;
-    // the mechanical preparer/executor does not yet apply them.
+    // The worker independently checks these effects and applies their marks;
+    // this retained review also belongs to the forthcoming product approval UI.
     PackageResolvedPlan reviewed;
 };
 // Validate the resolved description and derive BOTH mechanical stages and their
@@ -60,8 +60,8 @@ struct PackageBoundPlan {
 // dependency solving, execution or publication. Must NOT receive CLI metadata.
 // The adapter must verify repositories/dependencies, source/status provenance,
 // exact expected effects and recheck expiry before fresh AOSP confirmation.
-// Execution still needs independent exact-effects checking; this binder does
-// not infer that APT will perform only the declared changes.
+// The worker independently checks exact effects; this binder alone does not
+// infer that APT will perform only the declared changes.
 // Mixed install/remove effects are presently EOPNOTSUPP, never silently dropped.
 // A changed shared base is ESTALE: private rebase is an explicit later operation.
 int PackageBindResolvedPlan(const PackageResolvedPlan& plan,uint64_t now_unix,

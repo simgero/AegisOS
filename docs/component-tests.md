@@ -1,3 +1,67 @@
+## Ausführungsprüfung cacb1718: 23 gezielte und 313 native Tests bestanden
+
+Komponentenstand **cacb171824b9586bc3a63dc99368f0f5a3b3b1c0** besteht im lokalen
+Mac-QEMU am **2026-09-30T09:04:18Z alle 23 gezielten Prüfungen** (9,308 s) und
+am **2026-09-30T09:07:39Z alle 313 aktivierten nativen Tests** aus 36 Gruppen
+(98,190 s). Kein Test wurde innerhalb dieser Läufe übersprungen. Die vier
+bereits ausdrücklich deaktivierten Fälle `DISABLED_RuntimeCeAosp` (3) und
+`DISABLED_RuntimePackageCe` (1) wurden nicht aktiviert und sind kein Bestandteil
+dieses Nachweises. **Keine öffentliche Paketverwaltung oder Produktaktivierung.**
+
+Build ausschließlich auf `aegis-build`: Lauf
+`identity-20260930T090140Z-cacb1718-HloAVV`, Invocation
+`81307238b29842bba6b139747e44c915`.
+[Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T090248Z-cacb1718-cacb1718-uiwrSV).
+Entwicklung lokal im Arbeitsbaum, Quell- und Artefakttransport über GitHub.
+
+Die vorherigen drei Fehler sind behoben. Diagnosebuild `92811c94` erhält die
+begrenzte strukturierte APT-Rückmeldung in der exklusiven Kandidatenkopie; sein
+Log belegt `search-terms: []` bei ausschließlich lokalen Debianarchiven. Der
+Arbeiter verlangt dafür jetzt genau diese leere Liste. Entfernung verlangt
+weiterhin die exakten Paketnamen. Vollständige Effekte, Zielversionen,
+Architekturen, Anfangsstatus und automatische Markierungen werden weiterhin
+unabhängig mit dem versiegelten Plan verglichen. Fünf neue direkte Gegenproben
+prüfen leere Archivsuchlisten, unerwartete Suchbegriffe, falsche Version/Architektur,
+fehlende/zusätzliche Effekte und exakte Entfernungsnamen. Der öffentliche
+Planungsparser behält seine exakte ursprüngliche Anforderung bei.
+
+Die gebundene Testtransaktion verwendet für ihre separate Ausgangsaufnahme eine
+positive Vorbereitungs-ID und kehrt danach zur brokervergebenen Auftrags-ID
+zurück. Tatsächlich bestätigt sind nun Installation, Update und Entfernung mit
+erhaltenen Konfigurationsänderungen, automatischer Bibliothek und manuellem
+Hauptpaket, Ablehnung eines anderen simulierten Versionsziels vor Skriptstart,
+Schreibschutz von Hook/Konfiguration gegen reale Maintainerskripte sowie die
+registrierte Vorbereitung/Ausführung/Publikation mit unverändertem Freigabedigest.
+Die 313er-Regression umfasst auch bestehende Namespace-/Prozessisolation,
+Abbrüche und Ressourcenbesitz, Paketgenerationen, private Auswahl, vorbereitete
+Quellen und die Signatur-/Index-/Archivfixtures.
+
+Produktgast `c7401f60`, Profil `39d29ee1-7587-4223-8e5d-f9872c910554` und Boot
+`112b706c-2e59-4845-8c90-376f1e7fc048` bleiben unverändert. SELinux Enforcing,
+Broker aktiv, nur Benutzer 0 entsperrt; Benutzer/Seriennummern, CE-Sperren,
+Schlüsselverzeichnisse und persönliche Runtime-Kontexte sind vorher/nachher
+bytegleich. Keine Produktbinärdateien ersetzt, kein Neustart, kein sichtbares
+Fenster geöffnet. Die 130 unveränderten Java-Prüfungen wurden nicht erneut
+ausgeführt; ihr gesonderter Nachweis `95f2b925` wurde auf Hash und unveränderte
+Java-Quellen geprüft.
+
+Belege im primären Workspace unter `out/components-cacb1718/`:
+
+- `targeted-tests/result.json`: `be4c68c4093329143965f118f17daf21587ea8fc1b96e3c2cfc49e9346623225`
+- `targeted-tests/native.log`: `dfb5e6435aa787b715cca593b63aaa5e68d9ef356f1d6af0a5494cbd0f992c17`
+- `native-regression/result.json`: `a34b2acadc4936220ba533081f73a8b59dc9a09ab39898ec5ffc07fb632e0d3d`
+- `native-regression/native.log`: `d0fb6b0e2ab14eb4c90240205e161352ecca16edb22dd38eed9419301e6e875b`
+- Native ELF: `33615bfad5d28af8d666f0bdcefc580faafe770fc8eef2f3097e187265967a1b`
+- Beide Vorher-/Nachher-Paare: `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`
+
+**Nächster Integrationsschritt:** den unveränderlichen produktiven Planer samt
+signaturgeprüfter Quellen-/Archivbeschaffung, Auftragsbesitz und Ablaufprüfung
+an den vorhandenen Ausführungsweg anschließen. Danach sessiongebundene CLI/Binder-
+Operationen und frische AOSP-Adminbestätigung verbinden und den gesamten
+Zwei-Benutzer-/Logout-/Neustartablauf mit gemeinsamen und privaten Paketaktionen
+im gebauten Produktimage prüfen. Entwicklerroot-Fixtures ersetzen diese Prüfung
+nicht. Die folgenden Einträge sind historische Belege ihres jeweiligen Stands.
+
 ## Ausführungsprüfung 207d7aa7: kompiliert, 15/18 Tests, noch nicht freigegeben
 
 Stand **207d7aa7f24e06ad1b02fe44dcfa1598eb21f892** wurde auf `aegis-build`

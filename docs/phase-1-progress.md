@@ -1,5 +1,27 @@
 # Phase 1: Implementierungsstand
 
+## 2026-09-30: Paketarbeiter geprüft, Produktverbindung als nächster Schritt
+
+Komponentenstand `cacb1718` besteht **23/23 gezielte Prüfungen** und danach
+**313/313 aktivierte native Tests** im lokalen QEMU. Installation, Update und
+Entfernung übernehmen jetzt die freigegebenen automatischen Paketmarkierungen;
+die unabhängige Prüfung vergleicht Simulation und endgültigen Bestand mit dem
+versiegelten Plan. Die drei vorherigen Fehler sind behoben. Vier deaktivierte
+AOSP-Integrationstests bleiben gesondert; Java wurde nicht erneut ausgeführt.
+[Belege, Grenzen und nächster Schritt](component-tests.md).
+
+Offen bleiben der produktive unveränderliche Planer mit Quellen-/Archivabruf,
+CLI/Binder und frische AOSP-Adminfreigabe sowie der vollständige Paketablauf mit
+zwei Benutzern im Produktimage. Der laufende Gast `c7401f60` samt Benutzern,
+Schlüsseln und sichtbarem Launcher ist unverändert. Das Gesamtziel bleibt offen.
+
+Nach ausdrücklicher Freigabe wurden zusätzlich 28 überholte QEMU-Profile und
+54 ausschließlich dazugehörige Eingabedateien entfernt: 25,8 GiB tatsächlich
+freigegeben. Fünf benötigte Profile bleiben erhalten (sichtbarer Stand, aktueller
+Testgast, drei Vergleichsstände). Beleg: `out/obsolete-profiles-cleanup-20260930.json`.
+Die unten dokumentierten 33 Profile beschreiben den früheren Bereinigungsstand.
+
+
 ## 2026-09-30: Paket-Ausführungsprüfung in Arbeit; lokaler Buildcache bereinigt
 
 Komponentenstand `207d7aa7` kompiliert, besteht aber erst **15/18** gezielte

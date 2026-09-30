@@ -1,16 +1,26 @@
 # Vollständige Paketgenerationen
 
-## Unabhängige Ausführungsprüfung: noch nicht freigegeben
+## Unabhängige Ausführungsprüfung bestanden; Produktintegration offen
 
-`207d7aa7` ergänzt versiegelte Ausgangs-/Zielzustände im Arbeiter, feste
-schreibgeschützte APT-Konfiguration samt Hook, native Prüfung des vollständigen
-installierten Bestands und geplante Übernahme automatischer Markierungen.
-Kompilierung bestätigt; **15/18** gezielte QEMU-Prüfungen. Die positiven
-Arbeiterfälle scheitern noch vor der Installation beim Simulationsvergleich,
-die gebundene Fixture bei der vorbereitenden Job-ID. Deshalb keine Aktivierung
-und noch kein Nachweis tatsächlicher Markierungsübernahme oder Veröffentlichung.
-[Konkrete Fehler und Belege](../docs/component-tests.md). Die nachfolgenden
-Erfolge beziehen sich jeweils auf ihre ausdrücklich genannten älteren Stände.
+`cacb1718` besteht **23/23 gezielte Prüfungen und 313/313 aktivierte native Tests**
+im lokalen Mac-QEMU. Der Arbeiter vergleicht anfänglichen Status/automatische
+Markierungen, vollständige strukturierte APT-Simulation und endgültigen
+installierten Bestand mit dem versiegelten Review. Er übernimmt freigegebene
+Manual-/Automatic-Markierungen; Hook und feste Konfiguration liegen schreibgeschützt.
+Lokale Archive haben bei APT 3.0.3 eine leere Hook-Suchliste, Entfernung die exakten
+Paketnamen. In beiden Fällen ist der vollständige Effektvergleich verbindlich.
+
+Echte Install-/Update-/Remove-Fixtures bewahren lokale Konfigurationsänderungen
+und gewünschte Abhängigkeitsmarkierungen. Die gebundene Transaktion veröffentlicht
+nur unter dem ursprünglichen Digest. Vier deaktivierte AOSP-Integrationstests
+sind nicht Teil der 313 Prüfungen; kein öffentlicher Paketendpunkt wurde aktiviert.
+[Belege und Grenzen](../docs/component-tests.md).
+
+Nächster Schritt ist die Verbindung des unveränderlichen produktiven Planers,
+Quellen-/Archivbeschaffung und Auftragslebenszyklus mit dieser Ausführung, danach
+sessiongebundene CLI/Binder-Operationen mit frischer AOSP-Adminbestätigung und
+vollständige gemeinsame/private Paketprüfungen im Zwei-Benutzer-Produktablauf.
+Die nachfolgenden Abschnitte sind historische Nachweise ihres jeweiligen Stands.
 
 ## Archivbefunde und vollständiger Freigabeplan: Verbindung geprüft
 
