@@ -1,5 +1,19 @@
 # Phase 1: Implementierungsstand
 
+## 2026-09-30: Paketplan mit Release-/Index-/Archivbelegen verbunden
+
+`9e705281` besteht **34/34 gezielte und 328/328 aktivierte native Tests**.
+Der unveränderliche APT-Planer prüft die bereits authentifizierten Release-
+Metadaten, vollständigen Paketlisten und heruntergeladenen Archive zusammen
+und übergibt diese Belege an die vorhandene Bindung des Freigabeplans.
+[Nachweise und Grenzen](component-tests.md). Benutzer, Schlüsselzuordnungen,
+aktueller QEMU-Gast und sichtbare Version bleiben unverändert.
+
+Als Nächstes fehlen die produktive Netzwerk-/Besitzverwaltung des Planungsauftrags,
+CE-/Abbruchintegration und erneute Fristprüfung vor der frischen AOSP-Adminfreigabe,
+danach die öffentliche CLI/Binder-Verbindung. Der gesamte Zwei-Benutzer-Ablauf
+mit gemeinsamer und persönlicher Paketverwaltung ist weiterhin nicht abgeschlossen.
+
 ## 2026-09-30: Netzwerk im bestehenden QEMU-Profil geprüft
 
 Der optionale Netzwerkmodus des Launchers verbindet den Android-Testgast nach

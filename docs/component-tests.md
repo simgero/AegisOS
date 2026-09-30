@@ -1,3 +1,79 @@
+## Paketplan mit authentifizierten Index- und Archivbelegen: 34 und 328 Tests bestanden
+
+Komponentenstand **9e705281d73bc08d9ae1df4e9f58cc68203d102c** besteht am
+30. September 2026 im lokalen Mac-QEMU **34/34 gezielte Prüfungen**
+(10:37:02 UTC, 13,146 Sekunden) und anschließend **328/328 aktivierte native
+Tests aus 39 Gruppen** (10:39:16 UTC, 103,151 Sekunden).
+Buildlauf `identity-20260930T103450Z-9e705281-fgRXtC`, Invocation
+`0d37a8821c4548e7b44586c30418312e`, kompiliert in 25 Sekunden auf `aegis-build`.
+[Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T103602Z-9e705281-9e705281-1Yv5KD).
+Der vorherige Lauf `1bbb5658` scheiterte an einem Variablennamen im neuen Test;
+getestet und übernommen wurden ausschließlich die korrigierten Komponenten.
+
+Der unveränderliche Planer verknüpft jetzt seinen erfolgreichen APT-Abruf mit
+nativen Repository- und Archivbelegen. `PackageCollectAptEvidence` läuft nach
+dem Ende aller APT-Kinder im privaten, unveränderten Auftragsverzeichnis. Es
+prüft die exakten Indexziele und deren Dateinamen, den vorgesehenen Schlüsselpfad,
+den vollständigen unkomprimierten Index gegen die authentifizierte Release-
+Prüfsumme und jedes ausgewählte Archiv gegen Größe und SHA-256. Doppelte,
+komprimierte oder unerwartete Ziele werden abgewiesen. Die Receipt enthält
+Repository-Identitäten, Release-/Index-Digests, Gültigkeit, Archivdaten und einen
+separaten Digest der festen Konfiguration, Quellen und Schlüssel.
+
+**Die OpenPGP-Authentifizierung bleibt Aufgabe des unveränderlichen APT mit
+festen Schlüsseln.** Der native Release-Parser ist kein Signaturprüfer und
+`Trusted: yes` allein kein Vertrauensnachweis. Die Bibliothek darf keine
+beliebigen Verzeichnisse oder vom Aufrufer gelieferte Metadaten als authentifiziert
+annehmen. Der echte Resolver führt vorher den geprüften APT-Update-/Abrufablauf
+aus und lässt keine Programme oder Konfigurationen der ausgewählten Generation zu.
+Die spätere produktive Besitzverwaltung muss Herkunft, unveränderliche Mounts,
+CE-Zulassung, Fristen und Abbruch bis zum Schließen aller Referenzen sichern.
+
+Native Gültigkeitsprüfung und feste APT-Konfiguration begrenzen die Lebensdauer
+auch ohne `Valid-Until` auf **120 Tage ab Release-Datum**; ein früheres
+`Valid-Until` gewinnt. Das entspricht der
+[Max-ValidTime-Verknüpfung in APT 3.0.3](https://github.com/Debian/apt/blob/3.0.3/apt-pkg/deb/debmetaindex.cc).
+Ungültige Kalenderdaten, widersprüchliche Wochentage, zukünftige Daten,
+doppelte Felder/Indexnamen und übergroße Eingaben werden abgewiesen.
+Clear-signed InRelease und getrennt signierter Release-Text werden unterstützt;
+die reine Envelope-Parserprüfung behauptet keine Signaturgültigkeit.
+
+Die echten isolierten APT-Fixtures für Installation, Update und abhängige
+Entfernung führen die gewonnenen Belege anschließend in `PackageBindAptArchives`.
+Dabei bleiben alle ausgewählten Versionen und automatischen/manuellen
+Abhängigkeitsmarkierungen erhalten. Nachträglich geänderte, gleich große
+Index-/Archivdateien werden ebenfalls abgewiesen; unveränderte Kontrollfälle
+bestehen. Auch ein Plan ohne Änderungen prüft noch sämtliche gelieferten Indizes;
+er erzeugt dadurch keine Installation oder Freigabe. Die Kontext- und
+Quellabbildangaben dieser Bindungsprüfung sind interne Testeingaben, kein Nachweis
+einer öffentlich autorisierten Produkttransaktion.
+
+Gast: unverändertes Produktimage `c7401f60`, Profil
+`39d29ee1-7587-4223-8e5d-f9872c910554`, Boot-ID
+`6c6dc3df-cf70-4c1b-8f16-f131b5a981a5` in
+`out/qemu-network-20260930/boot-2`. SELinux Enforcing, authentifiziertes ADB,
+Benutzer/Seriennummern 0/10/11, CE-/DE-Schlüsselkennungen und leere Runtime-
+Kontexte sind vor/nach beiden Prüfungen identisch. Benutzer 10/11 bleiben gesperrt.
+Vier deaktivierte AOSP-CE-Integrationstests sind ausdrücklich nicht ausgeführt;
+der unveränderte Java-Code behält seinen früheren 130-Test-Beleg aus `95f2b925`.
+
+Nachweise: `out/components-9e705281/{targeted-tests,native-regression}/` mit
+jeweils `result.json`, `native.log`, `before.json` und `after.json`.
+
+| Datei | SHA-256 |
+| --- | --- |
+| Gezieltes Protokoll | `cc35a05005e127122b7576be78425b66908a9191aa8be46c117c0d3f04045205` |
+| Vollständiges Protokoll | `bc869518a1539237dde49d57aaf5ef06a0c0458258a011092a924f4d3a844660` |
+| Vollständiges Ergebnis | `2dc0dc9c6d0b814e2d310664e4103d504a6ce73a8eb47f025ddb0b1670451c67` |
+| Zustand vor/nach Tests | `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a` |
+
+**Weiter offen:** kontrollierter produktiver Netzwerkabruf und registrierter
+Planungsauftrag mit CE-/Abbruchlebenszyklus, Wiederprüfung vor Genehmigung,
+öffentliche CLI/Binder-Operationen und frische AOSP-Adminfreigabe. Diese Tests
+nutzen weiterhin eine feste signierte Offline-Quelle. QEMU-Netzwerkzugang allein
+aktiviert keine persönliche Netzwerkfreigabe oder öffentliche Paketverwaltung.
+Der vollständige Zwei-Benutzer-Produktablauf mit Paketverwaltung bleibt offen.
+
 ## Unveränderlicher Paketplaner: 9 gezielte und 322 native Prüfungen bestanden
 
 Komponentenstand **8e500d7e9825a7d8f4e05a95c45d5997639d4fc2** besteht im

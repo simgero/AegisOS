@@ -1,3 +1,14 @@
+## Aktuell: authentifizierte Paketbelege durchgängig gebunden
+
+`9e705281` besteht 34 gezielte und alle 328 aktivierten nativen Prüfungen.
+Der unveränderliche Resolver sammelt Release-/Index-/Archivbelege nach beendetem
+APT-Abruf, kontrolliert Gültigkeit und vollständige Dateihashes und bindet die
+Ergebnisse an den Freigabeplan. Signaturvertrauen stammt weiterhin ausschließlich
+aus der zuvor erfolgreichen APT-Prüfung unter festen Quellen und Schlüsseln.
+Die öffentlichen Paketbefehle, registrierte produktive Netzbeschaffung und
+frische AOSP-Adminbestätigung bleiben offen; die Quelle dieser Integrationstests
+ist eine signierte Offline-Fixture. [Details und Belege](../docs/component-tests.md).
+
 # Vollständige Paketgenerationen
 
 ## Unveränderlicher Planer-Kern geprüft; produktive Hülle folgt
