@@ -469,7 +469,7 @@ TEST_F(RuntimePackagePlanning, ProductPolicyBootstrapPinsTogetherOnceBeforeAnyJo
     Fd factory(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC));ASSERT_TRUE(factory.ok());
     Fd prepare(Program("aegis-package-prepare"));ASSERT_TRUE(prepare.ok());
     Fd state(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(state.ok());
-    aegis_base_receipt receipt={};receipt.bytes=image->original.bytes;memcpy(receipt.sha256,image->original.sha256.c_str(),65);
+    aegis_base_receipt receipt={};receipt.bytes=image->original.bytes;memcpy(receipt.sha256,image->original.sha256,65);
     ASSERT_EQ(0,aegis_broker_owner_enable_selection(owner,factory.get(),&receipt,prepare.get(),state.get()));
     int before=descriptors();int invalid[3]={inputs[0],inputs[1],-1};
     EXPECT_EQ(-1,aegis_broker_owner_enable_package_policy(owner,invalid));EXPECT_EQ(before,descriptors());
