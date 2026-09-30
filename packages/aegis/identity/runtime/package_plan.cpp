@@ -18,29 +18,6 @@ bool Image(const PackageInput& p) {
 bool Same(const PackageInput& a,const PackageInput& b) {
     return a.bytes==b.bytes && a.sha256==b.sha256;
 }
-bool Name(const std::string& s) {
-    if(s.size()<2 || s.size()>128 || !((s[0]>='a'&&s[0]<='z')||(s[0]>='0'&&s[0]<='9')))return false;
-    for(char c:s)if(!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='+'||c=='-'||c=='.'))return false;
-    return true;
-}
-bool Version(const std::string& s) {
-    if(s.empty() || s.size()>128)return false;
-    size_t start=0,colon=s.find(':');
-    if(colon!=std::string::npos) {
-        if(!colon)return false;
-        for(size_t i=0;i<colon;++i)if(s[i]<'0'||s[i]>'9')return false;
-        start=colon+1;
-    }
-    if(start>=s.size() || s[start]<'0'||s[start]>'9')return false;
-    for(size_t i=start;i<s.size();++i) {
-        char c=s[i];
-        if(!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')
-             ||c=='.'||c=='+'||c=='-'||c=='~'))return false;
-    }
-    // The bounded adapter accepts a strict subset of Debian versions; the final
-    // hyphen introduces a revision and cannot terminate the version.
-    return s.back()!='-';
-}
 std::string Archive(const PackageChange& c) {
     // APT 3.0.3 pkgAcqArchive + QuoteString: epoch ':' is escaped as lowercase
     // %3a. Other accepted package/version characters are already unchanged.
@@ -64,6 +41,29 @@ struct Encoding {
     }
 };
 }
+bool PackagePlanNameValid(const std::string& s) {
+    if(s.size()<2 || s.size()>128 || !((s[0]>='a'&&s[0]<='z')||(s[0]>='0'&&s[0]<='9')))return false;
+    for(char c:s)if(!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='+'||c=='-'||c=='.'))return false;
+    return true;
+}
+bool PackagePlanVersionValid(const std::string& s) {
+    if(s.empty() || s.size()>128)return false;
+    size_t start=0,colon=s.find(':');
+    if(colon!=std::string::npos) {
+        if(!colon)return false;
+        for(size_t i=0;i<colon;++i)if(s[i]<'0'||s[i]>'9')return false;
+        start=colon+1;
+    }
+    if(start>=s.size() || s[start]<'0'||s[start]>'9')return false;
+    for(size_t i=start;i<s.size();++i) {
+        char c=s[i];
+        if(!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')
+             ||c=='.'||c=='+'||c=='-'||c=='~'))return false;
+    }
+    // The bounded adapter accepts a strict subset of Debian versions; the final
+    // hyphen introduces a revision and cannot terminate the version.
+    return s.back()!='-';
+}
 int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* output) {
     if(!output || !now || now>INT64_MAX || p.requester<10 || p.requester>=21473 || p.serial>INT32_MAX
        || !Image(p.source) || !Image(p.shared) || !Hash(p.planner_image_sha256)
@@ -72,7 +72,7 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
        || (p.action!=PackageAction::Install && p.action!=PackageAction::Update && p.action!=PackageAction::Remove))return Fail(EINVAL);
     if(p.action==PackageAction::Update) {
         if(!p.requested_package.empty() || !p.requested_version.empty())return Fail(EINVAL);
-    } else if(!Name(p.requested_package) || (!p.requested_version.empty() && !Version(p.requested_version))
+    } else if(!PackagePlanNameValid(p.requested_package) || (!p.requested_version.empty() && !PackagePlanVersionValid(p.requested_version))
               || (p.action==PackageAction::Remove && !p.requested_version.empty()))return Fail(EINVAL);
     if(p.has_previous) {
         if(p.create_store || p.previous.bytes!=p.source.bytes || p.previous.image_sha256!=p.source.sha256
@@ -94,7 +94,7 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
     e.Text(p.planner_image_sha256);e.Text(p.policy_sha256);e.Text(p.initial_status_sha256);
     e.Number(p.repositories.size());std::string previous;
     for(const auto& repo:p.repositories) {
-        if(!Name(repo.id) || (!previous.empty() && previous>=repo.id) || !Hash(repo.release_sha256)
+        if(!PackagePlanNameValid(repo.id) || (!previous.empty() && previous>=repo.id) || !Hash(repo.release_sha256)
            || !Hash(repo.index_sha256) || !repo.valid_until_unix || repo.valid_until_unix>INT64_MAX)return Fail(EINVAL);
         if(repo.valid_until_unix<=now)return Fail(ESTALE);
         previous=repo.id;
@@ -103,16 +103,16 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
     }
     e.Number(p.changes.size());previous.clear();uint64_t archive_total=0;bool requested=p.action==PackageAction::Update;
     for(const auto& c:p.changes) {
-        if(!Name(c.name) || (!previous.empty() && previous>=c.name) || (c.architecture!="arm64"&&c.architecture!="all")
-           || (!c.before_version.empty() && !Version(c.before_version))
-           || (!c.after_version.empty() && !Version(c.after_version))
+        if(!PackagePlanNameValid(c.name) || (!previous.empty() && previous>=c.name) || (c.architecture!="arm64"&&c.architecture!="all")
+           || (!c.before_version.empty() && !PackagePlanVersionValid(c.before_version))
+           || (!c.after_version.empty() && !PackagePlanVersionValid(c.after_version))
            || c.before_version==c.after_version)return Fail(EINVAL);
         previous=c.name;
         if(c.after_version.empty()!=!exec.archives)return Fail(EOPNOTSUPP);
         if(exec.archives) {
             if(!c.archive.bytes || c.archive.bytes>(uint64_t{2}<<30) || !Hash(c.archive.sha256))return Fail(EINVAL);
             archive_total+=c.archive.bytes;if(archive_total>(uint64_t{8}<<30))return Fail(EINVAL);
-            if(!Name(c.repository) || !std::any_of(p.repositories.begin(),p.repositories.end(),
+            if(!PackagePlanNameValid(c.repository) || !std::any_of(p.repositories.begin(),p.repositories.end(),
                  [&](const auto& repo){return repo.id==c.repository;}))return Fail(EINVAL);
             exec.items.push_back(Archive(c));prep.archives.push_back(c.archive);
         } else {

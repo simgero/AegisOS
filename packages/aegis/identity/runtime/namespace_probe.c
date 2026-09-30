@@ -6,6 +6,7 @@
 #include "namespace_probe.h"
 #include "package_policy_probe.h"
 #include "package_apt_probe.h"
+#include "package_apt_hook.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -37,6 +38,7 @@ static int read_map(const char *name, uint32_t rows[3][3]) {
 }
 
 int main(int argc, char **argv) {
+    if(argc==2 && !strcmp(argv[1],"--apt-plan-hook"))return aegis_apt_plan_hook();
     if (argc == 2 && !strcmp(argv[0], "aegis-package-policy-exec")) {
         char *end;unsigned long user = strtoul(argv[1], &end, 10);
         if (*end || user < 10 || user >= 21473) return 92;

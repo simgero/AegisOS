@@ -5,6 +5,7 @@
 #include "namespace_probe.h"
 #include "package_policy_probe.h"
 #include "package_apt_probe.h"
+#include "package_apt_plan.h"
 #include "package_apt_fixture.h"
 #include "sandbox.h"
 #include <linux/capability.h>
@@ -305,12 +306,37 @@ TEST_F(RuntimeNamespace, OfflineAptInstallsUpgradesAndPurgesCompleteCandidate) {
     // still-owned mount. Failure evidence stays in this unique fixture image.
     std::string log = AptImageFixture::read(source, "var/log/aegis-package-test.log");
     fprintf(stderr, "APT isolated candidate log:\n%s\n", log.c_str());
+    for(const char* name:{"aegis-plan-unsigned.log","aegis-plan-signature.log","aegis-plan-expired.log",
+                          "aegis-plan-index.log","aegis-plan-missing.log","aegis-plan-install.json",
+                          "aegis-plan-upgrade.json","aegis-plan-remove.json"}) {
+        auto evidence=AptImageFixture::read(source,(std::string("var/log/")+name).c_str());
+        fprintf(stderr,"APT planner evidence %s:\n%s\n",name,evidence.c_str());
+    }
     ASSERT_EQ(static_cast<ssize_t>(sizeof(result)), got);
     ASSERT_EQ(0x41505452u, result.magic);
     ASSERT_EQ(6u, result.phase) << "status=" << result.status << " errno=" << result.error;
     ASSERT_EQ(0u, result.status);ASSERT_EQ(0u, result.error);
     ASSERT_EQ(CLD_EXITED, exited.code);ASSERT_EQ(0, exited.status);
     ASSERT_EQ("APT_INSTALL_UPGRADE_PURGE_OK\n", AptImageFixture::read(source, "var/log/aegis-package-test.complete"));
+    EXPECT_EQ("SIGNED_METADATA_RESOLUTION_OK\nUNSIGNED_REJECTED\nSIGNATURE_TAMPER_REJECTED\nEXPIRED_REJECTED\nINDEX_TAMPER_REJECTED\nMISSING_VERSION_REJECTED\n",
+        AptImageFixture::read(source,"var/log/aegis-plan-tests.complete"));
+    std::vector<aegis::PackageAptEffect> effects;
+    auto json=AptImageFixture::read(source,"var/log/aegis-plan-install.json");
+    ASSERT_EQ(0,aegis::PackageReadAptPlan(json,aegis::PackageAction::Install,"aegis-probe-app","2",&effects))<<json;
+    ASSERT_EQ(2u,effects.size());
+    EXPECT_EQ("aegis-probe-app",effects[0].name);EXPECT_EQ("aegis-probe-lib",effects[1].name);
+    EXPECT_EQ("2",effects[0].after_version);EXPECT_EQ("2",effects[1].after_version);
+    EXPECT_TRUE(effects[0].before_version.empty());EXPECT_TRUE(effects[1].before_version.empty());
+    EXPECT_FALSE(effects[0].automatic);EXPECT_TRUE(effects[1].automatic);
+    json=AptImageFixture::read(source,"var/log/aegis-plan-upgrade.json");
+    ASSERT_EQ(0,aegis::PackageReadAptPlan(json,aegis::PackageAction::Update,"","",&effects))<<json;
+    ASSERT_EQ(2u,effects.size());
+    for(const auto& effect:effects) { EXPECT_EQ("1",effect.before_version);EXPECT_EQ("2",effect.after_version); }
+    json=AptImageFixture::read(source,"var/log/aegis-plan-remove.json");
+    ASSERT_EQ(0,aegis::PackageReadAptPlan(json,aegis::PackageAction::Remove,"aegis-probe-lib","",&effects))<<json;
+    ASSERT_EQ(2u,effects.size());
+    for(const auto& effect:effects) { EXPECT_EQ("2",effect.before_version);EXPECT_TRUE(effect.after_version.empty()); }
+
     struct stat st;
     ASSERT_EQ(0, fstatat(source, "var/lib/aegis-probe-owned", &st, AT_SYMLINK_NOFOLLOW));
     constexpr uid_t technical_owner = 10u * 100000u + 5000u + 42u;

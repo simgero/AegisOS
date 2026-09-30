@@ -3,6 +3,9 @@
 #include "package_preparer.h"
 #include "package_publisher.h"
 namespace aegis {
+// Syntax only, no package existence or authorization claim.
+bool PackagePlanNameValid(const std::string& value);
+bool PackagePlanVersionValid(const std::string& value);
 enum class PackageAction : uint32_t { Install=1, Update=2, Remove=3 };
 // Evidence supplied by the trusted APT adapter AFTER signature, freshness and
 // Release -> Packages -> archive verification. Digests alone do NOT prove trust.

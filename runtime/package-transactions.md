@@ -1,5 +1,24 @@
 # Vollständige Paketgenerationen
 
+## APT-Auflösung und signierte Metadaten: Komponentenschritt
+
+Der neue Adapter liest die vollständigen Änderungen aus APTs strukturiertem
+JSON-Protokoll 0.2. Er bewahrt gewählte Versionen, automatische Abhängigkeiten und
+abhängige Entfernungen. Kandidatenversion und tatsächlich gewählte Version sind
+getrennt; unvollständige, widersprüchliche oder übergroße Ergebnisse scheitern.
+
+Ein getrenntes Testrepository trägt echte Signaturen eines ausschließlich dafür
+erzeugten Schlüssels. Die Gastprüfung verlangt eine gültige Signatur und
+Index-Prüfsumme, lehnt fehlende/veränderte Signaturen sowie abgelaufene Releases
+ab und lässt APT Installation, Update und abhängige Entfernung planen. Während
+der Simulation sind dpkg und Zustandsänderungen gesperrt. **Dieser neue Schritt
+ist noch nicht kompiliert oder im Gast nachgewiesen.**
+
+Produktive Quellenbeschaffung, Archivbelege, unveränderlicher Planer samt
+Auftragslebenszyklus, Übernahme automatischer Installationsmarkierungen und
+Vergleich vor der tatsächlichen Ausführung fehlen weiterhin. Der öffentliche
+Paketendpunkt bleibt inaktiv. [Testdaten und Protokoll](../packages/aegis/identity/runtime/package-apt-fixture.md).
+
 ## Bindung des aufgelösten Paketplans
 
 Der neue interne `PackageBindResolvedPlan` erzeugt aus dem vertrauenswürdig

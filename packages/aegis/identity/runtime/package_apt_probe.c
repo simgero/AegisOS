@@ -5,6 +5,7 @@
 #define _GNU_SOURCE
 #endif
 #include "package_apt_probe.h"
+#include "package_apt_metadata_fixture.h"
 #include "sandbox.h"
 #include <errno.h>
 #include <fcntl.h>
@@ -67,6 +68,81 @@ static const char script[] =
 "    dpkg-deb --root-owner-group -Zgzip --build \"$tree\" \"/tmp/aegis-probe-$package-$version.deb\"\n"
 "  done\n"
 "done\n"
+"# Trusted resolver fixture, separate from the execution source configuration.\n"
+"mkdir -p /tmp/aegis-plan/lists/partial /tmp/aegis-plan/cache/archives/partial /tmp/aegis-empty.d\n"
+": > /tmp/aegis-empty.conf\n"
+"cat > /tmp/aegis-plan.sources.list <<'EOF'\n"
+"deb [signed-by=/tmp/aegis-test-key.asc] file:/tmp/aegis-repo ./\n"
+"EOF\n"
+"cat > /tmp/aegis-plan.conf <<'EOF'\n"
+"Dir::Etc::parts \"/tmp/aegis-empty.d\";\n"
+"Dir::Etc::main \"/tmp/aegis-empty.conf\";\n"
+"Dir::Etc::sourcelist \"/tmp/aegis-plan.sources.list\";\n"
+"Dir::Etc::sourceparts \"/tmp/aegis-empty.d\";\n"
+"Dir::Etc::trusted \"/tmp/aegis-empty.gpg\";\n"
+"Dir::Etc::trustedparts \"/tmp/aegis-empty.d\";\n"
+"Dir::State::lists \"/tmp/aegis-plan/lists\";\n"
+"Dir::State::status \"/var/lib/dpkg/status\";\n"
+"Dir::State::extended_states \"/tmp/aegis-plan/extended_states\";\n"
+"Dir::Cache::archives \"/tmp/aegis-plan/cache/archives\";\n"
+"Dir::Cache::pkgcache \"\";\n"
+"Dir::Cache::srcpkgcache \"\";\n"
+"Dir::Log \"/tmp/aegis-plan\";\n"
+"Dir::Bin::dpkg \"/usr/bin/false\";\n"
+"APT::Architecture \"arm64\";\n"
+"APT::Architectures { \"arm64\"; };\n"
+"APT::Install-Recommends \"false\";\n"
+"APT::Install-Suggests \"false\";\n"
+"APT::Get::AllowUnauthenticated \"false\";\n"
+"APT::Update::Error-Mode \"any\";\n"
+"Acquire::AllowInsecureRepositories \"false\";\n"
+"Acquire::AllowDowngradeToInsecureRepositories \"false\";\n"
+"Acquire::AllowWeakRepositories \"false\";\n"
+"Acquire::Check-Date \"true\";\n"
+"Acquire::Check-Valid-Until \"true\";\n"
+"AptCli::Hooks::Install { \"/tmp/aegis-plan-hook --apt-plan-hook\"; };\n"
+"AptCli::Hooks::Upgrade { \"/tmp/aegis-plan-hook --apt-plan-hook\"; };\n"
+"EOF\n"
+"planner() { APT_CONFIG=/tmp/aegis-plan.conf apt-get -q \"$@\"; }\n"
+"fresh_lists() {\n"
+"  rm -rf /tmp/aegis-plan/lists\n"
+"  mkdir -p /tmp/aegis-plan/lists/partial\n"
+"}\n"
+"planner update\n"
+"cp /tmp/aegis-repo/Release /tmp/aegis-original-Release\n"
+"cp /tmp/aegis-repo/Release.gpg /tmp/aegis-original-Release.gpg\n"
+"cp /tmp/aegis-repo/Packages /tmp/aegis-original-Packages\n"
+"rm /tmp/aegis-repo/Release.gpg\n"
+"fresh_lists\n"
+"if planner update > /var/log/aegis-plan-unsigned.log 2>&1; then exit 81; fi\n"
+"grep -qi 'not signed' /var/log/aegis-plan-unsigned.log\n"
+"cp /tmp/aegis-original-Release.gpg /tmp/aegis-repo/Release.gpg\n"
+"sed -i 's/AEGIS TEST ONLY/AEGIS CHANGED/' /tmp/aegis-repo/Release\n"
+"fresh_lists\n"
+"if planner update > /var/log/aegis-plan-signature.log 2>&1; then exit 82; fi\n"
+"cp /tmp/aegis-expired-Release /tmp/aegis-repo/Release\n"
+"cp /tmp/aegis-expired-Release.gpg /tmp/aegis-repo/Release.gpg\n"
+"fresh_lists\n"
+"if planner update > /var/log/aegis-plan-expired.log 2>&1; then exit 83; fi\n"
+"grep -qi 'expired' /var/log/aegis-plan-expired.log\n"
+"cp /tmp/aegis-original-Release /tmp/aegis-repo/Release\n"
+"cp /tmp/aegis-original-Release.gpg /tmp/aegis-repo/Release.gpg\n"
+"printf 'tampered\\n' >> /tmp/aegis-repo/Packages\n"
+"fresh_lists\n"
+"if planner update > /var/log/aegis-plan-index.log 2>&1; then exit 84; fi\n"
+"grep -qi 'Hash Sum mismatch' /var/log/aegis-plan-index.log\n"
+"cp /tmp/aegis-original-Packages /tmp/aegis-repo/Packages\n"
+"fresh_lists\n"
+"planner update\n"
+"status_before=$(sha256sum /var/lib/dpkg/status)\n"
+"planner --simulate --no-download install aegis-probe-app=2\n"
+"cp /run/aegis-apt-plan.json /var/log/aegis-plan-install.json\n"
+"rm /run/aegis-apt-plan.json\n"
+"[ \"$status_before\" = \"$(sha256sum /var/lib/dpkg/status)\" ]\n"
+"[ ! -e /var/log/aegis-probe-scripts.log ]\n"
+"if planner --simulate --no-download install aegis-probe-app=999 > /var/log/aegis-plan-missing.log 2>&1; then exit 85; fi\n"
+"[ ! -e /run/aegis-apt-plan.json ]\n"
+"printf 'SIGNED_METADATA_RESOLUTION_OK\\nUNSIGNED_REJECTED\\nSIGNATURE_TAMPER_REJECTED\\nEXPIRED_REJECTED\\nINDEX_TAMPER_REJECTED\\nMISSING_VERSION_REJECTED\\n' > /var/log/aegis-plan-tests.complete\n"
 "mkdir -p /tmp/aegis-sources.d\n"
 "touch /tmp/aegis-sources.list\n"
 "apt() {\n"
@@ -81,6 +157,12 @@ static const char script[] =
 "[ \"$(cat /usr/share/aegis-probe/library)\" = 1 ]\n"
 "[ \"$(dpkg-query -W -f='${Version}' aegis-probe-app)\" = 1 ]\n"
 "[ \"$(stat -c %u:%g /var/lib/aegis-probe-owned)\" = 42:42 ]\n"
+"status_before=$(sha256sum /var/lib/dpkg/status)\n"
+"planner --simulate --no-download upgrade\n"
+"cp /run/aegis-apt-plan.json /var/log/aegis-plan-upgrade.json\n"
+"rm /run/aegis-apt-plan.json\n"
+"[ \"$status_before\" = \"$(sha256sum /var/lib/dpkg/status)\" ]\n"
+"[ \"$(aegis-probe-app)\" = app-1 ]\n"
 "printf 'personal=kept\\n' > /etc/aegis-probe.conf\n"
 "mkdir -p /var/cache/apt/archives\n"
 "cp /tmp/aegis-probe-app-2.deb /var/cache/apt/archives/aegis-probe-app_2_all.deb\n"
@@ -91,6 +173,12 @@ static const char script[] =
 "[ \"$(dpkg-query -W -f='${Version}' aegis-probe-app)\" = 2 ]\n"
 "[ \"$(dpkg-query -W -f='${Version}' aegis-probe-lib)\" = 2 ]\n"
 "[ \"$(cat /etc/aegis-probe.conf)\" = personal=kept ]\n"
+"status_before=$(sha256sum /var/lib/dpkg/status)\n"
+"planner --simulate --no-download remove aegis-probe-lib\n"
+"cp /run/aegis-apt-plan.json /var/log/aegis-plan-remove.json\n"
+"rm /run/aegis-apt-plan.json\n"
+"[ \"$status_before\" = \"$(sha256sum /var/lib/dpkg/status)\" ]\n"
+"[ \"$(aegis-probe-app)\" = app-2 ]\n"
 "apt purge aegis-probe-app aegis-probe-lib\n"
 "[ ! -e /usr/bin/aegis-probe-app ]\n"
 "[ ! -e /usr/share/aegis-probe/library ]\n"
@@ -140,6 +228,32 @@ static int directory(int fd, uint64_t type, unsigned long required, unsigned lon
     }
     return 0;
 }
+static int fixture_files(int root) {
+    int tmp=openat(root,"tmp",O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
+    if(tmp<0)return -1;
+    int result=-1,in=-1,out=-1;struct stat st;
+    if(mkdirat(tmp,"aegis-repo",0755)<0)goto done;
+    for(size_t i=0;i<sizeof(aegis_apt_metadata)/sizeof(aegis_apt_metadata[0]);++i) {
+        out=openat(tmp,aegis_apt_metadata[i].name,O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW|O_CLOEXEC,0644);
+        if(out<0)goto done;
+        const char* data=aegis_apt_metadata[i].data;size_t size=strlen(data),at=0;
+        while(at<size) { ssize_t n=write(out,data+at,size-at);if(n<0&&errno==EINTR)continue;if(n<=0)goto done;at+=n; }
+        if(close(out)<0) { out=-1;goto done; }out=-1;
+    }
+    in=open("/proc/self/exe",O_RDONLY|O_CLOEXEC);
+    out=openat(tmp,"aegis-plan-hook",O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW|O_CLOEXEC,0500);
+    if(in<0 || out<0 || fstat(in,&st)<0 || !S_ISREG(st.st_mode) || st.st_size<=0 || st.st_size>8388608)goto done;
+    char data[32768];off_t copied=0;
+    while(copied<st.st_size) {
+        ssize_t n=read(in,data,sizeof(data));if(n<0&&errno==EINTR)continue;if(n<=0)goto done;
+        size_t at=0;while(at<(size_t)n) { ssize_t wrote=write(out,data+at,n-at);if(wrote<0&&errno==EINTR)continue;if(wrote<=0)goto done;at+=wrote; }
+        copied+=n;
+    }
+    if(fchmod(out,0500)<0 || fsync(out)<0)goto done;
+    result=0;
+done:;
+    int saved=errno;if(in>=0)close(in);if(out>=0)close(out);close(tmp);errno=saved;return result;
+}
 int aegis_probe_package_apt(uint32_t user) {
     struct aegis_apt_probe_result result = {.magic = 0x41505452, .phase = 1};
     int fds[2] = {-1, -1};
@@ -154,7 +268,7 @@ int aegis_probe_package_apt(uint32_t user) {
             || mount("proc", "/mnt/proc", "proc", MS_NOSUID | MS_NODEV | MS_NOEXEC, "hidepid=2,subset=pid") < 0
             || mount("tmpfs", "/mnt/tmp", "tmpfs", MS_NOSUID | MS_NODEV, "mode=1777,size=67108864,nr_inodes=8192") < 0
             || mount("tmpfs", "/mnt/run", "tmpfs", MS_NOSUID | MS_NODEV | MS_NOEXEC, "mode=0755,size=4194304,nr_inodes=1024") < 0
-            || fchdir(fds[0]) < 0) goto done;
+            || fixture_files(fds[0]) < 0 || fchdir(fds[0]) < 0) goto done;
     close(fds[0]);close(fds[1]);fds[0] = fds[1] = -1;
     result.phase = 3;
     if (syscall(SYS_close_range, 4u, ~0u, 0u) < 0
