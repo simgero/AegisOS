@@ -35,8 +35,8 @@ neverallow * { aegis_package_candidate_file aegis_package_scratch_file aegis_pac
 allow aegis_runtime_broker aegis_package_publish_exec:file { rx_file_perms execute_no_trans };
 type_transition aegis_runtime_broker aegis_runtime_state_file:dir aegis_package_shared_file "shared-packages";
 allow aegis_runtime_broker aegis_package_shared_file:dir create_dir_perms;
-allow aegis_runtime_broker aegis_package_shared_file:file { create_file_perms -map };
-allow aegis_runtime_broker aegis_package_private_file:file { create_file_perms -map };
+allow aegis_runtime_broker aegis_package_shared_file:file { create rename setattr unlink getattr open read ioctl lock watch watch_reads append write };
+allow aegis_runtime_broker aegis_package_private_file:file { create rename setattr unlink getattr open read ioctl lock watch watch_reads append write };
 allow aegis_runtime_broker labeledfs:filesystem { getattr remount unmount };
 
 # Pre-pivot checks and descriptor-only control. Ordinary programs receive no
