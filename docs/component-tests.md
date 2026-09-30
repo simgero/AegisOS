@@ -1,3 +1,54 @@
+## Aufgelöster Paketplan: 19 gezielte Komponententests
+
+Stand **e9361b4ecbc39d8ff69f937b4d1bf55612bced66** besteht am
+**2026-09-30T05:19:21Z** im lokalen Hintergrund-QEMU **19/19 gezielte Tests**.
+Kompiliert ausschließlich auf `aegis-build`, Lauf
+`identity-20260930T051134Z-e9361b4e-8FvYqf`, Invocation
+`e8a22662349e43e6a24ae7f669e843b0`.
+[Verifizierter Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T051829Z-e9361b4e-e9361b4e-4greeJ).
+
+18 Prüfungen decken die eindeutige Planbindung und ihre Ablehnungsfälle ab:
+Antragsteller/Seriennummer, Bereich, Ausgangs-/Zielgeneration, ursprüngliche
+Versionsanforderung, Quellenrichtlinie, Repository-/Status-/Archivbelege und
+geplante Änderungen gehören zu demselben Digest. Falsche Wunschversion,
+abgelaufene Metadaten, veränderte gemeinsame Basis, fremde Architektur,
+Pfad-/Optionsinjektion, doppelte/unsortierte Einträge, unzulässige Größen und
+nicht darstellbare gemischte Aktionen scheitern ohne Ausgabeänderung. Eine
+unabhängig in Python codierte Version-1-Prüfzahl stimmt überein; der Epochenteil
+wird in APT-Archivnamen korrekt als `%3a` abgebildet.
+
+Der 19. Test führt die abgeleiteten Vorbereitung-/Veröffentlichungsdaten durch
+den wirklichen nativen Besitzer. Eine veränderte Versionsanforderung erzeugt
+einen anderen Digest; dessen Startversuch scheitert mit ESTALE und lässt den
+vorbereiteten Auftrag bestehen. Der richtige Digest startet anschließend echtes
+Offline-APT mit Test-App und exakter Bibliotheksabhängigkeit. Vollständige
+Publikation und tatsächlicher Datei-/Konfigurationsinhalt werden geprüft. Alle
+zugehörigen temporären Ressourcen werden regulär freigegeben.
+
+**Grenze:** Repository-Belege dieses Fixtures sind synthetische Metadaten. Es
+prüft keine Signaturen, keine tatsächliche Repository-Auflösung und keine frische
+AOSP-Adminfreigabe. Der Test läuft als Entwicklungsroot; kein öffentlicher
+Paketendpunkt oder produktiver Paketarbeiter wurde aktiviert. Die Paketplan-
+Bindung ersetzt nicht den noch fehlenden unabhängigen Vergleich der geplanten
+mit den durch APT ausgeführten Effekten.
+
+Der laufende Produktstand bleibt `c7401f60`, Profil
+`39d29ee1-7587-4223-8e5d-f9872c910554`, Boot
+`112b706c-2e59-4845-8c90-376f1e7fc048`, Enforcing und Broker weiter aktiv.
+Vor-/Nachvergleich der Benutzer, Seriennummern, laufenden Benutzer, CE-Sperren,
+Schlüsselverzeichnisse und Runtime-Cgroups ist bytegleich. Kein Benutzer wurde
+angelegt, gelöscht oder entsperrt; Profilpaare und sichtbarer Launcher bleiben
+erhalten. Sieben mechanische Helfer sind bytegleich mit dem früheren
+239-Test-Stand. Die 239 nativen Basistests und 130 unveränderten Java-Tests sind
+**getrennte frühere Belege**, kein hier wiederholter 258er-Gesamtlauf.
+
+Belege im primären Workspace unter `out/components-e9361b4e/targeted-tests/`:
+
+- `result.json`: `e2c5ff863fc42e791a97e86a9dad7cc11cc8a186f179e0fcb8cb3c7b336fbbaf`
+- `native.log`: `1780584e7820f93bd7a22f298552dfcfb40b8d0b1d7215e590ce1aee72b5e2c6`
+- native Testbinärdatei: `92007cb62c2c35c42423cc8e44b4eedf333b43799dfcb1388d9a8785fec40251`
+- `before.json` und `after.json`: `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`
+
 ## Vollimage c7401f60: private Generationen im echten Zwei-Benutzer-Ablauf
 
 Am **2026-09-30T04:53:00Z** ist die integrierte Auswahlprüfung von

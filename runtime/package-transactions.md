@@ -26,7 +26,11 @@ prüfen, Status und Quellen verifizieren und die Frist vor der frischen
 AOSP-Bestätigung erneut kontrollieren. Ein Digest allein schafft kein Vertrauen.
 Zusätzlich fehlt der unabhängige Vergleich der erwarteten mit den tatsächlich
 geplanten APT-Effekten. Öffentliche CLI, produktive Ausführung und Adminfreigabe
-bleiben deshalb unverändert inaktiv. Komponententests dieses Schritts stehen aus.
+bleiben deshalb unverändert inaktiv. **19/19 gezielte Gerätetests bestehen**
+am 2026-09-30T05:19:21Z: 18 Bindungsprüfungen und ein echter registrierter
+Vorbereitung-/APT-/Publikationsdurchlauf. Ein falscher Digest wird vor dem Start
+abgewiesen, der richtige Auftrag bleibt ausführbar. [Belege und Grenzen](../docs/component-tests.md).
+Der laufende Produktgast, Benutzer und Profilpaare bleiben unverändert.
 
 ## Produktintegration der Startauswahl
 
