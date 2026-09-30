@@ -2,6 +2,7 @@
 #define _GNU_SOURCE
 #endif
 #include "package_execution_protocol.h"
+#include "package_request.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -86,6 +87,7 @@ int aegis_package_execution_receive(int fd, uint32_t user, uint32_t serial,
         int saved = errno; close(fds[i]); fds[i] = copy;
         if (copy < 0) { errno = saved;return -1; }
     }
+    if (aegis_package_request_readonly(fds[2], sizeof(*request)) < 0) return -1;
     struct stat st;
     if (fstat(fds[2], &st) < 0) return -1;
     if (!S_ISREG(st.st_mode) || st.st_size != (off_t)sizeof(*request)

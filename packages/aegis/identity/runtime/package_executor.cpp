@@ -1,4 +1,5 @@
 #include "package_executor.h"
+#include "package_request.h"
 #include "package_execution_protocol.h"
 #include "namespace.h"
 #include "memory_group.h"
@@ -133,6 +134,9 @@ int PackageExecutorStart(int groups, int stage, int candidate, int helper,
     if (!p->devices.ok() || !p->config.ok()) return -1;
     if (write(p->config.get(), &request, sizeof(request)) != static_cast<ssize_t>(sizeof(request))) return Fail(EIO);
     if (fcntl(p->config.get(), F_ADD_SEALS, F_SEAL_WRITE | F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL) < 0) return -1;
+    unique_fd readonly(aegis_package_reopen_request(p->config.get(), sizeof(request)));
+    if (!readonly.ok()) return -1;
+    p->config = std::move(readonly);
     int fds[] = {p->candidate.get(), p->devices.get(), p->config.get()};
     if (Left(deadline) <= 0) return Fail(ETIMEDOUT);
     if (aegis_package_execution_send(p->channel.get(), plan.requester, plan.serial, plan.job, fds) < 0

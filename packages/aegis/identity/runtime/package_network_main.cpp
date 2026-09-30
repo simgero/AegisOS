@@ -1,5 +1,6 @@
 // Deliberately small SOCKS5 domain-only CONNECT relay; fixed product hosts.
 #include "package_network.h"
+#include "package_request.h"
 #include "sandbox.h"
 #include <android-base/unique_fd.h>
 #include <arpa/inet.h>
@@ -115,7 +116,9 @@ void Connection(int fd) {
     Reply(fd,0);Relay(fd,upstream.get());
 }
 int Setup() {
-    net::Request request={};struct stat st;int seals=fcntl(4,F_GET_SEALS);
+    net::Request request={};
+    if(aegis_package_request_readonly(4,sizeof(request))<0)return -1;
+    struct stat st;int seals=fcntl(4,F_GET_SEALS);
     if(getuid()||geteuid()||getgid()||getegid()||getgroups(0,nullptr)!=0)return Fail(EPERM);
     if(seals!=(F_SEAL_WRITE|F_SEAL_GROW|F_SEAL_SHRINK|F_SEAL_SEAL)||fstat(4,&st)<0||st.st_size!=static_cast<ssize_t>(sizeof(request))
        ||pread(4,&request,sizeof(request),0)!=static_cast<ssize_t>(sizeof(request))||request.magic!=net::kMagic||request.reserved

@@ -14,7 +14,21 @@ aber vor der Freigabe an dessen fehlendem `NS_GET_USERNS`-Recht (NSFS-ioctl
 dessen eigenem Benutzerraum (`aegis_namespace_planner_network`). Die Richtlinie
 ergänzt genau dieses ioctl für die vorhandene Broker-Domäne und den eigenen
 NSFS-Typ; keine neue Domäne, Capability oder Namespace-Schreibberechtigung.
-Kompilierung und erneuter Produktpfad-Test der Korrektur stehen noch aus.
+Das Vollimage `c9cd225d` wurde auf dem SSH-Builder gebaut, über GitHub verifiziert
+und lokal mit Enforcing gestartet. Der erneute tatsächliche CLI-Aufruf erreicht
+nun den Netzwerkhelfer; die NSFS-Verweigerung tritt nicht mehr auf. Dort scheitert
+noch die Übergabe von `/memfd:aegis-package-network`: Versiegelung verhindert
+Schreibzugriffe auf den Inhalt, ändert aber nicht den geöffneten Modus `O_RDWR`.
+SELinux prüft diesen Modus beim Domänenwechsel und verweigert zu Recht `write`.
+
+Die aktuelle Korrektur öffnet die versiegelte, größenbegrenzte Anfrage unabhängig
+als `O_RDONLY` neu, prüft dieselbe Inode und schließt die schreibbar geöffnete
+Beschreibung vor der Übergabe. Derselbe Fehler wird im SCM_RIGHTS-Konfigurations-
+kanal zum Ausführungshelfer behoben. Beide Empfänger verlangen den Lesemodus;
+keine Schreibberechtigung wird zur Richtlinie hinzugefügt. Vier native Tests
+prüfen Siegel, Zugriffsmodus, Identität, ungültige Eingänge und die tatsächliche
+SCM_RIGHTS-Übertragung. Kompilierung, diese Tests und der erneute Produktpfad-Test
+stehen noch aus.
 Die echte Paketinstallation und der vollständige Zwei-Benutzer-Ablauf bleiben
 unbewiesen; erfolgreiche Komponententests allein bestätigen sie nicht.
 

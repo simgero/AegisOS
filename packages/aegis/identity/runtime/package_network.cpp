@@ -1,4 +1,5 @@
 #include "package_network.h"
+#include "package_request.h"
 #include "child_private.h"
 #include <android-base/unique_fd.h>
 #include <elf.h>
@@ -59,6 +60,9 @@ int PackageNetworkStart(int netns,int program,aegis_memory_group* group,uint32_t
     network::Request request={network::kMagic,user,serial,0,job};
     if(!config.ok()||write(config.get(),&request,sizeof(request))!=static_cast<ssize_t>(sizeof(request))
        ||fcntl(config.get(),F_ADD_SEALS,F_SEAL_WRITE|F_SEAL_GROW|F_SEAL_SHRINK|F_SEAL_SEAL)<0)return -1;
+    unique_fd readonly(aegis_package_reopen_request(config.get(),sizeof(request)));
+    if(!readonly.ok())return -1;
+    config=std::move(readonly);
     int pair[2];if(socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair)<0)return -1;
     unique_fd channel(pair[0]),endpoint(pair[1]),parent(syscall(SYS_pidfd_open,syscall(SYS_getpid),0u));
     if(!parent.ok())return -1;
