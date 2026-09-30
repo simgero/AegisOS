@@ -5,6 +5,7 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
     aegis_broker_owner* owner=nullptr;
     Fd sources,key,helper,network,ca;
     aegis::PackagePlanning request;
+    bool configured_install_fixture=false;
     static uint64_t Deadline() {
         timespec t={};EXPECT_EQ(0,clock_gettime(CLOCK_MONOTONIC,&t));
         return uint64_t(t.tv_sec)*1000000000+t.tv_nsec+UINT64_C(5000000000);
@@ -33,6 +34,11 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
     void TearDown() override {
         if(owner) { EXPECT_EQ(0,aegis_broker_owner_stop_all(owner,Deadline()));EXPECT_EQ(0,aegis_broker_owner_release(&owner)); }
         if(planner) { int fd=-1;aegis::PackagePlanningResult r;EXPECT_EQ(0,aegis::PackagePlannerFinish(&planner,true,5000,&r,&fd));if(fd>=0)close(fd); }
+        if(configured_install_fixture && image && !HasFailure()) {
+            Fd state(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC));
+            ASSERT_TRUE(state.ok());
+            for(const char* name:{"shared-staging","shared-packages"})RemoveFixtureTree(state.get(),name);
+        }
         if(image)for(const char* n:{"sources.list","key.asc","ca.pem"})if(unlink((image->directory+"/"+n).c_str())<0)EXPECT_EQ(ENOENT,errno);
         sources.reset();key.reset();helper.reset();network.reset();ca.reset();RuntimePackageResolver::TearDown();
     }
@@ -98,6 +104,58 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
         if(enable_helpers)ASSERT_EQ(0,aegis_broker_owner_enable_package_planner(owner,helper.get(),network.get()));
         // Every bootstrap original is closed on return, except the explicitly
         // retained fixture helper handles. Only owner duplicates feed jobs.
+    }
+    // These are newly exclusive ordinary fixtures. Never create or erase a
+    // live user's store. Product SELinux transitions need a full-image proof.
+    void ConfigureInstallation() {
+        Fd execute(Program("aegis-package-execute-probe")),publish(Program("aegis-package-publish"));
+        ASSERT_TRUE(execute.ok());ASSERT_TRUE(publish.ok());
+        ASSERT_EQ(0,aegis_broker_owner_enable_package_installation(owner,execute.get(),publish.get()));
+        Fd state(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(state.ok());
+        constexpr char label[]="u:object_r:aegis_package_shared_file:s0";
+        ASSERT_EQ(0,fsetxattr(state.get(),"security.selinux",label,sizeof(label),0));
+        configured_install_fixture=true;
+    }
+    void RemoveFixtureTree(int parent_fd,const char* name) {
+        Fd directory(openat(parent_fd,name,O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW));
+        if(!directory.ok()) { EXPECT_EQ(ENOENT,errno);return; }
+        struct stat st;ASSERT_EQ(0,fstat(directory.get(),&st));ASSERT_EQ(0u,st.st_uid);
+        const auto device=st.st_dev;
+        Fd scan(openat(directory.get(),".",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(scan.ok());
+        DIR* entries=fdopendir(scan.release());ASSERT_NE(nullptr,entries);
+        std::vector<std::string> names;
+        while(auto* entry=readdir(entries))if(strcmp(entry->d_name,".")&&strcmp(entry->d_name,".."))names.push_back(entry->d_name);
+        closedir(entries);
+        for(const auto& child:names) {
+            ASSERT_EQ(0,fstatat(directory.get(),child.c_str(),&st,AT_SYMLINK_NOFOLLOW));
+            ASSERT_EQ(device,st.st_dev);ASSERT_EQ(0u,st.st_uid);
+            if(S_ISDIR(st.st_mode))RemoveFixtureTree(directory.get(),child.c_str());
+            else { ASSERT_TRUE(S_ISREG(st.st_mode));ASSERT_EQ(1u,st.st_nlink);ASSERT_EQ(0,unlinkat(directory.get(),child.c_str(),0)); }
+            ASSERT_FALSE(HasFatalFailure());
+        }
+        directory.reset();ASSERT_EQ(0,unlinkat(parent_fd,name,AT_REMOVEDIR));
+    }
+    void ConfiguredReview(const aegis::PackageIntent& intent,uint64_t* job,aegis::PackageBoundPlan* bound) {
+        ASSERT_EQ(0,aegis::BrokerBeginConfiguredPackage(owner,10,1234,intent,Deadline(),job));
+        ContinueConfigured(10,1234,*job);ASSERT_FALSE(HasFatalFailure());
+        CollectConfigured(10,1234,*job);ASSERT_FALSE(HasFatalFailure());
+        ASSERT_EQ(0,aegis::BrokerReviewPlanning(owner,10,1234,*job,Deadline(),bound));
+    }
+    void Prepared(uint64_t job,const std::string& digest) {
+        aegis::PublicationState state=aegis::PublicationState::Preparing;aegis::PackageExecutionResult result;
+        for(unsigned i=0;i<400;++i) {
+            ASSERT_EQ(0,aegis::BrokerPollExecution(owner,10,1234,job,digest,&state,&result));
+            if(state!=aegis::PublicationState::Preparing)break;usleep(50000);
+        }
+        ASSERT_EQ(aegis::PublicationState::Prepared,state)<<result.error;
+    }
+    void Completed(uint64_t job,const std::string& digest,aegis::PackageExecutionResult* result) {
+        aegis::PublicationState state=aegis::PublicationState::Preparing;
+        for(unsigned i=0;i<600;++i) {
+            ASSERT_EQ(0,aegis::BrokerPollExecution(owner,10,1234,job,digest,&state,result));
+            if(state==aegis::PublicationState::Complete)break;usleep(50000);
+        }
+        ASSERT_EQ(aegis::PublicationState::Complete,state);
     }
     void ContinueConfigured(uint32_t user,uint32_t serial,uint64_t job) {
         int started=-1;
@@ -606,4 +664,129 @@ TEST_F(RuntimePackagePlanning, ConfiguredPackageRefusesUnreadyInvalidAndMissingP
     ASSERT_EQ(0,aegis::BrokerPollRuntimeSelection(owner,21472,1234,job,&state,&failed));EXPECT_EQ(aegis::RuntimeSelectionState::Failed,state);
     ASSERT_EQ(0,aegis::BrokerCancelPackageSelection(owner,21472,1234,job,Deadline()));EXPECT_EQ(before,descriptors());
     ASSERT_EQ(-1,lstat("/data/system_ce/21472",&missing));EXPECT_EQ(ENOENT,errno);
+}
+
+TEST_F(RuntimePackagePlanning, ConfiguredInstallPublishesAndRemovesFromTheRetainedSharedGeneration) {
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());ConfigureOwner(false);ASSERT_FALSE(HasFatalFailure());
+    ConfigureInstallation();ASSERT_FALSE(HasFatalFailure());int before=descriptors();
+    Fd root(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(root.ok());
+    aegis::PackageIntent intent;intent.package="aegis-probe-app";intent.version="2";
+    aegis::PackageGeneration previous;uint64_t previous_job=0;
+    for(unsigned pass=0;pass<2;++pass) {
+        uint64_t job=0;aegis::PackageBoundPlan bound;ConfiguredReview(intent,&job,&bound);ASSERT_FALSE(HasFatalFailure());
+        EXPECT_GT(job,previous_job);previous_job=job;const auto digest=bound.preparation.execution.plan_sha256;
+        EXPECT_EQ(pass==0,bound.reviewed.create_store);EXPECT_EQ(pass==1,bound.reviewed.has_previous);
+        EXPECT_EQ(pass==0?std::string(image->original.sha256):previous.image_sha256,bound.reviewed.source.sha256);
+        EXPECT_EQ(-1,aegis::BrokerPreparePlannedTransaction(owner,10,1234,job,digest,-1,-1,-1,-1,-1,-1,-1,Deadline()));EXPECT_EQ(EPERM,errno);
+        EXPECT_EQ(-1,aegis::BrokerPrepareConfiguredTransaction(owner,11,1234,job,Deadline()));EXPECT_EQ(ESTALE,errno);
+        EXPECT_EQ(-1,aegis::BrokerPrepareConfiguredTransaction(owner,10,1235,job,Deadline()));EXPECT_EQ(ESTALE,errno);
+        EXPECT_EQ(-1,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,0));EXPECT_EQ(ETIMEDOUT,errno);
+        ASSERT_EQ(0,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()))<<strerror(errno);
+        EXPECT_EQ(-1,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()));EXPECT_EQ(ENOENT,errno);
+        Prepared(job,digest);ASSERT_FALSE(HasFatalFailure());
+        Fd store(openat(root.get(),"shared-packages",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(store.ok());
+        if(pass==0) { struct stat absent;EXPECT_EQ(-1,fstatat(store.get(),"current",&absent,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno); }
+        EXPECT_EQ(-1,aegis::BrokerStartExecution(owner,10,1234,job,std::string(64,'f'),Deadline()));EXPECT_EQ(ESTALE,errno);
+        // Internal stand-in for a fresh AOSP approval; no public authorization claim.
+        ASSERT_EQ(0,aegis::BrokerStartExecution(owner,10,1234,job,digest,Deadline()));
+        aegis::PackageExecutionResult result;Completed(job,digest,&result);ASSERT_FALSE(HasFatalFailure());
+        ASSERT_EQ(aegis::PackageExecutionOutcome::Published,result.outcome)<<result.error<<" "<<result.status;
+        aegis::PackageRuntimeSelection select;select.requester=10;select.serial=1234;select.job=job+100;
+        select.factory={image->original.bytes,image->original.sha256};aegis::PackagePreparer* worker=nullptr;
+        Fd factory(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC)),prepare(Program("aegis-package-prepare"));
+        ASSERT_EQ(0,aegis::PackageRuntimeSelectionStart(parent.get(),store.get(),-1,factory.get(),prepare.get(),select,&worker));
+        aegis::PackagePreparationResult checked;int mount=-1;
+        ASSERT_EQ(0,aegis::PackagePreparerFinish(&worker,false,9000,&checked,&mount));Fd installed(mount);
+        ASSERT_EQ(aegis::PackagePreparationOutcome::Prepared,checked.outcome)<<checked.error;
+        EXPECT_EQ(aegis::PackagePreparationResult::Scope::Shared,checked.scope);
+        EXPECT_EQ(result.generation.image_sha256,checked.generation.image_sha256);
+        auto status=Read(installed.get(),"var/lib/dpkg/status");
+        const auto at=status.find("Package: aegis-probe-app\n");
+        if(pass==0) {
+            ASSERT_NE(std::string::npos,at);const auto stanza=status.substr(at,status.find("\n\n",at)-at);
+            EXPECT_NE(std::string::npos,stanza.find("Status: install ok installed"));EXPECT_NE(std::string::npos,stanza.find("Version: 2\n"));
+            EXPECT_NE(std::string::npos,Read(installed.get(),"usr/bin/aegis-probe-app").find("app-2"));
+        } else {
+            if(at!=std::string::npos)EXPECT_EQ(std::string::npos,status.substr(at,status.find("\n\n",at)-at).find("Status: install ok installed"));
+            EXPECT_EQ("<unavailable>",Read(installed.get(),"usr/bin/aegis-probe-app"));
+            EXPECT_NE(previous.image_sha256,result.generation.image_sha256);
+        }
+        EXPECT_NE(std::string::npos,status.find("Package: aegis-probe-lib\n"));
+        EXPECT_NE(std::string::npos,Read(installed.get(),"var/lib/apt/extended_states").find("Package: aegis-probe-lib\n"));
+        previous=result.generation;intent.action=aegis::PackageAction::Remove;intent.version.clear();
+    }
+    root.reset();EXPECT_EQ(before,descriptors());
+}
+TEST_F(RuntimePackagePlanning, ConfiguredInstallationHelpersAreAtomicStartupOnlyAndCannotClaimGenericJobs) {
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());int before=descriptors();
+    EXPECT_EQ(-1,aegis_broker_owner_enable_package_installation(owner,helper.get(),helper.get()));EXPECT_EQ(EALREADY,errno);
+    EXPECT_EQ(before,descriptors());ConfigureOwner(false);ASSERT_FALSE(HasFatalFailure());before=descriptors();
+    EXPECT_EQ(-1,aegis_broker_owner_enable_package_installation(owner,helper.get(),-1));EXPECT_EQ(before,descriptors());
+    EXPECT_EQ(-1,aegis_broker_owner_enable_package_installation(owner,helper.get(),sources.get()));EXPECT_EQ(EPERM,errno);EXPECT_EQ(before,descriptors());
+    ConfigureInstallation();ASSERT_FALSE(HasFatalFailure());EXPECT_EQ(before+2,descriptors());
+    EXPECT_EQ(-1,aegis_broker_owner_enable_package_installation(owner,helper.get(),helper.get()));EXPECT_EQ(EALREADY,errno);
+    uint64_t job=0;ASSERT_EQ(0,StartOwner(&job));
+    EXPECT_EQ(-1,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()));EXPECT_EQ(EPERM,errno);
+    ASSERT_EQ(0,aegis::BrokerCancelPlanning(owner,10,1234,job,Deadline()));EXPECT_EQ(before+2,descriptors());
+    EXPECT_EQ(-1,aegis_broker_owner_enable_package_installation(owner,helper.get(),helper.get()));EXPECT_EQ(EALREADY,errno);
+}
+TEST_F(RuntimePackagePlanning, ConfiguredPreparationRequiresInstallationBootstrapAndReviewedEvidence) {
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());ConfigureOwner(false);ASSERT_FALSE(HasFatalFailure());
+    aegis::PackageIntent intent;intent.package="aegis-probe-app";intent.version="2";uint64_t job=0;
+    aegis::PackageBoundPlan bound;ConfiguredReview(intent,&job,&bound);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(-1,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()));EXPECT_EQ(ENOTSUP,errno);
+    struct stat absent;EXPECT_EQ(-1,lstat((image->directory+"/shared-packages").c_str(),&absent));EXPECT_EQ(ENOENT,errno);
+    ASSERT_EQ(0,aegis::BrokerCancelPlanning(owner,10,1234,job,Deadline()));
+    ASSERT_EQ(0,aegis_broker_owner_release(&owner));CreateOwner();ASSERT_FALSE(HasFatalFailure());
+    ConfigureOwner(false);ASSERT_FALSE(HasFatalFailure());ConfigureInstallation();ASSERT_FALSE(HasFatalFailure());job=0;
+    ASSERT_EQ(0,aegis::BrokerBeginConfiguredPackage(owner,10,1234,intent,Deadline(),&job));
+    ContinueConfigured(10,1234,job);ASSERT_FALSE(HasFatalFailure());CollectConfigured(10,1234,job);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(-1,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()));EXPECT_EQ(EBUSY,errno);
+    EXPECT_EQ(-1,lstat((image->directory+"/shared-packages").c_str(),&absent));EXPECT_EQ(ENOENT,errno);
+    ASSERT_EQ(0,aegis::BrokerCancelPlanning(owner,10,1234,job,Deadline()));
+}
+TEST_F(RuntimePackagePlanning, CancelledConfiguredPreparationCanReuseOnlyAPristineStoreWithAFreshStage) {
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());ConfigureOwner(false);ASSERT_FALSE(HasFatalFailure());
+    ConfigureInstallation();ASSERT_FALSE(HasFatalFailure());int before=descriptors();
+    aegis::PackageIntent intent;intent.package="aegis-probe-app";intent.version="2";
+    for(unsigned pass=0;pass<2;++pass) {
+        uint64_t job=0;aegis::PackageBoundPlan bound;ConfiguredReview(intent,&job,&bound);ASSERT_FALSE(HasFatalFailure());
+        EXPECT_TRUE(bound.reviewed.create_store);EXPECT_FALSE(bound.reviewed.has_previous);
+        ASSERT_EQ(0,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()));
+        const auto digest=bound.preparation.execution.plan_sha256;Prepared(job,digest);ASSERT_FALSE(HasFatalFailure());
+        ASSERT_EQ(0,aegis::BrokerCancelExecution(owner,10,1234,job,digest,Deadline()));
+        aegis::PackageExecutionResult result;Completed(job,digest,&result);ASSERT_FALSE(HasFatalFailure());
+        EXPECT_EQ(aegis::PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(ECANCELED,result.error);
+        EXPECT_EQ(before,descriptors());
+    }
+    Fd root(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(root.ok());
+    EXPECT_EQ("<unavailable>",Read(root.get(),"shared-packages/current"));
+    Fd stages(openat(root.get(),"shared-staging",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(stages.ok());
+    DIR* entries=fdopendir(stages.release());ASSERT_NE(nullptr,entries);std::vector<std::string> names;
+    while(auto* entry=readdir(entries))if(strcmp(entry->d_name,".")&&strcmp(entry->d_name,".."))names.push_back(entry->d_name);
+    closedir(entries);ASSERT_EQ(2u,names.size());EXPECT_NE(names[0],names[1]);
+    for(const auto& name:names)EXPECT_EQ(0u,name.find("job-10-1234-"));
+}
+TEST_F(RuntimePackagePlanning, ConfiguredPreparationRetainsFailureWhenAReviewedSourceDisappears) {
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());ConfigureOwner(false);ASSERT_FALSE(HasFatalFailure());
+    ConfigureInstallation();ASSERT_FALSE(HasFatalFailure());
+    Fd root(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(root.ok());
+    ASSERT_EQ(0,mkdirat(root.get(),"shared-packages",0700));
+    Fd target(openat(root.get(),"shared-packages",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(target.ok());
+    Fd factory(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC));ASSERT_TRUE(factory.ok());
+    std::unique_ptr<aegis::PackageStore> store(aegis::PackageStore::Open(target.get(),{false,0,0},true));ASSERT_NE(nullptr,store);
+    aegis::PackageGeneration generation={image->original.sha256,"",image->original.bytes};std::atomic_bool cancel(false);
+    ASSERT_EQ(aegis::PackagePublish::Confirmed,store->Publish(nullptr,factory.get(),generation,cancel));store.reset();
+    aegis::PackageIntent intent;intent.package="aegis-probe-app";intent.version="2";uint64_t job=0;
+    aegis::PackageBoundPlan bound;ConfiguredReview(intent,&job,&bound);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_FALSE(bound.reviewed.create_store);ASSERT_TRUE(bound.reviewed.has_previous);
+    const auto name=generation.image_sha256+".image";const auto current=Read(target.get(),"current");
+    ASSERT_EQ(0,renameat(target.get(),name.c_str(),target.get(),"saved.image"));int before=descriptors();
+    EXPECT_EQ(-1,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()));EXPECT_EQ(ENOENT,errno);
+    EXPECT_EQ(-1,aegis::BrokerReviewPlanning(owner,10,1234,job,Deadline(),&bound));EXPECT_EQ(ENOENT,errno);
+    aegis::PackageExecutionResult result;Completed(job,bound.preparation.execution.plan_sha256,&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(aegis::PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(ENOENT,result.error);
+    EXPECT_LE(descriptors(),before);EXPECT_EQ(current,Read(target.get(),"current"));
+    EXPECT_EQ(-1,aegis::BrokerPrepareConfiguredTransaction(owner,10,1234,job,Deadline()));EXPECT_EQ(ENOENT,errno);
+    ASSERT_EQ(0,renameat(target.get(),"saved.image",target.get(),name.c_str()));
 }

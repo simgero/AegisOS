@@ -39,6 +39,11 @@ int aegis_broker_owner_enable_package_policy(struct aegis_broker_owner *owner,
 int aegis_broker_owner_enable_package_planner(struct aegis_broker_owner *owner,
                                               int planner, int network);
 
+/* Same startup-only contract, after planner configuration. Pins immutable
+ * execute/publish helpers; the existing selection helper prepares candidates. */
+int aegis_broker_owner_enable_package_installation(struct aegis_broker_owner *owner,
+                                                   int execute, int publish);
+
 /* Caller has already authenticated the system_server peer, validated framing
  * and enforced per-connection sequence ordering. AOSP admission/CE serialization
  * remains held by that peer. Success writes ABSENT/READY/SEALED as appropriate;

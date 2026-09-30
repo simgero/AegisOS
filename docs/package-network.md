@@ -109,7 +109,11 @@ Ob ein Ziel-Store neu angelegt werden muss, folgt aus der geprüften Anwesenheit
 seines Verzeichnisses vor der Auswahl. Eine fehlende aktuelle Generation bedeutet
 nicht, dass auch der Store fehlt: Ein korrekt initialisierter leerer Store wird
 beibehalten, ein unvollständiger oder beschädigter Store abgewiesen. Diese
-Unterscheidung fließt in den späteren Plan-Digest ein. Fehlende persönliche CE
+Unterscheidung fließt in den späteren Plan-Digest ein. Ein geprüftes, vollständig
+leeres Verzeichnis ohne Store-Metadaten gilt wie ein noch nicht angelegter Store;
+das erlaubt einen neuen Versuch nach abgebrochener Vorbereitung. Sobald irgendein
+Eintrag vorhanden ist, muss die strenge Store-Prüfung bestehen. Teilweise
+Initialisierung wird nicht repariert oder als Abwesenheit behandelt. Fehlende persönliche CE
 liefert einen behaltenen fehlgeschlagenen Auftrag; auch `ENOENT` allein beweist
 keine Freigabe der Ressourcen. Abbruch/STOP/HELLO bleiben bis zur bestätigten
 Beendigung verantwortlich. Eine Fortsetzung eines entfernten Auftrags erzeugt
@@ -118,8 +122,35 @@ keinen Ersatzauftrag.
 Diese Anbindung ist bislang intern implementiert und in nativen Fixtures
 geprüft. Der tatsächliche Broker-Start aktiviert die Planer-Helferkonfiguration
 noch nicht. Die feste Bereitstellung der Helfer mit Produkt-SELinux, die
-verbleibende FD-freie Übergabe zur Installationsvorbereitung sowie öffentliche
-Wire-/Binder-/CLI-Operationen und frische AOSP-Adminbestätigung müssen folgen.
+öffentlichen Wire-/Binder-/CLI-Operationen und frische AOSP-Adminbestätigung
+müssen folgen.
+
+`BrokerPrepareConfiguredTransaction` übernimmt inzwischen ausschließlich den
+behaltenen geprüften Auftrag (Identität, Seriennummer, Auftrags-ID und neue Frist).
+Der Aufrufer liefert weder Digest noch Datei-, Store-, Arbeitsverzeichnis-,
+Archiv- oder Helferdeskriptoren. Ausführung und Veröffentlichung werden beim
+Broker-Start gemeinsam gepinnt; spätere Ersetzung ist ausgeschlossen. Die
+bestehende vorbereitende Hilfe stammt aus der gepinnten Auswahlkonfiguration.
+
+Der Übergang registriert dieselbe Auftrags-ID als Installation, bevor er feste
+Speicherpfade öffnet oder anlegt. Gemeinsam genutzte Dateien liegen ausschließlich
+unter `shared-packages` und `shared-staging` im gepinnten Broker-Verzeichnis;
+Arbeitsverzeichnisse haben eine neue Zufallskennung. Besitzer, Modus, SELinux-Typ,
+Dateisystem, ACLs und Verzeichnisbindung werden geprüft. Persönliche Daten gehen
+weiter über die CE-/Seriennummer-Prüfung des ursprünglichen Antragstellers. Der
+Broker öffnet genau das zuvor ausgewählte Ausgangsabbild; die asynchrone
+Vorbereitung prüft dessen vollständigen Hash erneut. Fehler nach Registrierung
+bleiben unter derselben ID abholbar. Die allgemeine interne FD-Schnittstelle kann
+einen konfigurierten Auftrag nicht übernehmen.
+
+Die Vorbereitung führt noch keine Paketprogramme aus und wählt keine neue
+Generation aus. Erst eine weitere frisch zugelassene AOSP-Aktionsfreigabe darf
+die vorbereitete Ausführung starten. Produkt-SELinux muss insbesondere die
+festen gemeinsamen Verzeichnisse korrekt anlegen; native SU-Fixtures beweisen
+diesen Übergang nicht. Noch ausstehend sind auch automatische Begrenzung und
+Bereinigung alter Arbeitsverzeichnisse: Abbruch schließt Ressourcen, vorhandene
+Arbeitsdateien werden bislang behalten. Dieser Pfad wird deshalb noch nicht als
+öffentlicher Befehl freigeschaltet.
 
 ## Nachweisgrenze
 

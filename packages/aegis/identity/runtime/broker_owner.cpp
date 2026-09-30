@@ -16,6 +16,8 @@
 #include <array>
 #include <memory>
 #include <optional>
+#include <dirent.h>
+#include <sys/random.h>
 #include <new>
 #include <errno.h>
 #include <fcntl.h>
@@ -97,9 +99,9 @@ struct aegis_broker_owner {
     int inputs[4];
     struct slot slots[MAX_CONTEXTS];
     uint64_t next_command, next_publication;
-    bool selection_enabled=false,package_policy_enabled=false,package_planner_enabled=false;
+    bool selection_enabled=false,package_policy_enabled=false,package_planner_enabled=false,package_install_enabled=false;
     std::array<unique_fd,3> package_policy;
-    std::array<unique_fd,2> package_helpers;
+    std::array<unique_fd,2> package_helpers,package_install_helpers;
     unique_fd selection_image,selection_helper,selection_directory;
     PackageInput selection_factory;
     std::array<std::unique_ptr<planning_slot>,MAX_PUBLICATIONS> planners;
@@ -183,12 +185,8 @@ int aegis_broker_owner_enable_package_policy(aegis_broker_owner* owner,const int
     owner->package_policy=std::move(pinned);owner->package_policy_enabled=true;return 0;
 }
 
-int aegis_broker_owner_enable_package_planner(aegis_broker_owner* owner,int planner,int network) {
-    if(owned(owner)<0)return -1;
-    if(!owner->package_policy_enabled || owner->package_planner_enabled
-       ||owner->next_command||owner->next_publication)return fail(EALREADY);
-    for(const auto& slot:owner->slots)if(slot.context)return fail(EBUSY);
-    std::array<unique_fd,2> pinned;const int supplied[]={planner,network};
+static int pin_package_helpers(int first,int second,std::array<unique_fd,2>* output) {
+    std::array<unique_fd,2> pinned;const int supplied[]={first,second};
     for(unsigned i=0;i<2;++i) {
         pinned[i].reset(fcntl(supplied[i],F_DUPFD_CLOEXEC,3));if(!pinned[i].ok())return -1;
         struct stat st;int flags=fcntl(pinned[i].get(),F_GETFL);
@@ -197,7 +195,23 @@ int aegis_broker_owner_enable_package_planner(aegis_broker_owner* owner,int plan
            ||(st.st_gid!=0&&st.st_gid!=2000)||st.st_nlink!=1||(st.st_mode&07022)
            ||(st.st_mode&0555)!=0555||st.st_size<64||st.st_size>32*1024*1024)return fail(EPERM);
     }
-    owner->package_helpers=std::move(pinned);owner->package_planner_enabled=true;return 0;
+    *output=std::move(pinned);return 0;
+}
+int aegis_broker_owner_enable_package_planner(aegis_broker_owner* owner,int planner,int network) {
+    if(owned(owner)<0)return -1;
+    if(!owner->package_policy_enabled || owner->package_planner_enabled
+       ||owner->next_command||owner->next_publication)return fail(EALREADY);
+    for(const auto& slot:owner->slots)if(slot.context)return fail(EBUSY);
+    if(pin_package_helpers(planner,network,&owner->package_helpers)<0)return -1;
+    owner->package_planner_enabled=true;return 0;
+}
+int aegis_broker_owner_enable_package_installation(aegis_broker_owner* owner,int execute,int publish) {
+    if(owned(owner)<0)return -1;
+    if(!owner->package_planner_enabled || owner->package_install_enabled
+       ||owner->next_command||owner->next_publication)return fail(EALREADY);
+    for(const auto& slot:owner->slots)if(slot.context)return fail(EBUSY);
+    if(pin_package_helpers(execute,publish,&owner->package_install_helpers)<0)return -1;
+    owner->package_install_enabled=true;return 0;
 }
 
 int aegis_broker_owner_create(int parent_fd, int base_fd, int setup_fd, int init_fd,
@@ -792,25 +806,93 @@ int BrokerCancelPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial
     return 0;
 }
 
-static int optional_shared_store(int state,int* output) {
-    open_how how={};how.flags=O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW;
+static int package_at(int parent,const char* name,int flags) {
+    open_how how={};how.flags=flags|O_CLOEXEC|O_NOFOLLOW;
     how.resolve=RESOLVE_BENEATH|RESOLVE_NO_SYMLINKS|RESOLVE_NO_XDEV;
-    unique_fd store(syscall(SYS_openat2,state,"shared-packages",&how,sizeof(how)));
-    if(!store.ok())return errno==ENOENT ? 0 : -1;
-    struct stat st,named,parent;
-    if(fstat(store.get(),&st)<0 || fstat(state,&parent)<0
-            || fstatat(state,"shared-packages",&named,AT_SYMLINK_NOFOLLOW)<0)return -1;
-    if(st.st_mode!=(S_IFDIR|0700) || st.st_uid || st.st_gid || st.st_dev!=parent.st_dev
-            || st.st_dev!=named.st_dev || st.st_ino!=named.st_ino)return fail(EPERM);
+    return syscall(SYS_openat2,parent,name,&how,sizeof(how));
+}
+static int package_no_acl(int fd) {
+    for(const char* name:{"system.posix_acl_access","system.posix_acl_default"}) {
+        if(fgetxattr(fd,name,nullptr,0)>=0)return fail(EPERM);
+        if(errno!=ENODATA&&errno!=EOPNOTSUPP)return -1;
+    }
+    return 0;
+}
+static int package_empty(int directory) {
+    int scan=package_at(directory,".",O_RDONLY|O_DIRECTORY);if(scan<0)return -1;
+    DIR* entries=fdopendir(scan);if(!entries) { int e=errno;close(scan);return fail(e); }
+    int error=0,empty=1;
+    for(;;) {
+        errno=0;auto* entry=readdir(entries);if(!entry) { error=errno;break; }
+        if(strcmp(entry->d_name,".")&&strcmp(entry->d_name,"..")) { empty=0;break; }
+    }
+    if(closedir(entries)<0&&!error)error=errno;
+    return error?fail(error):empty;
+}
+static int package_shared_child(int parent,const char* name) {
+    unique_fd child(package_at(parent,name,O_RDONLY|O_DIRECTORY));if(!child.ok())return -1;
+    struct stat st,named,root;
+    if(fstat(child.get(),&st)<0||fstat(parent,&root)<0||fstatat(parent,name,&named,AT_SYMLINK_NOFOLLOW)<0)return -1;
+    if(st.st_mode!=(S_IFDIR|0700)||st.st_uid||st.st_gid||st.st_dev!=root.st_dev
+       ||st.st_dev!=named.st_dev||st.st_ino!=named.st_ino)return fail(EPERM);
     char label[128]={};constexpr char expected[]="u:object_r:aegis_package_shared_file:s0";
-    ssize_t count=fgetxattr(store.get(),"security.selinux",label,sizeof(label));
-    if(count<0)return -1;
-    if((count!=static_cast<ssize_t>(sizeof(expected)) && count!=static_cast<ssize_t>(sizeof(expected))-1)
-            || memcmp(label,expected,sizeof(expected)-1)
-            || (count==static_cast<ssize_t>(sizeof(expected)) && label[count-1]))return fail(EPERM);
-    // Presence, even empty/corrupt, is passed to the strict read-only selector.
-    // Only an absent fixed child is fallback. No directory creation or repair.
-    *output=store.release();return 0;
+    ssize_t size=fgetxattr(child.get(),"security.selinux",label,sizeof(label));if(size<0)return -1;
+    if((size!=ssize_t(sizeof(expected))&&size!=ssize_t(sizeof(expected)-1))
+       ||memcmp(label,expected,sizeof(expected)-1)||(size==ssize_t(sizeof(expected))&&label[size-1]))return fail(EPERM);
+    if(package_no_acl(child.get())<0)return -1;
+    return child.release();
+}
+static int optional_shared_store(int state,int* output) {
+    unique_fd store(package_shared_child(state,"shared-packages"));
+    if(!store.ok())return errno==ENOENT?0:-1;
+    // Like a pristine provisioned CE store, a checked empty directory has no
+    // PackageStore metadata yet. Partial/nonempty initialization is NEVER empty.
+    int empty=package_empty(store.get());if(empty<0)return -1;
+    if(!empty)*output=store.release();return 0;
+}
+static int configured_shared_target(int state,bool create,uint32_t user,uint32_t serial,uint64_t job,
+                                    unique_fd* store,unique_fd* stage) {
+    if(create&&mkdirat(state,"shared-packages",0700)<0&&errno!=EEXIST)return -1;
+    store->reset(package_shared_child(state,"shared-packages"));if(!store->ok())return -1;
+    int empty=package_empty(store->get());if(empty<0)return -1;
+    if(bool(empty)!=create)return fail(ESTALE);
+    if(mkdirat(state,"shared-staging",0700)<0&&errno!=EEXIST)return -1;
+    unique_fd staging(package_shared_child(state,"shared-staging"));if(!staging.ok())return -1;
+    unsigned char random[16];ssize_t n;
+    do { n=getrandom(random,sizeof(random),GRND_NONBLOCK); } while(n<0&&errno==EINTR);
+    if(n!=ssize_t(sizeof(random)))return n<0?-1:fail(EIO);
+    char hex[33];for(unsigned i=0;i<sizeof(random);++i)snprintf(hex+i*2,3,"%02x",random[i]);
+    const auto name="job-"+std::to_string(user)+"-"+std::to_string(serial)+"-"+std::to_string(job)+"-"+hex;
+    if(mkdirat(staging.get(),name.c_str(),0700)<0)return -1;
+    stage->reset(package_shared_child(staging.get(),name.c_str()));if(!stage->ok())return -1;
+    if(fsync(stage->get())<0||fsync(staging.get())<0||fsync(store->get())<0||fsync(state)<0)return -1;
+    return 0;
+}
+static int configured_source_image(aegis_broker_owner* owner,const PackagePreparationResult& selected,
+                                    int personal_store) {
+    const auto& generation=selected.generation;unique_fd source,shared;
+    if(selected.scope==PackagePreparationResult::Scope::Factory) {
+        if(generation.image_sha256!=owner->selection_factory.sha256||generation.bytes!=owner->selection_factory.bytes)return fail(ESTALE);
+        source.reset(fcntl(owner->selection_image.get(),F_DUPFD_CLOEXEC,3));
+    } else {
+        int store=personal_store;
+        if(selected.scope==PackagePreparationResult::Scope::Shared) {
+            int fd=-1;if(optional_shared_store(owner->selection_directory.get(),&fd)<0)return -1;
+            shared.reset(fd);store=fd;
+        } else if(selected.scope!=PackagePreparationResult::Scope::Personal)return fail(EINVAL);
+        if(store<0)return fail(ESTALE);
+        const auto name=generation.image_sha256+".image";
+        source.reset(package_at(store,name.c_str(),O_RDONLY|O_NONBLOCK));
+    }
+    if(!source.ok())return -1;struct stat st;
+    if(fstat(source.get(),&st)<0)return -1;
+    if(!S_ISREG(st.st_mode)||st.st_uid||st.st_gid||st.st_nlink!=1||(st.st_mode&07022)
+       ||st.st_size<=0||uint64_t(st.st_size)!=generation.bytes)return fail(ESTALE);
+    if(selected.scope!=PackagePreparationResult::Scope::Factory && (st.st_mode&07777)!=0444)return fail(EPERM);
+    if(package_no_acl(source.get())<0)return -1;
+    // Only metadata is read in the admission gate. The already owned preparer
+    // verifies the complete bytes against the retained plan before using them.
+    return source.release();
 }
 
 static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRuntimeSelection& request,
@@ -1068,7 +1150,8 @@ int BrokerCancelPublication(aegis_broker_owner* owner,uint32_t user,uint32_t ser
 static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation& request,
                               int groups,int stage,int source,int prepare_helper,int execute_helper,
                               const std::vector<int>& archives,uint64_t deadline,uint64_t* job,bool personal_ce,
-                              const PackagePublication* target=nullptr,int store=-1,int publish_helper=-1,planning_slot* transferring=nullptr) {
+                              const PackagePublication* target=nullptr,int store=-1,int publish_helper=-1,planning_slot* transferring=nullptr,
+                              const PackagePreparationResult* configured_source=nullptr) {
     if(!job || *job || request.execution.job)return fail(EINVAL);
     const auto& identity=request.execution;
     if(admission(owner,identity.requester,identity.serial,deadline)<0 || capacity(owner,identity.requester,nullptr,transferring)<0)return -1;
@@ -1083,16 +1166,16 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
     if(target) {
         prepared->has_target=true;prepared->target=*target;prepared->target.job=preparation.execution.job;
         prepared->target_inputs[0].reset(fcntl(groups,F_DUPFD_CLOEXEC,3));
-        if(!personal_ce)prepared->target_inputs[1].reset(fcntl(store,F_DUPFD_CLOEXEC,3));
+        if(!personal_ce&&!configured_source)prepared->target_inputs[1].reset(fcntl(store,F_DUPFD_CLOEXEC,3));
         prepared->target_inputs[2].reset(fcntl(publish_helper,F_DUPFD_CLOEXEC,3));
-        if(!prepared->target_inputs[0].ok() || (!personal_ce && !prepared->target_inputs[1].ok())
+        if(!prepared->target_inputs[0].ok() || (!personal_ce && !configured_source && !prepared->target_inputs[1].ok())
            || !prepared->target_inputs[2].ok())return -1;
     }
     prepared->plan=preparation.execution;prepared->state=PublicationState::Preparing;
     prepared->inputs[0].reset(fcntl(groups,F_DUPFD_CLOEXEC,3));
-    if(!personal_ce)prepared->inputs[1].reset(fcntl(stage,F_DUPFD_CLOEXEC,3));
+    if(!personal_ce&&!configured_source)prepared->inputs[1].reset(fcntl(stage,F_DUPFD_CLOEXEC,3));
     prepared->inputs[3].reset(fcntl(execute_helper,F_DUPFD_CLOEXEC,3));
-    if(!prepared->inputs[0].ok() || (!personal_ce && !prepared->inputs[1].ok()) || !prepared->inputs[3].ok())return -1;
+    if(!prepared->inputs[0].ok() || (!personal_ce && !configured_source && !prepared->inputs[1].ok()) || !prepared->inputs[3].ok())return -1;
     if(remaining_ms(deadline)<=0)return fail(ETIMEDOUT);
     if(transferring)prepared->valid_until_unix=transferring->bound.valid_until_unix;
     *job=preparation.execution.job;if(!transferring)owner->next_publication=*job;
@@ -1112,6 +1195,16 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
                 slot.target_inputs[1].reset(aegis_ce_package_store(area.get(),identity.requester,identity.serial));
                 if(!slot.target_inputs[1].ok())error=errno;
             }
+        }
+    }
+    unique_fd fixed_source;
+    if(configured_source&&!error) {
+        if(!personal_ce && configured_shared_target(owner->selection_directory.get(),slot.target.create,
+             identity.requester,identity.serial,*job,&slot.target_inputs[1],&slot.inputs[1])<0)error=errno;
+        if(!error) {
+            fixed_source.reset(configured_source_image(owner,*configured_source,
+                personal_ce?slot.target_inputs[1].get():-1));
+            if(!fixed_source.ok())error=errno;else source=fixed_source.get();
         }
     }
     if(!error && remaining_ms(deadline)<=0)error=ETIMEDOUT;
@@ -1144,10 +1237,11 @@ int BrokerPrepareTransaction(aegis_broker_owner* owner,const PackagePreparation&
     return prepare_candidate(owner,plan,groups,stage,source,prepare_helper,execute_helper,
                              archives,deadline,job,false,&target,store,publish_helper);
 }
-int BrokerPreparePlannedTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+static int prepare_planned_transaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
     uint64_t job,const std::string& digest,int groups,int stage,int store,int source,
-    int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline) {
+    int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline,bool configured) {
     auto* slot=find_planning(owner,user,serial,job);if(!slot)return -1;
+    if(slot->configured!=configured)return fail(EPERM);
     if(slot->state!=PlanningState::Reviewed)return fail(EBUSY);
     if(slot->bound.preparation.execution.plan_sha256!=digest)return fail(ESTALE);
     if(slot->plan.personal && (stage!=-1 || store!=-1))return fail(EINVAL);
@@ -1171,8 +1265,24 @@ int BrokerPreparePlannedTransaction(aegis_broker_owner* owner,uint32_t user,uint
         archives.push_back(fd.get());pinned.push_back(std::move(fd));
     }
     uint64_t same=0;const bool personal=slot->plan.personal;
+    const auto selected=slot->selected_source; // survives consuming the planning slot
     return prepare_candidate(owner,bound.preparation,groups,stage,source,prepare_helper,execute_helper,
-        archives,deadline,&same,personal,&bound.publication,store,publish_helper,slot);
+        archives,deadline,&same,personal,&bound.publication,store,publish_helper,slot,configured?&selected:nullptr);
+}
+int BrokerPreparePlannedTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t job,const std::string& digest,int groups,int stage,int store,int source,
+    int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline) {
+    return prepare_planned_transaction(owner,user,serial,job,digest,groups,stage,store,source,
+        prepare_helper,execute_helper,publish_helper,deadline,false);
+}
+int BrokerPrepareConfiguredTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                        uint64_t job,uint64_t deadline) {
+    auto* slot=find_planning(owner,user,serial,job);if(!slot)return -1;
+    if(!owner->package_install_enabled)return fail(ENOTSUP);
+    const auto digest=slot->bound.preparation.execution.plan_sha256;
+    return prepare_planned_transaction(owner,user,serial,job,digest,
+        owner->inputs[0],-1,-1,-1,owner->selection_helper.get(),owner->package_install_helpers[0].get(),
+        owner->package_install_helpers[1].get(),deadline,true);
 }
 int BrokerPreparePersonalTransaction(aegis_broker_owner* owner,const PackagePreparation& plan,
                                       const PackagePublication& target,int groups,int source,

@@ -58,6 +58,12 @@ int BrokerReviewPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial
 int BrokerPreparePlannedTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
     uint64_t job,const std::string& digest,int groups,int stage,int store,int source,
     int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline);
+// Product handoff from its retained Reviewed job. No supplied digest, source,
+// stage, store, helper or archive FD. Registers execution before opening CE or
+// mutating a target; retained source bytes are checked asynchronously. Only a
+// newly admitted AOSP action approval may later start the Prepared execution.
+int BrokerPrepareConfiguredTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                        uint64_t job,uint64_t deadline);
 int BrokerCancelPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                           uint64_t job,uint64_t deadline);
 
