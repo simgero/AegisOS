@@ -20,8 +20,17 @@ privaten Arbeitsdateisystem verweigert. Die Korrektur verwendet
 sichtbar und niemals überschrieben; zusätzliche Policy-Rechte sind nicht nötig.
 **Grenze:** Diese SU-Komponentenprüfung ersetzt nicht den installierten Helfer
 und beweist noch keine öffentliche Paketinstallation oder frische AOSP-Freigabe.
-Das passende Vollimage wird separat gebaut und der tatsächliche CLI-Pfad erneut
-geprüft. Der gesamte Zwei-Benutzer-Paketablauf bleibt ausstehend.
+Das passende Vollimage wurde über GitHub verifiziert und am 30. September um
+23:17:56 UTC mit Enforcing, dm-verity und authentifiziertem ADB gestartet.
+Seine vier Pakethelfer sind bytegleich zu den geprüften Komponenten. Der
+installierte CLI-Aufruf erreicht den Archivdownload und scheitert danach am
+Broker-`setattr` auf `hello_2.10-5_arm64.deb`, vor der Adminabfrage. Der frühere
+Hook-`link`-Fehler ist damit im tatsächlichen Produktpfad behoben. Beide
+Testbenutzer wurden wieder abgemeldet, CE gesperrt und alle Kontexte abgebaut.
+Belege: `out/full-build-b7ee7fc8/identity-test/proof.json` sowie
+`helper-byte-comparison.json`. Die gezielte Policy-Korrektur benötigt ein neues
+Vollimage; identische SU-Komponententests ersetzen diese Prüfung nicht.
+Der gesamte Zwei-Benutzer-Paketablauf bleibt ausstehend.
 
 Nachweise: `out/components-b7ee7fc8/targeted-tests/` und
 `out/full-build-b6e4b93e/identity-test/proof.json`.

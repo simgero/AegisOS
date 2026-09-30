@@ -49,7 +49,23 @@ Dieser Aufruf nutzt die bestehenden Rechte im privaten Arbeitsdateisystem und
 benötigt keine zusätzliche SELinux-Freigabe. Commit `b7ee7fc8` besteht am
 30. September um 22:50:39 UTC alle 62 betroffenen nativen Planungs-/Ausführungstests
 im lokalen b6-QEMU; Benutzer-, Schlüssel- und Kontextaufnahmen bleiben identisch.
-Das passende Vollimage und der tatsächliche Produktpfad werden noch geprüft.
+Das passende Vollimage wurde auf `aegis-build` gebaut, über GitHub verifiziert
+und lokal mit Enforcing gestartet. Am 30. September um 23:20 UTC erreicht der
+tatsächliche CLI-Aufruf den Download von `hello_2.10-5_arm64.deb`; die vorherige
+Hook-Verweigerung tritt nicht mehr auf. Anschließend scheitert der Broker vor
+der Adminabfrage an `setattr` auf dieser privaten Arbeitsdatei.
+
+`prepare_planned_transaction` übernimmt Archive erst nach Ende aller
+Planerprozesse und Prüfung von Typ, Eigentümer, Linkzahl, Größe und tmpfs-Herkunft.
+Die Auflösung erfolgt relativ zum gehaltenen Verzeichnis ohne Symlinks oder
+Mountwechsel. Der Broker setzt den gepinnten Deskriptor mit `fchown`/`fchmod`
+auf `root:root`, Modus `0444`, bevor er ihn an die Vorbereitung übergibt.
+Die Richtlinie ergänzt dafür ausschließlich `file:setattr` für den bestehenden
+Arbeitsdateityp; keine Inhalts-, Verzeichnis- oder Ausführungsrechte.
+Beide Testkonten wurden danach regulär abgemeldet, CE gesperrt und alle
+Runtime-Kontexte abgebaut. Ein passendes Vollimage muss die Richtlinie kompilieren
+und den öffentlichen Ablauf erneut ausführen. Die unveränderten nativen
+SU-Komponententests würden diese fehlende Produktberechtigung nicht prüfen.
 Die echte Paketinstallation und der vollständige Zwei-Benutzer-Ablauf bleiben
 unbewiesen; erfolgreiche Komponententests allein bestätigen sie nicht.
 

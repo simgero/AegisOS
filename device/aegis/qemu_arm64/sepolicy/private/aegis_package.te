@@ -73,6 +73,10 @@ allow aegis_package_worker aegis_package_scratch_file:dir mounton;
 allow aegis_package_worker aegis_package_scratch_file:file create_file_perms;
 allow aegis_package_worker aegis_package_hook_file:file { create open read write getattr setattr };
 r_dir_file(aegis_runtime_broker, aegis_package_scratch_file)
+# After the planner cgroup is empty, the broker pins each validated archive
+# beneath its owned tmpfs and normalizes ownership/mode to root:root 0444.
+# No content-write, directory-mutation or execution permission is added.
+allow aegis_runtime_broker aegis_package_scratch_file:file setattr;
 allow { aegis_package_worker aegis_package_program } aegis_package_candidate_file:dir create_dir_perms;
 allow { aegis_package_worker aegis_package_program } aegis_package_candidate_file:file create_file_perms;
 allow { aegis_package_worker aegis_package_program } aegis_package_candidate_file:lnk_file { create getattr read setattr unlink rename };
