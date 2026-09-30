@@ -109,9 +109,20 @@ TEST_F(PackageAptArchives, IndexDescriptorsMustBeReadonlyOrdinaryAndBounded) {
     unique_fd directory(open(dir.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));index.fd=directory.get();
     EXPECT_EQ(-1,PackageMatchAptArchives(effects,{index},1000,&result));EXPECT_EQ(EINVAL,errno);
 }
+TEST_F(PackageAptArchives, LongDebianProvidesFieldRetainsAuthenticatedArchiveBinding) {
+    // Debian trixie's librust-winapi-dev has a valid 75,649-byte Provides line.
+    // It is ignored for matching, but remains in the complete authenticated hash.
+    const auto contents="Provides: "+std::string(131062,'x')+"\n"+Entry();
+    auto index=Index(contents);std::vector<PackageAptArchive> result;
+    ASSERT_EQ(0,PackageMatchAptArchives(effects,{index},1000,&result));ASSERT_EQ(1u,result.size());
+    EXPECT_EQ("test-app",result[0].effect.name);EXPECT_EQ(Hash("archive"),result[0].archive.sha256);
+    index.repository.index_sha256=Hash("Provides: changed\n"+Entry());
+    EXPECT_EQ(-1,PackageMatchAptArchives(effects,{index},1000,&result));EXPECT_EQ(EBADMSG,errno);
+    ASSERT_EQ(1u,result.size());EXPECT_EQ(Hash("archive"),result[0].archive.sha256);
+}
 TEST_F(PackageAptArchives, ControlFramingAndResourceBoundsFailWithoutPartialOutput) {
     Reject(std::string("Package: test-app\0\n",19));Reject("#comment\n"+Entry());
-    Reject("Description: "+std::string(65537,'x')+"\n"+Entry(),EFBIG);
+    Reject("Description: "+std::string(131073,'x')+"\n"+Entry(),EFBIG);
     std::string stanza="Description: header\n";for(unsigned i=0;i<17;++i)stanza+=" "+std::string(64000,'x')+"\n";
     Reject(stanza+Entry(),EFBIG);
     std::string fields;for(unsigned i=0;i<257;++i)fields+="Field"+std::to_string(i)+": x\n";Reject(fields+Entry());

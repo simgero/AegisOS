@@ -120,7 +120,7 @@ struct IndexReader {
         for(size_t i=0;i<size;++i) {
             unsigned char c=data[i];if(!c||c=='\r'||(c<32&&c!='\n'&&c!='\t')||c==127)return Fail(EBADMSG);
             if(c=='\n') { if(Line()<0)return -1;line.clear(); }
-            else { if(line.size()>=65536)return Fail(EFBIG);line+=char(c); }
+            else { if(line.size()>=(128u<<10))return Fail(EFBIG);line+=char(c); }
         }
         return 0;
     }

@@ -19,7 +19,7 @@ struct PackageAptArchive {
 // signature trust itself, open a network connection or interpret dependencies.
 // Readonly, regular index FDs: max256 MiB each /512 MiB total; max16 sources,
 // Authenticated empty indexes are valid but cannot supply an archive.
-// 64 effects, 64 KiB lines /1 MiB stanzas /256 fields. No seek-offset mutation.
+// 64 effects, 128 KiB lines /1 MiB stanzas /256 fields. No seek-offset mutation.
 // Duplicate selected identities within one index, conflicting content across
 // repositories, missing selected versions and expiry fail closed. Identical
 // content in distinct repositories picks the first sorted configured source.
