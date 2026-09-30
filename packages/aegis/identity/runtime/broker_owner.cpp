@@ -15,6 +15,7 @@
 #include <android-base/unique_fd.h>
 #include <array>
 #include <memory>
+#include <optional>
 #include <new>
 #include <errno.h>
 #include <fcntl.h>
@@ -64,6 +65,7 @@ struct execution_slot {
 };
 struct planning_slot {
     PackagePlanning plan;
+    bool configured=false;
     PackagePreparationResult selected_source;
     PackageInput factory;
     PackagePlanner* worker=nullptr;
@@ -76,6 +78,8 @@ struct planning_slot {
 enum class SelectionPurpose { Runtime, SharedPackage, PersonalPackage };
 struct runtime_selection_slot {
     SelectionPurpose purpose=SelectionPurpose::Runtime;
+    std::optional<PackageIntent> intent;
+    bool create_store=false; // Checked target absence, never inferred from fallback scope.
     PackageRuntimeSelection plan;
     PackagePreparer* worker=nullptr;
     unique_fd mount;
@@ -93,8 +97,9 @@ struct aegis_broker_owner {
     int inputs[4];
     struct slot slots[MAX_CONTEXTS];
     uint64_t next_command, next_publication;
-    bool selection_enabled=false,package_policy_enabled=false;
+    bool selection_enabled=false,package_policy_enabled=false,package_planner_enabled=false;
     std::array<unique_fd,3> package_policy;
+    std::array<unique_fd,2> package_helpers;
     unique_fd selection_image,selection_helper,selection_directory;
     PackageInput selection_factory;
     std::array<std::unique_ptr<planning_slot>,MAX_PUBLICATIONS> planners;
@@ -176,6 +181,23 @@ int aegis_broker_owner_enable_package_policy(aegis_broker_owner* owner,const int
         pinned[i].reset(fcntl(inputs[i],F_DUPFD_CLOEXEC,3));if(!pinned[i].ok())return -1;
     }
     owner->package_policy=std::move(pinned);owner->package_policy_enabled=true;return 0;
+}
+
+int aegis_broker_owner_enable_package_planner(aegis_broker_owner* owner,int planner,int network) {
+    if(owned(owner)<0)return -1;
+    if(!owner->package_policy_enabled || owner->package_planner_enabled
+       ||owner->next_command||owner->next_publication)return fail(EALREADY);
+    for(const auto& slot:owner->slots)if(slot.context)return fail(EBUSY);
+    std::array<unique_fd,2> pinned;const int supplied[]={planner,network};
+    for(unsigned i=0;i<2;++i) {
+        pinned[i].reset(fcntl(supplied[i],F_DUPFD_CLOEXEC,3));if(!pinned[i].ok())return -1;
+        struct stat st;int flags=fcntl(pinned[i].get(),F_GETFL);
+        if(flags<0||fstat(pinned[i].get(),&st)<0)return -1;
+        if((flags&(O_ACCMODE|O_PATH))!=O_RDONLY || !S_ISREG(st.st_mode) || st.st_uid
+           ||(st.st_gid!=0&&st.st_gid!=2000)||st.st_nlink!=1||(st.st_mode&07022)
+           ||(st.st_mode&0555)!=0555||st.st_size<64||st.st_size>32*1024*1024)return fail(EPERM);
+    }
+    owner->package_helpers=std::move(pinned);owner->package_planner_enabled=true;return 0;
 }
 
 int aegis_broker_owner_create(int parent_fd, int base_fd, int setup_fd, int init_fd,
@@ -683,7 +705,10 @@ static int start_planning(aegis_broker_owner* owner,const PackagePlanning& reque
     if(!empty)return fail(ENOSPC);
     auto slot=std::unique_ptr<planning_slot>(new(std::nothrow) planning_slot);if(!slot)return fail(ENOMEM);
     slot->plan=plan;
-    if(transferring) { slot->selected_source=transferring->result;slot->factory=transferring->plan.factory; }
+    if(transferring) {
+        slot->configured=transferring->intent.has_value();
+        slot->selected_source=transferring->result;slot->factory=transferring->plan.factory;
+    }
     *empty=std::move(slot);if(!transferring)owner->next_publication=plan.job;*job=plan.job;
     auto& registered=**empty;
     int started=PackagePlannerStart(groups,factory,selected,sources,key,helper,plan,deadline,&registered.worker,network_helper,ca_bundle);
@@ -710,7 +735,7 @@ int BrokerStartPlanningFromSelection(aegis_broker_owner* owner,const PackagePlan
     if(admission(owner,request.requester,request.serial,deadline)<0)return -1;
     for(auto& selected:owner->selections)if(selected && selected->plan.job==selection_job) {
         if(selected->plan.requester!=request.requester||selected->plan.serial!=request.serial)return fail(ESTALE);
-        if(selected->purpose==SelectionPurpose::Runtime)return fail(EPERM);
+        if(selected->purpose==SelectionPurpose::Runtime || selected->intent)return fail(EPERM);
         if((selected->purpose==SelectionPurpose::PersonalPackage)!=request.personal)return fail(ESTALE);
         if(reap_selection(*selected,0)<0)return errno==ETIMEDOUT?fail(EAGAIN):-1;
         if(selected->state!=RuntimeSelectionState::Selected||!selected->mount.ok())return fail(EBUSY);
@@ -791,7 +816,8 @@ static int optional_shared_store(int state,int* output) {
 static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRuntimeSelection& request,
                                      int groups,int shared,int personal,int factory,int helper,
                                      uint64_t deadline,uint64_t* job,bool ce,int state_root=-1,
-                                     SelectionPurpose purpose=SelectionPurpose::Runtime) {
+                                     SelectionPurpose purpose=SelectionPurpose::Runtime,
+                                     const PackageIntent* intent=nullptr) {
     if(!job || *job || request.job || shared < -1 || personal < -1)return fail(EINVAL);
     if(admission(owner,request.requester,request.serial,deadline)<0)return -1;
     if(purpose==SelectionPurpose::SharedPackage && (ce || personal!=-1))return fail(EINVAL);
@@ -809,6 +835,7 @@ static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRunt
     if(!empty)return fail(ENOSPC);
     auto slot=std::unique_ptr<runtime_selection_slot>(new(std::nothrow) runtime_selection_slot);
     if(!slot)return fail(ENOMEM);slot->plan=plan;slot->purpose=purpose;
+    if(intent)slot->intent=*intent;
     *job=++owner->next_publication;*empty=std::move(slot);
     auto& registered=**empty; // Own BEFORE opening CE, without deferred CLI FDs.
     unique_fd private_store,shared_store;int error=0;
@@ -825,6 +852,7 @@ static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRunt
             private_store.reset(fd);personal=fd;
         }
     }
+    if(!error && intent)registered.create_store=intent->personal ? personal==-1 : shared==-1;
     if(!error && remaining_ms(deadline)<=0)error=ETIMEDOUT;
     if(!error && PackageRuntimeSelectionStart(groups,shared,personal,factory,helper,plan,&registered.worker)<0)error=errno;
     if(!error && remaining_ms(deadline)<=0)error=ETIMEDOUT;
@@ -859,6 +887,43 @@ int BrokerPrepareConfiguredPackageSelection(aegis_broker_owner* owner,uint32_t u
     return prepare_runtime_selection(owner,plan,owner->inputs[0],-1,-1,
         owner->selection_image.get(),owner->selection_helper.get(),deadline,job,personal,
         owner->selection_directory.get(),personal ? SelectionPurpose::PersonalPackage : SelectionPurpose::SharedPackage);
+}
+int BrokerBeginConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                  const PackageIntent& intent,uint64_t deadline,uint64_t* job) {
+    if(owned(owner)<0)return -1;
+    if(!owner->package_planner_enabled)return fail(ENOTSUP);
+    PackageResolverRequest request;request.action=intent.action;request.package=intent.package;
+    request.version=intent.version;request.internet=true;
+    if(PackageResolverCheck(request)<0)return -1;
+    PackageRuntimeSelection plan;plan.requester=user;plan.serial=serial;plan.factory=owner->selection_factory;
+    return prepare_runtime_selection(owner,plan,owner->inputs[0],-1,-1,
+        owner->selection_image.get(),owner->selection_helper.get(),deadline,job,intent.personal,
+        owner->selection_directory.get(),intent.personal ? SelectionPurpose::PersonalPackage : SelectionPurpose::SharedPackage,&intent);
+}
+int BrokerContinueConfiguredPackagePlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                              uint64_t job,uint64_t deadline) {
+    if(!job || job>INT64_MAX)return fail(EINVAL);
+    if(admission(owner,user,serial,deadline)<0)return -1;
+    if(!owner->package_planner_enabled)return fail(ENOTSUP);
+    for(auto& slot:owner->planners)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial)return fail(ESTALE);
+        return fail(slot->configured?EALREADY:EPERM);
+    }
+    for(auto& slot:owner->selections)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial)return fail(ESTALE);
+        if(!slot->intent)return fail(EPERM);
+        if(reap_selection(*slot,0)<0)return errno==ETIMEDOUT?fail(EAGAIN):-1;
+        if(slot->state==RuntimeSelectionState::Failed)return fail(slot->result.error?slot->result.error:EIO);
+        if(slot->state!=RuntimeSelectionState::Selected||!slot->mount.ok())return fail(EBUSY);
+        PackagePlanning plan;plan.requester=user;plan.serial=serial;plan.personal=slot->intent->personal;
+        plan.create_store=slot->create_store;plan.request.action=slot->intent->action;
+        plan.request.package=slot->intent->package;plan.request.version=slot->intent->version;plan.request.internet=true;
+        uint64_t transferred=0;
+        return start_planning(owner,plan,owner->inputs[0],owner->inputs[1],slot->mount.get(),
+            owner->package_policy[0].get(),owner->package_policy[1].get(),owner->package_helpers[0].get(),
+            deadline,&transferred,slot.get(),owner->package_helpers[1].get(),owner->package_policy[2].get());
+    }
+    return fail(ENOENT);
 }
 int BrokerCancelPackageSelection(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t job,uint64_t deadline) {
     if(owned(owner)<0)return -1;

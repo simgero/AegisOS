@@ -32,6 +32,13 @@ int aegis_broker_owner_enable_selection(struct aegis_broker_owner *owner,
 int aegis_broker_owner_enable_package_policy(struct aegis_broker_owner *owner,
                                              const int inputs[3]);
 
+/* Startup-only after fixed policy. Bootstrap verifies both fixed immutable
+ * executable paths, EROFS/readonly mount and exact SELinux labels first.
+ * Retains planner/network helpers together, before any context or job. Internal
+ * fixture callers may provide their trusted probe executables. No wire setter. */
+int aegis_broker_owner_enable_package_planner(struct aegis_broker_owner *owner,
+                                              int planner, int network);
+
 /* Caller has already authenticated the system_server peer, validated framing
  * and enforced per-connection sequence ordering. AOSP admission/CE serialization
  * remains held by that peer. Success writes ABSENT/READY/SEALED as appropriate;

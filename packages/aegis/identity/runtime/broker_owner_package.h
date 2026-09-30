@@ -6,6 +6,26 @@
 #include "package_preparer.h"
 #include "package_planner.h"
 namespace aegis {
+// The only package request fields supplied by an admitted product caller.
+// Identity comes from the current AOSP session; no policy, path, descriptor,
+// internet flag, creation flag or digest can be selected by this request.
+struct PackageIntent {
+    PackageAction action=PackageAction::Install;
+    std::string package,version;
+    bool personal=false;
+};
+// Start selection with the original intent registered before opening any CE.
+// Uses startup-pinned product inputs exclusively. A returned nonzero job on
+// failure still belongs to the owner and must be cancelled/reaped normally.
+int BrokerBeginConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                  const PackageIntent& intent,uint64_t deadline,uint64_t* job);
+// Fresh requester/session/CE admission is required again. The same retained
+// intent and job transfer to planning; no replacement request or FD is accepted.
+// EAGAIN means selecting, EALREADY means already transferred. Lookup failures
+// (including ENOENT) can also be retained failed selections: inspect/poll their
+// owned state. Failure never proves quiescence or releases cancellation duties.
+int BrokerContinueConfiguredPackagePlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+                                              uint64_t job,uint64_t deadline);
 enum class PlanningState { Running, Collected, Reviewed, Complete, Sealed };
 // Register before snapshot copying/APT. Same requester admission, 16-slot budget,
 // monotonically minted IDs and STOP/HELLO/disconnect ownership as execution.

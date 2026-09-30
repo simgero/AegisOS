@@ -50,6 +50,7 @@
 #include <sys/sysmacros.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
+#include <sys/xattr.h>
 #include <unistd.h>
 
 namespace {
