@@ -13,6 +13,8 @@
 #include <new>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/openat2.h>
+#include <sys/stat.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/syscall.h>
@@ -38,13 +40,19 @@ struct execution_slot {
     // Stay lifecycle-owned after APT exits. Never reopen by a caller pathname
     // or export this CE reference while the same transaction awaits validation.
     unique_fd validation_stage;
+    PackagePublisher* publisher = nullptr;
+    bool has_target = false;
+    PackagePublication target;
+    std::array<unique_fd,3> target_inputs; // groups, store, publisher helper
+    void close_target() { for(auto& fd:target_inputs)fd.reset(); }
     PackageExecutor* executor = nullptr;
     PackagePreparer* preparer = nullptr;
     PublicationState state = PublicationState::Prepared;
     PackageExecutionResult result;
     void close_inputs() { for(auto& fd:inputs)fd.reset(); }
     bool resources() const {
-        return state==PublicationState::Prepared || preparer || executor || validation_stage.ok();
+        return state==PublicationState::Prepared || preparer || executor || publisher || validation_stage.ok()
+            || target_inputs[0].ok() || target_inputs[1].ok() || target_inputs[2].ok();
     }
 };
 struct slot {
@@ -142,7 +150,38 @@ static int reap_publication(publication_slot& slot,int wait) {
     slot.close_inputs();slot.result=result;slot.state=PublicationState::Complete;
     return 0;
 }
+static int publish_execution(execution_slot& slot) {
+    // Caller paths, source FDs and post-approval target changes cannot enter
+    // this transition. Only the retained, checked job stage is used.
+    open_how how={};how.flags=O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_NOFOLLOW;
+    how.resolve=RESOLVE_BENEATH|RESOLVE_NO_SYMLINKS|RESOLVE_NO_XDEV;
+    unique_fd image(syscall(SYS_openat2,slot.validation_stage.get(),"candidate.ext4",&how,sizeof(how)));
+    int error=image.ok()?0:errno;struct stat st;
+    if(!error && fstat(image.get(),&st)<0)error=errno;
+    if(!error && (st.st_mode!=(S_IFREG|0600) || st.st_uid || st.st_gid || st.st_nlink!=1
+        || st.st_size<=0 || static_cast<uint64_t>(st.st_size)!=slot.target.candidate.bytes))error=EPERM;
+    slot.state=PublicationState::Publishing;
+    if(!error && PackagePublisherStart(slot.target_inputs[0].get(),slot.target_inputs[1].get(),
+            image.get(),slot.target_inputs[2].get(),slot.target,&slot.publisher)<0)error=errno;
+    // The child owner now holds the source and store or retains partial
+    // ownership. No returned FD escapes the original registered transaction.
+    image.reset();slot.validation_stage.reset();slot.close_target();
+    if(error) {
+        slot.result={PackageExecutionOutcome::Failed,0,error};
+        if(slot.publisher) { slot.state=PublicationState::Sealed;(void)PackagePublisherCancel(slot.publisher); }
+        else slot.state=PublicationState::Complete;
+    }
+    return 0;
+}
 static int reap_execution(execution_slot& slot,int wait) {
+    if(slot.publisher) {
+        PackagePublicationResult result;
+        if(PackagePublisherFinish(&slot.publisher,slot.state==PublicationState::Sealed,wait,&result)<0)return -1;
+        slot.close_inputs();slot.close_target();slot.validation_stage.reset();slot.state=PublicationState::Complete;
+        auto outcome=result.publication==PackagePublish::Confirmed ? PackageExecutionOutcome::Published
+            : result.publication==PackagePublish::Rejected ? PackageExecutionOutcome::Failed : PackageExecutionOutcome::Unconfirmed;
+        slot.result={outcome,0,result.error,result.generation};return 0;
+    }
     if(slot.preparer) {
         PackagePreparationResult result;int candidate=-1;
         if(PackagePreparerFinish(&slot.preparer,slot.state==PublicationState::Sealed,wait,&result,&candidate)<0)return -1;
@@ -152,7 +191,7 @@ static int reap_execution(execution_slot& slot,int wait) {
         if(result.outcome==PackagePreparationOutcome::Prepared) {
             slot.state=PublicationState::Prepared;return 0;
         }
-        slot.close_inputs();slot.state=PublicationState::Complete;
+        slot.close_inputs();slot.close_target();slot.state=PublicationState::Complete;
         slot.result={result.outcome==PackagePreparationOutcome::Unconfirmed ? PackageExecutionOutcome::Unconfirmed
                      : PackageExecutionOutcome::Failed,0,result.error};
         return 0;
@@ -164,8 +203,9 @@ static int reap_execution(execution_slot& slot,int wait) {
     if(result.outcome==PackageExecutionOutcome::NeedsValidation
             && slot.state!=PublicationState::Sealed && slot.validation_stage.ok()) {
         slot.state=PublicationState::AwaitingValidation;
+        if(slot.has_target)return publish_execution(slot);
     } else {
-        slot.validation_stage.reset();slot.state=PublicationState::Complete;
+        slot.validation_stage.reset();slot.close_target();slot.state=PublicationState::Complete;
         // Never publish an unowned candidate as eligible for validation.
         if(slot.result.outcome==PackageExecutionOutcome::NeedsValidation)
             slot.result={PackageExecutionOutcome::Failed,0,ECANCELED};
@@ -176,10 +216,12 @@ static int reap_execution(execution_slot& slot,int wait) {
 static void seal_publications(struct aegis_broker_owner* owner,uint32_t user) {
     for(auto& slot:owner->executions) {
         if(!slot || (user && slot->plan.requester!=user))continue;
-        if(slot->preparer) {
+        if(slot->publisher) {
+            slot->state=PublicationState::Sealed;(void)PackagePublisherCancel(slot->publisher);
+        } else if(slot->preparer) {
             slot->state=PublicationState::Sealed;(void)PackagePreparerCancel(slot->preparer);
         } else if(slot->state==PublicationState::Prepared || slot->state==PublicationState::AwaitingValidation) {
-            slot->close_inputs();slot->validation_stage.reset();
+            slot->close_inputs();slot->close_target();slot->validation_stage.reset();
             slot->result={PackageExecutionOutcome::Failed,0,ECANCELED};
             slot->state=PublicationState::Complete;
         } else if(slot->executor) {
@@ -395,12 +437,13 @@ int aegis_broker_owner_reap_publications(struct aegis_broker_owner* owner) {
             (void)PackagePublisherCancel(slot->publisher);
         }
     }
-    for(auto& slot:owner->executions)if(slot && (slot->executor || slot->preparer)) {
+    for(auto& slot:owner->executions)if(slot && (slot->executor || slot->preparer || slot->publisher)) {
         if(reap_execution(*slot,0)<0 && errno!=ETIMEDOUT) {
             if(!error)error=errno;
             slot->state=PublicationState::Sealed;
             if(slot->preparer)(void)PackagePreparerCancel(slot->preparer);
             if(slot->executor)(void)PackageExecutorCancel(slot->executor);
+            if(slot->publisher)(void)PackagePublisherCancel(slot->publisher);
         }
     }
     return error ? fail(error) : 0;
@@ -568,7 +611,8 @@ int BrokerCancelPublication(aegis_broker_owner* owner,uint32_t user,uint32_t ser
 }
 static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation& request,
                               int groups,int stage,int source,int prepare_helper,int execute_helper,
-                              const std::vector<int>& archives,uint64_t deadline,uint64_t* job,bool personal_ce) {
+                              const std::vector<int>& archives,uint64_t deadline,uint64_t* job,bool personal_ce,
+                              const PackagePublication* target=nullptr,int store=-1,int publish_helper=-1) {
     if(!job || *job || request.execution.job)return fail(EINVAL);
     const auto& identity=request.execution;
     if(admission(owner,identity.requester,identity.serial,deadline)<0 || capacity(owner,identity.requester)<0)return -1;
@@ -580,6 +624,14 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
     if(!empty)return fail(ENOSPC);
     auto prepared=std::unique_ptr<execution_slot>(new(std::nothrow) execution_slot);
     if(!prepared)return fail(ENOMEM);
+    if(target) {
+        prepared->has_target=true;prepared->target=*target;prepared->target.job=preparation.execution.job;
+        prepared->target_inputs[0].reset(fcntl(groups,F_DUPFD_CLOEXEC,3));
+        if(!personal_ce)prepared->target_inputs[1].reset(fcntl(store,F_DUPFD_CLOEXEC,3));
+        prepared->target_inputs[2].reset(fcntl(publish_helper,F_DUPFD_CLOEXEC,3));
+        if(!prepared->target_inputs[0].ok() || (!personal_ce && !prepared->target_inputs[1].ok())
+           || !prepared->target_inputs[2].ok())return -1;
+    }
     prepared->plan=preparation.execution;prepared->state=PublicationState::Preparing;
     prepared->inputs[0].reset(fcntl(groups,F_DUPFD_CLOEXEC,3));
     if(!personal_ce)prepared->inputs[1].reset(fcntl(stage,F_DUPFD_CLOEXEC,3));
@@ -595,6 +647,10 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
         else {
             slot.inputs[1].reset(aegis_ce_new_package_stage(area.get(),identity.requester,identity.serial,*job));
             if(!slot.inputs[1].ok())error=errno;
+            if(!error && target) {
+                slot.target_inputs[1].reset(aegis_ce_package_store(area.get(),identity.requester,identity.serial));
+                if(!slot.target_inputs[1].ok())error=errno;
+            }
         }
     }
     if(!error && remaining_ms(deadline)<=0)error=ETIMEDOUT;
@@ -603,11 +659,38 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
     if(!error && remaining_ms(deadline)<=0)error=ETIMEDOUT;
     if(error) {
         if(slot.preparer) { slot.state=PublicationState::Sealed;(void)PackagePreparerCancel(slot.preparer); }
-        else { slot.close_inputs();slot.state=PublicationState::Complete;
+        else { slot.close_inputs();slot.close_target();slot.state=PublicationState::Complete;
                slot.result={PackageExecutionOutcome::Failed,0,error}; }
         return fail(error);
     }
     return 0;
+}
+static int transaction_target(const PackagePreparation& preparation,const PackagePublication& target) {
+    const auto& p=preparation.execution;
+    if(target.job || p.job || target.requester!=p.requester || target.serial!=p.serial
+       || target.plan_sha256!=p.plan_sha256 || !target.derive_source_hash
+       || !target.candidate.image_sha256.empty() || target.candidate.bytes!=preparation.image.bytes
+       || (target.has_previous && (target.previous.image_sha256!=preparation.image.sha256
+                                  || target.previous.bytes!=preparation.image.bytes))
+       || (target.personal && !target.has_previous && target.candidate.shared_base_sha256!=preparation.image.sha256))return fail(EINVAL);
+    auto checked=target;checked.job=1;return PackagePublicationCheck(checked);
+}
+int BrokerPrepareTransaction(aegis_broker_owner* owner,const PackagePreparation& plan,
+                              const PackagePublication& target,int groups,int stage,int store,int source,
+                              int prepare_helper,int execute_helper,int publish_helper,
+                              const std::vector<int>& archives,uint64_t deadline,uint64_t* job) {
+    if(transaction_target(plan,target)<0)return -1;
+    return prepare_candidate(owner,plan,groups,stage,source,prepare_helper,execute_helper,
+                             archives,deadline,job,false,&target,store,publish_helper);
+}
+int BrokerPreparePersonalTransaction(aegis_broker_owner* owner,const PackagePreparation& plan,
+                                      const PackagePublication& target,int groups,int source,
+                                      int prepare_helper,int execute_helper,int publish_helper,
+                                      const std::vector<int>& archives,uint64_t deadline,uint64_t* job) {
+    if(!target.personal)return fail(EINVAL);
+    if(transaction_target(plan,target)<0)return -1;
+    return prepare_candidate(owner,plan,groups,-1,source,prepare_helper,execute_helper,
+                             archives,deadline,job,true,&target,-1,publish_helper);
 }
 int BrokerPrepareCandidate(aegis_broker_owner* owner,const PackagePreparation& request,
                            int groups,int stage,int source,int prepare_helper,int execute_helper,
@@ -664,6 +747,7 @@ int BrokerStartExecution(aegis_broker_owner* owner,uint32_t user,uint32_t serial
     if(result==0)slot->validation_stage=std::move(slot->inputs[1]);
     slot->close_inputs();
     if(result<0) {
+        slot->close_target();
         if(slot->executor) { slot->state=PublicationState::Sealed;(void)PackageExecutorCancel(slot->executor); }
         else { slot->state=PublicationState::Complete;slot->result={PackageExecutionOutcome::Failed,0,error}; }
         return fail(error);
@@ -679,7 +763,7 @@ int BrokerPollExecution(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                           PackageExecutionResult* result) {
     if(!state || !result)return fail(EINVAL);
     auto* slot=find_execution(owner,user,serial,job,plan);if(!slot)return -1;
-    if((slot->executor || slot->preparer) && reap_execution(*slot,0)<0 && errno!=ETIMEDOUT)return -1;
+    if((slot->executor || slot->preparer || slot->publisher) && reap_execution(*slot,0)<0 && errno!=ETIMEDOUT)return -1;
     *state=slot->state;
     if(slot->state==PublicationState::AwaitingValidation)*result=slot->result;
     if(slot->state==PublicationState::Complete) {
@@ -694,14 +778,18 @@ int BrokerCancelExecution(aegis_broker_owner* owner,uint32_t user,uint32_t seria
     int left=remaining_ms(deadline),error=left<0?errno:0;
     // Invalid/expired time still seals and requests this exact owned job's stop.
     if(slot->state==PublicationState::Complete) {
+        if(slot->result.outcome==PackageExecutionOutcome::Published)return fail(EALREADY);
         // A completed failure is still an uncollected job. Cancellation is
         // terminal regardless of whether that earlier failure was polled.
         slot->result.outcome=PackageExecutionOutcome::Failed;slot->result.error=ECANCELED;
+    } else if(slot->publisher) {
+        slot->state=PublicationState::Sealed;(void)PackagePublisherCancel(slot->publisher);
+        if(reap_execution(*slot,left<0?0:left)<0)return -1;
     } else if(slot->preparer) {
         slot->state=PublicationState::Sealed;(void)PackagePreparerCancel(slot->preparer);
         if(reap_execution(*slot,left<0?0:left)<0)return -1;
     } else if(slot->state==PublicationState::Prepared || slot->state==PublicationState::AwaitingValidation) {
-        slot->close_inputs();slot->validation_stage.reset();slot->state=PublicationState::Complete;
+        slot->close_inputs();slot->close_target();slot->validation_stage.reset();slot->state=PublicationState::Complete;
         slot->result={PackageExecutionOutcome::Failed,0,ECANCELED};
     } else if(slot->executor) {
         slot->state=PublicationState::Sealed;(void)PackageExecutorCancel(slot->executor);

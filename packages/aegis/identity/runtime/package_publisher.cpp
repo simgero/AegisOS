@@ -32,7 +32,8 @@ struct PackagePublisher {
     aegis_child* child = nullptr;
     uint64_t job = 0;
     std::string plan;
-    bool spawned = false;
+    bool spawned = false, derive = false;
+    PackageGeneration expected;
 };
 namespace {
 int Fail(int error) { errno=error;return -1; }
@@ -59,7 +60,7 @@ bool Encode(const PackagePublication& value,wire::Request* out) {
     *out={};out->magic=wire::kMagic;out->version=wire::kVersion;
     out->user=value.requester;out->serial=value.serial;out->job=value.job;
     out->flags=(value.personal?wire::kPersonal:0)|(value.create?wire::kCreate:0)
-              |(value.has_previous?wire::kPrevious:0);
+              |(value.has_previous?wire::kPrevious:0)|(value.derive_source_hash?wire::kDerive:0);
     return String(value.plan_sha256,out->plan) && Image(value.candidate,&out->candidate)
         && (value.has_previous ? Image(value.previous,&out->previous)
              : value.previous.image_sha256.empty() && value.previous.shared_base_sha256.empty()
@@ -115,7 +116,13 @@ bool File(int fd,mode_t type,bool executable) {
 PackagePublicationResult Response(PackagePublisher* p,const aegis_child_exit& exit) {
     if(exit.code!=CLD_EXITED || exit.status!=0)
         return {PackagePublish::Unconfirmed,EIO};
-    return publication::ReceiveReply(p->channel.get(),p->job,p->plan);
+    auto result=publication::ReceiveReply(p->channel.get(),p->job,p->plan);
+    if(result.publication==PackagePublish::Confirmed
+       && (result.generation.bytes!=p->expected.bytes
+           || result.generation.shared_base_sha256!=p->expected.shared_base_sha256
+           || (!p->derive && result.generation.image_sha256!=p->expected.image_sha256)))
+        return {PackagePublish::Unconfirmed,ESTALE};
+    return result;
 }
 
 } // namespace
@@ -150,6 +157,10 @@ PackagePublicationResult publication::ReceiveReply(int channel,uint64_t job,cons
        || reply.job!=job || !wire::Hash(reply.plan) || plan!=reply.plan
        || reply.result<-1 || reply.result>1 || reply.error<0 || reply.error>4095
        || (reply.result==0 && reply.error))return result;
+    if(reply.result==0) {
+        if(!wire::ValidImage(reply.candidate,!wire::Empty(reply.candidate.base)))return result;
+        result.generation=wire::Generation(reply.candidate);
+    } else if(reply.candidate.bytes || !wire::Empty(reply.candidate.sha256) || !wire::Empty(reply.candidate.base))return result;
     result.publication=static_cast<PackagePublish>(reply.result);result.error=reply.error;
     return result;
 }
@@ -176,6 +187,7 @@ int PackagePublisherStart(int groups,int store,int source,int helper,
     auto* p=new(std::nothrow) PackagePublisher;
     if(!p)return Fail(ENOMEM);
     p->process=syscall(SYS_getpid);p->job=request.job;p->plan=request.plan_sha256;
+    p->derive=request.derive_source_hash;p->expected=request.candidate;
     *output=p; // From here onward the caller retains partial ownership on failure.
     p->store.reset(fcntl(store,F_DUPFD_CLOEXEC,10));
     p->source.reset(fcntl(source,F_DUPFD_CLOEXEC,10));

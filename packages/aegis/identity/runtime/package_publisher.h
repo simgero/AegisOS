@@ -11,10 +11,15 @@ struct PackagePublication {
     std::string plan_sha256;
     bool personal = false, create = false, has_previous = false;
     PackageGeneration previous, candidate;
+    // Only for an owned, quiescent APT candidate: hash is empty on input, bytes
+    // and private shared-base identity are pinned BEFORE action approval. The
+    // separate trusted worker derives the digest, then copy-verifies it.
+    bool derive_source_hash = false;
 };
 struct PackagePublicationResult {
     PackagePublish publication = PackagePublish::Unconfirmed;
     int error = 0;
+    PackageGeneration generation = {}; // Present only on Confirmed.
 };
 struct PackagePublisher;
 

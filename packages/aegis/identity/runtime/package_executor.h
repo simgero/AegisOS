@@ -1,6 +1,7 @@
 #ifndef AEGIS_PACKAGE_EXECUTOR_H
 #define AEGIS_PACKAGE_EXECUTOR_H
 #include <stdint.h>
+#include "package_store.h"
 #include <string>
 #include <vector>
 namespace aegis {
@@ -22,10 +23,11 @@ struct PackageExecution {
     // by the trusted planner into exact archives, never an implicit online run.
     std::vector<std::string> items;
 };
-enum class PackageExecutionOutcome { Unconfirmed, Failed, NeedsValidation };
+enum class PackageExecutionOutcome { Unconfirmed, Failed, NeedsValidation, Published };
 struct PackageExecutionResult {
     PackageExecutionOutcome outcome = PackageExecutionOutcome::Unconfirmed;
     int status = 0, error = 0;
+    PackageGeneration generation = {}; // Only the bound broker transaction may publish.
 };
 struct PackageExecutor;
 int PackageExecutionCheck(const PackageExecution& plan);

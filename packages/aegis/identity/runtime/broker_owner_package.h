@@ -5,7 +5,7 @@
 #include "package_executor.h"
 #include "package_preparer.h"
 namespace aegis {
-enum class PublicationState { Prepared, Running, Complete, Sealed, Preparing, AwaitingValidation };
+enum class PublicationState { Prepared, Running, Complete, Sealed, Preparing, AwaitingValidation, Publishing };
 
 // Trusted internal planner API, not a socket/CLI authorization endpoint.
 // The authenticated REQUESTER and verified source/store/helper/cgroup FDs are
@@ -48,6 +48,23 @@ int BrokerCancelPublication(aegis_broker_owner* owner,uint32_t user,uint32_t ser
 // plan.execution.job and *job initially zero. If partial start fails AFTER
 // registration, *job is nonzero and remains cancellable/owned even on -1.
 // Every source/archive FD and stage is trusted/CE-anchored by the caller.
+// Complete owned transaction: target is immutable before NEW fresh admin
+// approval at StartExecution. It matches requester/serial/plan, has job=0,
+// derive_source_hash=true and an empty candidate hash, with exact image bytes.
+// After successful checked APT and teardown, the same slot starts its pinned
+// publisher. Hashing/copying stay in that child. PollExecution returns Published
+// with generation only after confirmed selection AND complete resource release.
+// Cancellation/STOP also cover publishing; a lost reply never claims rollback.
+// Generic internal variant requires trusted anchored stage/store FDs. Production
+// personal scope must use the CE variant below, with no caller path or store FD.
+int BrokerPrepareTransaction(aegis_broker_owner* owner,const PackagePreparation& plan,
+                              const PackagePublication& target,int groups,int stage,int store,int source,
+                              int prepare_helper,int execute_helper,int publish_helper,
+                              const std::vector<int>& archives,uint64_t deadline,uint64_t* job);
+int BrokerPreparePersonalTransaction(aegis_broker_owner* owner,const PackagePreparation& plan,
+                                      const PackagePublication& target,int groups,int source,
+                                      int prepare_helper,int execute_helper,int publish_helper,
+                                      const std::vector<int>& archives,uint64_t deadline,uint64_t* job);
 int BrokerPrepareCandidate(aegis_broker_owner* owner,const PackagePreparation& plan,
                            int groups,int stage,int source,int prepare_helper,int execute_helper,
                            const std::vector<int>& archives,uint64_t deadline,uint64_t* job);

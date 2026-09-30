@@ -450,7 +450,9 @@ class RuntimePublicationReply : public ::testing::Test {
     }
     publication::Reply Valid(int result=0,int error=0) {
         publication::Reply reply={};reply.job=job;reply.result=result;reply.error=error;
-        memcpy(reply.plan,plan.c_str(),65);return reply;
+        memcpy(reply.plan,plan.c_str(),65);
+        if(!result) { reply.candidate.bytes=4096;memset(reply.candidate.sha256,'c',64); }
+        return reply;
     }
     void Unconfirmed() {
         auto result=publication::ReceiveReply(receiver.get(),job,plan);
@@ -489,7 +491,7 @@ TEST_F(RuntimePublicationReply, OnlyMatchingJobPlanAndConsistentResultAreAccepte
         auto result=publication::ReceiveReply(receiver.get(),job,plan);
         EXPECT_EQ(static_cast<PackagePublish>(value),result.publication);EXPECT_EQ(reply.error,result.error);
     }
-    for(int which=0;which<7;++which) {
+    for(int which=0;which<10;++which) {
         auto reply=Valid();
         switch(which) {
           case 0:reply.job++;break;
@@ -499,6 +501,9 @@ TEST_F(RuntimePublicationReply, OnlyMatchingJobPlanAndConsistentResultAreAccepte
           case 4:reply.error=-1;break;
           case 5:reply.error=4096;break;
           case 6:reply.error=EIO;break;
+          case 7:reply.candidate.sha256[0]='z';break;
+          case 8:reply.candidate.bytes=0;break;
+          case 9:reply.result=-1;break;
         }
         Send(reply);Unconfirmed();
     }
