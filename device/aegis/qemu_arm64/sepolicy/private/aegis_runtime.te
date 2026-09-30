@@ -311,7 +311,7 @@ r_dir_file(aegis_runtime_broker, system_security_cacerts_file)
 # programs receive a private mount of candidate contents, never these host paths.
 type_transition aegis_runtime_broker aegis_runtime_state_file:dir aegis_package_staging_file "shared-staging";
 allow aegis_runtime_broker aegis_package_staging_file:dir create_dir_perms;
-allow aegis_runtime_broker aegis_package_staging_file:file create_file_perms;
+allow aegis_runtime_broker aegis_package_staging_file:file { create open read write getattr setattr unlink };
 # Kernel loop I/O through the trusted opener's fd; no pathname access/execute.
 allow kernel aegis_package_staging_file:file { read write };
 neverallow aegis_runtime_domain aegis_package_staging_file:file { execute execute_no_trans map };
