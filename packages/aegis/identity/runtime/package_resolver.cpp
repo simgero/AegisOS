@@ -1,3 +1,4 @@
+#include "package_program.h"
 #include "package_resolver.h"
 #include "sandbox.h"
 #include <android-base/unique_fd.h>
@@ -90,7 +91,7 @@ int Run(const std::vector<std::string>& arguments,const char* log,int* status) {
             const_cast<char*>("LC_ALL=C"),const_cast<char*>("HOME=/root"),
             const_cast<char*>("DEBIAN_FRONTEND=noninteractive"),
             const_cast<char*>("APT_CONFIG=/run/aegis-plan-policy/config"),nullptr};
-        execve(argv[0],argv.data(),env);_exit(127);
+        aegis_package_exec_program(argv.data(),env);_exit(127);
     }
     int exited;pid_t waited;do { waited=waitpid(child,&exited,0); }while(waited<0&&errno==EINTR);
     int error=waited<0?errno:0;

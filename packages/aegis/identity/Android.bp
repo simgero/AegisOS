@@ -183,7 +183,8 @@ cc_binary {
 cc_binary {
     name: "aegis-runtime-namespace-probe",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/namespace_probe.c", "runtime/package_policy_probe.c", "runtime/package_apt_probe.c", "runtime/package_apt_hook.c", "runtime/package_resolver_probe.cpp", "runtime/package_resolver.cpp", "runtime/package_apt_release.cpp", "runtime/package_apt_archives.cpp", "runtime/sandbox.c"],
+    srcs: ["runtime/package_program.c", "runtime/namespace_probe.c", "runtime/package_policy_probe.c", "runtime/package_apt_probe.c", "runtime/package_apt_hook.c", "runtime/package_resolver_probe.cpp", "runtime/package_resolver.cpp", "runtime/package_apt_release.cpp", "runtime/package_apt_archives.cpp", "runtime/sandbox.c"],
+    cflags: ["-DAEGIS_PACKAGE_PROGRAM_PROBE"],
     static_executable: true,
     static_libs: ["libaegis-package-metadata", "libbase", "libjsoncpp", "libcrypto_static"],
     stl: "libc++_static",
@@ -247,7 +248,7 @@ cc_library_static {
 cc_binary {
     name: "aegis-package-execute",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/package_exec_main.c", "runtime/package_execute.c", "runtime/package_validate.c", "runtime/package_candidate_labels.c", "runtime/package_execution_control.c", "runtime/sandbox.c", "runtime/package_guard.cpp", "runtime/package_apt_hook.c"],
+    srcs: ["runtime/package_program.c", "runtime/package_exec_main.c", "runtime/package_execute.c", "runtime/package_validate.c", "runtime/package_candidate_labels.c", "runtime/package_execution_control.c", "runtime/sandbox.c", "runtime/package_guard.cpp", "runtime/package_apt_hook.c"],
     static_executable: true,
     static_libs: ["libaegis-package-metadata", "libjsoncpp", "libcrypto_static"],
     stl: "libc++_static",
@@ -255,7 +256,8 @@ cc_binary {
 cc_binary {
     name: "aegis-package-execute-probe",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/package_exec_probe.c", "runtime/package_execute.c", "runtime/package_validate.c", "runtime/package_candidate_labels.c", "runtime/package_execution_control.c", "runtime/sandbox.c", "runtime/package_guard.cpp", "runtime/package_apt_hook.c"],
+    srcs: ["runtime/package_program.c", "runtime/package_exec_probe.c", "runtime/package_execute.c", "runtime/package_validate.c", "runtime/package_candidate_labels.c", "runtime/package_execution_control.c", "runtime/sandbox.c", "runtime/package_guard.cpp", "runtime/package_apt_hook.c"],
+    cflags: ["-DAEGIS_PACKAGE_PROGRAM_PROBE"],
     static_executable: true,
     static_libs: ["libaegis-package-metadata", "libjsoncpp", "libcrypto_static"],
     stl: "libc++_static",
@@ -280,7 +282,7 @@ cc_library_static {
 cc_defaults {
     name: "aegis-package-planner-defaults",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/package_planner_main.cpp", "runtime/package_resolver.cpp", "runtime/package_apt_release.cpp", "runtime/package_apt_archives.cpp", "runtime/package_apt_hook.c", "runtime/sandbox.c"],
+    srcs: ["runtime/package_program.c", "runtime/package_planner_main.cpp", "runtime/package_resolver.cpp", "runtime/package_apt_release.cpp", "runtime/package_apt_archives.cpp", "runtime/package_apt_hook.c", "runtime/sandbox.c"],
     static_executable: true,
     static_libs: ["libaegis-package-metadata", "libbase", "libjsoncpp", "libcrypto_static"],
     stl: "libc++_static",
@@ -292,7 +294,7 @@ cc_binary {
 cc_binary {
     name: "aegis-package-plan-probe",
     defaults: ["aegis-package-planner-defaults"],
-    cflags: ["-DAEGIS_PLANNER_PROBE"],
+    cflags: ["-DAEGIS_PLANNER_PROBE", "-DAEGIS_PACKAGE_PROGRAM_PROBE"],
 }
 
 cc_binary {
@@ -319,7 +321,7 @@ cc_library_static {
 cc_test {
     name: "AegisRuntimeNativeTests",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/memory_group_tests.cpp", "runtime/broker_protocol_tests.cpp", "runtime/base_image_tests.cpp", "runtime/ce_tests.cpp", "runtime/package_stage_tests.cpp", "runtime/package_candidate_labels_tests.cpp", "runtime/package_candidate_labels.c", "runtime/setup_tests.cpp", "runtime/exec_tests.cpp", "runtime/package_store_tests.cpp", "runtime/package_publisher_tests.cpp", "runtime/package_executor_tests.cpp", "runtime/package_guard_tests.cpp", "runtime/package_guard.cpp", "runtime/package_resolver.cpp", "runtime/package_apt_release.cpp", "runtime/package_apt_release_tests.cpp", "runtime/package_plan_tests.cpp", "runtime/package_apt_plan_tests.cpp", "runtime/package_apt_archives_tests.cpp", "runtime/setup_control.c", "runtime/control.c", "runtime/sandbox.c"],
+    srcs: ["runtime/package_program_tests.cpp", "runtime/package_program.c", "runtime/tests.cpp", "runtime/child_tests.cpp", "runtime/namespace_tests.cpp", "runtime/memory_group_tests.cpp", "runtime/broker_protocol_tests.cpp", "runtime/base_image_tests.cpp", "runtime/ce_tests.cpp", "runtime/package_stage_tests.cpp", "runtime/package_candidate_labels_tests.cpp", "runtime/package_candidate_labels.c", "runtime/setup_tests.cpp", "runtime/exec_tests.cpp", "runtime/package_store_tests.cpp", "runtime/package_publisher_tests.cpp", "runtime/package_executor_tests.cpp", "runtime/package_guard_tests.cpp", "runtime/package_guard.cpp", "runtime/package_resolver.cpp", "runtime/package_apt_release.cpp", "runtime/package_apt_release_tests.cpp", "runtime/package_plan_tests.cpp", "runtime/package_apt_plan_tests.cpp", "runtime/package_apt_archives_tests.cpp", "runtime/setup_control.c", "runtime/control.c", "runtime/sandbox.c"],
     header_libs: ["libcutils_headers"],
     static_libs: ["libaegis-runtime-child", "libaegis-runtime-namespace", "libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-runtime-broker-owner", "libaegis-runtime-base", "libaegis-runtime-broker-cgroup", "libaegis-package-store", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libaegis-package-plan", "libaegis-package-planner", "libaegis-package-metadata", "libbase", "libjsoncpp"],
     // The test process uses the same system libcrypto as the broker. The

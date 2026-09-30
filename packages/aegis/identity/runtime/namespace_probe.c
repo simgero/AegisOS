@@ -1,3 +1,4 @@
+#include "package_program.h"
 /* Trusted static fixture. Runs ONLY as a local-QEMU device test, never as a
  * production setup helper. It deliberately does NOT launch any user program. */
 #ifndef _GNU_SOURCE
@@ -39,6 +40,7 @@ static int read_map(const char *name, uint32_t rows[3][3]) {
 }
 
 int main(int argc, char **argv) {
+    if(argc>=2 && !strcmp(argv[1],"--package-program"))return aegis_package_program_main(argc-2,argv+2);
     if(argc==2 && !strcmp(argv[1],"--apt-plan-hook"))return aegis_apt_plan_hook();
     if (argc == 2 && !strcmp(argv[0], "aegis-package-policy-exec")) {
         char *end;unsigned long user = strtoul(argv[1], &end, 10);

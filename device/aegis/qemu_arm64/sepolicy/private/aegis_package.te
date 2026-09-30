@@ -1,0 +1,137 @@
+# Fixed static PID1 helpers construct the private package mount tree, then
+# supervise it. They receive only descriptor-scoped inputs from the broker.
+type aegis_package_worker, domain, coredomain, aegis_runtime_domain,
+    aegis_runtime_mount_domain;
+# APT/dpkg and maintainer programs have namespace-local DAC capabilities only.
+type aegis_package_program, domain, coredomain, aegis_runtime_domain,
+    aegis_runtime_exec_domain, aegis_package_exec_domain;
+# This one fixed executable temporarily enters the owned planner netns, creates
+# its listener, returns to Android and drops all capabilities before relaying.
+type aegis_package_network, domain, coredomain, aegis_runtime_domain;
+type aegis_package_scratch_file, file_type, coredomain_socket;
+type aegis_package_hook_file, file_type;
+neverallow { aegis_package_exec_domain -aegis_package_program } self:process fork;
+
+# No writable candidate or tmpfs file is a domain entrypoint. The same immutable
+# helper re-executes itself through /proc/self/exe AFTER descriptor/capability
+# closure and pivot. Its --package-program entry validates the target domain.
+domain_auto_trans(aegis_runtime_broker, aegis_package_plan_exec, aegis_package_worker)
+domain_auto_trans(aegis_runtime_broker, aegis_package_execute_exec, aegis_package_worker)
+domain_auto_trans(aegis_package_worker, aegis_package_plan_exec, aegis_package_program)
+domain_auto_trans(aegis_package_worker, aegis_package_execute_exec, aegis_package_program)
+domain_auto_trans(aegis_runtime_broker, aegis_package_network_exec, aegis_package_network)
+allow aegis_runtime_broker aegis_package_worker:process2 nosuid_transition;
+allow aegis_package_worker aegis_package_program:process2 { nnp_transition nosuid_transition };
+neverallow * { aegis_package_worker aegis_package_program aegis_package_network }:process dyntransition;
+neverallow { domain -aegis_runtime_broker } { aegis_package_worker aegis_package_network }:process transition;
+neverallow { domain -aegis_package_worker } aegis_package_program:process transition;
+neverallow { aegis_package_worker aegis_package_program } { aegis_package_plan_exec aegis_package_execute_exec }:file execute_no_trans;
+neverallow * { aegis_package_candidate_file aegis_package_scratch_file aegis_package_hook_file }:file entrypoint;
+
+# Host publication stays trusted broker work; the worker only hashes/copies
+# into registered stores and never loads their executable contents.
+allow aegis_runtime_broker aegis_package_publish_exec:file { rx_file_perms execute_no_trans };
+type_transition aegis_runtime_broker aegis_runtime_state_file:dir aegis_package_shared_file "shared-packages";
+allow aegis_runtime_broker aegis_package_shared_file:dir create_dir_perms;
+allow aegis_runtime_broker aegis_package_shared_file:file create_file_perms;
+allow aegis_runtime_broker aegis_package_private_file:file create_file_perms;
+allow aegis_runtime_broker labeledfs:filesystem { getattr remount unmount };
+
+# Pre-pivot checks and descriptor-only control. Ordinary programs receive no
+# broker socket or broker-owned FD, source image, CE reference or host cgroup.
+allow aegis_package_worker aegis_runtime_namespace_file:file { getattr open read ioctl };
+allowxperm aegis_package_worker aegis_runtime_namespace_file:file ioctl { 0xb701 0xb703 };
+allow aegis_package_worker self:cap_userns { chown dac_override fowner fsetid setuid setgid sys_admin setpcap kill };
+allow aegis_package_worker { aegis_runtime_base_file labeledfs proc devpts mqueue }:filesystem { getattr mount remount unmount };
+allow aegis_package_worker { rootfs tmpfs aegis_runtime_base_file aegis_package_candidate_file
+    aegis_runtime_devices_file }:dir mounton;
+allow aegis_package_worker { aegis_runtime_base_file aegis_runtime_devices_file }:dir { r_dir_perms ioctl };
+allow aegis_package_worker aegis_runtime_base_file:lnk_file r_file_perms;
+allow aegis_package_worker aegis_runtime_base_file:file r_file_perms;
+allow aegis_package_worker aegis_runtime_devices_file:lnk_file r_file_perms;
+allow aegis_package_worker aegis_runtime_devices_file:chr_file rw_file_perms;
+allow aegis_package_worker aegis_runtime_devices_file:file r_file_perms;
+allow aegis_package_worker aegis_runtime_broker:fd use;
+allow aegis_package_worker aegis_runtime_broker:unix_stream_socket { read write getattr getopt setopt shutdown };
+allow aegis_runtime_broker aegis_package_worker:fd use;
+allow aegis_runtime_broker { aegis_package_worker aegis_package_program aegis_package_network }:process { signal sigkill sigchld };
+allow { aegis_package_worker aegis_package_network } aegis_runtime_broker:process sigchld;
+allow aegis_package_worker aegis_package_program:process { signal sigkill sigchld };
+allow aegis_package_program aegis_package_worker:process sigchld;
+allow aegis_package_program aegis_package_worker:fd use;
+
+# tmpfs labels derive from the trusted creator. Only the fixed name created by
+# PID1 becomes a hook; GNU-created files named hook retain the ordinary scratch
+# label. The helper seals the hook's separate mount readonly before GNU runs.
+type_transition aegis_package_worker tmpfs:{ dir file } aegis_package_scratch_file;
+type_transition aegis_package_worker aegis_package_scratch_file:file aegis_package_hook_file "hook";
+allow { aegis_package_scratch_file aegis_package_hook_file } tmpfs:filesystem associate;
+allow aegis_package_worker aegis_package_scratch_file:dir create_dir_perms;
+allow aegis_package_worker aegis_package_scratch_file:dir mounton;
+allow aegis_package_worker aegis_package_scratch_file:file create_file_perms;
+allow aegis_package_worker aegis_package_hook_file:file { create open read write getattr setattr };
+r_dir_file(aegis_runtime_broker, aegis_package_scratch_file)
+allow { aegis_package_worker aegis_package_program } aegis_package_candidate_file:dir create_dir_perms;
+allow { aegis_package_worker aegis_package_program } aegis_package_candidate_file:file create_file_perms;
+allow { aegis_package_worker aegis_package_program } aegis_package_candidate_file:lnk_file { create getattr read setattr unlink rename };
+
+# The mapped six-capability set is retained by APT/dpkg across exec. It grants
+# no host capability. Namespace, mount, key, ptrace and kernel operations also
+# stay forbidden by the inherited no_new_privs/seccomp filter.
+allow aegis_package_program self:cap_userns { chown dac_override fowner fsetid setuid setgid };
+r_dir_file(aegis_package_program, aegis_runtime_base_file)
+allow aegis_package_program { aegis_runtime_base_file aegis_package_candidate_file }:file { rx_file_perms execute_no_trans };
+allow aegis_package_program aegis_package_scratch_file:dir create_dir_perms;
+allow aegis_package_program aegis_package_scratch_file:file create_file_perms;
+allow aegis_package_program aegis_package_scratch_file:lnk_file { create getattr read setattr unlink rename };
+allow aegis_package_program aegis_package_scratch_file:{ fifo_file sock_file } create_file_perms;
+allow aegis_package_program aegis_package_hook_file:file { rx_file_perms execute_no_trans };
+allow aegis_package_program aegis_runtime_devices_file:dir r_dir_perms;
+allow aegis_package_program aegis_runtime_devices_file:lnk_file r_file_perms;
+allow aegis_package_program aegis_runtime_devices_file:chr_file rw_file_perms;
+allow aegis_package_program self:unix_stream_socket create_stream_socket_perms;
+allow aegis_package_program self:unix_dgram_socket create_socket_perms;
+# Only the planner has a private SOCKS listener. The executor's network namespace
+# has none. No netdomain attribute (raw, UDP and netlink grants) is used here.
+allow aegis_package_program self:tcp_socket create_stream_socket_perms;
+allow aegis_package_program port_type:tcp_socket name_connect;
+neverallow { aegis_package_worker aegis_package_program } self:global_capability_class_set *;
+neverallow { aegis_package_worker aegis_package_program } self:user_namespace create;
+neverallow aegis_package_program self:cap_userns ~{ chown dac_override fowner fsetid setuid setgid };
+neverallow aegis_package_program fs_type:filesystem { mount remount unmount relabelfrom relabelto };
+neverallow aegis_package_program { aegis_runtime_broker aegis_runtime_setup aegis_runtime_init aegis_runtime_program aegis_package_worker system_server }:process { ptrace signal sigkill sigstop };
+neverallow { aegis_package_worker aegis_package_program } { aegis_package_private_file aegis_package_shared_file aegis_package_staging_file aegis_runtime_home_file }:dir { open read search write add_name remove_name };
+neverallow aegis_package_worker { aegis_runtime_base_file aegis_package_candidate_file aegis_package_scratch_file aegis_package_hook_file }:file { execute execute_no_trans entrypoint };
+neverallow aegis_runtime_domain aegis_package_scratch_file:file { execute execute_no_trans entrypoint };
+# Close the new subject's inode exception: only the two immutable entrypoints,
+# selected candidate and sealed hook may execute. Readonly base is an fs_type.
+neverallow aegis_package_program { file_type -aegis_package_candidate_file
+    -aegis_package_hook_file -aegis_package_plan_exec -aegis_package_execute_exec
+}:file { execute execute_no_trans entrypoint };
+neverallow { aegis_runtime_domain -aegis_package_program } aegis_package_candidate_file:file { execute execute_no_trans entrypoint };
+neverallow { aegis_runtime_domain -aegis_package_worker } aegis_package_hook_file:file { create write append relabelto };
+neverallow { aegis_runtime_domain -aegis_package_program } aegis_package_hook_file:file { execute execute_no_trans entrypoint };
+
+# Network setup is fixed trusted code. Its root authority is dropped before
+# processing a SOCKS request; no namespace/source fd survives Setup().
+allow aegis_package_network self:capability { sys_admin net_admin setpcap setuid setgid };
+allow aegis_package_network self:cap_userns { sys_admin net_admin };
+allow aegis_package_network aegis_runtime_namespace_file:file { getattr open read ioctl };
+allowxperm aegis_package_network aegis_runtime_namespace_file:file ioctl { 0xb703 };
+allow aegis_package_network aegis_runtime_devices_file:file r_file_perms;
+allow aegis_package_network aegis_runtime_broker:fd use;
+allow aegis_package_network aegis_runtime_broker:unix_stream_socket { read write getattr getopt setopt shutdown };
+allow aegis_package_network aegis_runtime_broker:process getattr;
+allow aegis_package_network self:tcp_socket create_stream_socket_perms;
+allowxperm aegis_package_network self:tcp_socket ioctl { 0x8913 0x8914 };
+allow aegis_package_network node_type:tcp_socket node_bind;
+allow aegis_package_network port_type:tcp_socket { name_connect name_bind };
+allow aegis_package_network self:unix_stream_socket create_stream_socket_perms;
+unix_socket_connect(aegis_package_network, dnsproxyd, netd)
+unix_socket_connect(aegis_package_network, fwmarkd, netd)
+allow netd aegis_package_network:fd use;
+allow netd aegis_package_network:tcp_socket { read write getattr getopt setopt };
+neverallow { aegis_package_program aegis_package_network } self:{ rawip_socket udp_socket icmp_socket netlink_route_socket } create;
+neverallow aegis_package_network self:user_namespace create;
+neverallow aegis_package_network { aegis_package_private_file aegis_package_shared_file aegis_package_staging_file aegis_runtime_home_file aegis_package_candidate_file }:dir { open read search write add_name remove_name };
+neverallow aegis_package_network { aegis_runtime_base_file aegis_package_candidate_file aegis_package_scratch_file aegis_package_hook_file }:file { execute execute_no_trans entrypoint };

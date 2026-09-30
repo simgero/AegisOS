@@ -1,3 +1,4 @@
+#include "package_program.h"
 #include "package_resolver.h"
 #include "package_planning_protocol.h"
 #include "sandbox.h"
@@ -102,6 +103,7 @@ bool Fixed(const char* s,size_t size) {
 }
 }
 int main(int argc,char** argv) {
+    if(argc>=2 && !strcmp(argv[1],"--package-program"))return aegis_package_program_main(argc-2,argv+2);
     if(argc==2&&!strcmp(argv[1],"--apt-plan-hook"))return aegis_apt_plan_hook();
     uint32_t user,serial;
     if(argc!=3||!Number(argv[1],&user)||!Number(argv[2],&serial))return 78;

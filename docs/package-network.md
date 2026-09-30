@@ -221,8 +221,45 @@ sind ergänzt. Die ext4-Tests setzen absichtlich fremde Root-/Symlink-Labels in
 neuen isolierten Testkopien, berechnen deren neuen Eingabehash und verlangen die
 Ablehnung vor dem Mount-Handoff. Build und Laufzeitnachweis dieses neuen Standes
 stehen noch aus. Native SU-Fixtures allein beweisen weiterhin keine erfolgreiche
-Installation in einer Produktdomäne. Die getrennten Domänen für Vorbereitung,
-Paketprogramme und Netzwerk sowie öffentliche Befehle und AOSP-Freigabe folgen.
+Installation in einer Produktdomäne. Öffentliche Befehle und AOSP-Freigabe
+bleiben ausstehend; die folgende Domänentrennung benötigt einen neuen Build.
+
+## Fester Einstieg in die Paketprogramm-Domäne
+
+Die Produkt-Policy definiert getrennte Domänen für den vertrauenswürdigen
+Namespace-Supervisor (`aegis_package_worker`), die GNU-Paketprogramme
+(`aegis_package_program`) und den begrenzten Netzwerkvermittler
+(`aegis_package_network`). Nur der Broker darf die festen Helfer starten.
+Kandidaten, gewöhnliche Arbeitsdateien und kopierte Hooks sind keine
+Domänen-Einstiegspunkte. Die bestehenden AOSP-Regeln für `entrypoint` bleiben
+unverändert.
+
+Nach Pivot, Schließen aller Hostdeskriptoren, Capability-Begrenzung,
+`no_new_privs` und Seccomp startet der Kindprozess über `/proc/self/exe` denselben
+unveränderlichen statischen Helfer erneut. Erst dessen fester Programmeinstieg
+wechselt in die Paketprogramm-Domäne. Er prüft PID-/Sitzungskontext, alle
+Benutzer-/Gruppen-IDs, das Fehlen ergänzender Gruppen, die gesperrten Securebits,
+Seccomp, `no_new_privs` und genau sechs Capabilities einschließlich Bounding- und
+Ambient-Set. Nur danach werden APT, dpkg oder apt-mark mit den festen Argumenten
+des Supervisors gestartet. Steuerkanäle oder Hostdateideskriptoren überleben
+nicht. Es gibt keine Umgebungsvariable zum Abschalten dieser Produktprüfung.
+
+Die spezielle Ausnahme von AOSPs allgemeinem Inode-Ausführungsverbot ist auf
+den neuen Paketprogramm-Typ begrenzt. Geschlossene Attributmitgliedschaft und
+zusätzliche Verbote beschränken seine ausführbaren Dateitypen auf den Kandidaten,
+den schreibgeschützt eingebundenen Hook und die beiden unveränderlichen
+Helfer-Einstiegspunkte. Die bisherige schreibgeschützte Runtime-Basis bleibt ein
+separater Dateisystemtyp. Gewöhnliche Arbeitsdateien sind nicht ausführbar;
+Paketprogramme dürfen weder Mounts verändern noch den Supervisor beeinflussen.
+Der Netzwerkhelfer verwendet gezielte TCP- und Android-DNS-Rechte, kein breites
+`netdomain`-Attribut. Seine Capabilities werden vor SOCKS-Anfragen abgelegt.
+
+Fünf neue Gerätetests prüfen direkte Produktionshelfer-Aufrufe außerhalb des
+vorbereiteten Kontexts sowie die Ablehnung fremder Pfade und übergroßer
+Argumentlisten. Vorhandene APT-Fixtures durchlaufen den erneuten Helferstart in
+separaten, nicht installierten Probe-Binärdateien. Build, Policy-Kompilierung und
+Laufzeitnachweis dieser Änderung stehen noch aus. Positive SU-Fixtures ersetzen
+weiterhin keinen Nachweis der tatsächlichen SELinux-Domänenwechsel im Produkt.
 
 ## Nachweisgrenze
 

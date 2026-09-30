@@ -33,6 +33,9 @@ attribute aegis_runtime_broker_domain;
 expandattribute aegis_runtime_broker_domain false;
 attribute aegis_runtime_exec_domain;
 expandattribute aegis_runtime_exec_domain false;
+# Only the new package-program domain may execute its writable candidate.
+attribute aegis_package_exec_domain;
+expandattribute aegis_package_exec_domain false;
 '''
 
 def digest(data):
@@ -56,6 +59,14 @@ def patch_domain(data):
     )
     for old, new in replacements:
         text = source_io.replace_once(text, old, new)
+    # Only this new package-program subject is exempted from the generic inode
+    # execution ban. Candidate/hook types remain ordinary file_type labels, not
+    # executable entrypoints or disguised system files. Product neverallows
+    # close attribute membership and restrict its execute targets. Every
+    # pre-existing AOSP/AEGIS subject retains the original neverallow.
+    text = source_io.replace_once(text,
+        'neverallow {\n    domain\n    -appdomain\n    with_asan(`-asan_extract\')\n',
+        'neverallow {\n    domain\n    -aegis_package_exec_domain\n    -appdomain\n    with_asan(`-asan_extract\')\n')
     # Android's general process-group helpers may write the host hierarchy.
     # Runtime code gets only its explicit private subtree permissions instead.
     for target in ('cgroup', 'cgroup_v2'):

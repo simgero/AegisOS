@@ -12,8 +12,8 @@ type aegis_runtime_setup_exec, exec_type, file_type, system_file_type;
 type aegis_runtime_init_exec, exec_type, file_type, system_file_type;
 # Immutable trusted hash/mount worker. It runs no GNU code or package scripts.
 type aegis_runtime_prepare_exec, exec_type, file_type, system_file_type;
-# Fixed package product inputs. Startup pins and reads them; execution-domain
-# integration is separate, and no public package wire operation exists yet.
+# Fixed package product inputs. Startup pins and reads them. Worker execution
+# boundaries are defined in aegis_package.te; public wire operations remain pending.
 type aegis_package_plan_exec, exec_type, file_type, system_file_type;
 type aegis_package_network_exec, exec_type, file_type, system_file_type;
 type aegis_package_execute_exec, exec_type, file_type, system_file_type;
@@ -84,10 +84,11 @@ neverallow aegis_runtime_domain aegis_runtime_namespace_file:file { write append
 # Private attributes are not general exceptions other domains can reuse.
 # All domains receive self:fork from AOSP; these guards close membership.
 neverallow { aegis_runtime_broker_domain -aegis_runtime_broker } self:process fork;
-neverallow { aegis_runtime_mount_domain -aegis_runtime_broker -aegis_runtime_setup } self:process fork;
-neverallow { aegis_runtime_exec_domain -aegis_runtime_init -aegis_runtime_program } self:process fork;
+neverallow { aegis_runtime_mount_domain -aegis_runtime_broker -aegis_runtime_setup -aegis_package_worker } self:process fork;
+neverallow { aegis_runtime_exec_domain -aegis_runtime_init -aegis_runtime_program -aegis_package_program } self:process fork;
 neverallow { aegis_runtime_domain -aegis_runtime_broker -aegis_runtime_setup
-    -aegis_runtime_init -aegis_runtime_program } self:process fork;
+    -aegis_runtime_init -aegis_runtime_program -aegis_package_worker
+    -aegis_package_program -aegis_package_network } self:process fork;
 
 init_daemon_domain(aegis_runtime_broker)
 domain_auto_trans(aegis_runtime_broker, aegis_runtime_setup_exec, aegis_runtime_setup)

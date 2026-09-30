@@ -1,3 +1,4 @@
+#include "package_program.h"
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -329,7 +330,7 @@ static _Noreturn void apt(const struct aegis_package_execution_request *r, enum 
     args[n] = NULL;
     char *env[] = {"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C", "LC_ALL=C", "HOME=/root",
                    "DEBIAN_FRONTEND=noninteractive", "APT_CONFIG=/tmp/aegis-trusted/config", NULL};
-    execve(args[0], args, env);_exit(127);
+    aegis_package_exec_program(args,env);_exit(127);
 }
 // Preserve the bounded structured simulation in the owned candidate. /run is
 // ephemeral, so a rejected plan must remain diagnosable after PID1 exits.
