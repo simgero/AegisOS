@@ -1,5 +1,33 @@
 # Phase 1: Implementierungsstand
 
+## 2026-09-30: Konfigurierte Paketvorbereitung im neuen Vollimage geprüft
+
+`178cbb6e` besteht **366/366 aktivierte native Tests** im passenden neuen
+Mac-QEMU-Image. Die interne Vorbereitung verwendet ausschließlich den gehaltenen
+Auftrag und beim Start gepinnte Helfer. Installation, Entfernen, Abbruch mit
+erneutem Versuch und verschwundene Eingaben sind geprüft. Ein eigener
+SELinux-Typ trennt beschreibbare Vorbereitungsdateien von veröffentlichten
+schreibgeschützten Generationen. [Nachweise und Grenzen](component-tests.md).
+
+Die Basis wurde nach der Änderung des Kennungsrezepts auf dem Buildserver
+neu erzeugt und geprüft; der alte Basiseingang wurde korrekt abgewiesen.
+Das neue Image bootet mit FBE, dm-verity, authentifiziertem ADB und Enforcing;
+der reale Broker läuft in seiner erwarteten Domäne. Das neue Testprofil besitzt
+nur Android-Benutzer 0; dessen Identitäten, CE- und Schlüsselzuordnungen bleiben
+unverändert. Der bisherige c740-Gast und die anderen Profilpaare bleiben erhalten.
+
+Als Nächstes fehlen begrenzte Bereinigung der Vorbereitungsdateien, produktive
+Pakethelfer/SELinux-Aktivierung und öffentliche Paketbefehle mit frischer
+AOSP-Adminbestätigung. Danach ist der vollständige Zwei-Benutzer-Ablauf nachzuweisen.
+Vier reale CE-Tests bleiben deaktiviert; die unveränderten 130 Java-Tests wurden
+hier nicht erneut ausgeführt.
+
+Auf Nutzerwunsch wurden weitere ersetzte Test-Binärdateien und die nach
+Prüfung/Entpacken doppelte Image-Downloadkopie entfernt (zusammen rund 1,94 GiB).
+Quellcode, aktuelle Komponenten, vorbereitete Images und Testnachweise bleiben
+vorhanden. Belege: `out/cleanup-failed-components-20260930.json` und
+`out/cleanup-verified-image-archive-20260930.json` im primären Workspace.
+
 ## 2026-09-30: Paketvorbereitung kollidiert nicht mehr mit der Runtime
 
 `5427b789` besteht **354/354 aktivierte native Tests**. Paketarbeiter erhalten

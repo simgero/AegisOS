@@ -1,3 +1,66 @@
+## Konfigurierte Installationsvorbereitung: 366 Tests im passenden Vollimage
+
+Commit `178cbb6eb41356c9f624f400b0f55e925e2f9650` besteht am **2026-09-30T15:52:26Z alle 366 aktivierten
+nativen Tests aus 42 Gruppen** (183137 ms, Exit 0). Die Tests laufen ausschließlich
+im lokalen Mac-QEMU. [Vollimage und verifizierter GitHub-Transport](https://github.com/simgero/AegisOS/releases/tag/aosp-20260930T152232Z-178cbb6e-00eb24df),
+[zugehörige Komponenten](https://github.com/simgero/AegisOS/releases/tag/components-20260930T150808Z-178cbb6e-178cbb6e-zhWsMi).
+Image-Lauf `aosp-20260930T152232Z-178cbb6e-00eb24df`, Invocation `273748899d584a188d4f21c01a1aee32`;
+Komponentenlauf `identity-20260930T150459Z-178cbb6e-LP5z5O`, Invocation `d691065052d94ad58a64affd61c45e23`.
+
+`BrokerPrepareConfiguredTransaction` leitet Basis, Zielstore und frisches
+Arbeitsverzeichnis aus dem zuvor gehaltenen und geprüften Auftrag ab. Es nimmt
+keine externen Pfade, Ziel-/Quell-Deskriptoren oder Freigabe-Digests entgegen.
+Die Installationshelfer werden beim Start atomar gepinnt; ein späterer Austausch
+ist ausgeschlossen. Registrierung und Übernahme des Planungsauftrags gehen den
+Dateisystemoperationen voraus. Ein verschwundener Eingang bleibt als Fehler
+unter derselben Auftragskennung erhalten.
+
+Fünf neue Prüfungen decken Installation und anschließendes Entfernen aus der
+gehaltenen gemeinsamen Generation, einmalige Helper-Konfiguration, notwendiges
+Review, Abbruch mit frischem Arbeitsverzeichnis beim Wiederholen sowie eine
+nach dem Review verschwundene Quelle ab. Installationsbestand, Abhängigkeit und
+APT-Markierungen werden aus der anschließend erneut geprüften Generation gelesen.
+Die signierte Offline-Fixture verwendet eine interne Freigabe als Testersatz;
+dies ist **kein Nachweis eines öffentlichen CLI-Aufrufs oder frischer AOSP-Adminfreigabe**.
+
+Die erste Ausführung mit `b83ed377` scheiterte an der korrekten SELinux-Sperre
+gegen Kernel-Schreibzugriff auf veröffentlichte gemeinsame Dateien. Verbliebene
+Fehler-Fixtures füllten danach den alten Testgast; dieser Lauf ist kein Erfolg.
+Seine Belege bleiben in `out/components-b83ed377/targeted-tests/`, die drei
+identifizierten Fixture-Bäume wurden nach beendetem Test und ohne Mountbindung
+gezielt entfernt. Der korrigierte Stand verwendet für die beschreibbare gemeinsame
+Vorbereitung den eigenen Typ `aegis_package_staging_file`. Die Kernel-Schreibsperre
+für `aegis_package_shared_file` bleibt bestehen. Das Vollimage enthält diese
+Regeln; globale Durchsetzung bleibt **Enforcing**. Der reale init-gestartete Broker
+läuft in `u:r:aegis_runtime_broker:s0`; dessen Bootprüfung findet keine Runtime-AVCs.
+
+Das neue unabhängige Profil `cf90cef4-9938-4ade-8a73-3fa8edab317f` besitzt nur Android-Benutzer 0;
+Boot `fb53b06a-0027-4673-89e5-78ce1a68db04`. Vorher-/Nachher-Snapshot von Identitäten,
+CE-Zuständen, Schlüsselverzeichnisnamen und Runtime-Kontexten ist identisch:
+`0fbf6d9f89f00d69d9d3df295f40a17cb6f514a52250a721c905b1ba7998c4b3`. ADB authentifiziert diesen Mac;
+FBE und tatsächliche dm-verity-Tabellen sind geprüft. Die Entwicklungs-Testschlüssel
+und der direkte QEMU-Kernelstart belegen keine Hardware-Vertrauenskette.
+Der alte c740-Gast und sein Profilpaar wurden nicht ersetzt.
+
+Basislauf `runtime-base-20260930T152043Z-178cbb6e-r88QIR`, Generation
+`5083dea9077e6e99c796e9ae0f77a4fe769e0695db0e9dc6db79971eca8e8c28`: Das geänderte Kennungsrezept erfordert eine
+neu erzeugte, wiederholt bytegleiche Basis; Dateieinträge und Paketliste bleiben
+gleich. Der erste Vollbuild mit dem alten Basiseingang wurde vor Kompilierung
+abgewiesen. [Rezept und Nachweis](../runtime/generations.md).
+
+Native-Log SHA-256: `b4f23e8295f78c1f7c7e89c15ebcd2ddab1d39591b87acb5a1f540ab602746c9`.
+Native-Binärdatei SHA-256: `d56aaabcc2b8809fddc3a63740d386d2686eac796ea46f48d8db0c1fafbbb4a9`.
+Lokale Belege im primären Workspace: `out/components-178cbb6e/proof.json`,
+`out/components-178cbb6e/targeted-tests/` und `out/full-build-178cbb6e/`.
+Die unveränderten 130 Java-Tests verwenden den früheren Nachweis `95f2b925` und
+wurden hier nicht erneut ausgeführt. **Vier reale CE-Tests bleiben deaktiviert.**
+
+Offen sind insbesondere begrenztes Aufräumen der Arbeitsverzeichnisse, die
+produktive Aktivierung der Pakethelfer mit ihren SELinux-Grenzen, öffentliche
+CLI/Binder-Befehle und frische AOSP-Adminbestätigung. Der vollständige
+Zwei-Benutzer-Ablauf mit gemeinsamer und persönlicher Paketverwaltung ist noch
+nicht abgeschlossen.
+
 ## Konfigurierter Paketauftrag bis zur signierten Planung: 361 Tests bestanden
 
 Stand **cfbaf37a711c523ce0c8a06461c202f07c3a4d3a** besteht am

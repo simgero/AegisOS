@@ -1,5 +1,37 @@
 # Gemeinsame Softwaregeneration
 
+## Aktualisierte Rezeptbindung am 30. September 2026
+
+Der Basislauf `runtime-base-20260930T152043Z-178cbb6e-r88QIR` für Commit
+`178cbb6eb41356c9f624f400b0f55e925e2f9650` ist mit
+`BUILT_VERIFIED_NOT_MOUNTED` abgeschlossen. Beide 256-MiB-Images sind bytegleich;
+Dateisystem, Inhalte, Eigentümer und Modi wurden erneut vollständig geprüft.
+Generation / Image-SHA-256:
+`5083dea9077e6e99c796e9ae0f77a4fe769e0695db0e9dc6db79971eca8e8c28`.
+Plan-SHA-256:
+`93ad1adc83aa71951333cc9c55528703d1b146047d7c0df7a5a1dc2abc2d8f70`.
+
+Die feste Netzwerkhelfer-Kennung 7502 hat `scripts/runtime/uid_layout.py` und
+damit die gebundene Rezept-Prüfsumme geändert. Paketliste und geplante
+Dateieinträge entsprechen vollständig der bisherigen Basis. Trotzdem ist die
+alte Basis `87ab3f54` kein gültiger Eingang für dieses neue Rezept: Der Vollbuild
+`aosp-20260930T151253Z-178cbb6e-803dc8bb` wurde deshalb vor der Kompilierung
+korrekt abgewiesen. Die Prüfung bleibt unverändert; das neue Rezept wurde auf
+`aegis-build` erneut ausgeführt. Seine deterministische UUID ändert die Bytes
+des Dateisystem-Images und damit die Generation.
+
+Neue Vollbuilds dieses Rezeptstands müssen den oben genannten aktuellen
+Basislauf ausdrücklich auswählen. Der Buildnachweis allein behauptet weder
+Gaststart noch erfolgreiche Paketverwaltung. Lokaler Beleg im primären
+Workspace: `out/full-build-178cbb6e/base-verification.json`.
+Der [Vollbuild 178cbb6e](https://github.com/simgero/AegisOS/releases/tag/aosp-20260930T152232Z-178cbb6e-00eb24df)
+hat diese Basis anschließend in den tatsächlichen Produktpartitionen verifiziert,
+über GitHub ausgeliefert und im lokalen QEMU mit FBE, dm-verity und Enforcing
+gebootet. Alle 366 aktivierten nativen Tests bestehen am 30. September um
+15:52:26 UTC. [Gastnachweis und offene Produktintegration](../docs/component-tests.md).
+
+## Frühere Basis und Nachweise
+
 Stand 29. September 2026: **Die gepinnte gemeinsame Basis ist im vollständigen
 `d44ccb33` schreibgeschützt in zwei persönlichen GNU-Kontexten ausgeführt.**
 [GNU-Nachweis und Grenzen](../docs/runtime-gnu-qemu-test.md). Die folgenden
