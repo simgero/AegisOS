@@ -1,3 +1,102 @@
+## Reale private CE-Paketablage mit Anmeldung, Logout und Reboot: ab38cf24
+
+Der [Vollbuild ab38cf24](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T225939Z-ab38cf24-844b2f1e)
+läuft im separaten lokalen Mac-QEMU-Profil `runtime-ab38cf24`. Die produktive
+Runtime legt den privaten Paketbereich jetzt innerhalb derselben AOSP-Zulassung
+wie HOME an. Dabei erhält er tatsächlich den SELinux-Typ
+`u:object_r:aegis_package_private_file:s0`; gewöhnliche GNU-Prozesse erhalten
+keinen Zugriff auf das Verwaltungsverzeichnis. Enforcing, FBE, authentifiziertes
+ADB sowie tatsächliches dm-verity für system und system_ext bestehen vor und
+nach dem Neustart.
+
+Am **30. September 2026 bis 00:40:39 UTC bestehen 16 gezielte native Aufrufe**
+aus vier ausdrücklich aktivierten Integrationstests. Die beiden persönlichen
+Benutzer Alpha (10/10, Admin) und Beta (11/11, regulär) wurden über die echte
+AEGIS-CLI neu angelegt und angemeldet. Ihre ersten Anmeldungen funktionieren
+direkt; nach jeweils sechs Sekunden besteht die Sitzung weiter und führt GNU
+aus. Die Passwörter bleiben im Arbeitsspeicher des Treibers und werden bei
+dessen bestätigtem normalem Ende verworfen. Beide Testkonten bleiben erhalten
+und sind abschließend gesperrt; es wurde keine Benutzerlöschung aktiviert.
+
+Für beide Benutzer wurde im tatsächlich von AOSP entsperrten CE-Speicher:
+
+- die vollständige, geprüfte 256-MiB-Debian-Basis im internen privaten Store
+  veröffentlicht, wieder geöffnet und anhand Größe sowie Hash verifiziert;
+- eine falsche Seriennummer beziehungsweise gemeinsame Eigentümerzuordnung
+  abgewiesen; wiederholte Ablehnung hinterlässt keine offenen Datei-FDs;
+- ein privater Kandidat durch den registrierten Testbesitzer vorbereitet;
+  `STOP_USER` schließt dessen gehaltene Dateien und Mountreferenzen, bevor
+  anschließend die tatsächliche AOSP-Abmeldung erfolgt;
+- nach Logout das Öffnen und Anlegen mit `ENOKEY` verweigert, auch wiederholt;
+- nach einem geordneten Neustart desselben Android-/KeyMint-Paars zunächst
+  erneut Zugriff verweigert und nach echter Anmeldung dasselbe vollständige
+  Paketabbild gelesen. Neue Kandidatenvorbereitung und erneuter Logout bestehen
+  ebenfalls. Beide privaten Stores werden nach dem Reboot nicht neu veröffentlicht.
+
+Die vier Tests ergeben je Benutzer vor Reboot vier Aufrufe und danach vier
+weitere (gesperrt, Wiederöffnung, Vorbereitung, erneut gesperrt). Jeder Aufruf
+bestätigt unveränderte AOSP-Benutzer-/CE-/Vordergrund- und Kontextzustände
+zwischen Eintritt und Ende. Die native Store-/Besitzerprüfung läuft als
+Entwickler-Root, **nicht über einen öffentlichen Paketbefehl oder mit frischer
+AOSP-Adminfreigabe**. Die Vorbereitung wird vor Logout gestoppt; gleichzeitiges
+APT im produktiven Broker während AOSP-Logout ist damit nicht belegt.
+
+Unabhängig davon bleiben die durch echte GNU-Prozesse geschriebenen und gelesenen
+Dateien nach Reboot bytegleich (je 1.024 Bytes):
+
+- Alpha: `6bf7f9f104a98c56e31755fc4b27aad3fe5e2ce93780f477e39f2f7597fcdca3`.
+- Beta: `fd154421de5a6c10d852f009ad08c0908b692644035fa9e1b647da13acd5e244`.
+
+Aus Alphas GNU-Kontext scheitern tatsächliches Lesen von Betas Datei und SIGSTOP
+gegen dessen unabhängig beobachteten Hostprozess; derselbe Prozess schreitet
+danach weiter. Er übersteht Alphas Logout und wird bei Betas eigenem Logout
+entfernt. Alphas zeitlich begrenzter Hintergrundjob konnte während einer Pause
+wegen des Nutzungslimits natürlich auslaufen und wird nicht als Logout-Beweis
+verwendet. Der umfassende frühere Zwei-Richtungs-Test bleibt separat dokumentiert.
+
+Der erste neue Probeaufruf scheiterte vor Store-Zugriff: Der Testleser erwartete
+Text-XML, AOSP speichert die Benutzerdateien als ABX. Die reine Testkorrektur
+`76983c0844265bf954daa8c5a1205a203c640182` verwendet AOSPs eigenen Konverter
+mit begrenztem Puffer, geprüftem Exit und abgeholtem Kindprozess. Sie verändert
+keine AOSP-Metadaten. Sie wurde auf `aegis-build` kompiliert und über den
+[korrigierten Komponenten-Release](https://github.com/simgero/AegisOS/releases/tag/components-20260930T003147Z-76983c08-76983c08-dhbh8R)
+bezogen; das laufende Produktimage bleibt ab38cf24. Der fehlgeschlagene Ausgangslog
+ist erhalten. Der ursprünglich vorgesehene Treiber-Checkpoint verlangt außerdem
+einen rechtzeitig beobachteten Alpha-Hintergrundjob; für diesen langen Lauf
+bestätigt ein unabhängiger Readback stattdessen beide tatsächlich gesperrten
+CE-Bereiche, ausschließlich Benutzer 0 gestartet und vollständig leere Kontexte.
+Es wird kein zusätzlicher Prozess-Beendigungsnachweis daraus abgeleitet.
+
+Profil-ID `0bbb6cf5-951e-43b4-9e08-ec952ab1b6e4`; Boot vorher
+`a8555e55-e590-4193-98d1-860b559dee6c`, danach
+`6e287d8c-a75c-47c1-ba45-b72b96b2122e`. AVB-Digest unverändert
+`b6e974f6612d5810c1fa395286db6d4146bfa28287cc1ad765880d0716ff4a86`.
+Der vorherige Testgast 927cf51d wurde geordnet beendet; sämtliche früheren
+Profile bleiben erhalten. Das sichtbare QEMU-Fenster blieb geschlossen und
+der bekannte Launcher wurde nicht ersetzt.
+
+Belege: `out/full-build-ab38cf24/ce-user-test/`, `corrected-ce-tests/` und
+beide `boot-*/boot-health.json`. `SHA256SUMS` bindet Rohlogs, Eingaben,
+Testtreiber, Vorher-/Nachherzustand und Ergebnis. Ergebnis-JSON SHA-256:
+`bf3fb27466054e89061ae9849a95f26d71fd7f36f3b07d06200e988373591810`;
+Ereignislog: `523da7a58326f32eab013b15c4af19e00c0acda42cf5f09facf38aef1cc17cb6`.
+Die gesonderte `driver-exit.json` bestätigt anschließend Exit 0 und verworfene
+Credential-Puffer. Korrigierte native Testdatei SHA-256:
+`f478b78b43a664ec93cda81f48a655a564038fbe8296ac58135b5c4dde41e45d`.
+
+Vor diesem Vollimage bestanden die **187/187 Standardtests** des Komponentenstands
+ab38cf24 am 29. September um 22:57:30 UTC auf Gast 927cf51d; die vier opt-in Tests
+waren dort deaktiviert. Log unter `out/components-ab38cf24/component-tests/`,
+SHA-256 `dcadccd33ff11bb7d2314faf82a237aff24c28588c14c0086cf6ecd8335d1582`.
+Diese 187 Tests und die unveränderten 119 Java-Tests wurden nach der reinen
+ABX-Testkorrektur nicht nochmals ausgeführt.
+
+**Weiterhin offen:** produktive Paketarbeiter-/Cgroup-/SELinux-Anbindung,
+vertrauenswürdige Paketplanung, frische Adminfreigabe mit Java-/CLI-Aufruf,
+semantische Validierung, Auswahl vollständiger Generationen und echte
+Installation/Update/Entfernung gemeinsam und privat. Der neue Nachweis ersetzt
+weder diese Integration noch die vollständige Phase-1-Abnahme.
+
 ## Private Paketablage an AOSP-CE gebunden: a08e3d7d
 
 Der auf `aegis-build` kompilierte [Komponentenstand](https://github.com/simgero/AegisOS/releases/tag/components-20260929T224118Z-a08e3d7d-a08e3d7d-spwnQv)

@@ -1,21 +1,29 @@
 # Vollständige Paketgenerationen
 
-## Private Ablage und vorhandene Auftragsverwaltung verbunden
+## Private CE-Ablage im vollständigen Produkt geprüft
 
-Stand `a08e3d7d` besteht **187/187 native Tests** und die serverseitige
-SELinux-Richtlinienprüfung. [Belege und genaue Grenzen](../docs/component-tests.md).
-Die privaten Broker-Einstiege lösen ihren Speicher nun selbst unter dem festen
-AOSP-CE-Pfad auf und registrieren die Verantwortung vor Öffnen oder Anlegen.
-Pakete liegen neben HOME in einem rootgeschützten Bereich; Store, temporäre
-Aufträge, Seriennummer und fscrypt-Policy sind fest an den Antragsteller
-gebunden. Unterbrochene oder alte Aufträge werden nicht übernommen.
+Vollimage `ab38cf24` legt den privaten Paketbereich beim tatsächlich zugelassenen
+Runtime-Start an. Der Bereich liegt neben HOME, bleibt root:root 0700 und erhält
+den eigenen SELinux-Typ. Die Tests im lokalen Mac-QEMU bestätigen tatsächliche
+AOSP-Anmeldung, vollständige private Basisabbilder, Kandidatenvorbereitung,
+Abmeldung, Schlüsselsperre und Wiederöffnung nach Neustart desselben Daten- und
+KeyMint-Paars. **16/16 opt-in Probeaufrufe** bestehen mit der reinen
+ABX-Testkorrektur `76983c08`. [Genaue Belege und Grenzen](../docs/component-tests.md).
 
-Die vier neuen Nachweise betreffen Ablehnung und Fehlerabbau. Erfolgreiche
-Anmeldung, privates Kopieren/Veröffentlichen, Abmeldung und Wiederöffnung
-müssen noch mit echten AOSP-Benutzern im integrierten Produkt geprüft werden.
-Der neue Dateityp ist kompiliert, aber noch nicht gebootet. Es gibt weiterhin
-keinen öffentlichen Paketendpunkt. Die folgenden Abschnitte dokumentieren
-vorangegangene Bausteine mit ihren damaligen Grenzen.
+Die nativen Tests rufen Store und Besitzer direkt als Entwickler-Root auf.
+Die Vorbereitung wird vor der echten AOSP-Abmeldung gestoppt. Das ist noch
+kein Paketbefehl mit frischer Adminfreigabe und kein tatsächliches Logout
+während produktiver APT-Ausführung. Die Java-/CLI-/Broker-Verbindung,
+produktive Arbeiterdomäne, Repository-Planung, semantische Validierung und
+Aktivierung kompletter Generationen bleiben offen. Erst danach folgen reale
+Installations-/Update-/Entfernungstests für gemeinsame und private Software.
+
+Der vorangegangene Komponentenstand `a08e3d7d` registriert private Aufträge vor
+dem ersten Zugriff und löst ausschließlich den festen AOSP-CE-Pfad auf.
+Store, temporäre Aufträge, Seriennummer und fscrypt-Policy gehören zum
+Antragsteller; unterbrochene Aufträge werden nicht übernommen. Seine 187er
+Standardsuite wurde für ab38cf24 erfolgreich wiederholt. Die folgenden
+Abschnitte dokumentieren frühere Bausteine mit ihren damaligen Grenzen.
 
 ## Registrierte Vorbereitung kompletter Kandidaten
 
