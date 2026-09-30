@@ -16,8 +16,10 @@ struct PackageAptEffect {
 // Bounded to 256 KiB / 64 effects. Failure leaves output untouched. A successful
 // empty vector is a resolver no-op, not an install or an approval. Purge and
 // reinstall are unsupported; mixed install/remove is represented without loss.
-// Internal worker's exact fixed argv (including its own cache archive paths).
-// Caller supplies immutable expected argv, never an unvalidated client command.
+// Exact expected hook search terms. APT 3.0.3 consumes local archive paths
+// before emitting this list; the archive-only worker expects an empty list and
+// separately compares all effects. Removal retains exact package names.
+// Caller supplies trusted expected terms, never an unvalidated client command.
 int PackageReadAptOperation(const std::string& notification,const std::string& command,
                             const std::vector<std::string>& arguments,std::vector<PackageAptEffect>* output);
 int PackageReadAptPlan(const std::string& notification,PackageAction action,

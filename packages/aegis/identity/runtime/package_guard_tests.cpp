@@ -2,6 +2,7 @@
 // control files exercise the independent native registry parser and comparison.
 #include "package_guard.h"
 #include <gtest/gtest.h>
+#include <json/json.h>
 #include <openssl/sha.h>
 #include <android-base/unique_fd.h>
 #include <fcntl.h>
@@ -18,6 +19,16 @@ const std::string base="Package: base-one\nStatus: hold ok installed\nArchitectu
 const std::string added="Package: test-app\nStatus: install ok installed\nArchitecture: all\nVersion: 2\n\n";
 const std::string base_auto="Package: base-one\nArchitecture: arm64\nAuto-Installed: 1\n\n";
 const std::string app_auto="Package: test-app\nArchitecture: arm64\nAuto-Installed: 1\n\n";
+Json::Value SimulationPlan() {
+    Json::Value r;r["jsonrpc"]="2.0";r["method"]="org.debian.apt.hooks.install.pre-prompt";
+    auto& p=r["params"];p["command"]="install";
+    p["search-terms"]=Json::Value(Json::arrayValue);p["unknown-packages"]=Json::Value(Json::arrayValue);
+    Json::Value v;v["id"]=1;v["version"]="2";v["architecture"]="all";v["pin"]=500;
+    v["origins"]=Json::Value(Json::arrayValue);
+    Json::Value item;item["id"]=1;item["name"]="test-app";item["architecture"]="arm64";
+    item["mode"]="install";item["automatic"]=false;
+    item["versions"]["candidate"]=v;item["versions"]["install"]=v;p["packages"].append(item);return r;
+}
 class PackageExecutionGuard : public ::testing::Test {
  protected:
     unique_fd root;
@@ -47,9 +58,17 @@ class PackageExecutionGuard : public ::testing::Test {
         int rc=aegis_package_guard_finish(guard,root.get());
         EXPECT_EQ(expected? -1:0,rc);if(expected)EXPECT_EQ(expected,errno);
     }
+    void CheckSimulation(const Json::Value& plan,int expected) {
+        Json::StreamWriterBuilder b;b["indentation"]="";
+        Write("simulation.json",Json::writeString(b,plan));ASSERT_FALSE(HasFatalFailure());
+        unique_fd fd(openat(root.get(),"simulation.json",O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(fd.ok());
+        EXPECT_EQ(expected?-1:0,aegis_package_guard_simulation(guard,fd.get()));
+        if(expected)EXPECT_EQ(expected,errno);
+    }
     void TearDown() override {
         aegis_package_guard_free(guard);
         if(root.ok()) {
+            int removed=unlinkat(root.get(),"simulation.json",0);EXPECT_TRUE(removed==0||errno==ENOENT);
             // Only the fixed files in this exclusively owned test directory.
             for(const char* p:{"var/lib/dpkg/status","var/lib/apt/extended_states"})EXPECT_EQ(0,unlinkat(root.get(),p,0));
             for(const char* p:{"var/lib/dpkg","var/lib/apt","var/lib","var"})EXPECT_EQ(0,unlinkat(root.get(),p,AT_REMOVEDIR));
@@ -104,4 +123,34 @@ TEST_F(PackageExecutionGuard, FifoStatusRejectsWithoutBlocking) {
     ASSERT_EQ(0,unlinkat(root.get(),"var/lib/dpkg/status",0));ASSERT_EQ(0,mkfifoat(root.get(),"var/lib/dpkg/status",0644));
     EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(EPERM,errno);EXPECT_EQ(nullptr,guard);
 }
+TEST_F(PackageExecutionGuard, ArchiveSimulationUsesEmptySearchTermsAndExactEffects) {
+    Begin();ASSERT_FALSE(HasFatalFailure());CheckSimulation(SimulationPlan(),0);
+}
+TEST_F(PackageExecutionGuard, ArchiveSimulationRejectsUnexpectedSearchTerm) {
+    Begin();ASSERT_FALSE(HasFatalFailure());auto p=SimulationPlan();
+    p["params"]["search-terms"].append("/var/cache/apt/archives/test-app_2_all.deb");CheckSimulation(p,ESTALE);
+}
+TEST_F(PackageExecutionGuard, EmptyArchiveTermsStillRequireApprovedVersionAndArchitecture) {
+    Begin();ASSERT_FALSE(HasFatalFailure());auto p=SimulationPlan();
+    p["params"]["packages"][0]["versions"]["install"]["version"]="3";CheckSimulation(p,ESTALE);
+    p=SimulationPlan();p["params"]["packages"][0]["versions"]["install"]["architecture"]="arm64";CheckSimulation(p,ESTALE);
+}
+TEST_F(PackageExecutionGuard, EmptyArchiveTermsCannotHideMissingOrAdditionalEffects) {
+    Begin();ASSERT_FALSE(HasFatalFailure());auto p=SimulationPlan();
+    p["params"]["packages"]=Json::Value(Json::arrayValue);CheckSimulation(p,ESTALE);
+    p=SimulationPlan();auto extra=p["params"]["packages"][0];extra["id"]=2;extra["name"]="extra-package";
+    p["params"]["packages"].append(extra);CheckSimulation(p,ESTALE);
+}
+TEST_F(PackageExecutionGuard, RemovalKeepsExactPackageSearchTerms) {
+    request.kind=AEGIS_PACKAGE_REMOVE;memset(request.items[0],0,sizeof(request.items[0]));
+    strcpy(request.items[0],"base-one");auto& e=request.review.effects[0];e={};
+    strcpy(e.name,"base-one");strcpy(e.architecture,"arm64");strcpy(e.before,"1");e.reason=2;
+    Begin();ASSERT_FALSE(HasFatalFailure());auto p=SimulationPlan();p["params"]["command"]="remove";
+    p["params"]["search-terms"].append("base-one");auto& item=p["params"]["packages"][0];
+    item["name"]="base-one";item["mode"]="deinstall";auto v=item["versions"]["install"];
+    v["architecture"]="arm64";v["version"]="1";item["versions"].removeMember("install");item["versions"]["current"]=v;
+    CheckSimulation(p,0);p["params"]["search-terms"][0]="test-app";CheckSimulation(p,ESTALE);
+    p["params"]["search-terms"]=Json::Value(Json::arrayValue);CheckSimulation(p,ESTALE);
+}
+
 }

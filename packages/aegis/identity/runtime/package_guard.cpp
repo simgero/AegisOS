@@ -146,7 +146,11 @@ extern "C" int aegis_package_guard_simulation(aegis_package_guard* p,int fd) {
     if(!p)return Fail(EINVAL);std::string json;
     if(ReadFd(fd,262144,&json)<0)return -1;
     const auto& r=p->request;std::vector<std::string> args;
-    for(unsigned i=0;i<r.count;++i)args.push_back(r.kind==AEGIS_PACKAGE_ARCHIVES?std::string("/var/cache/apt/archives/")+r.items[i]:r.items[i]);
+    // APT 3.0.3 consumes local .deb paths before emitting the hook. With our
+    // archive-only argv, search-terms must therefore be empty. Package removal
+    // retains its exact names. In both cases every effect below is compared to
+    // the sealed review; an empty search list never means an unchecked plan.
+    if(r.kind==AEGIS_PACKAGE_REMOVE)for(unsigned i=0;i<r.count;++i)args.push_back(r.items[i]);
     std::vector<aegis::PackageAptEffect> actual;
     if(aegis::PackageReadAptOperation(json,r.kind==AEGIS_PACKAGE_ARCHIVES?"install":"remove",args,&actual)<0)return -1;
     if(actual.size()!=r.count)return Fail(ESTALE);
