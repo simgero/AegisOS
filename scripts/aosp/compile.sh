@@ -92,6 +92,8 @@ if [[ -n ${AEGIS_KERNEL_RUN:-} ]]; then
 fi
 if [[ -n ${AEGIS_RUNTIME_RUN:-} ]]; then
     for helper in system/bin/aegis-runtime-init system/bin/aegis-runtime-setup \
+        system/bin/aegis-package-prepare system/bin/aegis-package-plan \
+        system/bin/aegis-package-network system/bin/aegis-package-execute system/bin/aegis-package-publish \
         system_ext/bin/aegis-runtime-broker system_ext/etc/init/aegis-runtime.rc; do
         test -s "$(cat "$1/product-out.txt")/$helper"
     done

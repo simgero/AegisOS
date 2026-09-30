@@ -331,6 +331,7 @@ int main(int argc, char **argv) {
     int lock = -1, root = -1, delegation = -1, entry = -1, parent = -1;
     int base = -1, setup = -1, init = -1, listener = -1;
     int image = -1, selector = -1, state_directory = -1;
+    int planner = -1, network = -1, execute = -1, publish = -1;
     int package_policy[3] = {-1, -1, -1};
     struct aegis_base_receipt receipt = {0};
     struct aegis_broker_owner *owner = NULL;
@@ -367,6 +368,28 @@ int main(int argc, char **argv) {
     if (aegis_package_policy_open(base, package_policy) < 0
             || aegis_broker_owner_enable_package_policy(owner, package_policy) < 0) goto done;
     for (unsigned i = 0; i < 3; ++i) { close(package_policy[i]); package_policy[i] = -1; }
+    // Only immutable, precisely labeled product files supply package helpers.
+    // Both pairs are configured before listening; any failure tears down the
+    // owner, so no client can observe a partially configured package pipeline.
+    phase = "package planner helper";
+    planner = helper("/system/bin/aegis-package-plan", "u:object_r:aegis_package_plan_exec:s0");
+    if (planner < 0) goto done;
+    phase = "package network helper";
+    network = helper("/system/bin/aegis-package-network", "u:object_r:aegis_package_network_exec:s0");
+    if (network < 0) goto done;
+    phase = "package planner bootstrap";
+    if (aegis_broker_owner_enable_package_planner(owner, planner, network) < 0) goto done;
+    phase = "package execution helper";
+    execute = helper("/system/bin/aegis-package-execute", "u:object_r:aegis_package_execute_exec:s0");
+    if (execute < 0) goto done;
+    phase = "package publication helper";
+    publish = helper("/system/bin/aegis-package-publish", "u:object_r:aegis_package_publish_exec:s0");
+    if (publish < 0) goto done;
+    phase = "package installation bootstrap";
+    if (aegis_broker_owner_enable_package_installation(owner, execute, publish) < 0) goto done;
+    close(planner); planner = -1; close(network); network = -1;
+    close(execute); execute = -1; close(publish); publish = -1;
+    __android_log_print(ANDROID_LOG_INFO, "AegisRuntimeBroker", "AEGIS_PACKAGE_HELPERS_PINNED");
     phase = "init socket"; listener = inherited_listener(); if (listener < 0) goto done;
     if (clearenv() < 0 || listen(listener, 4) < 0) goto done;
     __android_log_print(ANDROID_LOG_INFO, "AegisRuntimeBroker", "AEGIS_RUNTIME_BROKER_LISTENING");
@@ -387,7 +410,7 @@ done:;
     else __android_log_print(ANDROID_LOG_INFO, "AegisRuntimeBroker", "AEGIS_RUNTIME_BROKER_STOPPED");
     // On incomplete cleanup no ACK is sent. Process death closes remaining
     // references; the next owner must recover the private group before HELLO.
-    int descriptors[] = {package_policy[0], package_policy[1], package_policy[2], selector, image, state_directory, init, setup, base, parent, entry, delegation, root, signals, lock};
+    int descriptors[] = {planner, network, execute, publish, package_policy[0], package_policy[1], package_policy[2], selector, image, state_directory, init, setup, base, parent, entry, delegation, root, signals, lock};
     for (unsigned i = 0; i < sizeof(descriptors) / sizeof(descriptors[0]); ++i)
         if (descriptors[i] >= 0) close(descriptors[i]);
     return result;

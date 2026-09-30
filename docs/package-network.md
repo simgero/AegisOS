@@ -119,11 +119,20 @@ keine Freigabe der Ressourcen. Abbruch/STOP/HELLO bleiben bis zur bestätigten
 Beendigung verantwortlich. Eine Fortsetzung eines entfernten Auftrags erzeugt
 keinen Ersatzauftrag.
 
-Diese Anbindung ist bislang intern implementiert und in nativen Fixtures
-geprüft. Der tatsächliche Broker-Start aktiviert die Planer-Helferkonfiguration
-noch nicht. Die feste Bereitstellung der Helfer mit Produkt-SELinux, die
-öffentlichen Wire-/Binder-/CLI-Operationen und frische AOSP-Adminbestätigung
-müssen folgen.
+Der Broker-Start öffnet die vier festen Produkthelfer für Planung, Netzwerk,
+Ausführung und Veröffentlichung vor dem Lauschen auf dem Kontrollkanal.
+Jeder Eingang muss eine einzelne root:shell-eigene Datei mit Modus 0755 auf
+schreibgeschütztem EROFS und seinem genauen eigenen SELinux-Ausführungstyp sein.
+Erst nach vollständiger Prüfung werden beide internen Helferpaare eingerichtet;
+ein Fehler beendet den Start ohne nutzbaren Kontrollkanal. Die zusätzlichen
+lokalen Deskriptoren werden nach Übernahme geschlossen. Ein fester Logmarker
+`AEGIS_PACKAGE_HELPERS_PINNED` belegt diesen Startschritt, keine Paketausführung.
+
+Die Ausführungsdomänen, öffentliche Wire-/Binder-/CLI-Operationen und frische
+AOSP-Adminbestätigung bleiben ausstehend. Die readonly Startberechtigungen
+aktivieren keinen allgemeinen Exec-, Netzwerk- oder Dateischreibzugriff.
+Kompilierung und tatsächlicher Vollimage-Start dieser Anbindung sind separat
+nachzuweisen.
 
 `BrokerPrepareConfiguredTransaction` übernimmt inzwischen ausschließlich den
 behaltenen geprüften Auftrag (Identität, Seriennummer, Auftrags-ID und neue Frist).

@@ -9,3 +9,7 @@
 /system/bin/aegis-package-prepare u:object_r:aegis_runtime_prepare_exec:s0
 /data/misc/aegis-runtime/shared-packages(/.*)? u:object_r:aegis_package_shared_file:s0
 /data/misc/aegis-runtime/shared-staging(/.*)? u:object_r:aegis_package_staging_file:s0
+/system/bin/aegis-package-plan u:object_r:aegis_package_plan_exec:s0
+/system/bin/aegis-package-network u:object_r:aegis_package_network_exec:s0
+/system/bin/aegis-package-execute u:object_r:aegis_package_execute_exec:s0
+/system/bin/aegis-package-publish u:object_r:aegis_package_publish_exec:s0

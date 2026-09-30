@@ -12,6 +12,18 @@ type aegis_runtime_setup_exec, exec_type, file_type, system_file_type;
 type aegis_runtime_init_exec, exec_type, file_type, system_file_type;
 # Immutable trusted hash/mount worker. It runs no GNU code or package scripts.
 type aegis_runtime_prepare_exec, exec_type, file_type, system_file_type;
+# Fixed package product inputs. Startup pins and reads them; execution-domain
+# integration is separate, and no public package wire operation exists yet.
+type aegis_package_plan_exec, exec_type, file_type, system_file_type;
+type aegis_package_network_exec, exec_type, file_type, system_file_type;
+type aegis_package_execute_exec, exec_type, file_type, system_file_type;
+type aegis_package_publish_exec, exec_type, file_type, system_file_type;
+allow aegis_runtime_broker { aegis_package_plan_exec aegis_package_network_exec
+    aegis_package_execute_exec aegis_package_publish_exec }:file r_file_perms;
+neverallow { aegis_runtime_setup aegis_runtime_init aegis_runtime_program }
+    { aegis_package_plan_exec aegis_package_network_exec aegis_package_execute_exec
+      aegis_package_publish_exec }:file { execute execute_no_trans entrypoint };
+
 
 type aegis_runtime_image_file, file_type, system_file_type;
 # A context-mounted filesystem is an fs_type, never also a file_type.
