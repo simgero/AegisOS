@@ -13,14 +13,14 @@ extern "C" {
  * Authorize the peer BEFORE parsing; retain one sequence counter per connection.
  */
 #define AEGIS_BROKER_MAGIC 0x42524741u
-#define AEGIS_BROKER_VERSION 2u
+#define AEGIS_BROKER_VERSION 3u
 #define AEGIS_BROKER_MAX_PACKET 8192u
 #define AEGIS_BROKER_MAX_ARGS 32u
 #define AEGIS_BROKER_MAX_ARG_BYTES (AEGIS_BROKER_MAX_PACKET - 40u)
 #define AEGIS_BROKER_MAX_WAIT_NS UINT64_C(10000000000)
 enum aegis_broker_operation { AEGIS_BROKER_HELLO = 1, AEGIS_BROKER_START = 2,
     AEGIS_BROKER_STOP_USER = 3, AEGIS_BROKER_STATUS = 4,
-    AEGIS_BROKER_EXEC = 5, AEGIS_BROKER_RESULT = 6 };
+    AEGIS_BROKER_EXEC = 5, AEGIS_BROKER_RESULT = 6, AEGIS_BROKER_CONTINUE_START = 7 };
 enum aegis_broker_state { AEGIS_BROKER_ABSENT = 0, AEGIS_BROKER_READY = 1,
     AEGIS_BROKER_SEALED = 2 };
 struct aegis_broker_request {
@@ -39,7 +39,8 @@ struct aegis_broker_reply {
 };
 /* EXEC: 32-byte header, uint32 argc, uint32 byte count, exact NUL-ended argv.
  * RESULT: 32-byte header, positive signed-64 broker command ID.
- * Lifecycle operations stay exactly 32 bytes. This decoded object is NOT wire
+ * CONTINUE_START: header plus positive signed-64 selection job, never creates work.
+ * Other lifecycle requests stay 32 bytes. This decoded object is NOT wire
  * layout; it owns its argument bytes and contains no borrowed pointers.
  */
 struct aegis_broker_call {
@@ -52,6 +53,14 @@ struct aegis_broker_call {
  * PTY master; RESULT carries no fd. exited=0 means running, not exit status 0.
  * Error replies contain no command, wait status, exit flag or descriptor.
  */
+/* START and CONTINUE_START replies are 40 bytes, no descriptors. EAGAIN
+ * carries a positive selection job; READY may carry zero only for a legacy
+ * context without selection. Other errors carry zero. This job is correlation,
+ * never authentication; every continuation requires fresh AOSP admission. */
+struct aegis_broker_start_reply {
+    struct aegis_broker_reply header;
+    uint64_t job;
+};
 struct aegis_broker_terminal_reply {
     struct aegis_broker_reply header;
     uint64_t command;
@@ -86,6 +95,8 @@ int aegis_broker_arguments(const struct aegis_broker_call *call,
  * Caller handles deadline and retains cleanup ownership on every failure. */
 int aegis_broker_reply(int fd, const struct aegis_broker_request *request,
                        int error, enum aegis_broker_state state);
+int aegis_broker_reply_start(int fd, const struct aegis_broker_request *request,
+                             int error, uint64_t job);
 /* Atomic, nonblocking, caller RETAINS ownership of master even after success. */
 int aegis_broker_reply_terminal(int fd, const struct aegis_broker_request *request,
                                 int error, uint64_t command, int wait_status,

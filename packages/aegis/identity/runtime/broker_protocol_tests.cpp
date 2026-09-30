@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 namespace {
-const unsigned char golden[] = {0x41,0x47,0x52,0x42,2,0,2,0,2,0,0,0,0,0,0,0,
+const unsigned char golden[] = {0x41,0x47,0x52,0x42,3,0,2,0,2,0,0,0,0,0,0,0,
     0x64,0xca,0x9a,0x3b,0,0,0,0,10,0,0,0,0xd2,4,0,0};
 struct aegis_broker_request start() {
     struct aegis_broker_request request;
@@ -164,7 +164,7 @@ TEST(RuntimeBrokerProtocol, RejectedAncillaryDescriptorsIncludingTruncationAreCl
 namespace {
 std::vector<unsigned char> exec_packet() {
     // Same literal fixture as Java: /bin/printf, %s, empty argument.
-    std::vector<unsigned char> packet = {0x41,0x47,0x52,0x42,2,0,5,0,2,0,0,0,0,0,0,0,
+    std::vector<unsigned char> packet = {0x41,0x47,0x52,0x42,3,0,5,0,2,0,0,0,0,0,0,0,
         0x64,0xca,0x9a,0x3b,0,0,0,0,10,0,0,0,0xd2,4,0,0,3,0,0,0,16,0,0,0};
     const unsigned char args[] = {'/','b','i','n','/','p','r','i','n','t','f',0,'%','s',0,0};
     packet.insert(packet.end(), args, args + sizeof(args));
@@ -306,4 +306,42 @@ TEST(RuntimeBrokerTerminal, ExactMaximumPayloadAndArgumentCountAreAcceptedWithou
     ASSERT_EQ(0, aegis_broker_arguments(&call, argv));
     EXPECT_EQ(static_cast<size_t>(size - argc), strlen(argv[0]));
     EXPECT_STREQ("", argv[31]); EXPECT_EQ(nullptr, argv[32]);
+}
+
+TEST(RuntimeBrokerStartup, ContinuationRequiresExactPositiveJobFrame) {
+    auto request=start();request.operation=AEGIS_BROKER_CONTINUE_START;
+    std::vector<unsigned char> packet(40);memcpy(packet.data(),&request,32);
+    uint64_t job=123;memcpy(packet.data()+32,&job,8);
+    aegis_broker_call call={};ASSERT_EQ(0,aegis_broker_decode(packet.data(),40,1,100,&call));
+    EXPECT_EQ(job,call.command);EXPECT_EQ(AEGIS_BROKER_CONTINUE_START,call.request.operation);
+    auto before=call;
+    for(size_t size:{32u,39u,41u}) {
+        packet.resize(size);EXPECT_EQ(-1,aegis_broker_decode(packet.data(),size,1,100,&call));
+        EXPECT_EQ(0,memcmp(&before,&call,sizeof(call)));
+    }
+    packet.resize(40);memcpy(packet.data(),&request,32);
+    for(uint64_t bad:{uint64_t(0),UINT64_MAX}) {
+        memcpy(packet.data()+32,&bad,8);EXPECT_EQ(-1,aegis_broker_decode(packet.data(),40,1,100,&call));
+    }
+    request.version=2;memcpy(packet.data(),&request,32);memcpy(packet.data()+32,&job,8);
+    EXPECT_EQ(-1,aegis_broker_decode(packet.data(),40,1,100,&call));
+}
+TEST(RuntimeBrokerStartup, PendingAndErrorsCannotLoseOrInventOwnedSelection) {
+    Pair pair;ASSERT_EQ(0,socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair.fd));
+    auto request=start();
+    EXPECT_EQ(-1,aegis_broker_reply_start(pair.fd[0],&request,EAGAIN,0));
+    EXPECT_EQ(-1,aegis_broker_reply_start(pair.fd[0],&request,EIO,17));
+    ASSERT_EQ(0,aegis_broker_reply_start(pair.fd[0],&request,EAGAIN,17));
+    aegis_broker_start_reply reply={};int received=-1;
+    ASSERT_EQ(ssize_t(40),aegis_receive(pair.fd[1],&reply,sizeof(reply),&received));
+    EXPECT_EQ(-1,received);EXPECT_EQ(17u,reply.job);EXPECT_EQ(EAGAIN,reply.header.error);
+    EXPECT_EQ(AEGIS_BROKER_SEALED,reply.header.state);EXPECT_EQ(request.user,reply.header.user);
+    request.operation=AEGIS_BROKER_CONTINUE_START;
+    EXPECT_EQ(-1,aegis_broker_reply_start(pair.fd[0],&request,0,0));
+    ASSERT_EQ(0,aegis_broker_reply_start(pair.fd[0],&request,0,17));
+    ASSERT_EQ(ssize_t(40),aegis_receive(pair.fd[1],&reply,sizeof(reply),&received));
+    EXPECT_EQ(17u,reply.job);EXPECT_EQ(AEGIS_BROKER_READY,reply.header.state);
+    ASSERT_EQ(0,aegis_broker_reply_start(pair.fd[0],&request,ESTALE,0));
+    ASSERT_EQ(ssize_t(40),aegis_receive(pair.fd[1],&reply,sizeof(reply),&received));
+    EXPECT_EQ(0u,reply.job);EXPECT_EQ(ESTALE,reply.header.error);EXPECT_EQ(AEGIS_BROKER_SEALED,reply.header.state);
 }

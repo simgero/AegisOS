@@ -44,8 +44,14 @@ final class RuntimeBrokerConnection {
         }
     }
 
-    void start(int user, int serial, long deadlineNanos) {
-        success(call(RuntimeBrokerProtocol.START, user, serial, deadlineNanos, null, 0).reply);
+    RuntimeBrokerProtocol.StartReply start(int user, int serial, long job, long deadlineNanos) {
+        if (job < 0) throw new IllegalArgumentException("Invalid start job");
+        Exchange result = call(job == 0 ? RuntimeBrokerProtocol.START : RuntimeBrokerProtocol.CONTINUE_START,
+                user, serial, deadlineNanos, null, job);
+        // EAGAIN here means precisely the returned registered selection. Never
+        // retry any other native error, malformed response or broken channel.
+        if (result.reply.error != RuntimeBrokerProtocol.START_PENDING) success(result.reply);
+        return result.start;
     }
 
     /** All serials; success means native cleanup proof, NOT AOSP CE-key eviction. */
@@ -86,8 +92,12 @@ final class RuntimeBrokerConnection {
     private static final class Exchange {
         final RuntimeBrokerProtocol.Reply reply;
         final ParcelFileDescriptor master;
+        final RuntimeBrokerProtocol.StartReply start;
         Exchange(RuntimeBrokerProtocol.Reply reply, ParcelFileDescriptor master) {
-            this.reply = reply; this.master = master;
+            this(reply, master, null);
+        }
+        Exchange(RuntimeBrokerProtocol.Reply reply, ParcelFileDescriptor master, RuntimeBrokerProtocol.StartReply start) {
+            this.reply = reply; this.master = master; this.start = start;
         }
     }
 
@@ -159,6 +169,8 @@ final class RuntimeBrokerConnection {
         byte[] request;
         if (operation == RuntimeBrokerProtocol.EXEC) {
             request = RuntimeBrokerProtocol.execRequest(current, deadline, user, serial, System.nanoTime(), arguments);
+        } else if (operation == RuntimeBrokerProtocol.CONTINUE_START) {
+            request = RuntimeBrokerProtocol.continueStartRequest(current, deadline, user, serial, System.nanoTime(), command);
         } else if (operation == RuntimeBrokerProtocol.RESULT) {
             request = RuntimeBrokerProtocol.resultRequest(current, deadline, user, serial, System.nanoTime(), command);
         } else {
@@ -177,7 +189,9 @@ final class RuntimeBrokerConnection {
         }
         await(OsConstants.POLLIN, deadline);
         boolean terminal = operation == RuntimeBrokerProtocol.EXEC || operation == RuntimeBrokerProtocol.RESULT;
-        int expected = terminal ? RuntimeBrokerProtocol.TERMINAL_REPLY_SIZE : RuntimeBrokerProtocol.SIZE;
+        boolean starting = operation == RuntimeBrokerProtocol.START || operation == RuntimeBrokerProtocol.CONTINUE_START;
+        int expected = starting ? RuntimeBrokerProtocol.START_REPLY_SIZE
+                : terminal ? RuntimeBrokerProtocol.TERMINAL_REPLY_SIZE : RuntimeBrokerProtocol.SIZE;
         byte[] bytes = new byte[expected + 1];
         FileDescriptor[] received = null;
         ParcelFileDescriptor master = null;
@@ -189,7 +203,12 @@ final class RuntimeBrokerConnection {
             int descriptors = received == null ? 0 : received.length;
             remaining(deadline);
             RuntimeBrokerProtocol.Reply reply;
-            if (terminal) {
+            RuntimeBrokerProtocol.StartReply start = null;
+            if (starting) {
+                start = RuntimeBrokerProtocol.startReply(bytes, length, operation, current, user, serial, command, descriptors);
+                reply = new RuntimeBrokerProtocol.Reply(RuntimeBrokerProtocol.startError(bytes),
+                        start.ready ? RuntimeBrokerProtocol.READY : RuntimeBrokerProtocol.SEALED);
+            } else if (terminal) {
                 reply = RuntimeBrokerProtocol.terminalReply(bytes, length, operation, current, user, serial,
                         command, descriptors);
             } else {
@@ -212,7 +231,7 @@ final class RuntimeBrokerConnection {
                 Os.fcntlInt(master.getFileDescriptor(), OsConstants.F_SETFD, OsConstants.FD_CLOEXEC);
             }
             remaining(deadline);
-            Exchange result = new Exchange(reply, master);
+            Exchange result = new Exchange(reply, master, start);
             master = null; // The successful result now owns the duplicate.
             return result;
         } finally {

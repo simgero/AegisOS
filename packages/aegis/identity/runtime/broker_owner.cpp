@@ -921,3 +921,38 @@ int BrokerCancelExecution(aegis_broker_owner* owner,uint32_t user,uint32_t seria
     return error ? fail(error) : 0;
 }
 } // namespace aegis
+
+int aegis_broker_owner_start(aegis_broker_owner* owner,const aegis_broker_call* call,
+                             uint64_t* job,aegis_broker_state* state) {
+    if(!job || !state)return fail(EINVAL);
+    *job=0;*state=AEGIS_BROKER_SEALED;
+    if(owned(owner)<0)return -1;
+    if(!call || call->argc || call->payload_bytes)return fail(EINVAL);
+    const auto& request=call->request;
+    bool continuation=request.operation==AEGIS_BROKER_CONTINUE_START;
+    if((!continuation && request.operation!=AEGIS_BROKER_START)
+            || (continuation ? !call->command || call->command>INT64_MAX : call->command!=0))
+        return fail(EINVAL);
+    // Validate framing/deadline before looking up any resource. The normalized
+    // START is internal only; absence on continuation is rejected before apply.
+    auto start=request;start.operation=AEGIS_BROKER_START;
+    uint64_t now;if(now_ns(&now)<0)return -1;
+    aegis_broker_request checked;
+    if(aegis_broker_parse(&start,sizeof(start),start.sequence>1?start.sequence-1:0,now,&checked)<0)return -1;
+    runtime_selection_slot* selected=nullptr;
+    for(auto& slot:owner->selections)if(slot && slot->plan.requester==request.user) {
+        selected=slot.get();break;
+    }
+    if(selected && selected->plan.serial!=request.serial)return fail(ESTALE);
+    if(continuation && (!selected || selected->plan.job!=call->command))return fail(ESTALE);
+    uint64_t selected_job=selected ? selected->plan.job : 0;
+    int result=aegis_broker_owner_apply(owner,&start,state),error=errno;
+    if(result==0 || (error==EAGAIN && selected_job)) *job=selected_job;
+    // Only a still-owned selector may ask the service to wait. An unrelated
+    // EAGAIN (e.g. setup I/O failure) must never turn into a new implicit start.
+    if(result<0 && error==EAGAIN && (!selected || !selected->worker
+            || selected->state!=RuntimeSelectionState::Selecting)) {
+        *job=0;return fail(EIO);
+    }
+    return result<0 ? fail(error) : 0;
+}

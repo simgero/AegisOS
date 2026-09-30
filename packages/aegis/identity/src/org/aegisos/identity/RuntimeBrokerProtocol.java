@@ -7,17 +7,19 @@ import java.nio.charset.StandardCharsets;
 /** Internal system-server/native-owner protocol. No credentials, host paths or input descriptors. */
 final class RuntimeBrokerProtocol {
     static final int MAGIC = 0x42524741;
-    static final short VERSION = 2;
+    static final short VERSION = 3;
     static final int SIZE = 32;
-    static final int TERMINAL_REPLY_SIZE = 48, MAX_PACKET = 8192, MAX_ARGS = 32;
-    static final int HELLO = 1, START = 2, STOP_USER = 3, STATUS = 4, EXEC = 5, RESULT = 6;
+    static final int START_REPLY_SIZE = 40, TERMINAL_REPLY_SIZE = 48, MAX_PACKET = 8192, MAX_ARGS = 32;
+    static final int HELLO = 1, START = 2, STOP_USER = 3, STATUS = 4, EXEC = 5, RESULT = 6, CONTINUE_START = 7;
+    // Pinned Linux/Bionic EAGAIN. No Android-dependent constant in the codec.
+    static final int START_PENDING = 11;
     static final int ABSENT = 0, READY = 1, SEALED = 2;
     static final long MAX_WAIT_NANOS = 10_000_000_000L;
 
     private RuntimeBrokerProtocol() {}
 
     static void identity(int operation, int user, int serial) {
-        if (operation < HELLO || operation > RESULT || serial < 0
+        if (operation < HELLO || operation > CONTINUE_START || serial < 0
                 || (operation == HELLO ? user != 0 || serial != 0 : user < 10 || user >= 21473)
                 || (operation == STOP_USER && serial != 0)) {
             throw new IllegalArgumentException("Invalid internal runtime request");
@@ -87,6 +89,39 @@ final class RuntimeBrokerProtocol {
         return header(RESULT, sequence, deadline, user, serial, now, 40).putLong(command).array();
     }
 
+    static byte[] continueStartRequest(long sequence, long deadline, int user, int serial, long now, long job) {
+        if (job <= 0) throw new IllegalArgumentException("Invalid runtime start identity");
+        return header(CONTINUE_START, sequence, deadline, user, serial, now, START_REPLY_SIZE).putLong(job).array();
+    }
+
+    static final class StartReply {
+        final long job;
+        final boolean ready;
+        StartReply(long job, boolean ready) { this.job = job; this.ready = ready; }
+    }
+
+    static StartReply startReply(byte[] bytes, int length, int operation, long sequence,
+            int user, int serial, long expectedJob, int descriptorCount) {
+        if ((operation != START && operation != CONTINUE_START)
+                || (operation == START ? expectedJob != 0 : expectedJob <= 0) || descriptorCount != 0) {
+            throw new IllegalArgumentException("Invalid runtime start response");
+        }
+        Reply header = parse(bytes, length, operation, sequence, user, serial, START_REPLY_SIZE);
+        long job = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getLong(SIZE);
+        if (job < 0 || (header.error == START_PENDING ? job == 0 : (header.error != 0 && job != 0))
+                || (operation == CONTINUE_START && (header.error == 0 || header.error == START_PENDING)
+                    && job != expectedJob)) {
+            throw new IllegalArgumentException("Runtime start response changed its owned job");
+        }
+        // Well-formed native errors are distinct from malformed channel data.
+        // The transport uses startError() before exposing this completion.
+        return new StartReply(job, header.error == 0);
+    }
+
+    static int startError(byte[] bytes) {
+        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getInt(24);
+    }
+
     static final class Reply {
         final int error, state, waitStatus;
         final long command;
@@ -117,7 +152,7 @@ final class RuntimeBrokerProtocol {
         int error = reply.getInt(), state = reply.getInt();
         if (error < 0 || error > 4095 || state < ABSENT || state > SEALED
                 || (error != 0 && state != SEALED)
-                || (error == 0 && (operation == START || operation == EXEC || operation == RESULT) && state != READY)
+                || (error == 0 && (operation == START || operation == CONTINUE_START || operation == EXEC || operation == RESULT) && state != READY)
                 || (error == 0 && (operation == HELLO || operation == STOP_USER) && state != ABSENT)) {
             throw new IllegalArgumentException("Invalid internal runtime completion state");
         }

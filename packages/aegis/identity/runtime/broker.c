@@ -175,7 +175,10 @@ static int reply_until(int socket, int signals, const struct aegis_broker_reques
     for (;;) {
         uint64_t now = now_ns();
         if (!now || now >= request->deadline_ns) return fail(ETIMEDOUT);
-        int sent = request->operation >= AEGIS_BROKER_EXEC
+        int starting = request->operation == AEGIS_BROKER_START
+                || request->operation == AEGIS_BROKER_CONTINUE_START;
+        int sent = starting ? aegis_broker_reply_start(socket, request, error, command)
+                : (request->operation == AEGIS_BROKER_EXEC || request->operation == AEGIS_BROKER_RESULT)
                 ? aegis_broker_reply_terminal(socket, request, error, command, wait_status, exited, master)
                 : aegis_broker_reply(socket, request, error, state);
         if (sent == 0) return 0;
@@ -233,7 +236,9 @@ static int serve(int listener, int signals, struct aegis_broker_owner *owner) {
             enum aegis_broker_state state = AEGIS_BROKER_SEALED;
             uint64_t command = 0;
             int master = -1, wait_status = 0, exited = 0, error = 0;
-            if (request->operation == AEGIS_BROKER_EXEC) {
+            if (request->operation == AEGIS_BROKER_START || request->operation == AEGIS_BROKER_CONTINUE_START) {
+                if (aegis_broker_owner_start(owner, &call, &command, &state) < 0) error = errno;
+            } else if (request->operation == AEGIS_BROKER_EXEC) {
                 if (aegis_broker_owner_exec(owner, &call, &command, &master) < 0) error = errno;
                 else state = AEGIS_BROKER_READY;
             } else if (request->operation == AEGIS_BROKER_RESULT) {

@@ -27,7 +27,7 @@ public final class RuntimeBrokerProtocolTest {
     }
 
     @Test public void exactLittleEndianRequestMatchesNativeGoldenFrame() {
-        byte[] golden = {0x41,0x47,0x52,0x42,2,0,2,0,2,0,0,0,0,0,0,0,
+        byte[] golden = {0x41,0x47,0x52,0x42,3,0,2,0,2,0,0,0,0,0,0,0,
                 0x64,(byte)0xca,(byte)0x9a,0x3b,0,0,0,0,10,0,0,0,(byte)0xd2,4,0,0};
         assertArrayEquals(golden, RuntimeBrokerProtocol.request(RuntimeBrokerProtocol.START,
                 2, 1_000_000_100L, 10, 1234, 100));
@@ -92,7 +92,7 @@ public final class RuntimeBrokerProtocolTest {
     }
 
     @Test public void terminalArgumentsMatchNativeGoldenAndPreserveAnEmptyArgument() {
-        byte[] golden = {0x41,0x47,0x52,0x42,2,0,5,0,2,0,0,0,0,0,0,0,
+        byte[] golden = {0x41,0x47,0x52,0x42,3,0,5,0,2,0,0,0,0,0,0,0,
                 0x64,(byte)0xca,(byte)0x9a,0x3b,0,0,0,0,10,0,0,0,(byte)0xd2,4,0,0,
                 3,0,0,0,16,0,0,0,'/','b','i','n','/','p','r','i','n','t','f',0,'%','s',0,0};
         byte[] args = RuntimeBrokerProtocol.arguments(new String[] {"/bin/printf", "%s", ""});
@@ -167,5 +167,45 @@ public final class RuntimeBrokerProtocolTest {
         for (int size : new int[] {0, 32, 47, 49}) {
             denied(() -> RuntimeBrokerProtocol.terminalReply(valid, size, 5, 2, 10, 1234, 0, 1));
         }
+    }
+
+    private static byte[] startResponse(int operation, int error, long job) {
+        return ByteBuffer.allocate(40).order(ByteOrder.LITTLE_ENDIAN)
+                .put(response(operation, error, error == 0 ? 1 : 2)).putLong(job).array();
+    }
+    @Test public void startupContinuationRequestBindsOnlyTheExactPositiveJob() {
+        byte[] packet = RuntimeBrokerProtocol.continueStartRequest(2, 101, 10, 1234, 100, 17);
+        assertEquals(40, packet.length);
+        ByteBuffer b = ByteBuffer.wrap(packet).order(ByteOrder.LITTLE_ENDIAN);
+        assertEquals(7, b.getShort(6)); assertEquals(17, b.getLong(32));
+        for (long job : new long[] {0, -1, Long.MIN_VALUE})
+            denied(() -> RuntimeBrokerProtocol.continueStartRequest(2, 101, 10, 1234, 100, job));
+    }
+    @Test public void startupPendingIsBoundAndNeverCarriesDescriptors() {
+        byte[] pending = startResponse(2, 11, 17);
+        RuntimeBrokerProtocol.StartReply first = RuntimeBrokerProtocol.startReply(pending, 40, 2, 2, 10, 1234, 0, 0);
+        assertFalse(first.ready); assertEquals(17, first.job);
+        for (int count : new int[] {-1, 1, 2})
+            denied(() -> RuntimeBrokerProtocol.startReply(pending, 40, 2, 2, 10, 1234, 0, count));
+        for (int size : new int[] {0, 32, 39, 41})
+            denied(() -> RuntimeBrokerProtocol.startReply(pending, size, 2, 2, 10, 1234, 0, 0));
+        for (int error : new int[] {0, 11}) {
+            byte[] next = startResponse(7, error, 17);
+            assertEquals(error == 0, RuntimeBrokerProtocol.startReply(next, 40, 7, 2, 10, 1234, 17, 0).ready);
+            denied(() -> RuntimeBrokerProtocol.startReply(next, 40, 7, 2, 10, 1234, 18, 0));
+        }
+    }
+    @Test public void startupMalformedIdentityVersionAndErrorCannotBecomeReady() {
+        byte[] valid = startResponse(7, 11, 17);
+        for (int offset : new int[] {0, 4, 6, 8, 16, 20, 28}) {
+            byte[] bad = valid.clone(); bad[offset] ^= 1;
+            denied(() -> RuntimeBrokerProtocol.startReply(bad, 40, 7, 2, 10, 1234, 17, 0));
+        }
+        for (byte[] bad : new byte[][] {startResponse(7, 11, 0), startResponse(7, 0, 0),
+                startResponse(7, 5, 17), startResponse(7, 11, -1)})
+            denied(() -> RuntimeBrokerProtocol.startReply(bad, 40, 7, 2, 10, 1234, 17, 0));
+        byte[] failed = startResponse(7, 116, 0);
+        assertFalse(RuntimeBrokerProtocol.startReply(failed, 40, 7, 2, 10, 1234, 17, 0).ready);
+        assertEquals(116, RuntimeBrokerProtocol.startError(failed));
     }
 }

@@ -16,6 +16,7 @@
 #endif
 _Static_assert(sizeof(struct aegis_broker_request) == 32, "Request wire layout");
 _Static_assert(sizeof(struct aegis_broker_reply) == 32, "Reply wire layout");
+_Static_assert(sizeof(struct aegis_broker_start_reply) == 40, "Start reply wire layout");
 _Static_assert(sizeof(struct aegis_broker_terminal_reply) == 48, "Terminal reply wire layout");
 _Static_assert(offsetof(struct aegis_broker_request, user) == 24, "Request identity offset");
 _Static_assert(offsetof(struct aegis_broker_reply, error) == 24, "Reply error offset");
@@ -53,7 +54,7 @@ static int parse_header(const void *packet, size_t size, uint64_t previous,
     struct aegis_broker_request value;
     memcpy(&value, packet, sizeof(value));
     if (value.magic != AEGIS_BROKER_MAGIC || value.version != AEGIS_BROKER_VERSION
-            || value.operation < AEGIS_BROKER_HELLO || value.operation > AEGIS_BROKER_RESULT
+            || value.operation < AEGIS_BROKER_HELLO || value.operation > AEGIS_BROKER_CONTINUE_START
             || !value.sequence || value.sequence > INT64_MAX || value.sequence <= previous
             || now_ns > INT64_MAX || value.deadline_ns > INT64_MAX || value.deadline_ns <= now_ns
             || value.deadline_ns - now_ns > AEGIS_BROKER_MAX_WAIT_NS || value.serial > INT32_MAX)
@@ -109,7 +110,8 @@ int aegis_broker_decode(const void *packet, size_t size, uint64_t previous,
         memcpy(checked.payload, bytes + 40, checked.payload_bytes);
         const char *argv[AEGIS_BROKER_MAX_ARGS + 1];
         if (aegis_broker_arguments(&checked, argv) < 0) return -1;
-    } else if (checked.request.operation == AEGIS_BROKER_RESULT) {
+    } else if (checked.request.operation == AEGIS_BROKER_RESULT
+            || checked.request.operation == AEGIS_BROKER_CONTINUE_START) {
         if (size != 40) return fail(EPROTO);
         memcpy(&checked.command, bytes + 32, 8);
         if (!checked.command || checked.command > INT64_MAX) return fail(EPROTO);
@@ -204,4 +206,25 @@ int aegis_broker_reply_terminal(int fd, const struct aegis_broker_request *reque
     ssize_t sent = sendmsg(fd, &message, MSG_DONTWAIT | MSG_NOSIGNAL);
     if (sent < 0) return -1;
     return sent == (ssize_t)sizeof(reply) ? 0 : fail(EIO);
+}
+
+int aegis_broker_reply_start(int fd, const struct aegis_broker_request *request,
+                             int error, uint64_t job) {
+    if (!request || request->magic != AEGIS_BROKER_MAGIC || request->version != AEGIS_BROKER_VERSION
+            || (request->operation != AEGIS_BROKER_START && request->operation != AEGIS_BROKER_CONTINUE_START)
+            || !request->sequence || request->sequence > INT64_MAX
+            || request->user < 10 || request->user >= 21473 || request->serial > INT32_MAX
+            || error < 0 || error > 4095 || job > INT64_MAX
+            || (error == EAGAIN ? !job : (error && job))
+            || (!error && request->operation == AEGIS_BROKER_CONTINUE_START && !job)) return fail(EINVAL);
+    struct aegis_broker_start_reply reply = {
+        .header = {.magic=AEGIS_BROKER_MAGIC, .version=AEGIS_BROKER_VERSION,
+            .operation=request->operation, .sequence=request->sequence,
+            .user=request->user, .serial=request->serial, .error=error,
+            .state=error ? AEGIS_BROKER_SEALED : AEGIS_BROKER_READY},
+        .job=job,
+    };
+    ssize_t sent=send(fd,&reply,sizeof(reply),MSG_DONTWAIT|MSG_NOSIGNAL);
+    if(sent<0)return -1;
+    return sent==(ssize_t)sizeof(reply) ? 0 : fail(EIO);
 }

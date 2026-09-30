@@ -28,6 +28,15 @@ int aegis_broker_owner_apply(struct aegis_broker_owner *owner,
                              const struct aegis_broker_request *request,
                              enum aegis_broker_state *state);
 
+/* START may create a context from an already registered selection; its EAGAIN
+ * reply returns that owned job. CONTINUE_START requires that exact live job,
+ * user and serial and MUST NOT re-create work removed by STOP/HELLO. No FD
+ * escapes. Other errors clear job, preserving incomplete cleanup ownership.
+ * Product bootstrap must still register the initial selection. */
+int aegis_broker_owner_start(struct aegis_broker_owner *owner,
+                             const struct aegis_broker_call *call,
+                             uint64_t *job, enum aegis_broker_state *state);
+
 /* The same fresh AOSP user+serial/session/CE admission is required here.
  * EXEC never implicitly starts a missing/sealed context. Returns an owned PTY
  * and a process-lifetime unique command ID, NOT an authentication capability.

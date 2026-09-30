@@ -742,6 +742,13 @@ class RuntimeSelectionOwner : public RuntimePackageSelection {
         request.user=user;request.serial=serial;request.deadline_ns=Deadline();
         return aegis_broker_owner_apply(broker,&request,state);
     }
+    int StartJob(uint32_t user,uint32_t serial,uint64_t expected,uint64_t* job) {
+        aegis_broker_call call={};call.request.magic=AEGIS_BROKER_MAGIC;call.request.version=AEGIS_BROKER_VERSION;
+        call.request.operation=expected ? AEGIS_BROKER_CONTINUE_START : AEGIS_BROKER_START;
+        call.request.sequence=2;call.request.deadline_ns=Deadline();call.request.user=user;call.request.serial=serial;
+        call.command=expected;aegis_broker_state state;
+        return aegis_broker_owner_start(broker,&call,job,&state);
+    }
     void Freeze() {
         auto name="u"+std::to_string(selection.requester)+"-s"+std::to_string(selection.serial);
         ASSERT_EQ(0,WriteAt(parent.get(),(name+"/cgroup.freeze").c_str(),"1\n",0));
@@ -1287,4 +1294,37 @@ TEST_F(DISABLED_RuntimePackageCe, RegisteredPrivatePreparationStopsBeforeAospLog
     EXPECT_EQ(before,CountFDs());
     // Actual CE eviction is asserted next through AOSP logout by the host
     // driver. This test does not pretend its direct owner is the live daemon.
+}
+
+TEST_F(RuntimeSelectionOwner, StartContinuationCannotRecreateStoppedOrReplacedJob) {
+    int fds=CountFDs();uint64_t job=99;
+    EXPECT_EQ(-1,StartJob(10,42,17,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);EXPECT_EQ(fds,CountFDs());
+    ASSERT_EQ(0,RegisterSelection());Freeze();ASSERT_FALSE(HasFatalFailure());auto original=selected_job;
+    EXPECT_EQ(-1,StartJob(10,42,0,&job));EXPECT_EQ(EAGAIN,errno);EXPECT_EQ(original,job);
+    EXPECT_EQ(-1,StartJob(10,42,original,&job));EXPECT_EQ(EAGAIN,errno);EXPECT_EQ(original,job);
+    EXPECT_EQ(-1,StartJob(11,42,original,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
+    EXPECT_EQ(-1,StartJob(10,43,original,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
+    ASSERT_EQ(0,Stop());EXPECT_EQ(fds,CountFDs());
+    EXPECT_EQ(-1,StartJob(10,42,original,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);EXPECT_EQ(fds,CountFDs());
+    ASSERT_EQ(0,RegisterSelection());Freeze();ASSERT_FALSE(HasFatalFailure());EXPECT_GT(selected_job,original);
+    EXPECT_EQ(-1,StartJob(10,42,original,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
+    EXPECT_EQ(-1,StartJob(10,42,selected_job,&job));EXPECT_EQ(EAGAIN,errno);EXPECT_EQ(selected_job,job);
+    ASSERT_EQ(0,Stop());EXPECT_EQ(fds,CountFDs());
+}
+TEST_F(RuntimeSelectionOwner, HelloInvalidatesContinuationEvenWithSameIdentity) {
+    ASSERT_EQ(0,RegisterSelection());Freeze();ASSERT_FALSE(HasFatalFailure());auto original=selected_job;
+    aegis_broker_state state;ASSERT_EQ(0,Apply(AEGIS_BROKER_HELLO,0,0,&state));
+    uint64_t job=99;EXPECT_EQ(-1,StartJob(10,42,original,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
+    EXPECT_EQ("populated 0\nfrozen 0\n",AptImageFixture::read(parent.get(),"cgroup.events"));
+}
+TEST_F(RuntimeSelectionOwner, FailedSelectionIsNotPendingAndCannotSilentlyRestart) {
+    selection.factory.sha256=std::string(64,'f');ASSERT_EQ(0,RegisterSelection());
+    RuntimeSelectionState state=RuntimeSelectionState::Selecting;PackagePreparationResult result;
+    for(unsigned i=0;i<900 && state==RuntimeSelectionState::Selecting;++i) {
+        ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,10,42,selected_job,&state,&result));
+        if(state==RuntimeSelectionState::Selecting)usleep(10000);
+    }
+    ASSERT_EQ(RuntimeSelectionState::Failed,state);uint64_t job=99;
+    EXPECT_EQ(-1,StartJob(10,42,selected_job,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
+    EXPECT_EQ(-1,StartJob(10,42,0,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);ASSERT_EQ(0,Stop());
 }
