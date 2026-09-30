@@ -133,7 +133,7 @@ int Setup() {
     host.reset();close(3);close(4);
     // Only the listening socket survives; its netns stays private. Future
     // outbound sockets are in the helper's original Android network namespace.
-    if(listener.get()!=0) { if(dup3(listener.get(),0,O_CLOEXEC)<0)return -1;listener.reset(); }else listener.release();
+    if(listener.get()!=0) { if(dup3(listener.get(),0,O_CLOEXEC)<0)return -1;listener.reset(); }else if(listener.release()!=0)return Fail(EPROTO);
     for(unsigned cap=0;cap<=CAP_LAST_CAP;++cap)if(prctl(PR_CAPBSET_DROP,cap,0,0,0)<0)return -1;
     gid_t inet=3003;uid_t uid=request.user*100000+net::kAppId;
     if(setgroups(1,&inet)<0||setresgid(uid,uid,uid)<0||setresuid(uid,uid,uid)<0)return -1;
