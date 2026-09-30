@@ -1,3 +1,81 @@
+## Schreibgeschützte Paketstände asynchron auswählen: c60d6ea2
+
+Komponentenstand `c60d6ea29d4d25745a38bf21c117521c893e24ae` wurde auf `aegis-build`
+kompiliert und über [den geprüften GitHub-Release](https://github.com/simgero/AegisOS/releases/tag/components-20260930T022308Z-c60d6ea2-c60d6ea2-aGt2y4) bezogen.
+Lauf `identity-20260930T022200Z-c60d6ea2-4VtflP`, Invocation `5e2310af69c7497c8cbdfb4fe9c30ba7`.
+Am **2026-09-30T02:25:18Z bestehen 86/86 native Gerätetests**, zehn Suiten
+in 69.723 Sekunden, ohne übersprungene Fälle. Darunter sind die bisherigen
+76 Paket-/Rechteprüfungen und zehn neue Fälle zur Runtime-Auswahl.
+
+`PackageRuntimeSelectionStart` verwendet den vorhandenen beaufsichtigten
+Vorbereitungsprozess mit einem getrennten, strikt codierten Auftrag. Der Broker
+muss ihm vertrauenswürdig verankerte Store-Dateireferenzen und die festgelegte
+Systembasis übergeben; es gibt keine CLI-Dateipfade oder übernommene Adminrechte.
+Lange Hashprüfungen und Mount-Erstellung laufen im Kindprozess. Rückgaben werden
+auf Antragsteller, Seriennummer, Auftrag, Basiskennung, erlaubten Bereich und
+Mount-Eigenschaften geprüft. Das private Vorbereitungsprotokoll ist Version 2;
+Publisher- und öffentlicher Brokerkanal ändern sich nicht.
+
+Die Auswahl folgt persönlich -> gemeinsam -> unveränderliche Systembasis.
+Nur nachgewiesene Abwesenheit oder ein vollständig initialisierter leerer Store
+erlauben einen Rückfall. Fehlende Metadaten eines vorhandenen Stores, fremde
+Identität, Sperrkonflikte, Prüfsummenfehler oder ein fehlendes ausgewähltes Abbild
+werden abgewiesen. Letzteres liefert jetzt `ESTALE` statt des für eine leere
+Auswahl reservierten `ENOENT`. Eine persönliche Generation muss exakt zur
+aktuellen gemeinsamen Basishash passen; ein Konflikt verlangt eine spätere
+explizite Neubasierung, keinen stillen Verlust privater Programme.
+
+Das ausgewählte Abbild wird ohne Kopie direkt als readonly/autoclear-Loop und
+readonly/nosuid/nodev/noexec-ext4 eingebunden. `noload` und eine zusätzliche
+[Prüfung des sauberen ext4-Abschlusses](https://docs.kernel.org/filesystems/ext4/super.html)
+verhindern eine unbemerkte Journal-Wiederherstellung; das ersetzt kein fsck oder
+die vorausgehende Paketvalidierung. Der originale abgetrennte Mount-Deskriptor
+wird erst nach tatsächlich abgeholtem Kind und geleerter/entfernter Cgroup
+übergeben. Abbruch verwirft auch einen bereits in der Antwortwarteschlange
+liegenden Mount und bestätigt keine Runtime-Aktivierung.
+
+Die zehn neuen Prüfungen belegen tatsächlich:
+
+- Systembasis bei fehlenden Stores; unvollständiger Store wird abgewiesen,
+  korrekt initialisierter leerer Store darf auf die Systembasis zurückfallen.
+- Echte gemeinsame Installation und Update: ein offener schreibgeschützter
+  Mount zeigt weiter Version 1, eine neue Auswahl Version 2. Schreiben scheitert
+  mit `EROFS`; erneute vollständige Hashprüfung bestätigt unveränderte Abbilder.
+- Echte private Installation, Update und Entfernung durch den vorhandenen
+  registrierten APT-/Publisher-Ablauf, jeweils anschließende readonly-Auswahl.
+  Fremder Antragsteller oder falsche Seriennummer werden abgewiesen.
+- Persönliche Version 2 hat Vorrang vor gemeinsamer Version 1 mit exakt
+  gebundener Basisherkunft. Ohne persönlichen Store bleibt Version 1 sichtbar.
+- Falsche persönliche Basisherkunft, ein tatsächlich umbenanntes/fehlendes
+  ausgewähltes Testabbild sowie ein von einem anderen Store-Halter gehaltener
+  Lock führen zu Fehlern und niemals zu stiller Fallback-Auswahl.
+- Abbruch nach beobachtetem Kindende verbraucht den wartenden Mount, schließt
+  alle gehaltenen Deskriptoren und hinterlässt eine leere Cgroup. Ungültige
+  Identität, Auftrag, Hash, Größe und Store-Deskriptor starten keinen Arbeiter.
+
+Belege im primären Workspace: `out/components-c60d6ea2/targeted-tests/`.
+Ergebnis SHA-256 `d8db04a4e6e4e3bdfdded2a18923c2a39974cc38ad79ed90e42f960046312f11`;
+Rohlog `2467c9cebf6e2c65d508af90bd35878541f0356decf0af5344a1da93f60ebaeb`;
+identischer Vorher-/Nachherzustand `427588a420e87667361ec5b55db00c561070d70a17fdf2064dda31e9bb30c95a`.
+
+**Grenzen und nächster Schritt:** dies sind native Entwickler-root-Tests in
+neuen Testablagen; sie ersetzen keine produktive CE-/Adminprüfung. Die Auswahl
+ist noch nicht an `Broker START`, dessen STOP/HELLO-Ressourcenregister oder die
+öffentliche CLI angebunden. Vor Aktivierung muss der Broker die Auswahl vor dem
+CE-Zugriff registrieren, fehlende private Stores ohne Mutation sicher erkennen,
+die Mount-Referenz bei STOP/Logout vollständig schließen und bei einem neuen
+Start genau die geprüfte Generation übernehmen. Laufende Kontexte behalten ihre
+Generation bis zum kontrollierten Neustart. Frische AOSP-Adminprüfung für beide
+Paketbereiche, vertrauenswürdige Repository-/Planauflösung, Arbeiterdomänen und
+die vollständige Zwei-Benutzer-/Logout-/Reboot-Abnahme bleiben erforderlich.
+
+Produkt-Broker/Image ab38cf24, Boot `6e287d8c-a75c-47c1-ba45-b72b96b2122e`, Profil
+`0bbb6cf5-951e-43b4-9e08-ec952ab1b6e4`, Benutzer 0/0, Alpha 10/10 und Beta 11/11 sowie
+Schlüsselzustand sind unverändert; nur Benutzer 0 ist entsperrt. SELinux bleibt
+Enforcing. Das sichtbare QEMU-Fenster bleibt geschlossen, der sichtbare Launcher
+wird nicht durch diesen Komponentenstand ersetzt. Die übrigen nativen/Java-Suiten
+wurden mangels Änderungen in ihren Bereichen nicht wiederholt.
+
 ## Vorbereitung, APT, Hashbildung und Veröffentlichung in einem Auftrag: 89adbb55
 
 Komponentenstand `89adbb5534ddeb03196687dabc64fe0f288caeff` wurde auf `aegis-build`
