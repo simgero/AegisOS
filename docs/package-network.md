@@ -46,8 +46,10 @@ Der Hook veröffentlicht die vollständig geschriebene und synchronisierte Datei
 nun mit `renameat2(RENAME_NOREPLACE)`. Ein vorhandenes Ergebnis wird weiterhin
 niemals ersetzt; ein unvollständiger Datensatz erhält keinen endgültigen Namen.
 Dieser Aufruf nutzt die bestehenden Rechte im privaten Arbeitsdateisystem und
-benötigt keine zusätzliche SELinux-Freigabe. Komponenten- und Produktprüfung
-dieser Korrektur stehen noch aus.
+benötigt keine zusätzliche SELinux-Freigabe. Commit `b7ee7fc8` besteht am
+30. September um 22:50:39 UTC alle 62 betroffenen nativen Planungs-/Ausführungstests
+im lokalen b6-QEMU; Benutzer-, Schlüssel- und Kontextaufnahmen bleiben identisch.
+Das passende Vollimage und der tatsächliche Produktpfad werden noch geprüft.
 Die echte Paketinstallation und der vollständige Zwei-Benutzer-Ablauf bleiben
 unbewiesen; erfolgreiche Komponententests allein bestätigen sie nicht.
 

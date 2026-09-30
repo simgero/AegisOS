@@ -1,3 +1,33 @@
+## Atomare APT-Planablage: 62 gezielte native Tests
+
+Commit `b7ee7fc836b79d13c9563e40f5fbd9d8c56f5845` besteht am
+**2026-09-30T22:50:39Z alle 62 gezielten nativen Tests aus zwei Suiten**,
+Exitcode 0, Laufzeit 90991 ms. Die 36 Planungs- und 26 Ausführungstests prüfen
+die geänderte APT-Hook-Veröffentlichung mit eigenen synthetischen Images und
+Kontrollgruppen. Vier deaktivierte reale CE-Tests bleiben aus. Unveränderte
+Java- und Deskriptorprüfungen wurden nicht erneut ausgeführt.
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T224832Z-b7ee7fc8-b7ee7fc8-Zt29cx)
+wurde auf `aegis-build` kompiliert und über GitHub verifiziert übertragen.
+Die Ausführung erfolgte ausschließlich im lokalen Mac-QEMU mit Vollimage
+`b6e4b93e`, Boot-ID `0b7fe41d-7bcb-415d-8a88-910ca30d4c2b` und SELinux Enforcing.
+Benutzer, CE-/DE-Schlüsselkennungen und Runtime-Kontexte sind davor/danach
+bytegleich; beide vorhandenen persönlichen Testkonten blieben abgemeldet.
+
+Der echte installierte b6-Paketpfad hatte zuvor das APT-Hook-`link` auf dem
+privaten Arbeitsdateisystem verweigert. Die Korrektur verwendet
+`renameat2(RENAME_NOREPLACE)` mit den bestehenden Rechten. Das Ziel wird atomisch
+sichtbar und niemals überschrieben; zusätzliche Policy-Rechte sind nicht nötig.
+**Grenze:** Diese SU-Komponentenprüfung ersetzt nicht den installierten Helfer
+und beweist noch keine öffentliche Paketinstallation oder frische AOSP-Freigabe.
+Das passende Vollimage wird separat gebaut und der tatsächliche CLI-Pfad erneut
+geprüft. Der gesamte Zwei-Benutzer-Paketablauf bleibt ausstehend.
+
+Nachweise: `out/components-b7ee7fc8/targeted-tests/` und
+`out/full-build-b6e4b93e/identity-test/proof.json`.
+Native-Log SHA-256: `b67dfbd268320a9a430777dca77e2f9c8b23d1d6d50d5c96e1f15403a5bbb7e4`.
+Vorher/Nachher SHA-256: `7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+
 ## Nur lesbare Paketübergabe: 67 gezielte native Tests
 
 Commit `b6e4b93e95fa5d60e7f90be13409bb1b49e51e2d` besteht am
