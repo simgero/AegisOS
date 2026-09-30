@@ -150,14 +150,14 @@ class RuntimePackageResolver : public RuntimeNamespace {
         plan.planner_image_sha256=image->original.sha256;plan.policy_sha256=receipt["policy_sha256"].asString();
         plan.initial_status_sha256=Hash(initial);plan.initial_apt_state_presence=aegis::PackageStatePresence::Present;
         plan.initial_apt_state={automatic.size(),Hash(automatic)};plan.repositories=repositories;
-        std::vector<Fd> pinned;std::vector<int> fds;
+        std::vector<Fd> pinned;std::vector<int> archive_fds;
         for(const auto& a:archives) {
-            if(a.effect.after_version.empty()) { fds.push_back(-1);continue; }
+            if(a.effect.after_version.empty()) { archive_fds.push_back(-1);continue; }
             auto name="archives/"+a.effect.name+"_"+a.effect.after_version+"_"+a.effect.architecture+".deb";
-            pinned.emplace_back(openat(output.get(),name.c_str(),O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(pinned.back().ok());fds.push_back(pinned.back().get());
+            pinned.emplace_back(openat(output.get(),name.c_str(),O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(pinned.back().ok());archive_fds.push_back(pinned.back().get());
         }
         aegis::PackageBoundPlan bound;
-        ASSERT_EQ(0,aegis::PackageBindAptArchives(plan,archives,fds,now,&bound))<<strerror(errno);
+        ASSERT_EQ(0,aegis::PackageBindAptArchives(plan,archives,archive_fds,now,&bound))<<strerror(errno);
         EXPECT_EQ(2u,bound.reviewed.changes.size());EXPECT_EQ(aegis::PackageInstallReason::Automatic,bound.reviewed.changes[1].reason);
         auto original_repositories=repositories;auto original_archives=archives;
         auto bad_targets=targets;auto at=bad_targets.find("Trusted: yes");ASSERT_NE(std::string::npos,at);bad_targets.replace(at,12,"Trusted: no ");
