@@ -1,3 +1,36 @@
+## Nur lesbare Paketübergabe: 67 gezielte native Tests
+
+Commit `b6e4b93e95fa5d60e7f90be13409bb1b49e51e2d` besteht am
+**2026-09-30T21:54:43Z alle 67 gezielten nativen Tests aus vier Suiten**,
+Exitcode 0, Laufzeit 90330 ms. Vier neue Deskriptortests, 36 Paketplanungs-,
+26 Ausführungs- und ein Netzwerkregeltest decken die geänderten Übergaben ab.
+Vier deaktivierte reale CE-Tests bleiben deaktiviert. Java wurde nicht geändert;
+die vorherigen 152 bestandenen Prüfungen wurden nicht wiederholt.
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20260930T215236Z-b6e4b93e-b6e4b93e-k5kvW3)
+wurde auf `aegis-build` kompiliert und ausschließlich über GitHub übertragen.
+Ausführung erfolgte im lokalen Mac-QEMU mit Vollimage `c9cd225d`, Boot-ID
+`b6e8719e-556a-46b6-9f81-b60c0aaa61bf` und unverändertem SELinux Enforcing.
+Die beiden vorhandenen persönlichen Testkonten waren abgemeldet und gesperrt.
+Benutzerregistrierung, CE-/DE-Schlüsselkennungen und Runtime-Kontexte sind in den
+Vorher-/Nachher-Aufnahmen identisch. Die Fixtures verwenden eigene synthetische
+Images und Kontrollgruppen, keine bestehenden persönlichen Stores.
+
+**Grenze:** Der echte c9-CLI-Aufruf hatte zuvor beim Domänenwechsel des
+Netzwerkhelfers eine Schreibverweigerung auf dessen versiegeltes, aber noch
+`O_RDWR` geöffnetes memfd gezeigt. Die Korrektur öffnet vor exec/SCM_RIGHTS eine
+unabhängige `O_RDONLY`-Beschreibung. Diese Komponentenprüfung ersetzt weder den
+installierten Broker noch den öffentlichen Binder-/AOSP-Freigabetest; das passende
+Vollimage und tatsächliche Paketinstallation stehen noch aus. Der vorherige
+Komponentenversuch `cb49ba41` scheiterte an zwei C++-Compilerdiagnosen und führte
+keine Laufzeittests aus; diese wurden in `b6e4b93e` behoben.
+
+Nachweise: `out/components-b6e4b93e/targeted-tests/` mit `result.json`,
+`native.log`, `before.json` und `after.json` sowie
+`out/full-build-c9cd225d/identity-test/proof.json`.
+Native-Log SHA-256: `16410832caa4b0f85d13a891b3b29a6da6505958964e6b2e0c267671070df127`.
+Vorher/Nachher SHA-256: `7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+
 ## Öffentliche Paket-CLI: Komponenten geprüft, Vollimage folgt
 
 Commit `7902400f7f345d418c03f2e6b2278243738e00fe` kompiliert auf `aegis-build`

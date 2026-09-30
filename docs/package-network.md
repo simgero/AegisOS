@@ -27,8 +27,12 @@ Beschreibung vor der Übergabe. Derselbe Fehler wird im SCM_RIGHTS-Konfiguration
 kanal zum Ausführungshelfer behoben. Beide Empfänger verlangen den Lesemodus;
 keine Schreibberechtigung wird zur Richtlinie hinzugefügt. Vier native Tests
 prüfen Siegel, Zugriffsmodus, Identität, ungültige Eingänge und die tatsächliche
-SCM_RIGHTS-Übertragung. Kompilierung, diese Tests und der erneute Produktpfad-Test
-stehen noch aus.
+SCM_RIGHTS-Übertragung. Die Komponenten `b6e4b93e` kompilieren; alle 67 gezielt
+betroffenen nativen Prüfungen bestehen am 30. September um 21:54:43 UTC im lokalen
+c9-QEMU. Benutzer-, Schlüssel- und Kontextaufnahmen sind davor/danach identisch.
+Vier deaktivierte reale CE-Tests bleiben aus. Der Produktdienst wurde durch die
+Komponentenprüfung nicht ersetzt; passendes Vollimage und erneuter tatsächlicher
+CLI-Aufruf bleiben erforderlich. [Prüfbelege](component-tests.md).
 Die echte Paketinstallation und der vollständige Zwei-Benutzer-Ablauf bleiben
 unbewiesen; erfolgreiche Komponententests allein bestätigen sie nicht.
 
