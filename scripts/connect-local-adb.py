@@ -40,15 +40,20 @@ def main():
           'test "$(getprop ro.adb.secure)" = 1')
     subprocess.run(['adb','start-server'],check=True,timeout=15)
     subprocess.run(['adb','disconnect',address],capture_output=True,timeout=10)
+    # A persistent profile can retain bridge.pid after power-off. The numeric
+    # PID may now name an unrelated Android process: stop only a process whose
+    # argv contains our exact bridge script, and discard stale PID metadata.
     guest('mkdir -p /data/local/aegis-debug; chown root:root /data/local/aegis-debug; '
           'chmod 700 /data/local/aegis-debug; '
           'if [ -f /data/local/aegis-debug/bridge.pid ]; then '
           'pid=$(cat /data/local/aegis-debug/bridge.pid); '
           'case "$pid" in ""|*[!0-9]*) exit 1;; esac; '
-          'if [ -e /proc/$pid/cmdline ]; then '
-          'tr "\\000" " " < /proc/$pid/cmdline | grep -Fq /data/local/aegis-debug/bridge.sh; '
+          'test "$pid" -gt 1; '
+          'if [ -r /proc/$pid/cmdline ] && '
+          'tr "\\000" "\\n" < /proc/$pid/cmdline | grep -Fxq /data/local/aegis-debug/bridge.sh; then '
           'kill "$pid"; n=0; while kill -0 "$pid" 2>/dev/null; do '
-          'n=$((n+1)); test "$n" -le 30; sleep 0.1; done; fi; fi')
+          'n=$((n+1)); test "$n" -le 30; sleep 0.1; done; fi; '
+          'rm -f /data/local/aegis-debug/bridge.pid; fi')
     if args.authorize_this_mac:
         key=(Path.home()/'.android/adbkey.pub').read_text().strip()
         if len(key)>4096 or '\n' in key or '\r' in key:raise ValueError('Invalid public ADB key')
