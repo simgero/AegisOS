@@ -1,5 +1,10 @@
 # Erste AEGIS-Terminalintegration
 
+Der folgende Text enthält historische Entwicklungsstände. Der aktuelle lokale
+Buildserver-Lauf, die CE-Wiederanlaufkorrektur und seine Abnahme stehen in
+[Serverentwicklung](server-development.md). Für die aktuellen interaktiven
+GNU-/Paketbefehle siehe [Testtreiber und Ablauf](runtime-gnu-test-driver.md).
+
 Stand 29. September 2026: Im Vollbuild `2f29f0ac` sind zwei tatsächliche GNU-
 Kontexte, AOSP-Anmeldung, Wechsel, Logout mit CE-Sperre und Dateierhalt nach
 Neustart geprüft. Beide ersten Anmeldungen und beide ersten Zugänge nach

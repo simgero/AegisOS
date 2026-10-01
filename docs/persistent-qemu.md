@@ -1,5 +1,10 @@
 # Persistente lokale QEMU-Profile
 
+Für die direkt auf dem Linux-Buildserver erzeugten Images gilt inzwischen der
+[lokale Serverablauf](server-development.md), ohne GitHub-Artefaktupload.
+Die folgenden Mac-/Release-Belege dokumentieren frühere Tests. Die gemeinsame
+Profilbindung und das Verbot getrennter Disk-Rücksetzungen gelten weiterhin.
+
 Stand 28. September 2026: **Passwortgeschützte Daten haben einen vollständigen
 lokalen Neustart überstanden.** Der neue Helper wurde auf `aegis-build`
 kompiliert und als [secure-env-20260928T134804Z-024354c1](https://github.com/simgero/AegisOS/releases/tag/secure-env-20260928T134804Z-024354c1)
