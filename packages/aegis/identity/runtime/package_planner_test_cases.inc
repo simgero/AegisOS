@@ -1031,6 +1031,9 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
     Fd previous,current,shared_store,private_store;
     aegis::PackageGeneration old_generation,current_generation,private_generation;
     uint64_t selection_job=0;
+    Fd transaction_stage,readback_view;
+    aegis::PackagePreparer* readback=nullptr;
+    aegis::PackageBoundPlan owner_bound;
     std::string old_status,new_status,choices;
     void Readonly(int fd,bool enabled) {
         mount_attr attr={};if(enabled)attr.attr_set=MOUNT_ATTR_RDONLY;else attr.attr_clr=MOUNT_ATTR_RDONLY;
@@ -1118,6 +1121,63 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
         auto again=bound;ASSERT_EQ(0,aegis::BrokerReviewPlanning(owner,10,1234,selection_job,Deadline(),&again));
         EXPECT_EQ(bound.preparation.execution.plan_sha256,again.preparation.execution.plan_sha256);
         EXPECT_EQ(-1,aegis::BrokerReviewConfiguredPackage(owner,10,1234,selection_job,Deadline(),&again));EXPECT_EQ(EPERM,errno);
+        owner_bound=bound;
+    }
+    // Full source files/control records for the pre-existing fixture packages.
+    // These synthetic installed images are never substituted for live CE.
+    void ExecutionSource() {
+        Readonly(selected.get(),false);ASSERT_FALSE(HasFatalFailure());
+        ASSERT_EQ(0,Write(selected.get(),"usr/bin/aegis-probe-app","#!/bin/sh\nprintf 'app-1\\n'\n"));
+        ASSERT_EQ(0,fchmodat(selected.get(),"usr/bin/aegis-probe-app",0755,0));
+        ASSERT_EQ(0,mkdirat(selected.get(),"usr/share/aegis-probe",0755));
+        ASSERT_EQ(0,Write(selected.get(),"usr/share/aegis-probe/library","1\n"));
+        ASSERT_EQ(0,Write(selected.get(),"var/lib/dpkg/info/aegis-probe-app.list","/.\n/usr\n/usr/bin\n/usr/bin/aegis-probe-app\n"));
+        ASSERT_EQ(0,Write(selected.get(),"var/lib/dpkg/info/aegis-probe-lib.list","/.\n/usr\n/usr/share\n/usr/share/aegis-probe\n/usr/share/aegis-probe/library\n"));
+        ASSERT_EQ(0,Write(selected.get(),"etc/aegis-reconcile-test.conf","personal=keep\n"));
+        ASSERT_EQ(0,Write(selected.get(),"var/lib/aegis-reconcile-owned","technical-owner\n"));
+        ASSERT_EQ(0,fchownat(selected.get(),"var/lib/aegis-reconcile-owned",42,42,AT_SYMLINK_NOFOLLOW));
+        ASSERT_EQ(0,fchmodat(selected.get(),"var/lib/aegis/private-choices",0600,0));
+        Readonly(selected.get(),true);ASSERT_FALSE(HasFatalFailure());
+        StoredViews();ASSERT_FALSE(HasFatalFailure());
+        Fd root(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(root.ok());
+        ASSERT_EQ(0,mkdirat(root.get(),"reconcile-stage",0700));
+        transaction_stage.reset(openat(root.get(),"reconcile-stage",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(transaction_stage.ok());
+    }
+    int PrepareOwned(const std::string& digest,int shared=-2) {
+        Fd source_image(openat(private_store.get(),(private_generation.image_sha256+".image").c_str(),O_RDONLY|O_NOFOLLOW|O_CLOEXEC));
+        Fd prepare(Program("aegis-package-prepare")),execute(Program("aegis-package-execute-probe")),publish(Program("aegis-package-publish"));
+        return aegis::BrokerPreparePlannedReconciliation(owner,10,1234,selection_job,digest,parent.get(),transaction_stage.get(),
+            private_store.get(),source_image.get(),prepare.get(),execute.get(),publish.get(),shared==-2?shared_store.get():shared,Deadline());
+    }
+    void ExecuteOwned(aegis::PackageExecutionResult* result) {
+        const auto digest=owner_bound.preparation.execution.plan_sha256;
+        ASSERT_EQ(0,aegis::BrokerStartExecution(owner,10,1234,selection_job,digest,Deadline()))<<strerror(errno);
+        Completed(selection_job,digest,result);ASSERT_FALSE(HasFatalFailure());
+    }
+    void VerifyReopened(const aegis::PackageExecutionResult& result,const std::string& version) {
+        ASSERT_EQ(aegis::PackageExecutionOutcome::Published,result.outcome)<<result.error<<" "<<result.status;
+        EXPECT_EQ(current_generation.image_sha256,result.generation.shared_base_sha256);
+        {
+            std::unique_ptr<aegis::PackageStore> own(aegis::PackageStore::Open(private_store.get(),{true,10,1234},false));ASSERT_TRUE(own);
+            aegis::PackageGeneration actual;Fd found(own->Current(&actual));ASSERT_TRUE(found.ok());EXPECT_EQ(result.generation.image_sha256,actual.image_sha256);
+        }
+        Fd factory(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC)),prepare(Program("aegis-package-prepare"));
+        aegis::PackageRuntimeSelection selection;selection.requester=10;selection.serial=1234;selection.job=901;
+        selection.factory={image->original.bytes,image->original.sha256};
+        ASSERT_EQ(0,aegis::PackageRuntimeSelectionStart(parent.get(),shared_store.get(),private_store.get(),factory.get(),prepare.get(),selection,&readback));
+        aegis::PackagePreparationResult selected_result;int fd=-1;
+        ASSERT_EQ(0,aegis::PackagePreparerFinish(&readback,false,9000,&selected_result,&fd));readback_view.reset(fd);
+        ASSERT_EQ(aegis::PackagePreparationOutcome::Prepared,selected_result.outcome)<<selected_result.error;ASSERT_TRUE(readback_view.ok());
+        EXPECT_EQ(result.generation.image_sha256,selected_result.generation.image_sha256);
+        EXPECT_EQ("#!/bin/sh\nprintf 'app-"+version+"\\n'\n",Read(readback_view.get(),"usr/bin/aegis-probe-app"));
+        EXPECT_EQ(version+"\n",Read(readback_view.get(),"usr/share/aegis-probe/library"));
+        EXPECT_EQ("personal=keep\n",Read(readback_view.get(),"etc/aegis-reconcile-test.conf"));
+        EXPECT_EQ(choices,Read(readback_view.get(),"var/lib/aegis/private-choices"));
+        struct stat st;ASSERT_EQ(0,fstatat(readback_view.get(),"var/lib/aegis-reconcile-owned",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(42u,st.st_uid);EXPECT_EQ(42u,st.st_gid);
+        aegis::PackageInstalledRegistry registry;ASSERT_EQ(0,aegis::PackageReadInstalledRegistry(Read(readback_view.get(),"var/lib/dpkg/status"),&registry));
+        EXPECT_EQ(version,std::get<0>(registry.at("aegis-probe-app")));EXPECT_EQ(version,std::get<0>(registry.at("aegis-probe-lib")));
+        EXPECT_EQ(owner_bound.reviewed.reconciliation_evidence.result_registry_sha256,Hash(aegis::PackageCanonicalInstalled(registry)));
+        readback_view.reset();
     }
     int StartThree() {
         const int inputs[]={selected.get(),previous.get(),current.get()};
@@ -1159,17 +1219,65 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
     }
     void TearDown() override {
         if(owner) { EXPECT_EQ(0,aegis_broker_owner_stop_all(owner,Deadline()));EXPECT_EQ(0,aegis_broker_owner_release(&owner)); }
+        if(readback) { int fd=-1;aegis::PackagePreparationResult ignored;EXPECT_EQ(0,aegis::PackagePreparerFinish(&readback,true,5000,&ignored,&fd));if(fd>=0)close(fd); }
+        readback_view.reset();
         if(shared_store.ok()&&!HasFailure()) {
             Fd dir(open(image->directory.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(dir.ok());
+            if(transaction_stage.ok()) { transaction_stage.reset();RemoveFixtureTree(dir.get(),"reconcile-stage"); }
             shared_store.reset();private_store.reset();RemoveFixtureTree(dir.get(),"reconcile-shared");RemoveFixtureTree(dir.get(),"reconcile-private");
         }
-        shared_store.reset();private_store.reset();
+        transaction_stage.reset();shared_store.reset();private_store.reset();
         if(planner) { int fd=-1;aegis::PackagePlanningResult result;EXPECT_EQ(0,aegis::PackagePlannerFinish(&planner,true,5000,&result,&fd));if(fd>=0)close(fd); }
         previous.reset();current.reset();
         if(old_image)old_image->passed=!HasFailure();if(new_image)new_image->passed=!HasFailure();old_image.reset();new_image.reset();
         RuntimePackagePlanning::TearDown();
     }
 };
+TEST_F(RuntimeReconciliationPlanning, SignedTriplePlanExecutesAndPublishesPreservingPrivateFilesAndOwner) {
+    Configure("AEGIS-PRIVATE-CHOICES1\n");ASSERT_FALSE(HasFatalFailure());ExecutionSource();ASSERT_FALSE(HasFatalFailure());
+    TransferOwner();ASSERT_FALSE(HasFatalFailure());OwnerReview(2);ASSERT_FALSE(HasFatalFailure());
+    const auto digest=owner_bound.preparation.execution.plan_sha256;
+    EXPECT_EQ(-1,PrepareOwned(std::string(64,'f')));EXPECT_EQ(ESTALE,errno);
+    EXPECT_EQ(-1,PrepareOwned(digest,-1));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(-1,aegis::BrokerPrepareConfiguredReconciliationTransaction(owner,10,1234,selection_job,Deadline()));EXPECT_EQ(EPERM,errno);
+    EXPECT_EQ(-1,aegis::BrokerPreparePlannedTransaction(owner,10,1234,selection_job,digest,-1,-1,-1,-1,-1,-1,-1,Deadline()));EXPECT_EQ(EPERM,errno);
+    ASSERT_EQ(0,PrepareOwned(digest))<<strerror(errno);Prepared(selection_job,digest);ASSERT_FALSE(HasFatalFailure());
+    aegis::PackageBoundPlan unavailable;EXPECT_EQ(-1,aegis::BrokerReviewPlanning(owner,10,1234,selection_job,Deadline(),&unavailable));EXPECT_EQ(ENOENT,errno);
+    EXPECT_EQ(-1,aegis::BrokerStartConfiguredReconciliation(owner,10,1234,selection_job,Deadline()));EXPECT_EQ(EPERM,errno);
+    EXPECT_EQ(-1,aegis::BrokerStartConfiguredPackage(owner,10,1234,selection_job,digest,Deadline()));EXPECT_EQ(EPERM,errno);
+    aegis::PackageExecutionResult result;ExecuteOwned(&result);ASSERT_FALSE(HasFatalFailure());VerifyReopened(result,"2");
+}
+TEST_F(RuntimeReconciliationPlanning, SignedPrivateVersionOverridePublishesNewBaseWithoutPackageChanges) {
+    Configure("AEGIS-PRIVATE-CHOICES1\naegis-probe-app\tall\t1\n");ASSERT_FALSE(HasFatalFailure());ExecutionSource();ASSERT_FALSE(HasFatalFailure());
+    TransferOwner();ASSERT_FALSE(HasFatalFailure());OwnerReview(0);ASSERT_FALSE(HasFatalFailure());
+    const auto digest=owner_bound.preparation.execution.plan_sha256;ASSERT_TRUE(owner_bound.preparation.execution.items.empty());
+    ASSERT_EQ(0,PrepareOwned(digest));Prepared(selection_job,digest);ASSERT_FALSE(HasFatalFailure());
+    aegis::PackageExecutionResult result;ExecuteOwned(&result);ASSERT_FALSE(HasFatalFailure());VerifyReopened(result,"1");
+}
+TEST_F(RuntimeReconciliationPlanning, CommonSelectionChangeAfterSignedPreparationPreventsPrivatePublication) {
+    Configure("AEGIS-PRIVATE-CHOICES1\n");ASSERT_FALSE(HasFatalFailure());ExecutionSource();ASSERT_FALSE(HasFatalFailure());
+    TransferOwner();ASSERT_FALSE(HasFatalFailure());OwnerReview(2);ASSERT_FALSE(HasFatalFailure());
+    const auto digest=owner_bound.preparation.execution.plan_sha256;
+    ASSERT_EQ(0,PrepareOwned(digest));Prepared(selection_job,digest);ASSERT_FALSE(HasFatalFailure());
+    {
+        std::unique_ptr<aegis::PackageStore> common(aegis::PackageStore::Open(shared_store.get(),{false,0,0},false));ASSERT_TRUE(common);
+        aegis::PackageGeneration old;Fd file(common->RetainedShared(old_generation.image_sha256,&old));ASSERT_TRUE(file.ok());
+        const std::atomic_bool proceed{false};ASSERT_EQ(aegis::PackagePublish::Confirmed,common->Publish(&current_generation,file.get(),old,proceed));
+    }
+    aegis::PackageExecutionResult result;ExecuteOwned(&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(aegis::PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(ESTALE,result.error);
+    std::unique_ptr<aegis::PackageStore> own(aegis::PackageStore::Open(private_store.get(),{true,10,1234},false));ASSERT_TRUE(own);
+    aegis::PackageGeneration actual;Fd unchanged(own->Current(&actual));ASSERT_TRUE(unchanged.ok());EXPECT_EQ(private_generation.image_sha256,actual.image_sha256);
+}
+TEST_F(RuntimeReconciliationPlanning, StopAfterSignedPreparationClosesEvidenceCandidateAndCommonFence) {
+    Configure("AEGIS-PRIVATE-CHOICES1\n");ASSERT_FALSE(HasFatalFailure());ExecutionSource();ASSERT_FALSE(HasFatalFailure());const int before=descriptors();
+    TransferOwner();ASSERT_FALSE(HasFatalFailure());OwnerReview(2);ASSERT_FALSE(HasFatalFailure());
+    const auto digest=owner_bound.preparation.execution.plan_sha256;
+    ASSERT_EQ(0,PrepareOwned(digest));Prepared(selection_job,digest);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,aegis_broker_owner_stop_all(owner,Deadline()));EXPECT_EQ(before,descriptors());
+    EXPECT_EQ(-1,aegis::BrokerStartExecution(owner,10,1234,selection_job,digest,Deadline()));EXPECT_EQ(ENOENT,errno);
+    EXPECT_EQ("populated 0\nfrozen 0\n",Read(parent.get(),"cgroup.events"));
+}
 TEST_F(RuntimeReconciliationPlanning, OwnerTransfersVerifiedTripleIntoSignedPlanningAndBoundReview) {
     Configure("AEGIS-PRIVATE-CHOICES1\n");ASSERT_FALSE(HasFatalFailure());StoredViews();ASSERT_FALSE(HasFatalFailure());const int before=descriptors();
     TransferOwner();ASSERT_FALSE(HasFatalFailure());OwnerReview(2);ASSERT_FALSE(HasFatalFailure());
@@ -1239,4 +1347,16 @@ TEST_F(RuntimePackagePlanning, ConfiguredReconciliationRegistersBeforeMissingCeA
     EXPECT_EQ(-1,aegis::BrokerContinueConfiguredPackagePlanning(owner,21472,1234,job,Deadline()));EXPECT_EQ(EPERM,errno);
     ASSERT_EQ(0,aegis::BrokerCancelPackageSelection(owner,21472,1234,job,Deadline()));EXPECT_EQ(before,descriptors());
     EXPECT_EQ(-1,lstat("/data/system_ce/21472",&st));EXPECT_EQ(ENOENT,errno);
+}
+
+TEST_F(RuntimePackagePlanning, OrdinarySignedPackagePlanCannotEnterReconciliationExecution) {
+    CreateOwner();ASSERT_FALSE(HasFatalFailure());request.create_store=true;uint64_t job=0;
+    SelectOwner(&job);ASSERT_FALSE(HasFatalFailure());Collected(job);ASSERT_FALSE(HasFatalFailure());
+    aegis::PackageBoundPlan bound;ASSERT_EQ(0,aegis::BrokerReviewPlanning(owner,10,1234,job,Deadline(),&bound));
+    EXPECT_EQ(-1,aegis::BrokerPreparePlannedReconciliation(owner,10,1234,job,bound.preparation.execution.plan_sha256,
+        -1,-1,-1,-1,-1,-1,-1,-1,Deadline()));EXPECT_EQ(EPERM,errno);
+    EXPECT_EQ(-1,aegis::BrokerPrepareConfiguredReconciliationTransaction(owner,10,1234,job,Deadline()));EXPECT_EQ(EPERM,errno);
+    auto again=bound;ASSERT_EQ(0,aegis::BrokerReviewPlanning(owner,10,1234,job,Deadline(),&again));
+    EXPECT_EQ(bound.preparation.execution.plan_sha256,again.preparation.execution.plan_sha256);
+    ASSERT_EQ(0,aegis::BrokerCancelPlanning(owner,10,1234,job,Deadline()));
 }

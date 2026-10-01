@@ -47,6 +47,7 @@ struct publication_slot {
 struct execution_slot {
     PackageExecution plan;
     std::optional<PackageIntent> configured_intent;
+    bool configured_reconciliation=false; // Derived only from the retained three-view job.
     uint64_t valid_until_unix=0; // Carried from the owned authenticated planning result.
     std::array<unique_fd,4> inputs;
     // Stay lifecycle-owned after APT exits. Never reopen by a caller pathname
@@ -1272,6 +1273,7 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
     if(remaining_ms(deadline)<=0)return fail(ETIMEDOUT);
     if(transferring) {
         prepared->valid_until_unix=transferring->bound.valid_until_unix;
+        prepared->configured_reconciliation=transferring->configured_reconciliation && configured_source;
         if(transferring->configured && configured_source) {
             const auto& original=transferring->plan;
             prepared->configured_intent=PackageIntent{original.request.action,
@@ -1351,12 +1353,17 @@ int BrokerPrepareTransaction(aegis_broker_owner* owner,const PackagePreparation&
 }
 static int prepare_planned_transaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
     uint64_t job,const std::string& digest,int groups,int stage,int store,int source,
-    int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline,bool configured) {
+    int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline,bool configured,
+    bool reconciliation=false,int shared_store=-1) {
     auto* slot=find_planning(owner,user,serial,job);if(!slot)return -1;
-    if(slot->configured!=configured || slot->configured_reconciliation)return fail(EPERM);
+    if(slot->reconciliation!=reconciliation || (reconciliation
+       ? slot->configured || slot->configured_reconciliation!=configured
+       : slot->configured!=configured || slot->configured_reconciliation))return fail(EPERM);
+    if(reconciliation && (!slot->plan.personal || (!configured && shared_store<0)))return fail(EINVAL);
+    const bool personal_ce=slot->plan.personal && (!reconciliation || configured);
     if(slot->state!=PlanningState::Reviewed)return fail(EBUSY);
     if(slot->bound.preparation.execution.plan_sha256!=digest)return fail(ESTALE);
-    if(slot->plan.personal && (stage!=-1 || store!=-1))return fail(EINVAL);
+    if(personal_ce && (stage!=-1 || store!=-1))return fail(EINVAL);
     PackageBoundPlan bound;if(BrokerReviewPlanning(owner,user,serial,job,deadline,&bound)<0)return -1;
     if(transaction_target(bound.preparation,bound.publication)<0)return -1;
     struct stat directory;struct statfs fs;
@@ -1378,10 +1385,10 @@ static int prepare_planned_transaction(aegis_broker_owner* owner,uint32_t user,u
         if(fchown(fd.get(),0,0)<0||fchmod(fd.get(),0444)<0)return -1;
         archives.push_back(fd.get());pinned.push_back(std::move(fd));
     }
-    uint64_t same=0;const bool personal=slot->plan.personal;
+    uint64_t same=0;
     const auto selected=slot->selected_source; // survives consuming the planning slot
     return prepare_candidate(owner,bound.preparation,groups,stage,source,prepare_helper,execute_helper,
-        archives,deadline,&same,personal,&bound.publication,store,publish_helper,slot,configured?&selected:nullptr);
+        archives,deadline,&same,personal_ce,&bound.publication,store,publish_helper,slot,configured?&selected:nullptr,shared_store);
 }
 int BrokerPreparePlannedTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
     uint64_t job,const std::string& digest,int groups,int stage,int store,int source,
@@ -1397,6 +1404,41 @@ int BrokerPrepareConfiguredTransaction(aegis_broker_owner* owner,uint32_t user,u
     return prepare_planned_transaction(owner,user,serial,job,digest,
         owner->inputs[0],-1,-1,-1,owner->selection_helper.get(),owner->package_install_helpers[0].get(),
         owner->package_install_helpers[1].get(),deadline,true);
+}
+int BrokerPreparePlannedReconciliation(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t job,const std::string& digest,int groups,int stage,int store,int source,
+    int prepare_helper,int execute_helper,int publish_helper,int shared_store,uint64_t deadline) {
+    return prepare_planned_transaction(owner,user,serial,job,digest,groups,stage,store,source,
+        prepare_helper,execute_helper,publish_helper,deadline,false,true,shared_store);
+}
+int BrokerPrepareConfiguredReconciliationTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t job,uint64_t deadline) {
+    auto* slot=find_planning(owner,user,serial,job);if(!slot)return -1;
+    if(!slot->configured_reconciliation || !slot->reconciliation || slot->configured)return fail(EPERM);
+    if(!owner->package_install_enabled)return fail(ENOTSUP);
+    PackageBoundPlan reviewed;if(BrokerReviewPlanning(owner,user,serial,job,deadline,&reviewed)<0)return -1;
+    return prepare_planned_transaction(owner,user,serial,job,reviewed.preparation.execution.plan_sha256,
+        owner->inputs[0],-1,-1,-1,owner->selection_helper.get(),owner->package_install_helpers[0].get(),
+        owner->package_install_helpers[1].get(),deadline,true,true);
+}
+int BrokerStartConfiguredReconciliation(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t job,uint64_t deadline) {
+    if(!job || job>INT64_MAX)return fail(EINVAL);
+    if(admission(owner,user,serial,deadline)<0)return -1;
+    for(const auto& slot:owner->executions)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial)return fail(ESTALE);
+        if(!slot->configured_reconciliation || slot->configured_intent)return fail(EPERM);
+        const auto& plan=slot->plan;
+        if(plan.kind!=AEGIS_PACKAGE_RECONCILE || !plan.review.present || !slot->has_target
+           || !slot->target.personal || !slot->target.has_previous || slot->target.create
+           || !slot->target.fence_shared_current
+           || strcmp(plan.review.initial_choices,plan.review.result_choices))return fail(EPROTO);
+        // This derives only the already authenticated shared/private intent.
+        // No CLI action, digest or new private choice can enter this transition.
+        const auto digest=plan.plan_sha256;
+        return BrokerStartExecution(owner,user,serial,job,digest,deadline);
+    }
+    return fail(ENOENT);
 }
 int BrokerPreparePersonalTransaction(aegis_broker_owner* owner,const PackagePreparation& plan,
                                       const PackagePublication& target,int groups,int source,

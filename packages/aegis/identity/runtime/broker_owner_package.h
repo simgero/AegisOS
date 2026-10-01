@@ -104,6 +104,24 @@ int BrokerPreparePlannedTransaction(aegis_broker_owner* owner,uint32_t user,uint
 // newly admitted AOSP action approval may later start the Prepared execution.
 int BrokerPrepareConfiguredTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                                         uint64_t job,uint64_t deadline);
+// Separate internal reconciliation transition, restricted to a retained
+// three-view planner job. Archives and their order come only from its owned
+// signed evidence; ordinary package jobs and configured jobs are rejected.
+// Trusted fixture variant uses anchored stores/stage; never a public endpoint.
+int BrokerPreparePlannedReconciliation(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t job,const std::string& digest,int groups,int stage,int store,int source,
+    int prepare_helper,int execute_helper,int publish_helper,int shared_store,uint64_t deadline);
+// Product variant: fixed CE stage/private source, pinned helpers and common
+// publication fence. Register the same job before opening CE or mutating files.
+// Every call requires fresh original AOSP session/id/serial/CE admission.
+int BrokerPrepareConfiguredReconciliationTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t job,uint64_t deadline);
+// Only the retained configured reconciliation job may derive execution from
+// the prior authenticated private choices plus common selection. No new intent,
+// caller digest, reusable grant or CLI package approval is synthesized. Normal
+// install/update/remove actions still need fresh AOSP administrator approval.
+int BrokerStartConfiguredReconciliation(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t job,uint64_t deadline);
 int BrokerCancelPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                           uint64_t job,uint64_t deadline);
 
