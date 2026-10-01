@@ -114,7 +114,8 @@ und `helper-shutdown.txt` mit `clean` kontrollieren. Beim nächsten Start
 oder zurücksetzen. Die erneute AEGIS-Anmeldung entsperrt die persönlichen Daten.
 
 Der Helper ist ein Software-TPM für Entwicklung. Der Hostadministrator gehört
-zur Vertrauensbasis. Eine Migration auf andere Images und das Löschen verwalteter
-Benutzer sind in diesem ersten Ablauf nicht freigegeben; vorhandene Profile
-bleiben erhalten. Die automatischen Testprofile enthalten ausschließlich
-synthetische Benutzer mit nach Testende verworfenen Zufallspasswörtern.
+zur Vertrauensbasis. Eine Migration auf andere Images ist nicht implementiert. `user remove NAME`
+entfernt einen anderen persönlichen Benutzer einschließlich seiner Daten
+und verlangt eine frische Adminprüfung; nur für bewusst zu löschende Konten
+verwenden. Die automatischen Testprofile enthalten ausschließlich synthetische
+Benutzer mit nach Testende verworfenen Zufallspasswörtern.
