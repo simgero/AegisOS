@@ -117,16 +117,21 @@ Programme müssen jeweils unabhängig geprüft werden. Eine Adminfreigabe darf
 die persönliche Installation nicht auf das Administratorkonto umleiten.
 
 Die Paketsteuerung ist aus dem realen Zwei-Benutzer-Durchlauf mit Image
-`020ae750` übernommen. Ihre wiederverwendbare Integration ist vorbereitet;
-ihr nächster vollständiger Produktdurchlauf steht noch aus.
+`020ae750` übernommen. Ihre wiederverwendbare Integration wurde am 1. Oktober
+im Vollimage `f2d1d0e7` für gemeinsame und persönliche Installation, falsche
+und Nicht-Adminfreigabe sowie Aktivierungsstatus ausgeführt. Update, Entfernung
+und die vollständige Konkurrenz-/Abbruchmatrix sind damit nicht abgenommen.
 
 ## Neustart und Belege
 
-### Verwaltete CLI-Löschung: vorbereiteter zusätzlicher Durchlauf
+### Verwaltete CLI-Löschung
 
-Diese neuen Steuerungen benötigen ein Image mit freigegebener verwalteter
-CLI-Löschung. Ihre Vorbereitung ist noch kein bestandener Gasttest.
-Sie verwenden ausschließlich Alpha/Beta aus demselben frischen Testlauf.
+Diese Steuerungen benötigen ein Image mit freigegebener verwalteter
+CLI-Löschung. Alle vier Ablehnungen und die erlaubte Löschung bei zwei
+laufenden GNU-Jobs sind im Vollimage `f2d1d0e7` über die echte AEGIS-CLI
+bestanden; siehe [Produktbelege](component-tests.md). Sie verwenden ausschließlich
+Alpha/Beta aus demselben frischen Testlauf. Eine neue Identität mit anderer
+Seriennummer wird von diesem Treiber ausdrücklich nicht stillschweigend übernommen.
 
 * `remove-denied-unauthenticated`: neuer, noch nicht angemeldeter CLI-Kanal;
   selbst das korrekte Adminpasswort darf keine Sitzung ersetzen.

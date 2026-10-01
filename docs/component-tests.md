@@ -1,3 +1,60 @@
+## Vollimage f2d1d0e7: Paketaktivierung, neue Benutzer und verwaltete Löschung
+
+Der [Vollimage-Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20261001T113029Z-f2d1d0e7-1432afa0)
+`f2d1d0e719f8e992d9af3a72bb3bd6569a195686` wurde am 1. Oktober 2026
+im lokalen Mac-QEMU geprüft. Profil-ID `8d25cccc-bbb8-4146-9c51-a81ac8573ec1`,
+Boot-ID `1dc3c777-73e4-486d-b4e4-571826f7ce2e`; AVB, authentifiziertes ADB,
+FBE und SELinux Enforcing wurden bestätigt. Der unveränderte Hosttreiber aus
+`e4aa8f8` hat SHA-256
+`362d57f2efa3489e97967582dfa8b04cea179d7aa3dd3c33cfcfb490ccef1553`.
+
+- Beide neuen AOSP-Benutzer bestehen ihren ersten richtigen Zugang ohne
+  vorherigen falschen Versuch und führen anschließend echte GNU-Programme aus.
+- Gemeinsames `ed=1.21.1-1` wird mit frischer Adminfreigabe veröffentlicht.
+  Alphas laufender Kontext zeigt `packages=activation-pending` und enthält noch
+  kein `ed`. Nach Kontextneustart meldet er `packages=current` und führt `ed` aus.
+  Der **erst danach angelegte** Beta erhält `ed` bei seinem ersten Runtime-Start.
+- Für Betas privates `hello=2.10-5` scheitern falsches Adminpasswort und korrektes
+  Nicht-Adminpasswort ohne Änderung der Paketauswahlen, Identitäten oder Kontexte.
+  Alphas frische Freigabe veröffentlicht ausschließlich für Antragsteller 11/11.
+  Beta zeigt den ausstehenden Wechsel, behält zunächst `ed` ohne `hello` und
+  führt nach Kontextneustart beide Programme aus. Alpha bleibt `current` ohne
+  Betas privates Paket. Beide persönlichen Dateien bleiben bytegleich.
+- Die echte CLI-Löschung verweigert unangemeldete Aufrufer, Nicht-Admins,
+  Selbstlöschung und falsche frische Adminbestätigung. Identitäten, gestartete
+  Benutzer, CE-Zustand, Schlüsselverzeichnisnamen und Kontexte bleiben gleich.
+- Mit korrekter frischer Adminbestätigung wird der noch laufende Beta gelöscht.
+  AOSP bestätigt den Abschluss für 11/11; zehn geprüfte Daten-/XML-Pfade sowie
+  seine CE-/DE-Schlüsselverzeichnisse fehlen. Alle vorhandenen Benutzerlisten
+  enthalten ihn nicht mehr. Sein zuvor beobachteter Originalprozess endet;
+  Alphas Originalprozess schreitet weiter fort. Alphas Originaldatei und
+  gemeinsame Software werden anschließend aus seiner GNU-Shell geprüft.
+- Vor der Löschung bestehen außerdem gegenseitige Datei-/SIGSTOP-Verweigerungen
+  mit real laufendem Peer davor/danach und sechs getrennten Namespaces.
+
+Lokale Belege: `out/full-build-f2d1d0e7/identity-test/product-proof.json`,
+`verify-product-proof.py` und die dort gehashten Zustandsaufnahmen. Der
+unveränderliche Ereignismitschnitt `product-events.json` hat SHA-256
+`f45746fa2d289f36be42e79728e0c4d9186d6937f5219aa8fc4eb0424b2ea825`.
+Der erste explizite `ed`-Plan scheiterte vor Freigabe; die Ursache ist nicht
+geklärt. Ein späterer identischer Plan gelang. Dieser Wiederholungsversuch
+macht den ersten Fehler nicht zu einem bestandenen Versuch.
+
+**Bestätigte offene Anforderung:** Alphas normale Abmeldung meldet um
+12:29:01 UTC Erfolg, obwohl vold erst um 12:29:03.755 UTC die vollständige
+Bereinigung der zuvor beschäftigten verschlüsselten Inodes bestätigt.
+Die erneute Quellprüfung zeigt: `evictKey()` liefert bei `FILES_BUSY` bereits
+`true`, startet eine asynchrone Bereinigung und `fscrypt_lock_ce_storage()`
+übernimmt dieses Ergebnis. `isCeStorageUnlocked()==false` und die CLI-Antwort
+beweisen daher nicht den geforderten vollständigen Schlüsselentzug bei Erfolg.
+Die sofortige Abmeldebestätigung erfüllt Abschnitt 9 des Entwicklerauftrags
+noch nicht. Abschließend sind CE `[0]` und keine persönlichen Kontexte bestätigt.
+
+ID-Wiederverwendung nach Neustart, unterschiedliche Versionen desselben Pakets,
+die vollständige Installations-/Update-/Entfernungs-/Abbruch-/Konkurrenzmatrix
+und umfassende IPC-Prüfungen bleiben offen. Der gepaarte Zwei-Benutzer-Neustart
+ist am unabhängigen 020-Profil nachgewiesen, nicht an diesem Löschprofil.
+
 ## Zwei Benutzer, Isolation und gepaarter Neustart: 020ae750
 
 Am 2026-10-01 bestaetigt das lokale Vollimage020 zusaetzlich die folgenden
@@ -129,8 +186,8 @@ Test-APK-SHA256:
 
 **Grenze:** Die nativen Fixtures und Java-Instrumentierung ersetzen keine
 verwaltete CLI-Loeschung mit echten AOSP-Zugangsdaten oder Beobachtung eines
-aktiven Produktkontexts. Dafuer wird ein passendes f2d1-Vollimage gebaut.
-Der unabhaengige positive reale Paketabgleich oben gehoert zu Vollimage 020.
+aktiven Produktkontexts. Diese getrennte f2d1-Vollimage-Prüfung ist im neuen
+Abschnitt oben dokumentiert. Der unabhängige reale Paketabgleich gehört zu 020.
 
 ## Gemeinsame Sperre für jede private Veröffentlichung: 020ae750
 

@@ -1,6 +1,6 @@
 # AOSP-Speicheroperationen und Runtime-Abbau
 
-## Verwaltete CLI-Löschung vorbereitet
+## Verwaltete CLI-Löschung im vollständigen Gast geprüft
 
 Nach dem unten dokumentierten echten Plattform-Nachweis wird die bisherige
 pauschale Sperre im CLI-Service entfernt. Der bestehende Backendpfad verlangt
@@ -11,11 +11,28 @@ Der Service hält dabei keinen Runtime-Gate über Framework-Aufrufe hinweg und
 führt nach Freigabe der ID keine zerstörende Nachbereinigung aus. Erfolg wird
 erst nach bestätigter AOSP-Abwesenheit, Benutzerstopp und CE-Sperrung gemeldet.
 
-Vier verweigerte Berechtigungsfälle und eine erfolgreiche Löschung bei laufenden
-GNU-Jobs sind im lokalen Testtreiber vorbereitet. **Die CLI-Änderung ist noch
-nicht gebaut oder im Gast ausgeführt.** Die ältere interne Plattformprüfung
-beweist nicht diese frische Adminautorisierung. Die historischen Abschnitte
-unten beschreiben die jeweilige damalige Sperre.
+Im Vollimage `f2d1d0e7` bestehen am 1. Oktober 2026 vier verweigerte
+Berechtigungsfälle und eine erlaubte CLI-Löschung mit frischer AOSP-Adminprüfung
+bei zwei laufenden GNU-Jobs. Der entfernte Benutzer, seine geprüften Daten- und
+Schlüsselverzeichnisse und sein Originalprozess verschwinden; der andere
+Originalprozess läuft weiter und dessen GNU-Datei bleibt bytegleich.
+Die [Produktbelege](../docs/component-tests.md) grenzen diesen Nachweis von
+ID-Wiederverwendung, Fehlerwiederanlauf und übrigen offenen Anforderungen ab.
+Die historischen Abschnitte unten beschreiben die jeweilige damalige Sperre.
+
+## Offener Abschlussfehler beim normalen CE-Schlüsselentzug
+
+Der reale f2-Durchlauf meldet Logout-Erfolg um 12:29:01 UTC, während vold den
+zunächst unvollständigen fscrypt-Schlüsselentzug erst um 12:29:03.755 bestätigt.
+AOSPs `evictKey()` liefert bei `FSCRYPT_KEY_REMOVAL_STATUS_FLAG_FILES_BUSY`
+bereits Erfolg und startet `waitForBusyFiles()` asynchron. Der AOSP-CE-Status
+kann deshalb schon gesperrt sein, obwohl beschäftigte Inodes noch nicht
+vollständig bereinigt sind. Die bisherigen Prüfungen in
+`stopAndroidUserAndLock()` reichen für die strikte Abschlussanforderung nicht.
+Eine Korrektur muss den tatsächlichen Abschluss oder einen ausstehenden Fehler
+an die AEGIS-Abmeldung zurückgeben; ein fester Schlaf oder ein Logtext-Muster
+ist keine verlässliche Bestätigung. Beim jetzigen Endzustand ist die Bereinigung
+bestätigt, aber die frühere Erfolgsmeldung bleibt ein reproduzierter Fehler.
 
 ## Kennungen während desselben Systemserver-Laufs nicht recyceln
 
