@@ -214,3 +214,11 @@ verwirft seine Passwortpuffer. Android und KeyMint-Helfer sind anschließend
 geordnet heruntergefahren (`reboot: Power down`, Helper `clean`); das Paar
 bleibt zur Diagnose erhalten. Ein neuer lokaler Vollbuild und frischer
 Gesamttest folgen. Kein Build- oder Quellupload ist erfolgt.
+
+Der Folgebuild `c52657113becde42d735669d4d64405c7740cc74` ist im Run
+`/srv/aegis/runs/local-20261001T185629Z-c5265711-Ox6o39` inzwischen
+`LOCAL_BUILD_VERIFIED` (systemd Exitcode 0). Der erneute Hostlauf besteht
+280 Tests, vier Mac-Clone-Tests übersprungen; Beleg
+`out/server-stability/host-tests-c526571.log`. Seine neue lokale QEMU-Kopie
+liegt unter `candidate-c526571`; eine erfolgreiche Wiederholung des zuvor
+fehlgeschlagenen Paketabbruchs ist damit noch nicht behauptet.
