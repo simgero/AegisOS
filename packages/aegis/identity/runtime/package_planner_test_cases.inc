@@ -1041,8 +1041,8 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
     }
     std::string Packages(const char* version) {
         std::string v=version;
-        return "\nPackage: aegis-probe-app\nStatus: install ok installed\nArchitecture: all\nVersion: "+v+
-            "\nDepends: aegis-probe-lib (= "+v+")\nDescription: selected app\n\nPackage: aegis-probe-lib\nStatus: install ok installed\nArchitecture: all\nVersion: "+v+"\nDescription: selected library\n\n";
+        return "\nPackage: aegis-probe-app\nStatus: install ok installed\nArchitecture: all\nMaintainer: AEGIS fixture <test@invalid>\nVersion: "+v+
+            "\nDepends: aegis-probe-lib (= "+v+")\nDescription: selected app\n\nPackage: aegis-probe-lib\nStatus: install ok installed\nArchitecture: all\nMaintainer: AEGIS fixture <test@invalid>\nVersion: "+v+"\nDescription: selected library\n\n";
     }
     void Configure(const std::string& selected_choices,bool remove=false,bool conflict=false,bool downgrade=false) {
         ASSERT_EQ(std::string::npos,initial.find("Package: aegis-probe-app\n"));
@@ -1125,14 +1125,21 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
     }
     // Full source files/control records for the pre-existing fixture packages.
     // These synthetic installed images are never substituted for live CE.
-    void ExecutionSource() {
+    void ExecutionSource(bool corrupt_program=false) {
         Readonly(selected.get(),false);ASSERT_FALSE(HasFatalFailure());
+        // Planning-only tests poison the selected APT executable deliberately.
+        // A positive execution source must pass the unchanged dpkg baseline.
+        const auto apt=Read(previous.get(),"usr/bin/apt-get");ASSERT_NE("<unavailable>",apt);
+        ASSERT_EQ(0,Write(selected.get(),"usr/bin/apt-get",corrupt_program?"#!/bin/sh\nexit 88\n":apt));
+        ASSERT_EQ(0,unlinkat(selected.get(),"etc/apt/apt.conf.d/99aegis-hostile",0));
         ASSERT_EQ(0,Write(selected.get(),"usr/bin/aegis-probe-app","#!/bin/sh\nprintf 'app-1\\n'\n"));
         ASSERT_EQ(0,fchmodat(selected.get(),"usr/bin/aegis-probe-app",0755,0));
         ASSERT_EQ(0,mkdirat(selected.get(),"usr/share/aegis-probe",0755));
         ASSERT_EQ(0,Write(selected.get(),"usr/share/aegis-probe/library","1\n"));
         ASSERT_EQ(0,Write(selected.get(),"var/lib/dpkg/info/aegis-probe-app.list","/.\n/usr\n/usr/bin\n/usr/bin/aegis-probe-app\n"));
         ASSERT_EQ(0,Write(selected.get(),"var/lib/dpkg/info/aegis-probe-lib.list","/.\n/usr\n/usr/share\n/usr/share/aegis-probe\n/usr/share/aegis-probe/library\n"));
+        ASSERT_EQ(0,Write(selected.get(),"var/lib/dpkg/info/aegis-probe-app.md5sums","7864e48c45aa24e5f16d4bbfba7a9202  usr/bin/aegis-probe-app\n"));
+        ASSERT_EQ(0,Write(selected.get(),"var/lib/dpkg/info/aegis-probe-lib.md5sums","b026324c6904b2a9cb4b88d6d61c81d1  usr/share/aegis-probe/library\n"));
         ASSERT_EQ(0,Write(selected.get(),"etc/aegis-reconcile-test.conf","personal=keep\n"));
         ASSERT_EQ(0,Write(selected.get(),"var/lib/aegis-reconcile-owned","technical-owner\n"));
         ASSERT_EQ(0,fchownat(selected.get(),"var/lib/aegis-reconcile-owned",42,42,AT_SYMLINK_NOFOLLOW));
@@ -1246,6 +1253,20 @@ TEST_F(RuntimeReconciliationPlanning, SignedTriplePlanExecutesAndPublishesPreser
     EXPECT_EQ(-1,aegis::BrokerStartConfiguredReconciliation(owner,10,1234,selection_job,Deadline()));EXPECT_EQ(EPERM,errno);
     EXPECT_EQ(-1,aegis::BrokerStartConfiguredPackage(owner,10,1234,selection_job,digest,Deadline()));EXPECT_EQ(EPERM,errno);
     aegis::PackageExecutionResult result;ExecuteOwned(&result);ASSERT_FALSE(HasFatalFailure());VerifyReopened(result,"2");
+}
+TEST_F(RuntimeReconciliationPlanning, ChangedPackagedProgramInSignedPrivateSourcePreventsPublication) {
+    Configure("AEGIS-PRIVATE-CHOICES1\n");ASSERT_FALSE(HasFatalFailure());ExecutionSource(true);ASSERT_FALSE(HasFatalFailure());
+    TransferOwner();ASSERT_FALSE(HasFatalFailure());OwnerReview(2);ASSERT_FALSE(HasFatalFailure());
+    const auto digest=owner_bound.preparation.execution.plan_sha256;
+    ASSERT_EQ(0,PrepareOwned(digest));Prepared(selection_job,digest);ASSERT_FALSE(HasFatalFailure());
+    aegis::PackageExecutionResult result;ExecuteOwned(&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(aegis::PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EBADMSG,result.error);
+    for(const auto& item:std::vector<std::pair<int,aegis::PackageGeneration>>{
+            {shared_store.get(),current_generation},{private_store.get(),private_generation}}) {
+        const bool personal=item.first==private_store.get();
+        std::unique_ptr<aegis::PackageStore> store(aegis::PackageStore::Open(item.first,{personal,personal?10u:0u,personal?1234u:0u},false));ASSERT_TRUE(store);
+        aegis::PackageGeneration actual;Fd file(store->Current(&actual));ASSERT_TRUE(file.ok());EXPECT_EQ(item.second.image_sha256,actual.image_sha256);
+    }
 }
 TEST_F(RuntimeReconciliationPlanning, SignedPrivateVersionOverridePublishesNewBaseWithoutPackageChanges) {
     Configure("AEGIS-PRIVATE-CHOICES1\naegis-probe-app\tall\t1\n");ASSERT_FALSE(HasFatalFailure());ExecutionSource();ASSERT_FALSE(HasFatalFailure());
