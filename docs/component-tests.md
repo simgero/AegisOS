@@ -1,3 +1,88 @@
+## Echter AOSP-Abgleich von privaten und gemeinsamen Paketen: 020ae750
+
+Der [Vollimage-Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20261001T094654Z-020ae750-c9f7b953)
+`020ae750b2e629492c8f6cf6071e549dd6d31152` ist am 2026-10-01 im lokalen
+Mac-QEMU mit SELinux Enforcing, authentifiziertem ADB, FBE, gepruefter AVB-Kette
+und bytegeprueften Produktkomponenten gestartet. Boot-ID:
+`d5d2babb-019f-45e1-99bc-daf29ed0a61a`. Diese Tests liefen ueber die echte
+AEGIS-CLI mit AOSP-Benutzern Simeon (10/10, Admin) und Isabelle (11/11).
+
+Ein falsches Anmeldepasswort wurde abgewiesen; CE blieb gesperrt. Beide Benutzer
+fuehrten anschliessend echte GNU-Programme in ihren eigenen Kontexten aus und
+schrieben getrennte Dateien. Fuer Isabelles private Installation von `hello=2.10-5`
+wurden sowohl ein falsches Adminpasswort als auch das korrekte Passwort der
+Nicht-Administratorin abgewiesen. Gemeinsame und private Auswahlen sowie die
+laufenden Kontexte blieben dabei unveraendert. Simeons frische AOSP-Adminfreigabe
+veroeffentlichte das Paket ausschliesslich fuer die Antragstellerin Isabelle.
+
+Der aktive Kontext behielt seinen bisherigen konsistenten Bestand. Nach STOP/START
+konnte Isabelle `hello` ausfuehren; Simeon erhielt das private Paket nicht.
+Anschliessend wurde `ed=1.21.1-1` mit frischer Adminfreigabe gemeinsam installiert,
+waehrend Isabelles privater Kontext aktiv blieb. Dessen Abbild und laufender
+Paketbestand blieben unveraendert. Beim naechsten regulaeren `linux start` wurde
+automatisch ein neuer privater Bestand aus der aktuellen gemeinsamen Generation
+und Isabelles privater Auswahl erzeugt und aktiviert. Isabelle konnte danach
+`ed` und `hello` ausfuehren. Simeon erhielt nach seinem Kontextneustart `ed`,
+weiterhin aber kein privates `hello`. Beide persoenlichen Dateien wurden nach dem
+Abgleich bytegleich gelesen.
+
+Die unveraenderte gemeinsame Generation ist
+`2d021b1a6ae291ff311bf1b243e4594bbcd99e643153e7caef4c9da08b762498`.
+Isabelles neue private Generation
+`a34cabe4a34353b7fcd7ca48c2b5cd6d2ce89a2e6c43ecd7044dbd7f319e0dc7`
+bleibt an 11/11 gebunden und referenziert genau diese gemeinsame Basis.
+Belege: `out/full-build-020ae750/identity-test/shared-reconciliation-proof.json`,
+der eingefrorene `reconciliation-events.json` und die dort gehashten
+Vorher-/Nachher-Metadaten. Passwoerter verbleiben ausschliesslich im Speicher
+des laufenden Testtreibers.
+
+Eine erste Pruefsummen-Assertion erkannte ein unmittelbar vorangestelltes
+Readline-Moduszeichen nicht. Die echte Datei war korrekt; Rohereignis und erste
+Datei wurden erhalten, die Datei erfolgreich bytegeprueft und der Schreibtest
+anschliessend nachvollziehbar wiederholt. Der Hosttreiber normalisiert jetzt nur
+diese beiden Moduszeichen fuer die Auswertung und bewahrt den Rohmitschnitt.
+
+**Grenzen:** Dies beweist private Installation, gemeinsame Installation und deren
+positiven automatischen Abgleich. Unterschiedliche explizite Versionen desselben
+Pakets, Update/Entfernung mit vollstaendiger Autorisierungsmatrix, Konflikte,
+Parallelitaet/Abbruch, neue Benutzer, weitere Prozess-/IPC-/Temp-Isolation und der
+gepaarte Neustart dieses Profils sind noch offen. Dieses Vollimage enthaelt weder
+den neuen Aktivierungsstatus noch die freigeschaltete verwaltete CLI-Loeschung.
+Die erste richtige Anmeldung nach vorausgegangenem falschem Passwort beweist
+keinen Zugang ohne Aufwaermversuch.
+
+## Komponenten f2d1d0e7: 405 native und 172 Java-Pruefungen
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T111709Z-f2d1d0e7-f2d1d0e7-CaSnZ1)
+`f2d1d0e719f8e992d9af3a72bb3bd6569a195686` besteht am
+2026-10-01T11:26:31Z **405 native Tests aus 34 Suiten** (448.175 ms) und am
+2026-10-01T11:27:23Z **172 Java-Tests aus 17 Klassen**. Beide Laeufe fanden
+nacheinander im getrennten lokalen d0-Testgast statt. Benutzer, Schluessel,
+CE-Zustand und Runtime-Kontexte blieben im Vorher-/Nachher-Vergleich identisch;
+keine ausgewaehlten Tests wurden uebersprungen. Vier echte CE-Fixtures bleiben
+weiterhin deaktiviert.
+
+Der vorherige Komponentenlauf 5a19 scheiterte beim Linken des Produktbrokers:
+Dessen neuer Aktivierungsstatus verwendete `PackageStore` direkt, ohne die
+Bibliothek zu verlinken. f2d1 ergaenzt die Abhaengigkeit in Broker-Owner und
+Produktprogramm. Der neue Build inklusive des zuvor fehlgeschlagenen
+Produkt-Linkschritts ist bestaetigt. Geprueft wurden auch die neuen begrenzten
+Metadaten-/FIFO-Abweisungen, Aktivierungsprotokolle und alle Java-Identitaets-,
+Zulassungs-, Speicher-, Loeschungs-, Paket- und app-lokalen Allocator-Fixtures.
+
+Belege: `out/components-f2d1d0e7/targeted-tests/result.json` und
+`java-tests/result.json`. Native Log-SHA256:
+`fd9cb38ef78965a9b82013d0775069a6c5dd790e9871adbcbbacfb14e95b830b`.
+Java Log-SHA256:
+`43d004233600438bc489f1e703aecd922f7b96c08a68a469bca4691734d479a3`.
+Test-APK-SHA256:
+`ebe51b5465a4be37dc9798b36769bd8a6b227bc32f57171738344a56ca39753a`.
+
+**Grenze:** Die nativen Fixtures und Java-Instrumentierung ersetzen keine
+verwaltete CLI-Loeschung mit echten AOSP-Zugangsdaten oder Beobachtung eines
+aktiven Produktkontexts. Dafuer wird ein passendes f2d1-Vollimage gebaut.
+Der unabhaengige positive reale Paketabgleich oben gehoert zu Vollimage 020.
+
 ## Gemeinsame Sperre für jede private Veröffentlichung: 020ae750
 
 Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T093358Z-020ae750-020ae750-85np3Z)
