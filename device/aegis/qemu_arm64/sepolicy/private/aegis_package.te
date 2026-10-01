@@ -85,6 +85,10 @@ r_dir_file(aegis_runtime_broker, aegis_package_scratch_file)
 allow aegis_runtime_broker aegis_package_scratch_file:file setattr;
 allow { aegis_package_worker aegis_package_program } aegis_package_candidate_file:dir create_dir_perms;
 allow { aegis_package_worker aegis_package_program } aegis_package_candidate_file:file create_file_perms;
+# dpkg atomically saves status-old and regular-file replacements with link(2).
+# Only the package program may link in its detached writable candidate; the
+# readonly selected base and host/shared/private store files gain no rights.
+allow aegis_package_program aegis_package_candidate_file:file link;
 allow { aegis_package_worker aegis_package_program } aegis_package_candidate_file:lnk_file { create getattr read setattr unlink rename };
 
 # The mapped six-capability set is retained by APT/dpkg across exec. It grants

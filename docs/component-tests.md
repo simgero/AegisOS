@@ -1,3 +1,41 @@
+## Produktiver dpkg-Start: Vollimage adee7ad7
+
+Der [Vollbuild](https://github.com/simgero/AegisOS/releases/tag/aosp-20261001T000816Z-adee7ad7-a2241988)
+mit Commit `adee7ad70a6731d89962f9cabf4706f388e40f37` ist auf `aegis-build`
+gebaut und über GitHub rückverglichen. Der lokale QEMU-Boot ist am
+**2026-10-01T00:31:25Z** mit Enforcing, FBE, dm-verity und authentifiziertem ADB
+geprüft; Boot-ID `f61f99fc-6fdf-48e4-9ae6-c9c25efdffa6`. Die vier Pakethelfer
+sind bytegleich mit dem separat durch 62 native Tests geprüften b7-Kern.
+Die unveränderten SU-Suiten wurden für diese Policy-Änderung nicht wiederholt.
+
+Die installierte CLI erstellt Alpha/Beta und verweigert einen nicht angemeldeten
+Aufruf, ein falsches Adminpasswort sowie die Freigabe durch den Nichtadmin Beta.
+Korrekte frische Alpha-Freigaben um 00:35:15 und 00:40:35 UTC erreichen jetzt
+APT und dpkg in deren produktiver Domäne. Die private PTY-Prüfung ist passiert.
+dpkg entpackt `hello`, scheitert aber an der Hardlink-Sicherung `status-old`.
+Es gibt weiterhin keine veröffentlichte Generation und keinen erfolgreichen
+Programmlauf. Alpha bleibt CE-gesperrt. Nach regulärem Logout von Beta sind
+beide Testkonten gestoppt/gesperrt und sämtliche Runtime-Kontexte entfernt.
+
+Das Audit-Limit verwirft weitere Meldungen; die sichtbare FIEMAP-Verweigerung
+ist laut dpkg-Quelltext nicht fatal. Eine rein lesende Entwicklungsroot-Aufnahme
+des zweiten synthetischen Kandidaten bis nach dessen normalem Unlink erhält
+das genaue dpkg-Protokoll. Der zusätzliche Deskriptor ist vor Logout geschlossen,
+temporäre Imagekopien sind gelöscht. Das ist Diagnose, kein Produkt-Isolationsbeleg.
+Die enge Korrektur erlaubt nur dem Paketprogramm `file:link` auf seinem
+schreibbaren Kandidatentyp. Keine ioctl-, Capability-, Scratch- oder Store-Rechte
+kommen hinzu; ein passendes Vollimage muss die tatsächliche Installation beweisen.
+
+Belege: `out/full-build-adee7ad7/identity-test/`, insbesondere `proof.json`,
+`events-accepted.json`, `diagnostic-copy.json`, `diagnostic-aegis-package-5.log`
+und `after-diagnostic-correct-store.json`. Der lokale Beobachter wurde berichtigt:
+Persönliche Auswahlen liegen unter `packages/store/current`, nicht
+`packages/current`. Frühere Aufnahmen des falschen Pfads belegen keine
+unveränderte persönliche Auswahl. Die korrigierte Aufnahme bestätigt die
+tatsächliche Abwesenheit nach dem Fehler; der nächste Negativtest muss den
+richtigen Pfad davor und danach vergleichen. Gemeinsame/private Kohärenz und
+der vollständige Zwei-Benutzer-Neustartablauf bleiben offen.
+
 ## Öffentliche Paketfreigabe: Vollimage 9b8e5065
 
 Der [Vollbuild](https://github.com/simgero/AegisOS/releases/tag/aosp-20260930T233124Z-9b8e5065-61eda95a)

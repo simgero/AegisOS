@@ -1,5 +1,25 @@
 # Kontrollierter Paketabruf
 
+Aktuell erreicht das Vollimage `adee7ad7` nach echter frischer AOSP-Adminfreigabe
+APT/dpkg im lokalen Enforcing-QEMU. Die private PTY-Metadatenprüfung funktioniert.
+Das gesicherte Installationsprotokoll zeigt den nächsten Fehler eindeutig:
+dpkg kann `/var/lib/dpkg/status-old` nicht anlegen. Die verwendete
+[dpkg-Version 1.22.22](https://deb.debian.org/debian/pool/main/d/dpkg/dpkg_1.22.22.tar.xz)
+verwendet in `lib/dpkg/dump.c` und `lib/dpkg/atomic-file.c` einen Hardlink für
+die atomare Sicherung der Datenbank; auch reguläre Dateiersetzungen sichern
+sich so. Die Richtlinie erlaubt deshalb ausschließlich dem Paketprogramm
+`link` auf regulären Dateien seines isolierten Kandidaten. Unveränderliche
+Basis, Host-Stores, Scratch, Symlink-Rechte, ioctls und Fähigkeiten bleiben
+unverändert. Die daneben protokollierte FIEMAP-Abfrage ist nur eine optionale
+Ladeoptimierung und erhält keine neue Berechtigung.
+
+Die Installation ist damit noch nicht nachgewiesen: Der fehlgeschlagene
+Kandidat wurde normal verworfen, beide Testkonten regulär abgemeldet und ihre
+CE-Daten gesperrt. Der neue Policy-Stand benötigt einen passenden Vollbuild und
+erneut die tatsächliche Installation, Ausführung sowie gemeinsame/private
+Update- und Isolationstests. [Belege und Beobachterkorrektur](component-tests.md).
+Die folgenden Abschnitte halten die vorherigen Schritte fest.
+
 Der unveränderliche Paketplaner kann einen vom Broker zugelassenen Internetmodus
 verwenden. Persönliche Shells und die späteren Installationsprogramme behalten
 jeweils ihren eigenen Netzwerkraum ohne diese Verbindung. Die öffentliche
