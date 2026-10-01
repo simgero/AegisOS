@@ -1,3 +1,66 @@
+## Explizite private Auswahl einer installierten Version: 2c7bf728
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T045927Z-2c7bf728-2c7bf728-afFBQL)
+von `2c7bf7284c2a5cd22702f9bb96d3a38d964a048d` besteht am
+**2026-10-01T05:03:27Z alle 291 ausgewählten nativen Tests** aus 26 Suiten
+im lokalen Mac-QEMU (178.968 ms), ohne übersprungene Tests. Entwicklung lokal
+im Worktree, Kompilierung auf `aegis-build`, Transport über GitHub.
+
+Eine unveränderte Installation für den privaten Bereich kann jetzt eine
+bewusste private Auswahl erzeugen. Der tatsächliche APT-No-op liefert eine
+leere Änderungsliste; AEGIS liest Architektur und exakte Version zusätzlich
+aus der eingefrorenen, vollständig geprüften Paketdatenbank. Der daraus
+abgeleitete Effekt bindet alten/neuen Auswahlbestand, Ausgangsstatus und
+Manual-/Automatic-Markierungen in den normalen Freigabeplan. Die CLI zeigt
+„privat festhalten, Version … unverändert“. Die Aktion verlangt weiterhin
+die normale Adminfreigabe; sie ist keine Installation ohne Autorisierung.
+
+Der neue Ausführungstyp führt weder eine erneute Installation noch
+Paket-Skripte aus. Er kontrolliert den Ausgangsbestand unabhängig, markiert
+das Paket manuell, prüft den vollständigen Paketbestand und schreibt die
+private Auswahl atomar vor der normalen Veröffentlichung. Der tatsächliche
+Executor-Test bestätigt unveränderte Paketdateien, Status, Installationsskript-
+Protokoll und persönliche Konfiguration sowie persistente Auswahl nach
+erneutem Mounten. Ein Hold bleibt erhalten. Manipulierte Registries, falsche
+Version/Architektur, unzulässiger Bereich, Replay und fehlende Legacy-Manifeste
+werden zurückgewiesen. Gleiche Versionen in einem behaupteten APT-Paketeffekt
+berechtigen ausdrücklich nicht zum Überspringen von Archiv-/Skriptprüfungen.
+
+Die beiden vorherigen Planner-Fehler wurden durch Testdaten ausgelöst:
+`arm64` im installierten Status passte nicht zum signierten `all`-Archiv,
+wodurch APT einen Architekturwechsel plante. Mit korrekten Daten ist der Hook
+leer. Eine dafür zwischenzeitlich ergänzte Sonderbehandlung wurde wieder
+entfernt. Im anschließenden Lauf `24441e18` bestand dieser Test; eine zeitweise
+unerreichbare Debian-Sicherheitsquelle stoppte den Gesamtlauf. Der hier
+berichtete Folgelauf prüfte auch den echten HTTPS-/Signaturabruf erfolgreich.
+
+**54 Android-Instrumentierungstests** für Paketprotokoll (18), Transaktion
+(14), Freigabe (14) und CLI (8) bestanden bereits mit `f17a043c` am
+2026-10-01T04:39:53Z. Das jetzige Test-APK ist nachweislich byte-identisch
+(`27a753132d1d286f62cbb3128d67c9ea40b62fc283fba6fc0214e4b117517c4c`); Quelllog und Nachweis
+wurden geprüft, die unveränderten Tests nicht wiederholt.
+
+Belege: `out/components-2c7bf728/targeted-tests/` und
+`out/components-2c7bf728/java-proof-reuse.json`, ursprünglicher Java-Nachweis
+`out/components-f17a043c/java-tests/`. Native Log-SHA256:
+`856761ff260b0f2c4b52be5cd30744bf612504efdb1569d8528d56e1400672af`.
+Vorher-/Nachherzustand identisch:
+`7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+Boot-ID `18880c8d-4132-48e9-a4de-9bb2823599a6`; Alpha/Beta gestoppt und
+CE-gesperrt, keine persönlichen Kontexte, SELinux Enforcing, echter Broker aktiv.
+Drei abgeschlossene fehlerhafte synthetische Testimages wurden nach Prüfung
+auf Prozess-/Loop-Freiheit entfernt; Logs und Prüfsummen bleiben erhalten.
+
+**Grenzen:** Das installierte Vollimage bleibt `d0b866e1`. Synthetische native
+Fixtures und Java-Freigabetests beweisen noch keine tatsächliche neue
+AOSP-Passwortfreigabe im installierten Produkt. Vier echte CE-Fixtures bleiben
+deaktiviert. Die Zusammenführung neuer gemeinsamer Generationen mit privaten
+Versionen, Abhängigkeiten, Konfigurationen und technischen Kennungen,
+ausgewiesene Rückkehr zur gemeinsamen Variante nach privater Entfernung,
+ausstehende Aktivierung, Konflikt-/Reparaturanzeige und vollständige
+Produktabnahme bleiben offen. Die private Beta-Generation mit alter
+Gemeinschaftsbasis ist weiterhin kein erfolgreicher Reconciliation-Nachweis.
+
 ## Dauerhafte private Paketauswahl: 1fb194c9
 
 Der [Komponentenbuild](https://github.com/simgero/AegisOS/releases/tag/components-20261001T040359Z-1fb194c9-1fb194c9-cF0wUJ)

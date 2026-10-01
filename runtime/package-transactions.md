@@ -1,5 +1,23 @@
 ## Aktueller Stand: gemischte Transaktionen; gemeinsame/private Zusammenführung offen
 
+Der Komponentenstand `2c7bf728` besteht **291 native Prüfungen**; die
+byte-identische Java-Test-App behält ihren **54-Test-Nachweis**. Eine bereits
+installierte Version lässt sich nun ausdrücklich privat auswählen: Der normale
+Freigabeplan bindet die geprüfte installierte Version und die dauerhafte private
+Auswahl. Die Ausführung ändert nur Auswahl und manuelle Markierung, führt keine
+erneute Installation oder Paket-Skripte aus und veröffentlicht erst nach
+unabhängiger Prüfung des vollständigen Bestands. Die echte APT-No-op-Auflösung
+ist leer; behauptete gleichversionige Paketänderungen werden abgewiesen.
+[Nachweis und Grenzen](../docs/component-tests.md).
+
+Dieser Stand ist noch nicht im Vollimage installiert. Die Zusammenführung
+bleibt offen: bisherige gemeinsame Generation, neue gemeinsame Generation und
+private Auswahl müssen gemeinsam aufgelöst werden. Ausgangspunkt für die
+Ausführung muss der vollständige bisherige private Bestand sein, damit
+Konfiguration, technische Kennungen und Paketdatenbank erhalten bleiben.
+Ein neuer gemeinsamer Hash allein darf die bisherige private Bindung nicht
+umschreiben oder einen unveränderten alten Bestand als aktiviert ausweisen.
+
 Die tatsächliche CLI im Vollimage `d0b866e1` hat frische AOSP-Adminfreigabe,
 private Installation sowie private Dateien/Pakete über Logout, gemeinsamen
 Android-/KeyMint-Neustart und Passwortwechsel nachgewiesen. Eine anschließende
