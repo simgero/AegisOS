@@ -46,6 +46,11 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class AegisIdentityService extends SystemService {
     public static final String SERVICE_NAME = "aegis_identity";
     private static final int MAX_SESSIONS = 16;
+    // Exact-job cleanup may include synchronous filesystem cleanup. Two seconds
+    // can expire during an otherwise valid TCG reply and poison the shared
+    // connection. Remain below the protocol's ten-second hard limit; this
+    // metadata-only budget grants no admission or credential authority.
+    private static final long CLEANUP_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(8);
     private static final int ERROR_AUTH = 1;
     private static final int ERROR_RETRY = 2;
     private static final int ERROR_STATE = 3;
@@ -248,7 +253,7 @@ public final class AegisIdentityService extends SystemService {
             try {
                 try { job.requireBinding(); }
                 catch (SecurityException revoked) { job.transaction.seal(); }
-                job.transaction.cleanup(System.nanoTime() + TimeUnit.SECONDS.toNanos(2));
+                job.transaction.cleanup(System.nanoTime() + CLEANUP_TIMEOUT_NANOS);
             } catch (RuntimeException unconfirmed) {
                 // Failed replies or cancellation retain ownership until retry/whole STOP.
             } finally { job.retireIfFinished(); }
@@ -258,7 +263,7 @@ public final class AegisIdentityService extends SystemService {
                 if (!terminal.needsResult()) continue;
                 // Metadata-only cleanup of a previously authorized command.
                 // No new exec, file access, AOSP call or identity authority.
-                terminal.collectResult(System.nanoTime() + TimeUnit.SECONDS.toNanos(2));
+                terminal.collectResult(System.nanoTime() + CLEANUP_TIMEOUT_NANOS);
             } catch (RuntimeException failure) {
                 // Retain unresolved ownership. A later confirmed user STOP
                 // retires it; a broken native connection never proves cleanup.
@@ -834,7 +839,7 @@ public final class AegisIdentityService extends SystemService {
             @Override public android.os.Bundle cancel() {
                 owner.requireSameCaller();
                 transaction.seal();
-                try { transaction.cleanup(System.nanoTime() + TimeUnit.SECONDS.toNanos(2)); }
+                try { transaction.cleanup(System.nanoTime() + CLEANUP_TIMEOUT_NANOS); }
                 catch (RuntimeException unconfirmed) { /* Keep the job for the registered reaper. */ }
                 retireIfFinished();
                 return transaction.view(true);

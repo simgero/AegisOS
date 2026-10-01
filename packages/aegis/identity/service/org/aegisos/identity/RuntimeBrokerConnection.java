@@ -141,6 +141,11 @@ final class RuntimeBrokerConnection {
                 if (socket == null) connect(deadline);
                 return exchange(operation, user, serial, deadline, arguments, command);
             } catch (IOException | ErrnoException | RuntimeException failure) {
+                // No exception message, packet, credential or private path is
+                // logged. Keep enough information to diagnose a failed channel.
+                android.util.Slog.w("AegisRuntime", "Control channel failed: operation="
+                        + operation + " cause=" + failure.getClass().getSimpleName()
+                        + " deadlineExpired=" + (System.nanoTime() >= deadline));
                 poison();
                 // No paths, received bytes or provider exception text cross the public service.
                 throw new IllegalStateException("Runtime channel failed; native completion is unconfirmed");
