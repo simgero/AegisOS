@@ -1,3 +1,41 @@
+## Gemeinsame Sperre für jede private Veröffentlichung: 020ae750
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T093358Z-020ae750-020ae750-85np3Z)
+`020ae750b2e629492c8f6cf6071e549dd6d31152` besteht am
+**2026-10-01T09:43:16Z alle 371 ausgewählten nativen Tests** aus 30 Suiten
+im lokalen Mac-QEMU (467.106 ms), ohne übersprungene Tests. Der Build auf
+`aegis-build` dauerte 1 Minute 10 Sekunden; Transport und Integritätsprüfung
+über GitHub. Die bisherigen 54 Java-Tests sind durch das byte-identische APK
+und erneut geprüfte Originalbelege bestätigt; sie wurden nicht erneut ausgeführt.
+
+Jeder gebundene private Installations-, Update- oder Entfernungsplan bindet nun
+auch die aktuelle gemeinsame Generation. Nur die aus der gepinnten Factory-Basis
+abgeleitete Berechtigung erlaubt einen noch leeren gemeinsamen Store. Ein eigener
+Verzeichnis-Lock verhindert gleichzeitig dessen erste Initialisierung, ohne dabei
+Paketmetadaten anzulegen. Teilweise vorhandene Metadaten gelten nicht als leer.
+Die gemeinsame Sperre bleibt bis zur dauerhaften privaten Veröffentlichung gehalten.
+
+Sieben zusätzliche Tests prüfen diese Bindung, das Initialisierungsrennen, gültige
+leere Stores, den ersten gemeinsamen Generationswechsel und die Ablehnung
+unvollständiger Metadaten. Der unabhängige Digest-Vektor für gewöhnliche Pläne wurde
+auf Version 6 aktualisiert; der getrennte Reconciliation-Plan bleibt Version 5.
+Die zuvor verbundene Start-/Abgleichskette und sämtliche ausgewählten APT-,
+Ausführungs-, Veröffentlichungs- und Auswahltests bestehen ebenfalls.
+
+Belege: `out/components-020ae750/targeted-tests/` und `java-proof-reuse.json`.
+Native Log-SHA256:
+`239813427749d6fed9ad8ced53b87055ad1b4756eb95c85fd3d430584a290514`.
+Vorher/Nachher identisch:
+`7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+Alpha/Beta bleiben gestoppt und CE-gesperrt; Boot, Benutzer, Schlüssel, Enforcing
+und Runtime-Kontexte sind unverändert. Vier reale CE-Fixtures bleiben deaktiviert.
+
+**Grenze:** Diese nativen Tests nutzen eigene synthetische Abbilder. Die positiven
+konfigurierten CE-Pfade, echte AOSP-Admission und SELinux-Ausführung im installierten
+Produkt sind dadurch noch nicht bewiesen. Dafür wird das passende Vollimage gebaut;
+anschließend folgen echte Benutzeranmeldungen, private und gemeinsame Aktionen,
+automatischer Abgleich, Konflikte und gemeinsamer Android-/KeyMint-Neustart.
+
 ## Runtime-Start mit konfiguriertem Abgleich verbunden: 1afeb727
 
 Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T091056Z-1afeb727-1afeb727-Y1pKT9)

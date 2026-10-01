@@ -1,4 +1,26 @@
-## Aktueller Stand: Startablauf mit internem Paketabgleich verbunden
+## Aktueller Stand: private Veröffentlichung gegen gemeinsame Änderungen gesperrt
+
+`020ae750` besteht **371 ausgewählte native Prüfungen** im lokalen QEMU.
+Die vorherigen **54 Java-Tests** sind über das identische APK und erneut geprüfte
+Originalbelege bestätigt. [Belege und Grenzen](../docs/component-tests.md).
+
+Gewöhnliche private Installationen, Updates und Entfernungen binden und sperren
+jetzt ebenso wie der interne Abgleich die geprüfte gemeinsame Generation.
+Die Erlaubnis einer noch fehlenden gemeinsamen Auswahl wird ausschließlich aus
+der gepinnten Factory-Basis abgeleitet. Ein eigener Verzeichnis-Lock verhindert
+auch das Rennen mit der allerersten gemeinsamen Initialisierung; fehlende oder
+unvollständige Paketmetadaten werden dabei nicht als gültiger leerer Store ersetzt.
+Die Sperre wird bis zur dauerhaften privaten Auswahl gehalten. Ein zwischenzeitlicher
+Basiswechsel verweigert die Veröffentlichung vor der privaten Mutation.
+
+Die automatische Start-/Abgleichskette ist implementiert. Ihr positiver Nachweis
+mit tatsächlicher AOSP-Admission, festen CE-Pfaden und Produkt-SELinux bleibt offen.
+Das passende Vollimage folgt auf die Komponentenprüfungen. Danach sind der vollständige
+Ablauf mit zwei Benutzern, Adminfreigaben, Versionen, Konflikten, ausstehender
+Aktivierung und gemeinsamem Android-/KeyMint-Neustart zu prüfen. Das vorhandene
+`d0b866e1` samt Benutzern und Schlüsseln bleibt bis zum getesteten Ersatz erhalten.
+
+## Vorheriger Stand: Startablauf mit internem Paketabgleich verbunden
 
 Der Broker behält jetzt eine einzige öffentliche Start-ID über Auswahl, optionalen
 Abgleich, Veröffentlichung und erneute Auswahl hinweg. Jede Fortsetzung prüft
