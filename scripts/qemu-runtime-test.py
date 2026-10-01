@@ -8,6 +8,7 @@ Do not use a personal profile. Existing users or output directories are refused.
 It never boots, shuts down, resets, promotes or deletes a profile.
 """
 import argparse, hashlib, json, os, pty, re, secrets, select, shlex, signal, subprocess, sys, time, fcntl, struct, termios, uuid
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 def checked_output(*args, **kwargs):
@@ -63,6 +64,7 @@ OUT.mkdir(parents=True,exist_ok=False)
 credentials = {name: bytearray(secrets.choice(b'abcdefghjkmnpqrstuvwxyz23456789')
                               for _ in range(16)) for name in ('alpha', 'beta', 'newbeta', 'wrong')}
 names = {'alpha': 'Runtime Test Alpha', 'beta': 'Runtime Test Beta'}
+current_credentials = {'alpha':'alpha', 'beta':'beta'}
 probes = {name: secrets.token_bytes(4096) for name in names}
 gnu_probes = {name: secrets.token_hex(512) for name in names}
 gnu_files = {name: 'proof-'+secrets.token_hex(12) for name in names}
@@ -398,6 +400,31 @@ def start_background(key):
            'token':token,'bounded_seconds':1800,'scope':'Real GNU process; survival checks remain pending'})
 
 
+
+def renew_background(key):
+    """Create a fresh liveness probe only after the original process is proven gone."""
+    assert shell_active and key in backgrounds
+    previous=backgrounds[key]
+    assert {'host_pid','starttime','boot_id'} <= set(previous)
+    boot=checked_output(ADB+['shell','cat','/proc/sys/kernel/random/boot_id'],text=True,timeout=20).strip()
+    if boot==previous['boot_id']:
+        path='/proc/'+str(previous['host_pid'])+'/stat'
+        value=checked_output(ADB+['shell','su 0 sh -c '+shlex.quote(
+            'if test -r '+path+'; then cat '+path+'; fi')],text=True,timeout=20).strip()
+        assert not value or value.rsplit(') ',1)[1].split()[19]!=previous['starttime'], 'Original probe still exists'
+    else:
+        checkpoint=json.loads((OUT/'reboot-checkpoint.json').read_text())
+        assert checkpoint['status']=='BOTH_GNU_CONTEXTS_REMOVED_CE_LOCKED_BEFORE_REBOOT'
+        assert checkpoint['boot_id']==previous['boot_id'] and checkpoint['profile_id']==PROFILE_ID
+    # Positive byte readback must precede a replacement probe; never rewrite the
+    # previous marker or silently reinterpret a numeric PID from another boot.
+    gnu_file('read',key)
+    record('background-retired-before-renewal-'+key,dict(previous))
+    del backgrounds[key]
+    background_tokens[key]='AEGIS_BG_'+secrets.token_hex(12)
+    start_background(key)
+
+
 def observe_background(key, gone=False):
     """Developer-root oracle; never a substitute for another user's denial."""
     job=backgrounds[key]
@@ -588,6 +615,87 @@ def reboot_checkpoint():
     record('reboot-checkpoint',result)
 
 
+def removal_state():
+    """Read public identity metadata and key-directory presence, never key contents."""
+    def root(command):
+        return checked_output(ADB+['shell','su 0 sh -c '+shlex.quote(command)],text=True,timeout=30).strip()
+    dump=root('dumpsys user')
+    return {'identities':re.findall(r'UserInfo\{[^\n]+ serialNo=[^\n]+',dump),
+            'started':next(x.strip() for x in dump.splitlines() if 'Started users state:' in x),
+            'ce':root('dumpsys mount | grep "^CE unlocked users: "'),
+            'ce_key_ids':root('ls -1 /data/misc/vold/user_keys/ce'),
+            'de_key_ids':root('ls -1 /data/misc/vold/user_keys/de'),
+            'contexts':root('find /sys/fs/cgroup/aegis-runtime/contexts -mindepth 1 -maxdepth 1 -type d')}
+
+
+def removal_denied(kind):
+    assert not shell_active and held_login is None and set(users)=={'alpha','beta'}
+    action('removal-authority-before-'+kind,'status')
+    status=events[-1]['output']
+    actor='beta' if kind=='nonadmin' else 'alpha'
+    if kind=='unauthenticated':
+        assert 'terminal=unauthenticated' in status
+    else:
+        assert re.search(r'(?m)^user='+str(users[actor][0])+r' serial='+str(users[actor][1])+r' ',status)
+        assert 'foreground=true running=true ce=unlocked' in status
+        assert ('admin=false' if kind=='nonadmin' else 'admin=true') in status
+    target='alpha' if kind in ('self','nonadmin') else 'beta'
+    before=removal_state()
+    action('remove-denied-'+kind,'user remove '+shlex.quote(names[target]),
+           [('Adminpasswort für die Löschung dieses Benutzers und seiner Daten: ',
+             'wrong' if kind=='wrong-password' else current_credentials[actor])])
+    response=events[-1]['output']
+    expected='AOSP hat das Passwort abgewiesen.' if kind=='wrong-password' else 'Aktion abgelehnt.'
+    assert expected in response and 'AOSP user absent' not in response
+    after=removal_state()
+    assert before==after,'Denied removal changed user, key-directory or runtime state'
+    record('remove-denial-state-unchanged-'+kind,after)
+
+
+def remove_beta():
+    assert not shell_active and held_login is None and set(users)=={'alpha','beta'}
+    required={'remove-denial-state-unchanged-'+x for x in ('unauthenticated','nonadmin','self','wrong-password')}
+    assert required <= {e['action'] for e in events},'Run the four real permission checks first'
+    action('removal-authority-before-success','status')
+    assert re.search(r'(?m)^user='+str(users['alpha'][0])+r' serial='+str(users['alpha'][1])+r' ',events[-1]['output'])
+    assert 'admin=true' in events[-1]['output'] and 'foreground=true running=true ce=unlocked' in events[-1]['output']
+    observe_background('alpha');observe_background('beta')
+    before=removal_state()
+    action('remove-beta-with-fresh-admin-password','user remove '+shlex.quote(names['beta']),
+           [('Adminpasswort für die Löschung dieses Benutzers und seiner Daten: ','alpha')])
+    assert 'AOSP user absent; user stopped and CE storage locked' in events[-1]['output']
+    assert 'runtime=removed' in events[-1]['output']
+    uid,serial=users['beta']
+    assert 'user='+str(uid)+' serial='+str(serial) in events[-1]['output']
+    after=removal_state()
+    assert not any('UserInfo{'+str(uid)+':' in row for row in after['identities'])
+    assert uid not in [int(x) for x in re.findall(r'\d+',after['ce'])]
+    assert str(uid) not in after['ce_key_ids'].splitlines() and str(uid) not in after['de_key_ids'].splitlines()
+    assert '/u'+str(uid)+'-s'+str(serial) not in after['contexts']
+    paths=[f'/data/{part}/{uid}' for part in ('misc_ce','misc_de','user','user_de','system_ce','system_de','system/users')]
+    paths += [f'/data/system/users/{uid}.xml'+suffix for suffix in ('','.backup','.reservecopy')]
+    for path in paths:
+        result=run_control(ADB+['shell','su 0 stat '+shlex.quote(path)],text=True,capture_output=True,timeout=20)
+        assert result.returncode!=0 and 'No such file or directory' in result.stderr and 'Permission denied' not in result.stderr
+    lists={}
+    for suffix in ('','.backup','.reservecopy'):
+        path='/data/system/users/userlist.xml'+suffix
+        result=run_control(ADB+['shell','su 0 stat '+shlex.quote(path)],text=True,capture_output=True,timeout=20)
+        if result.returncode:
+            assert 'No such file or directory' in result.stderr and 'Permission denied' not in result.stderr
+            lists[path]=None
+        else:
+            xml=checked_output(ADB+['shell','su','0','/system/bin/abx2xml',path,'-'],text=True,timeout=20)
+            lists[path]=[entry.attrib['id'] for entry in ET.fromstring(xml).findall('user')]
+            assert str(uid) not in lists[path]
+    assert lists['/data/system/users/userlist.xml'] is not None
+    logs=checked_output(ADB+['shell','logcat','-d','-v','brief','UserManagerService:V','*:S'],text=True,timeout=30)
+    assert f'AOSP user removal committed for {uid}/{serial}' in logs
+    observe_background('beta',gone=True);observe_background('alpha')
+    record('managed-cli-removal-confirmed',{'before':before,'after':after,'absent_paths':paths,'user_lists':lists,
+           'scope':'Fresh AOSP admin password through actual CLI; synthetic Beta removed; Alpha original job still running. No post-reboot reuse claim.'})
+
+
 print('READY: fresh-profile test controls. See docs/runtime-gnu-test-driver.md. No user has been created yet.', flush=True)
 try:
     for line in sys.stdin:
@@ -657,6 +765,8 @@ try:
             elif cmd == 'passwd-b':
                 action(cmd, 'passwd', [('Bisheriges Passwort: ', 'beta'), ('Neues Passwort: ', 'newbeta'),
                                        ('Neues Passwort wiederholen: ', 'newbeta')])
+                assert 'Password changed by AOSP' in events[-1]['output']
+                current_credentials['beta']='newbeta'
             elif cmd == 'shell': start_shell()
             elif cmd == 'basic-runtime': basic_runtime()
             elif cmd == 'home-initial':
@@ -740,7 +850,12 @@ try:
                 record('cli-exit-status',{'code':code,'expected_previous_shell_exit':7})
                 assert code==7, 'GNU exit status did not reach the client'
             elif cmd.startswith('expect-ce '): expect_ce(cmd[len('expect-ce '):])
+            elif re.fullmatch(r'gnu-bg-renew-[ab]',cmd):
+                renew_background('alpha' if cmd.endswith('-a') else 'beta')
             elif cmd == 'reboot-checkpoint': reboot_checkpoint()
+            elif cmd in ('remove-denied-unauthenticated','remove-denied-nonadmin','remove-denied-self','remove-denied-wrong-password'):
+                removal_denied(cmd[len('remove-denied-'):])
+            elif cmd == 'remove-beta': remove_beta()
             elif cmd == 'scan':
                 paths = [p for d in RUN.parent.glob('boot-*')
                          for p in d.glob('*.log')]

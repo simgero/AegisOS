@@ -92,6 +92,42 @@ synthetische Dateiproben werden protokolliert; keine fremden Secrets verwenden.
 
 ## Neustart und Belege
 
+### Verwaltete CLI-Löschung: vorbereiteter zusätzlicher Durchlauf
+
+Diese neuen Steuerungen benötigen ein Image mit freigegebener verwalteter
+CLI-Löschung. Ihre Vorbereitung ist noch kein bestandener Gasttest.
+Sie verwenden ausschließlich Alpha/Beta aus demselben frischen Testlauf.
+
+* `remove-denied-unauthenticated`: neuer, noch nicht angemeldeter CLI-Kanal;
+  selbst das korrekte Adminpasswort darf keine Sitzung ersetzen.
+* `remove-denied-nonadmin`: als Beta darf dessen korrektes Passwort keine
+  Löschung von Alpha autorisieren.
+* `remove-denied-self`: Alpha darf sich aus seiner eigenen Sitzung nicht löschen.
+* `remove-denied-wrong-password`: Alpha mit falscher frischer Bestätigung darf
+  Beta nicht löschen.
+
+Jede Ablehnung verlangt die passende tatsächliche Fehlermeldung und dieselben
+AOSP-Identitäten, gestarteten Benutzer, CE-Zustände, Schlüsselverzeichnisnamen
+und Runtime-Kontexte davor/danach. Schlüsselinhalt wird nicht gelesen.
+Die ursprünglichen Hintergrundprozesse separat mit `bg-observe-a/b` prüfen.
+
+Nach einem bereits belegten Passwortwechsel verwendet der Nicht-Admin-Test
+das neue Passwort. Für Löschprüfungen nach dem Persistenz-Neustart erzeugt
+`gnu-bg-renew-a/b` neue, begrenzte Hintergrundproben: Der alte Prozess muss
+nachweislich weg sein, bei gewechselter Boot-ID muss der ursprüngliche
+Neustart-Checkpoint vorliegen, und die GNU-Datei wird zuvor bytegleich gelesen.
+Die alten Prozessbelege bleiben erhalten.
+
+Nach diesen vier Prüfungen entfernt `remove-beta` den noch laufenden Beta über
+die echte CLI mit frischer Adminbestätigung. Beide ursprünglichen Jobs müssen
+vorher existieren. Danach müssen Beta, dessen Schlüsselverzeichnisse, sämtliche
+geprüften Daten-/XML-Pfade sowie Einträge in allen vorhandenen Benutzerlisten
+fehlen; AOSPs Abschlussmeldung muss zur ursprünglichen ID/Seriennummer passen.
+Betas Originalprozess muss beendet sein und Alphas weiterlaufen. Anschließend
+Alphas GNU-Datei bytegleich lesen und Alpha regulär abmelden. Der Durchlauf ist
+kein Ersatz für einen separaten Zwei-Benutzer-Persistenztest, da Beta gelöscht
+wurde.
+
 Vor einem Neustart beide Benutzer mit der CLI vollständig abmelden, tatsächliche
 CE-Sperre und Ressourcenabbau bestätigen und `close` ausführen. Erst dann kann
 `reboot-checkpoint` den Zustand festhalten. Er verlangt zwei tatsächlich

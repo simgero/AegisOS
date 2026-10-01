@@ -651,7 +651,7 @@ public final class AospIdentityBackend {
         }
     }
 
-    /** Runtime processes/mounts must already be quiesced by the enclosing coordinator. */
+    /** Integrated AOSP storage barriers quiesce runtime access before key removal. */
     public synchronized void removePersonalUser(UserKey actor, LockscreenCredential adminPassword,
             UserKey target, OperationGuard guard) throws RemoteException {
         long identity = Binder.clearCallingIdentity();

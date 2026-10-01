@@ -1,5 +1,22 @@
 # AOSP-Speicheroperationen und Runtime-Abbau
 
+## Verwaltete CLI-Löschung vorbereitet
+
+Nach dem unten dokumentierten echten Plattform-Nachweis wird die bisherige
+pauschale Sperre im CLI-Service entfernt. Der bestehende Backendpfad verlangt
+weiterhin eine angemeldete andere AOSP-Adminidentität, frische Passwortprüfung,
+zulässige AOSP-Restrictions und unveränderte ID/Seriennummer. AOSP selbst führt
+den bestätigten Stopp und Abbau innerhalb der reservierten Identität aus.
+Der Service hält dabei keinen Runtime-Gate über Framework-Aufrufe hinweg und
+führt nach Freigabe der ID keine zerstörende Nachbereinigung aus. Erfolg wird
+erst nach bestätigter AOSP-Abwesenheit, Benutzerstopp und CE-Sperrung gemeldet.
+
+Vier verweigerte Berechtigungsfälle und eine erfolgreiche Löschung bei laufenden
+GNU-Jobs sind im lokalen Testtreiber vorbereitet. **Die CLI-Änderung ist noch
+nicht gebaut oder im Gast ausgeführt.** Die ältere interne Plattformprüfung
+beweist nicht diese frische Adminautorisierung. Die historischen Abschnitte
+unten beschreiben die jeweilige damalige Sperre.
+
 ## Kennungen während desselben Systemserver-Laufs nicht recyceln
 
 Die Quellprüfung nach dem erfolgreichen 73ddcb61-Durchlauf bestätigt eine
@@ -19,14 +36,18 @@ zweite Benutzerverwaltung. Nach Neustart können vollständig entfernte IDs
 normal wiederverwendet werden; partielle Benutzer bleiben durch ihre
 persistenten AOSP-Einträge reserviert und werden wie zuvor wiederhergestellt.
 
-Diese Änderung ist **noch nicht in einem neuen Android-Image kompiliert oder
-im Gast geprüft**. Die Hostprüfungen kontrollieren Einbau und Erhalt der
-Quellinvarianten, nicht das Verhalten eines erschöpften echten AOSP-Allocators.
-Verwaltete CLI-Löschung bleibt gesperrt. Die Änderung behauptet weder synchrone
+Diese Änderung ist im [Vollimage 927cf51d](https://github.com/simgero/AegisOS/releases/tag/aosp-20260929T153553Z-927cf51d-17d08c57)
+kompiliert, über GitHub verifiziert und am 29. September um 16:01 UTC im lokalen
+Gast mit Enforcing, FBE und tatsächlichem dm-verity gestartet. Die gezielte
+Allocator-Gastprüfung ist im Komponentenstand `be9d0d54` um 16:05 UTC zusammen
+mit allen bisherigen Java-Tests bestanden (91/91). Die Hostprüfungen kontrollieren Einbau
+und Erhalt der Quellinvarianten, nicht das Verhalten eines erschöpften echten
+AOSP-Allocators. In diesem Image bleibt verwaltete CLI-Löschung noch gesperrt.
+Die Änderung behauptet weder synchrone
 StrongAuth-Aufräumarbeiten noch eine umfassende Prüfung fremder nativer Dienste
 über einen Systemserver-Neustart hinweg.
 
-Für die gezielte Gastprüfung sind drei Instrumentierungstests vorbereitet:
+Für die gezielte Gastprüfung wurden drei Instrumentierungstests ausgeführt:
 eine tatsächlich freie Lücke, ein erschöpfter Nummernraum mit mehr entfernten
 IDs als der bisherigen Recent-Liste und ausschließlich entfernte persönliche
 IDs. Wiederholte Vergabeversuche dürfen Reservierungen nicht abbauen.
@@ -35,9 +56,12 @@ ein, einschließlich der bisherigen AEGIS-Speicherklassen, ohne zweite Kopie
 dieser Klassen. Die Fixture verwendet wie AOSPs ursprünglicher Recycling-Test
 einen prozesslokalen `UserManagerService` mit eigenem App-Cache-Verzeichnis.
 Sie bearbeitet ausschließlich dessen Testtabellen und erzeugt keine echten
-persönlichen AOSP-Benutzer oder Schlüssel. Die Tests sind vorbereitet, aber
-noch nicht auf Android kompiliert oder ausgeführt; der komplette bisherige
-Java-Testumfang muss wegen des geänderten Test-APKs erneut laufen.
+persönlichen AOSP-Benutzer oder Schlüssel. Der komplette bisherige
+Java-Testumfang wurde wegen des geänderten Test-APKs erneut ausgeführt.
+Echte Benutzer, gestartete Sitzungen, CE-Zustände, Schlüsselverzeichnisnamen
+und Runtime-Kontexte sind vor und nach den Tests identisch.
+Die [Komponentenbelege](../docs/component-tests.md) enthalten APK-/Log-Hashes
+und die genaue Trennung zwischen isolierter Fixture und live Systemserver.
 
 ## Plattformlöschung, Wiederherstellung und neue Identität: 73ddcb61
 

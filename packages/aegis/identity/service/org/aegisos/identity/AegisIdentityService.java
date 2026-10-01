@@ -169,14 +169,6 @@ public final class AegisIdentityService extends SystemService {
         }
     }
 
-    private static void requireRuntimeAbsent() {
-        // User deletion still requires AOSP's confirmed cleanup before numeric
-        // ID release. Do not enable managed removal with a post-removal retry.
-        if (!"absent".equals(SystemProperties.get("ro.aegis.runtime.mode"))) {
-            throw new IllegalStateException("Runtime lifecycle coordinator is not configured");
-        }
-    }
-
     private long epoch(int userId) {
         return revocations.computeIfAbsent(userId, ignored -> new AtomicLong()).get();
     }
@@ -596,14 +588,17 @@ public final class AegisIdentityService extends SystemService {
                 return checked(() -> {
                     AospIdentityBackend.UserKey actor = requireAuthenticated();
                     AospIdentityBackend.UserKey target = backend.resolveName(name);
-                    requireRuntimeAbsent();
                     try (LockscreenCredential admin = credential(adminPassword)) {
+                        // The integrated AOSP stop/removal paths own the storage
+                        // barrier and retain the original identity until cleanup
+                        // completes. Do not hold a runtime gate across AOSP calls
+                        // or perform destructive cleanup after its ID is released.
                         backend.removePersonalUser(actor, admin, target, mutationGuard(actor));
                     }
                     revoke(target.id);
                     return "AOSP user absent; user stopped and CE storage locked"
                             + " user=" + target.id + " serial=" + target.serial
-                            + " runtime=not-installed";
+                            + (runtime == null ? " runtime=not-installed" : " runtime=removed");
                 });
             } finally {
                 wipe(adminPassword);
