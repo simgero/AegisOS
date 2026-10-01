@@ -293,3 +293,22 @@ frischer Alpha-Adminfreigabe gemeinsam veröffentlichte `ed` (Paketversion
 war es trotz Veröffentlichung bewusst noch nicht verfügbar; `linux status`
 meldete die ausstehende Aktivierung. Persönliche Paketinstallation und
 vollständiger gepaarter Neustart bleiben die folgenden Abnahmeschritte.
+
+### Persönliches Paket und Passwortwechsel bestätigt
+
+Beta veröffentlicht `hello=2.10-5` als persönlichen Paketbestand, gebunden an
+Benutzer/Seriennummer 11/11 und die gemeinsame `ed`-Generation. Alpha gibt den
+Plan frisch über AOSP frei, bleibt dabei aber CE-gesperrt und ohne Kontext;
+die gemeinsame Auswahl und Vordergrundidentität 11 ändern sich nicht.
+Beleg: `private-package-publication-proof.json` unter `candidate-c526571`.
+
+Nach AOSPs Passwortwechsel macht Betas Originalprozess weiterhin Fortschritt.
+Logout entfernt ihn und den Kontext; CE ist `[0]`. Die bekannte GNU-Datei und
+die zuvor veröffentlichte private Paketmetadatei liefern auch Gast-root keine
+Bytes. Das alte Passwort scheitert, CE bleibt gesperrt. Mit dem neuen Passwort
+startet die private Generation: dieselbe GNU-Datei und Paketmetadaten bleiben
+identisch, `hello` und `ed` führen echte Programme aus, `packages=current`.
+Auch Betas alte Mqueues fehlen im neuen Kontext. Belege:
+`password-private-runtime-proof.json`, `private-package-locked-proof.json`,
+`private-metadata-readback.json`. Der vollständige Neustart beider VMs und
+der anschließende Zugriff beider Benutzer sind damit noch nicht vorweggenommen.
