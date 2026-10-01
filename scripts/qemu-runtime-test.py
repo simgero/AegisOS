@@ -719,6 +719,69 @@ def switch_from_second_console(key):
         os.close(second_master)
 
 
+def second_cli(key, approval, command):
+    """Run a separate authenticated terminal while a main package plan is held.
+
+    Each terminal owns its own package job. No password is passed through
+    arguments, files or the control stream. Caller inspects both outcomes.
+    """
+    assert not shell_active and key in users and held_login is None
+    assert approval in ('none','approve','wrong','nonadmin','cancel')
+    assert command and '\n' not in command and '\r' not in command
+    second_master,second_slave=pty.openpty()
+    second=None;buffer=bytearray()
+    def receive(markers, timeout=600):
+        encoded=[x.encode() for x in markers];deadline=time.monotonic()+timeout
+        while True:
+            hits=[(buffer.index(token),i,token) for i,token in enumerate(encoded) if token in buffer]
+            if hits:
+                at,index,token=min(hits);end=at+len(token)
+                data=bytes(buffer[:end]);del buffer[:end];clean(data)
+                return index,data
+            if time.monotonic()>=deadline:raise TimeoutError('Second terminal did not reach expected state')
+            if select.select([second_master],[],[],1)[0]:
+                data=os.read(second_master,65536)
+                if not data:raise RuntimeError('Second terminal closed')
+                buffer.extend(data)
+                assert len(buffer)<1024*1024
+    try:
+        second=subprocess.Popen(ADB+['shell','-tt','su','0','/system_ext/bin/aegis'],
+                stdin=second_slave,stdout=second_slave,stderr=second_slave,close_fds=True)
+        os.close(second_slave);second_slave=None
+        record('parallel-open-'+key,receive(['aegis> '])[1])
+        before=auth_state(key)
+        os.write(second_master,('login '+shlex.quote(names[key])+'\n').encode())
+        record('parallel-login-prompt-'+key,receive(['Passwort: '])[1])
+        check_prepared(key,before)
+        os.write(second_master,credentials[current_credentials[key]]+b'\n')
+        response=receive(['aegis> '])[1];record('parallel-login-'+key,response)
+        assert re.search(r'(?m)^user='+str(users[key][0])+r' serial='+str(users[key][1])+r' ',clean(response))
+        assert 'foreground=true running=true ce=unlocked' in clean(response)
+        os.write(second_master,command.encode()+b'\n')
+        state,response=receive(['Admin-Benutzer für diesen Plan (leer bricht ab): ','aegis> '])
+        record('parallel-command-'+key,{'command':command,'approval':approval,'response':clean(response)})
+        if state==0:
+            assert approval!='none', 'Unexpected approval prompt; this control expected immediate result'
+            if approval=='cancel':
+                os.write(second_master,b'\n')
+            else:
+                admin='beta' if approval=='nonadmin' else 'alpha'
+                secret='wrong' if approval=='wrong' else current_credentials[admin]
+                os.write(second_master,names[admin].encode()+b'\n')
+                record('parallel-approval-prompt-'+key,receive(['Admin-Passwort für diesen Plan: '],30)[1])
+                os.write(second_master,credentials[secret]+b'\n')
+            record('parallel-result-'+key,receive(['aegis> '])[1])
+        record('parallel-terminal-completed-'+key,{'command':command,'approval':approval,
+               'scope':'Actual second AOSP-authenticated CLI; publication, peer survival and cleanup require independent checks'})
+    finally:
+        if second_slave is not None:os.close(second_slave)
+        if second is not None and second.poll() is None:
+            second.terminate()
+            try:second.wait(timeout=5)
+            except subprocess.TimeoutExpired:second.kill();second.wait(timeout=5)
+        os.close(second_master)
+
+
 def expect_ce(which):
     expected={0}
     choices={'base':(), 'a':('alpha',), 'b':('beta',), 'both':('alpha','beta'),
@@ -847,7 +910,7 @@ try:
     for line in sys.stdin:
         cmd = line.strip()
         try:
-            if package_prompt and cmd not in ('quit','close','peek','scan','package-approve','package-wrong','package-nonadmin','package-cancel-plan'):
+            if package_prompt and not cmd.startswith('second-') and cmd not in ('quit','close','peek','scan','package-approve','package-wrong','package-nonadmin','package-cancel-plan'):
                 raise RuntimeError('Finish or cancel the pending package review before other controls')
             if cmd == 'quit': break
             if cmd == 'open': open_client()
@@ -938,6 +1001,9 @@ try:
             elif cmd in ('package-approve','package-wrong'):
                 package_approve(current_credentials['alpha'] if cmd=='package-approve' else 'wrong')
             elif cmd == 'package-nonadmin': package_approve(current_credentials['beta'],'beta')
+            elif re.fullmatch(r'second-[abc] (none|approve|wrong|nonadmin|cancel) .+',cmd):
+                control,approval,command=cmd.split(' ',2)
+                second_cli({'a':'alpha','b':'beta','c':'gamma'}[control[-1]],approval,command)
             elif cmd == 'package-cancel-plan': package_cancel()
             elif cmd == 'package-unauthenticated':
                 assert not shell_active and held_login is None

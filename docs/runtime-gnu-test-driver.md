@@ -230,3 +230,18 @@ Abmeldung getrennt zu prüfen. Entsprechende `-b`-Befehle existieren für Beta.
 Der Halteprozess endet auch bei verschwundenem Treiber spätestens nach seiner
 begrenzten Schleife. Dies ist kontrollierte Fehlerauslösung mit Entwickler-root,
 kein Nachweis unprivilegierter Isolation.
+
+
+## Gehaltene Pläne und zweite CLI
+
+`second-a|b|c none|approve|wrong|nonadmin|cancel BEFEHL` öffnet einen getrennten
+CLI-Kanal und authentifiziert die gewählte synthetische Person frisch über
+AOSP. Ein dortiger Paketplan kann korrekt, mit falschem oder Nicht-Adminpasswort
+bestätigt beziehungsweise abgebrochen werden. `none` erwartet eine unmittelbare
+Antwort ohne weitere Paketfreigabe, etwa für `status` oder `logout`.
+Diese Steuerung ist auch zulässig, während das Hauptterminal einen Plan an der
+Adminauswahl hält. Beide tatsächlichen Antworten werden getrennt protokolliert;
+Veröffentlichung, Peer-Fortbestand und CE-/Kontextzustände bleiben separat zu
+prüfen. Ein Benutzerwechsel kann den ersten Kanal widerrufen. Der Treiber
+behauptet deshalb aus dem zweiten CLI-Erfolg allein keine erfolgreiche
+Parallelitätsprüfung.

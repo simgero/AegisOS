@@ -43,6 +43,19 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
         sources.reset();key.reset();helper.reset();network.reset();ca.reset();RuntimePackageResolver::TearDown();
     }
     int Start() { return aegis::PackagePlannerStart(parent.get(),source,selected.get(),sources.get(),key.get(),helper.get(),request,Deadline(),&planner,network.get(),ca.get()); }
+    int FinishPlanBounded(aegis::PackagePlanningResult* result,int* fd) {
+        // The production API allows at most 10 seconds per observation. Its
+        // timeout retains worker ownership, so TCG tests may poll the SAME
+        // worker within a bounded overall window instead of restarting it.
+        timespec started={};if(clock_gettime(CLOCK_MONOTONIC,&started)<0)return -1;
+        const uint64_t end=uint64_t(started.tv_sec)*1000000000+started.tv_nsec+UINT64_C(180000000000);
+        for(;;) {
+            int rc=aegis::PackagePlannerFinish(&planner,false,1000,result,fd);
+            if(rc==0||errno!=ETIMEDOUT)return rc;
+            timespec now={};if(clock_gettime(CLOCK_MONOTONIC,&now)<0)return -1;
+            if(uint64_t(now.tv_sec)*1000000000+now.tv_nsec>=end) { errno=ETIMEDOUT;return -1; }
+        }
+    }
     void CreateOwner() {
         ASSERT_EQ(0,aegis_broker_owner_create(parent.get(),source,setup,setup,&owner));request.job=0;
     }
@@ -200,7 +213,7 @@ TEST_F(RuntimePackagePlanning, OwnedChildCopiesOnlyMetadataAndReturnsEvidenceAft
     int before=descriptors();mode_t previous=umask(077);int started=Start();int error=errno;umask(previous);
     ASSERT_EQ(0,started)<<strerror(error);
     aegis::PackagePlanningResult result;int fd=-1;
-    ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,10000,&result,&fd))<<strerror(errno);
+    ASSERT_EQ(0,FinishPlanBounded(&result,&fd))<<strerror(errno);
     ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)<<result.error<<" worker status="<<result.status;
     ASSERT_GE(fd,0);Fd evidence(fd);EXPECT_EQ(2u,result.effects);
     auto receipt=Read(fd,"receipt.json");EXPECT_NE(std::string::npos,receipt.find(Hash(initial)));
@@ -215,7 +228,7 @@ TEST_F(RuntimePackagePlanning, ExplicitOlderVersionSelectsMatchingDependencyDesp
     request.personal=true;request.request.version="1";
     const int before=descriptors();ASSERT_EQ(0,Start())<<strerror(errno);
     aegis::PackagePlanningResult result;int fd=-1;
-    ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,30000,&result,&fd));
+    ASSERT_EQ(0,FinishPlanBounded(&result,&fd));
     Fd evidence(fd);
     ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)
         <<result.error<<" worker status="<<result.status<<" diagnostic="<<result.diagnostic;

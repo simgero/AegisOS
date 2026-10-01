@@ -72,3 +72,20 @@ zusätzlich die abgeschlossene CLI-Löschung, einen Neustart und die Anlage
 einer neuen Identität prüfen. Wird die alte Nummer wiederverwendet, müssen
 Seriennummer, Schlüsselzugriff und private Daten eindeutig zur neuen Person
 gehören; alte Pfade und Runtime-Zuordnungen dürfen keinen Zugriff eröffnen.
+
+
+## Erste ältere-Version-Regressionsausführung
+
+Der neue Gast startet mit SELinux Enforcing, FBE und authentifiziertem ADB;
+SystemServer PID 1358, Profil `3a50ba79-8e0c-4ff6-99b5-1688ddcc09b3`.
+Bootanimation Status 0. Der erste native Lauf ist **nicht bestanden**:
+Der unveränderte Vergleichsfall überschreitet seine zehnsekündige Wartefrist;
+der neue Test übergab irrtümlich 30000 ms an eine API, die höchstens 10000 ms
+pro Beobachtung akzeptiert. Damit ist noch kein Ergebnis zur Versionsauflösung
+belegt. Log und JSON bleiben unter `out/phase1-dod/c526571/` erhalten.
+
+Die zwei Testfälle beobachten nun denselben gehaltenen Worker wiederholt mit
+zulässiger Einzelwartezeit, insgesamt begrenzt auf 180 Sekunden. Nur ETIMEDOUT
+wird erneut beobachtet; andere Fehler werden sofort gemeldet. Produktionscode,
+Startup-/Cleanup-Fristen und Signaturprüfung bleiben unverändert. Erst der
+Folgelauf kann den eigentlichen Versionsfall bestätigen oder widerlegen.
