@@ -157,17 +157,6 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
        ||PackageReadAptPlan(json,r.action,r.package,r.version,&result.effects)<0
        ||Write("/tmp/aegis-planner/simulation.json",json)<0)return fail(errno);
     if(unlink("/run/aegis-apt-plan.json")<0)return fail(errno);
-    PackageChange selection;bool installed_selection=false;
-    if(r.action==PackageAction::Install && (result.effects.empty()
-       || (result.effects.size()==1 && result.effects[0].before_version==result.effects[0].after_version))) {
-        if(PackageSameVersionSelection(status,automatic,r.package,r.version,&selection)<0)return fail(errno);
-        if(!result.effects.empty()) {
-            const auto& e=result.effects[0];
-            if(e.name!=selection.name || e.architecture!=selection.architecture
-               || e.before_version!=selection.before_version || e.after_version!=selection.after_version)return fail(ESTALE);
-        }
-        installed_selection=true;result.effects.clear(); // no archive or package action
-    }
     if(std::any_of(result.effects.begin(),result.effects.end(),
                    [](const auto& effect){return !effect.after_version.empty();})) {
         result.phase=PackageResolverResult::Phase::Download;
@@ -224,7 +213,11 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     for(const auto& a:result.archives)proof.changes.push_back({a.effect.name,a.effect.architecture,
         a.effect.before_version,a.effect.after_version,a.repository,a.archive,
         a.effect.automatic?PackageInstallReason::Automatic:PackageInstallReason::Manual});
-    if(installed_selection)proof.changes.push_back(std::move(selection));
+    if(r.action==PackageAction::Install && result.effects.empty()) {
+        PackageChange selection;
+        if(PackageSameVersionSelection(status,automatic,r.package,r.version,&selection)<0)return fail(errno);
+        proof.changes.push_back(std::move(selection));
+    }
     result.phase=PackageResolverResult::Phase::Collected;return result;
 }
 }

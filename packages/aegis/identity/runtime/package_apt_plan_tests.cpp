@@ -57,18 +57,16 @@ TEST(PackageAptPlan, NoOpIsAnEmptyResolutionNotAChangedGeneration) {
     auto p=Plan();p["params"]["packages"]=Json::Value(Json::arrayValue);std::vector<PackageAptEffect> result;
     ASSERT_EQ(0,PackageReadAptPlan(Encode(p),PackageAction::Install,"test-app","2",&result));EXPECT_TRUE(result.empty());
 }
-TEST(PackageAptPlan, SameVersionInstallRetainsExactEvidenceAndRejectsReinstallOrContradiction) {
+TEST(PackageAptPlan, RejectsSameVersionEffectsIncludingArchitectureReplacement) {
+    // The real APT no-op hook has an empty packages array. An equal-version
+    // effect is not authority to bypass archive verification or package scripts.
     auto p=Plan();p["params"]["packages"][0]["versions"]["current"]=Version("2");
-    std::vector<PackageAptEffect> result;
-    ASSERT_EQ(0,PackageReadAptPlan(Encode(p),PackageAction::Install,"test-app","2",&result));
-    ASSERT_EQ(1u,result.size());EXPECT_EQ("2",result[0].before_version);EXPECT_EQ("2",result[0].after_version);
-    EXPECT_EQ("all",result[0].architecture);EXPECT_FALSE(result[0].automatic);
+    Reject(p);
     auto bad=p;bad["params"]["packages"][0]["mode"]="reinstall";Reject(bad,EOPNOTSUPP);
     bad=p;bad["params"]["packages"][0]["mode"]="upgrade";Reject(bad);
-    bad=p;bad["params"]["packages"][0]["versions"]["current"]["architecture"]="arm64";Reject(bad);
-    bad=p;bad["params"]["packages"][0]["versions"]["current"]=Version("3");
-    bad["params"]["packages"][0]["versions"]["install"]=Version("3");Reject(bad,ESTALE);
+    bad["params"]["packages"][0]["versions"]["current"]["architecture"]="arm64";Reject(bad);
 }
+
 TEST(PackageAptPlan, RejectsChangedRequestVersionUnknownPackagesAndProtocolPhase) {
     auto p=Plan();p["params"]["search-terms"][0]="test-app=3";Reject(p,ESTALE);
     p=Plan();p["params"]["packages"][0]["versions"]["install"]=Version("3");Reject(p,ESTALE);
