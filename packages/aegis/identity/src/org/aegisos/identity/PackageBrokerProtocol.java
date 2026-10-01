@@ -101,9 +101,12 @@ final class PackageBrokerProtocol {
                 List<Change> checked=new ArrayList<>();String previous="";boolean requested=intent.action==UPDATE;
                 for (Object item:raw) {
                     Change c=new Change(object(item));
-                    if (previous.compareTo(c.name)>=0 || (c.after.isEmpty()!=(intent.action==REMOVE))) throw bad();
+                    // Dependency resolution may install and remove in the same plan.
+                    // Every archive-bearing effect still requires repository expiry.
+                    if (previous.compareTo(c.name)>=0 || (!c.after.isEmpty() && validUntil==0)) throw bad();
                     if (c.name.equals(intent.name)) {
-                        if (!intent.version.isEmpty() && !intent.version.equals(c.after)) throw bad();
+                        if (c.after.isEmpty()!=(intent.action==REMOVE)
+                                || (!intent.version.isEmpty() && !intent.version.equals(c.after))) throw bad();
                         requested=true;
                     }
                     previous=c.name;checked.add(c);

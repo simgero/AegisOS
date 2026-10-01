@@ -55,10 +55,11 @@ public final class PackageTransactionTest {
         void reply(int op,int error,PackageBrokerProtocol.Metadata data) {
             ops.add(op);replies.add(new PackageBrokerProtocol.Reply(error,41,data));
         }
-        void ready() {
+        void ready() { ready(review()); }
+        void ready(PackageBrokerProtocol.Metadata plan) {
             reply(8,0,null);transaction.begin(DEADLINE);
             reply(12,0,status(1,0));reply(9,0,null);transaction.poll(DEADLINE);
-            reply(12,0,status(3,0));reply(10,0,review());transaction.poll(DEADLINE);
+            reply(12,0,status(3,0));reply(10,0,plan);transaction.poll(DEADLINE);
             reply(12,0,status(4,0));reply(11,0,null);transaction.poll(DEADLINE);
             reply(12,0,status(6,0));assertEquals("approval_required",transaction.poll(DEADLINE).getString("state"));
         }
@@ -76,6 +77,29 @@ public final class PackageTransactionTest {
         f.reply(12,0,status(9,0));assertEquals("unconfirmed",f.transaction.poll(DEADLINE).getString("outcome"));
         f.reply(12,0,status(10,3));assertEquals("published",f.transaction.poll(DEADLINE).getString("outcome"));
         assertTrue(f.transaction.retired());assertTrue(f.ops.isEmpty());
+    }
+    @Test public void mixedReviewReachesApprovalViewWithoutDroppingRemovalOrChangingOwnership() {
+        Map<String,Object> metadata=common();
+        metadata.put("changes",List.of(
+                Map.of("name","app","architecture","arm64","before","1.0","after","","reason",2L),
+                Map.of("name","bash","architecture","arm64","before","5.1","after","5.2","reason",1L)));
+        Fixture f=new Fixture();f.ready(new PackageBrokerProtocol.Metadata(metadata,true));
+        ArrayList<Bundle> changes=f.transaction.view(false).getParcelableArrayList("changes",Bundle.class);
+        assertEquals(2,changes.size());assertEquals("app",changes.get(0).getString("name"));
+        assertEquals("1.0",changes.get(0).getString("before"));assertEquals("",changes.get(0).getString("after"));
+        assertEquals("automatic",changes.get(0).getString("reason"));
+        assertEquals("bash",changes.get(1).getString("name"));assertEquals("5.2",changes.get(1).getString("after"));
+        assertFalse(f.calls.contains(13));
+        PackageApproval.Prepared prepared=f.transaction.approval();
+        assertEquals(PackageApproval.Action.INSTALL,prepared.action);
+        assertEquals(10,prepared.privateOwner().id);assertEquals(17,prepared.privateOwner().serial);
+        assertEquals(HASH,prepared.planSha256);
+        // UI copies cannot alter the retained complete plan.
+        changes.get(0).putString("after","9.9");changes.clear();
+        ArrayList<Bundle> retained=f.transaction.view(false).getParcelableArrayList("changes",Bundle.class);
+        assertEquals(2,retained.size());assertEquals("",retained.get(0).getString("after"));
+        f.reply(13,0,null);f.transaction.start(prepared,DEADLINE);
+        assertEquals("running",f.transaction.view(false).getString("state"));assertTrue(f.ops.isEmpty());
     }
     @Test public void failedBeginKeepsAllocatedJobForExactCleanup() {
         Fixture f=new Fixture();f.reply(8,OsConstants.EIO,null);denied(()->f.transaction.begin(DEADLINE));

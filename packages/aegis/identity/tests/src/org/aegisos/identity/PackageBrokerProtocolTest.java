@@ -103,6 +103,58 @@ public final class PackageBrokerProtocolTest {
         denied(()->review.requireIntent(new PackageBrokerProtocol.Intent(1,1,"bash","5.2")));
         denied(()->review.requireIntent(new PackageBrokerProtocol.Intent(1,2,"bash","5.1")));
     }
+    private static String effect(String name,String before,String after,int reason) {
+        return "{\"name\":\""+name+"\",\"architecture\":\"arm64\",\"before\":\""+before
+                +"\",\"after\":\""+after+"\",\"reason\":"+reason+"}";
+    }
+    private static String mixed(int action,String... effects) {
+        String header=common().replace("\"action\":1","\"action\":"+action);
+        if(action!=PackageBrokerProtocol.INSTALL)header=header.replace("\"version\":\"5.2\"","\"version\":\"\"");
+        if(action==PackageBrokerProtocol.UPDATE)header=header.replace("\"package\":\"bash\"","\"package\":\"\"");
+        return "{"+header+",\"changes\":["+String.join(",",effects)+"]}";
+    }
+    @Test public void mixedInstallPreservesConflictRemovalBeforeRequestedArchive() {
+        PackageBrokerProtocol.Metadata value=review(mixed(1,
+                effect("app","1.0","",2),change(),effect("libc6","2.19","2.20",2)));
+        value.requireIntent(intent());assertEquals(HASH,value.digest);assertEquals(2000,value.validUntil);
+        assertEquals(3,value.changes.size());
+        assertEquals("app",value.changes.get(0).name);assertEquals("1.0",value.changes.get(0).before);
+        assertEquals("",value.changes.get(0).after);assertEquals(2,value.changes.get(0).reason);
+        assertEquals("bash",value.changes.get(1).name);assertEquals("5.2",value.changes.get(1).after);
+        assertEquals("libc6",value.changes.get(2).name);assertEquals("2.20",value.changes.get(2).after);
+        try {value.changes.remove(0);fail();}catch(UnsupportedOperationException expected){}
+    }
+    @Test public void mixedRemovalPreservesReplacementArchiveAndItsExpiry() {
+        PackageBrokerProtocol.Metadata value=review(mixed(3,
+                effect("bash","5.1","",1),effect("libc6","2.19","2.20",2)));
+        value.requireIntent(new PackageBrokerProtocol.Intent(3,2,"bash",""));
+        assertEquals(2,value.changes.size());assertEquals("",value.changes.get(0).after);
+        assertEquals("2.20",value.changes.get(1).after);assertEquals(2000,value.validUntil);
+    }
+    @Test public void mixedUpdatePreservesBothDirectionsWithoutAnExplicitTarget() {
+        PackageBrokerProtocol.Metadata value=review(mixed(2,effect("app","1.0","",2),change()));
+        value.requireIntent(new PackageBrokerProtocol.Intent(2,2,"",""));
+        assertEquals(2,value.changes.size());assertEquals("",value.changes.get(0).after);
+        assertEquals("5.2",value.changes.get(1).after);
+    }
+    @Test public void mixedEffectsCannotReverseOrOmitTheRequestedAction() {
+        denied(()->review(mixed(1,effect("bash","5.1","",1),effect("libc6","2.19","2.20",2))
+                .replace("\"version\":\"5.2\"","\"version\":\"\"")));
+        denied(()->review(mixed(3,effect("app","1.0","",2),change())));
+        denied(()->review(mixed(3,effect("app","1.0","",2),effect("libc6","2.19","2.20",2))));
+        denied(()->review(mixed(1,effect("app","1.0","",2),effect("bash","5.1","5.3",1))));
+    }
+    @Test public void anyReplacementArchiveRequiresExpiryEvenForRemovalIntent() {
+        denied(()->review(mixed(3,effect("bash","5.1","",1),effect("libc6","2.19","2.20",2))
+                .replace("2000","0")));
+        PackageBrokerProtocol.Metadata value=review(mixed(3,effect("bash","5.1","",1)).replace("2000","0"));
+        assertEquals(0,value.validUntil);assertEquals("",value.changes.get(0).after);
+    }
+    @Test public void mixedEffectsRemainStrictlySortedAndUnique() {
+        denied(()->review(mixed(1,change(),effect("app","1.0","",2))));
+        denied(()->review(mixed(1,effect("app","1.0","",2),change(),change())));
+        denied(()->review(mixed(2,effect("app","1.0","",2),effect("app","","2.0",1))));
+    }
     @Test public void ambiguousOrIncompleteReviewCannotBecomeAnApprovalPrompt() {
         for(String invalid:new String[]{review().replace("\"reason\":1","\"reason\":0"),
                 review().replace("\"arm64\"","\"amd64\""),review().replace("\"after\":\"5.2\"","\"after\":\"5.1\""),
