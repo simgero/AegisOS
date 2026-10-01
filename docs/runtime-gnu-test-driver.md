@@ -193,3 +193,19 @@ mit persönlichen Benutzern belegten Profil ist geprüft. Zeiten, Grenzen und
 Treiber-SHA stehen im [GNU-Testbericht](runtime-gnu-qemu-test.md).
 Pakettransaktionen, sichere Benutzerlöschung und umfassende IPC-/Systemaufruf-
 Angriffe werden dadurch nicht implementiert oder als bestanden erklärt.
+# Linux-Server und ausstehender CE-Schlüsselentzug (1. Oktober 2026)
+
+Der Treiber unterstützt jetzt auch lokale Linux-QEMU-Gäste. Images können aus
+einem lokalen Buildrun stammen; AVB-Receipt, voller Image-Commit und die
+Prüfsumme der GPT-Basis müssen zum gepaarten Profil passen.
+
+Nach `gnu-write-a` und `shell-exit` startet `held-ce-start-a` einen begrenzten
+Entwickler-root-Prozess, der genau diese CE-Datei offen hält. `logout` darf bei
+überschrittener Sperrfrist keinen Erfolg melden. `pending-login-a` prüft vor
+Freigabe die Ablehnung ohne Passwortabfrage, ohne Runtime und mit demselben
+Systemserver-Prozess. `held-ce-release-a` schließt den FD bestätigt; anschließend
+sind falsches Passwort, frische korrekte Anmeldung, `gnu-read-a` und reguläre
+Abmeldung getrennt zu prüfen. Entsprechende `-b`-Befehle existieren für Beta.
+Der Halteprozess endet auch bei verschwundenem Treiber spätestens nach seiner
+begrenzten Schleife. Dies ist kontrollierte Fehlerauslösung mit Entwickler-root,
+kein Nachweis unprivilegierter Isolation.
