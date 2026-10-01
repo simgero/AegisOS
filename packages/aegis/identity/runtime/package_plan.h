@@ -26,15 +26,23 @@ struct PackageChange {
     PackageInstallReason reason=PackageInstallReason::Unspecified;
 };
 enum class PackageStatePresence : uint32_t { Unspecified=0, Absent=1, Present=2 };
+struct PackageReconciliationEvidence {
+    // Canonical sorted manual root names. Their exact versions belong to the
+    // complete resulting registry digest; private intent stays unchanged.
+    std::string roots, previous_status_sha256, previous_automatic_sha256;
+    std::string current_status_sha256, current_automatic_sha256, solver_automatic_sha256;
+    std::string result_registry_sha256, result_automatic_sha256;
+};
 struct PackageResolvedPlan {
     uint32_t requester=0, serial=0;
     bool personal=false, create_store=false, has_previous=false;
     // Reconciliation evidence cannot enter the ordinary transaction binder.
-    // Binding all three generations and activation is a separate pending stage.
+    // A separate binder binds all three generations; activation remains owner-controlled.
     bool reconciliation=false;
     PackageAction action=PackageAction::Install;
     std::string requested_package, requested_version;
-    PackageInput source, shared;
+    PackageInput source, shared, previous_shared;
+    PackageReconciliationEvidence reconciliation_evidence;
     PackageGeneration previous;
     std::string planner_image_sha256, policy_sha256, initial_status_sha256;
     // Exact root-owned manifest copied from the selected readonly generation.
@@ -73,5 +81,9 @@ struct PackageBoundPlan {
 // A changed shared base is ESTALE: private rebase is an explicit later operation.
 int PackageBindResolvedPlan(const PackageResolvedPlan& plan,uint64_t now_unix,
                              PackageBoundPlan* output);
+// Internal trusted adapter only. Requires verified private/old/current image
+// provenance and complete resolver evidence. It grants no authorization and
+// does not register runtime admission or shared-current publication fencing.
+int PackageBindReconciliationPlan(const PackageResolvedPlan&,uint64_t now_unix,PackageBoundPlan*);
 } // namespace aegis
 #endif

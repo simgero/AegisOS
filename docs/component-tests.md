@@ -1,3 +1,38 @@
+## Isolierter gemeinsamer/privater APT-Planer: 2a0610b6
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T054918Z-2a0610b6-2a0610b6-uML7Uv)
+von `2a0610b683657a9f48698ad1854f517a17dd6d52` besteht am
+**2026-10-01T05:54:15Z alle 321 ausgewählten nativen Tests** aus 29 Suiten
+im lokalen Mac-QEMU (222.892 ms). Die 54 Java-Tests aus `f17a043c` bleiben
+über das byte-identische Test-APK und erneut geprüfte Originalnachweise belegt.
+
+Drei getrennte synthetische Imageansichten liefern bisherigen privaten Stand,
+alte und neue gemeinsame Basis. Der tatsächliche unveränderliche APT-Planer
+hält ausdrücklich private Versionen fest und löst deren Abhängigkeiten passend
+auf. Neun neue Integrationstests prüfen gemeinsame Updates, private Overrides,
+unauflösbare Konflikte, Entfernung, exakten Downgrade, fehlende Altmetadaten,
+Abbruch und unzulässige Schnittstellen. Zehn weitere Tests prüfen die abgeleiteten
+Paketziele. Alle eingefrorenen Ausgangsregistries bleiben erhalten.
+
+Der erste Lauf `bceac542` scheiterte beim exakten Downgrade: Die strenge
+APT-Kandidatenauswahl sperrte die notwendige ältere Bibliothek. Nur die feste
+Zusammenführungsrichtlinie verwendet jetzt APT-Solver 3.0 mit
+`Strict-Pinning=false`; exakte Wurzeln, Holds, Signaturen und Archivprüfungen
+bleiben verbindlich. Der Folgelauf bestand auch diesen tatsächlichen Downloadfall.
+
+Belege: `out/components-2a0610b6/targeted-tests/` und `java-proof-reuse.json`.
+Native Log-SHA256: `7dd5792118286e3ee2c5cfe318e4030241ccf3c35cd0424fd9941611079842a9`.
+Vorher/Nachher identisch: `7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+Alpha/Beta bleiben gestoppt und CE-gesperrt; Broker und SELinux bleiben aktiv.
+
+**Grenzen:** Dieser Nachweis umfasst Planung, noch keine ausgeführte und
+veröffentlichte Zusammenführung. Der folgende Entwicklungsstand bindet die drei
+Generationen, vollständige Ergebnisregistries und private Auswahl an einen eigenen
+Ausführungspfad; dessen Tests sind bis zu einem separat dokumentierten Lauf
+unbestätigt. Broker-Autorisierung, konkurrierende gemeinsame Änderungen,
+Runtime-Start und Produktabnahme bleiben offen. Installiert ist weiterhin
+`d0b866e1`; vier echte CE-Fixtures bleiben deaktiviert.
+
 ## Drei geprüfte Generationsansichten: 0fb41856
 
 Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T051630Z-0fb41856-0fb41856-IEaABz)

@@ -9,6 +9,7 @@
 #include "package_apt_plan.h"
 #include "package_apt_archives.h"
 #include "package_resolver.h"
+#include "package_reconciliation.h"
 #include "package_planner.h"
 #include "package_policy.h"
 #include "package_planning_protocol.h"

@@ -69,4 +69,13 @@ int PackageReadAutomaticRegistry(const std::string& text,std::set<std::string>* 
     });
     if(result<0)return -1;*out=std::move(data);return 0;
 }
+std::string PackageCanonicalInstalled(const PackageInstalledRegistry& registry) {
+    std::string out="AEGIS-INSTALLED1\n";
+    for(const auto& [name,p]:registry)out+=name+"\t"+std::get<1>(p)+"\t"+std::get<0>(p)+"\t"+std::get<2>(p)+"\n";
+    return out;
+}
+std::string PackageCanonicalAutomatic(const std::set<std::string>& names) {
+    std::string out="AEGIS-AUTOMATIC1\n";for(const auto& n:names)out+=n+"\n";return out;
+}
+
 }

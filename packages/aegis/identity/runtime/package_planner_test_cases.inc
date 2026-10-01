@@ -1082,6 +1082,16 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
         EXPECT_EQ(effects,result.evidence.changes.size());EXPECT_EQ(choices,result.evidence.initial_private_choices);
         EXPECT_EQ(Hash(initial),result.evidence.initial_status_sha256);
         EXPECT_EQ(Hash(automatic),result.evidence.initial_apt_state.sha256);
+        const auto& re=result.evidence.reconciliation_evidence;
+        EXPECT_EQ(Hash(old_status),re.previous_status_sha256);EXPECT_EQ(Hash(new_status),re.current_status_sha256);
+        aegis::PackageInstalledRegistry original,expected;std::set<std::string> marks;
+        ASSERT_EQ(0,aegis::PackageReadInstalledRegistry(initial,&original));
+        std::vector<aegis::PackageAptEffect> changes;
+        for(const auto& c:result.evidence.changes)changes.push_back({c.name,c.architecture,c.before_version,c.after_version,c.reason==aegis::PackageInstallReason::Automatic});
+        ASSERT_EQ(0,aegis::PackageReconciliationProject(original,changes,re.roots,&expected,&marks));
+        EXPECT_EQ(Hash(aegis::PackageCanonicalInstalled(expected)),re.result_registry_sha256);
+        EXPECT_EQ(Hash(aegis::PackageCanonicalAutomatic(marks)),re.result_automatic_sha256);
+
         for(const char* name:{"simulate.log","simulation.json","receipt.json"})fprintf(stderr,"Reconciliation %s:\n%s\n",name,Read(fd,name).c_str());
         EXPECT_NE(std::string::npos,Read(fd,"receipt.json").find(Hash(new_status)));
         aegis::PackageBoundPlan bound;

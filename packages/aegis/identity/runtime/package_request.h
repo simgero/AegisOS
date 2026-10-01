@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define AEGIS_PACKAGE_REQUEST_MAX_BYTES 131072u
+#define AEGIS_PACKAGE_REQUEST_MAX_BYTES 262144u
 
 /* Seals protect contents, not a descriptor's access mode. SELinux checks that
  * mode again across exec/SCM_RIGHTS. Receivers need no write authority over the

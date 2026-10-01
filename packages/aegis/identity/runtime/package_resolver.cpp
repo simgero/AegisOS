@@ -258,9 +258,24 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     if(present)proof.initial_apt_state={automatic.size(),Hash(automatic)};
     proof.policy_sha256=Hash("aegis-resolver-policy-v1:"+Hash(config)+Hash(sources)+Hash(key)+(r.internet?Hash(ca):""));
     proof.repositories=result.repositories;
+    if(r.reconciliation) {
+        auto& re=proof.reconciliation_evidence;
+        for(const auto& [name,value]:goals.roots)re.roots+=name+"\n";
+        PackageInstalledRegistry original,expected;std::set<std::string> marks;
+        if(PackageReadInstalledRegistry(status,&original)<0
+           ||PackageReconciliationProject(original,result.effects,re.roots,&expected,&marks)<0)return fail(errno);
+        re.previous_status_sha256=Hash(reconciliation.previous_status);
+        re.previous_automatic_sha256=Hash(reconciliation.previous_automatic);
+        re.current_status_sha256=Hash(reconciliation.current_status);
+        re.current_automatic_sha256=Hash(reconciliation.current_automatic);
+        re.solver_automatic_sha256=Hash(goals.solver_automatic);
+        re.result_registry_sha256=Hash(PackageCanonicalInstalled(expected));
+        re.result_automatic_sha256=Hash(PackageCanonicalAutomatic(marks));
+    }
     for(const auto& a:result.archives)proof.changes.push_back({a.effect.name,a.effect.architecture,
         a.effect.before_version,a.effect.after_version,a.repository,a.archive,
-        a.effect.automatic?PackageInstallReason::Automatic:PackageInstallReason::Manual});
+        (r.reconciliation && !a.effect.after_version.empty() ? !goals.roots.count(a.effect.name) : a.effect.automatic)
+            ?PackageInstallReason::Automatic:PackageInstallReason::Manual});
     if(r.action==PackageAction::Install && result.effects.empty()) {
         PackageChange selection;
         if(PackageSameVersionSelection(status,automatic,r.package,r.version,&selection)<0)return fail(errno);

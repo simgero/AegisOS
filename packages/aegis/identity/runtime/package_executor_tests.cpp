@@ -5,6 +5,7 @@
 #include "package_candidate_labels.h"
 #include <sys/xattr.h>
 #include "package_plan.h"
+#include "package_reconciliation.h"
 #include "package_execution_protocol.h"
 #include "package_apt_fixture.h"
 #include "broker_owner_package.h"
@@ -183,6 +184,30 @@ class RuntimePackageExecutor : public ::testing::Test {
         }
         ASSERT_EQ(0,PackageExecutionCheck(plan));
     }
+    void ReconciliationReview(int before,int after,bool library_manual=false) {
+        const std::string choices="AEGIS-PRIVATE-CHOICES1\n";
+        int made=mkdirat(candidate.get(),"var/lib/aegis",0700);ASSERT_TRUE(made==0||errno==EEXIST);
+        ASSERT_EQ(0,WriteAt(candidate.get(),"var/lib/aegis/private-choices",choices,O_CREAT|O_TRUNC));
+        if(before==after) { plan.items.clear();plan.review={};InitialReview(candidate.get(),&plan.review); }
+        else Review(before,after);
+        ASSERT_FALSE(HasFatalFailure());plan.kind=AEGIS_PACKAGE_RECONCILE;
+        strcpy(plan.review.initial_choices,choices.c_str());strcpy(plan.review.result_choices,choices.c_str());
+        PackageInstalledRegistry initial,expected;std::set<std::string> marks;
+        ASSERT_EQ(0,PackageReadInstalledRegistry(ControlFile(candidate.get(),"var/lib/dpkg/status"),&initial));
+        auto root_names=initial;
+        if(after) { root_names["aegis-exec-app"]={std::to_string(after),"all","install"};root_names["aegis-exec-lib"]={std::to_string(after),"all","install"}; }
+        else { root_names.erase("aegis-exec-app");root_names.erase("aegis-exec-lib"); }
+        std::string roots;for(const auto& [name,value]:root_names)if(library_manual||name!="aegis-exec-lib")roots+=name+"\n";
+        ASSERT_LT(roots.size(),sizeof(plan.review.reconciliation_roots));strcpy(plan.review.reconciliation_roots,roots.c_str());
+        std::vector<PackageAptEffect> effects;
+        for(size_t i=0;i<plan.items.size();++i) {
+            const auto& e=plan.review.effects[i];effects.push_back({e.name,e.architecture,e.before,e.after,e.reason==2});
+        }
+        ASSERT_EQ(0,PackageReconciliationProject(initial,effects,roots,&expected,&marks));
+        strcpy(plan.review.result_registry,InputHash(PackageCanonicalInstalled(expected)).c_str());
+        strcpy(plan.review.result_automatic,InputHash(PackageCanonicalAutomatic(marks)).c_str());
+        ASSERT_EQ(0,PackageExecutionCheck(plan))<<strerror(errno);
+    }
     void RejectedBeforeScripts(int expected) {
         ASSERT_EQ(0,Start())<<strerror(errno);PackageExecutionResult result;
         ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
@@ -330,6 +355,42 @@ TEST_F(RuntimePackageExecutor, SameVersionPrivateSelectionMarksManualWithoutRein
     EXPECT_EQ(std::string::npos,ControlFile(candidate.get(),"var/lib/apt/extended_states").find("Package: aegis-exec-lib\n"));
     EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),("var/log/aegis-package-"+job+".log").c_str()));
     EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),("var/log/aegis-package-"+job+"-simulate.json").c_str()));
+}
+
+TEST_F(RuntimePackageExecutor, ReconciliationUpgradePreservesConfigurationServiceOwnerAndPrivateIntent) {
+    Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
+    ASSERT_EQ(0,WriteAt(candidate.get(),"etc/aegis-exec.conf","private-setting=kept\n",O_TRUNC));
+    Remount();ASSERT_FALSE(HasFatalFailure());Archives(2);ReconciliationReview(1,2);ASSERT_FALSE(HasFatalFailure());
+    Completed();ASSERT_FALSE(HasFailure());Remount();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ("#!/bin/sh\necho app-2\n",ControlFile(candidate.get(),"usr/bin/aegis-exec-app"));
+    EXPECT_EQ("2\n",ControlFile(candidate.get(),"usr/share/aegis-exec-library"));
+    EXPECT_EQ("private-setting=kept\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));
+    EXPECT_EQ("AEGIS-PRIVATE-CHOICES1\n",ControlFile(candidate.get(),"var/lib/aegis/private-choices"));
+    struct stat owner;ASSERT_EQ(0,fstatat(candidate.get(),"var/lib/aegis-exec-owned",&owner,0));
+    EXPECT_EQ(42u,owner.st_uid);EXPECT_EQ(42u,owner.st_gid);
+}
+TEST_F(RuntimePackageExecutor, ReconciliationDowngradeInstallsMatchingLibraryAndKeepsConfiguration) {
+    Archives(2);Review(0,2);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
+    ASSERT_EQ(0,WriteAt(candidate.get(),"etc/aegis-exec.conf","private-setting=kept\n",O_TRUNC));
+    Remount();Archives(1);ReconciliationReview(2,1);ASSERT_FALSE(HasFatalFailure());
+    Completed();ASSERT_FALSE(HasFailure());Remount();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ("#!/bin/sh\necho app-1\n",ControlFile(candidate.get(),"usr/bin/aegis-exec-app"));
+    EXPECT_EQ("1\n",ControlFile(candidate.get(),"usr/share/aegis-exec-library"));
+    EXPECT_EQ("private-setting=kept\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));
+}
+TEST_F(RuntimePackageExecutor, ReconciliationWithNoEffectsChangesOnlyFullMarksWithoutPackageScripts) {
+    Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
+    auto scripts=ControlFile(candidate.get(),"var/log/aegis-exec-script");auto status=ControlFile(candidate.get(),"var/lib/dpkg/status");
+    Remount();ReconciliationReview(1,1,true);ASSERT_FALSE(HasFatalFailure());const auto job=std::to_string(plan.job);
+    Completed();ASSERT_FALSE(HasFailure());Remount();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(status,ControlFile(candidate.get(),"var/lib/dpkg/status"));EXPECT_EQ(scripts,ControlFile(candidate.get(),"var/log/aegis-exec-script"));
+    EXPECT_EQ("",ControlFile(candidate.get(),"var/lib/apt/extended_states"));
+    EXPECT_EQ("AEGIS-PRIVATE-CHOICES1\n",ControlFile(candidate.get(),"var/lib/aegis/private-choices"));
+    EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),("var/log/aegis-package-"+job+".log").c_str()));
+}
+TEST_F(RuntimePackageExecutor, ReconciliationWrongCompleteRegistryRejectsBeforeAnyPackageScript) {
+    Archives(1);ReconciliationReview(0,1);ASSERT_FALSE(HasFatalFailure());
+    strcpy(plan.review.result_registry,std::string(64,'f').c_str());RejectedBeforeScripts(ESTALE);
 }
 
 TEST_F(RuntimePackageExecutor, PackageScriptCannotForgePrivateChoices) {

@@ -8,7 +8,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #define AEGIS_PLANNING_MAGIC UINT32_C(0x41504c4e)
-#define AEGIS_PLANNING_VERSION 7u
+#define AEGIS_PLANNING_VERSION 8u
 #define AEGIS_PLANNING_INPUT_FDS 8u
 struct aegis_planning_request {
     uint32_t magic,version,user,serial;
@@ -33,6 +33,9 @@ struct aegis_planning_evidence {
     char private_choices[AEGIS_PACKAGE_CHOICES_BYTES];
     aegis_planning_repository sources[16];
     aegis_planning_change effects[AEGIS_PACKAGE_EXEC_ITEMS];
+    char roots[AEGIS_PACKAGE_RECONCILIATION_ROOT_BYTES];
+    char previous_status[65],previous_automatic[65],current_status[65],current_automatic[65];
+    char solver_automatic[65],result_registry[65],result_automatic[65];
 };
 struct aegis_planning_reply {
     uint32_t magic,version,user,serial;
@@ -62,6 +65,11 @@ inline int Encode(const PackageResolvedPlan& p,aegis_planning_evidence* output) 
            ||!Text(c.effect.before,change.before_version)||!Text(c.effect.after,change.after_version)
            ||!Text(c.repository,change.repository)||!Text(c.hash,change.archive.sha256))return errno=EINVAL,-1;
     }
+    const auto& re=p.reconciliation_evidence;
+    if(!Text(e.roots,re.roots)||!Text(e.previous_status,re.previous_status_sha256)
+       ||!Text(e.previous_automatic,re.previous_automatic_sha256)||!Text(e.current_status,re.current_status_sha256)
+       ||!Text(e.current_automatic,re.current_automatic_sha256)||!Text(e.solver_automatic,re.solver_automatic_sha256)
+       ||!Text(e.result_registry,re.result_registry_sha256)||!Text(e.result_automatic,re.result_automatic_sha256))return errno=EINVAL,-1;
     *output=e;return 0;
 }
 template<size_t N> inline bool Fixed(const char (&s)[N]) { return aegis_package_fixed(s,N,1); }
@@ -80,6 +88,15 @@ inline int Decode(const aegis_planning_evidence& e,PackageResolvedPlan* output) 
         if(!Fixed(f.name)||!Fixed(f.architecture)||!Fixed(f.before)||!Fixed(f.after)||!Fixed(c.repository)||!Fixed(c.hash))return errno=EPROTO,-1;
         p.changes.push_back({f.name,f.architecture,f.before,f.after,c.repository,{c.bytes,c.hash},static_cast<PackageInstallReason>(f.reason)});
     }
+    size_t roots_size=strnlen(e.roots,sizeof(e.roots));
+    if(roots_size==sizeof(e.roots)||!Fixed(e.previous_status)||!Fixed(e.previous_automatic)
+       ||!Fixed(e.current_status)||!Fixed(e.current_automatic)||!Fixed(e.solver_automatic)
+       ||!Fixed(e.result_registry)||!Fixed(e.result_automatic))return errno=EPROTO,-1;
+    auto& re=p.reconciliation_evidence;re.roots=e.roots;
+    re.previous_status_sha256=e.previous_status;re.previous_automatic_sha256=e.previous_automatic;
+    re.current_status_sha256=e.current_status;re.current_automatic_sha256=e.current_automatic;
+    re.solver_automatic_sha256=e.solver_automatic;re.result_registry_sha256=e.result_registry;
+    re.result_automatic_sha256=e.result_automatic;
     aegis_planning_evidence canonical={};
     if(Encode(p,&canonical)<0||memcmp(&canonical,&e,sizeof(e)))return errno=EPROTO,-1;
     *output=std::move(p);return 0;

@@ -64,4 +64,40 @@ int PackageReconciliationCheckEffects(const PackageReconciliationInput& in,
     }
     return 0;
 }
+int PackageReconciliationRootsRead(const std::string& text,std::set<std::string>* output) {
+    if(!output||text.empty()||text.size()>=AEGIS_PACKAGE_RECONCILIATION_ROOT_BYTES)return Fail(EINVAL);
+    std::set<std::string> names;std::string previous;
+    for(size_t at=0;at<text.size();) {
+        auto end=text.find('\n',at);if(end==std::string::npos)return Fail(EBADMSG);
+        auto name=text.substr(at,end-at);at=end+1;
+        if(!PackagePlanNameValid(name)||name<=previous)return Fail(EBADMSG);
+        previous=name;names.insert(name);if(names.size()>kPackageReconciliationRoots)return Fail(E2BIG);
+    }
+    *output=std::move(names);return 0;
+}
+int PackageReconciliationProject(const PackageInstalledRegistry& initial,
+    const std::vector<PackageAptEffect>& effects,const std::string& roots,
+    PackageInstalledRegistry* output,std::set<std::string>* automatic) {
+    if(!output||!automatic)return Fail(EINVAL);
+    std::set<std::string> names;if(PackageReconciliationRootsRead(roots,&names)<0)return -1;
+    if(effects.size()>AEGIS_PACKAGE_EXEC_ITEMS)return Fail(E2BIG);
+    auto installed=initial;std::string previous;
+    for(const auto& e:effects) {
+        if(e.name<=previous||!PackagePlanNameValid(e.name)||(e.architecture!="all"&&e.architecture!="arm64")
+           ||(!e.before_version.empty()&&!PackagePlanVersionValid(e.before_version))
+           ||(!e.after_version.empty()&&!PackagePlanVersionValid(e.after_version))
+           ||e.before_version==e.after_version)return Fail(EBADMSG);
+        previous=e.name;auto it=installed.find(e.name);
+        if(e.before_version.empty()?it!=installed.end():it==installed.end()
+           ||std::get<0>(it->second)!=e.before_version||std::get<1>(it->second)!=e.architecture)return Fail(ESTALE);
+        if(it!=installed.end()&&std::get<2>(it->second)=="hold")return Fail(EDEADLK);
+        if(e.after_version.empty())installed.erase(e.name);
+        else installed[e.name]={e.after_version,e.architecture,"install"};
+    }
+    for(const auto& name:names)if(!installed.count(name))return Fail(ESTALE);
+    std::set<std::string> marks;
+    for(const auto& [name,value]:installed)if(!names.count(name))marks.insert(name);
+    *output=std::move(installed);*automatic=std::move(marks);return 0;
+}
+
 }

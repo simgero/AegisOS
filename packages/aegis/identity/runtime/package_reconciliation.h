@@ -2,6 +2,7 @@
 #define AEGIS_PACKAGE_RECONCILIATION_H
 #include "package_private_choices.h"
 #include "package_apt_plan.h"
+#include "package_registry.h"
 namespace aegis {
 constexpr size_t kPackageReconciliationRoots=512;
 struct PackageReconciliationInput {
@@ -26,5 +27,11 @@ int PackageReconciliationDerive(const PackageReconciliationInput&,PackageReconci
 // These helpers neither authorize, execute, publish nor activate a generation.
 int PackageReconciliationCheckEffects(const PackageReconciliationInput&,
     const PackageReconciliationGoals&,const std::vector<PackageAptEffect>&);
+// Names-only canonical intent is bounded independently of changed effects.
+int PackageReconciliationRootsRead(const std::string&,std::set<std::string>*);
+// Independently apply exact effects and preserve untouched dpkg selections.
+// Every root must be present; every other installed package becomes automatic.
+int PackageReconciliationProject(const PackageInstalledRegistry&,const std::vector<PackageAptEffect>&,
+    const std::string& roots,PackageInstalledRegistry*,std::set<std::string>*);
 }
 #endif

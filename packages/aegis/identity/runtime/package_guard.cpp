@@ -2,6 +2,7 @@
 #include "package_apt_plan.h"
 #include "package_private_choices.h"
 #include "package_registry.h"
+#include "package_reconciliation.h"
 #include <openssl/sha.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -119,7 +120,20 @@ extern "C" int aegis_package_guard_begin(int root,const aegis_package_execution_
     for(auto it=p->automatic.begin();it!=p->automatic.end();) {
         if(!p->expected.count(*it))it=p->automatic.erase(it);else ++it;
     }
-    for(unsigned i=0;i<r->count;++i) {
+    if(r->kind==AEGIS_PACKAGE_RECONCILE) {
+        std::vector<aegis::PackageAptEffect> effects;
+        for(unsigned i=0;i<r->count;++i) {
+            const auto& e=r->review.effects[i];effects.push_back({e.name,e.architecture,e.before,e.after,e.reason==2});
+        }
+        Installed expected;std::set<std::string> automatic;
+        if(aegis::PackageReconciliationProject(p->expected,effects,r->review.reconciliation_roots,&expected,&automatic)<0) {
+            int e=errno;delete p;return Fail(e);
+        }
+        if(Hash(aegis::PackageCanonicalInstalled(expected))!=r->review.result_registry
+           ||Hash(aegis::PackageCanonicalAutomatic(automatic))!=r->review.result_automatic) { delete p;return Fail(ESTALE); }
+        p->expected=std::move(expected);p->automatic=std::move(automatic);
+    }
+    for(unsigned i=0;r->kind!=AEGIS_PACKAGE_RECONCILE && i<r->count;++i) {
         const auto& e=r->review.effects[i];auto current=p->expected.find(e.name);
         if(!aegis::PackagePlanNameValid(e.name)||(*e.before&&!aegis::PackagePlanVersionValid(e.before))
            ||(*e.after&&!aegis::PackagePlanVersionValid(e.after))
@@ -144,7 +158,7 @@ extern "C" int aegis_package_guard_simulation(aegis_package_guard* p,int fd) {
     // archive argv, only removal terms remain: bare names for remove, explicit
     // name- terms for mixed install. Every effect is compared to the review.
     for(unsigned i=0;i<r.count;++i)if(!aegis_package_has_archive(&r,i))
-        args.push_back(std::string(r.items[i])+(r.kind==AEGIS_PACKAGE_MIXED?"-":""));
+        args.push_back(std::string(r.items[i])+((r.kind==AEGIS_PACKAGE_MIXED||r.kind==AEGIS_PACKAGE_RECONCILE)?"-":""));
     std::vector<aegis::PackageAptEffect> actual;
     if(aegis::PackageReadAptOperation(json,r.kind==AEGIS_PACKAGE_REMOVE?"remove":"install",args,&actual)<0)return -1;
     if(actual.size()!=r.count)return Fail(ESTALE);
@@ -168,8 +182,39 @@ extern "C" int aegis_package_guard_finish(aegis_package_guard* p,int root) {
     if(automatic!=p->automatic)return Fail(ESTALE);
     return CheckChoices(root,p->request.review.initial_choices);
 }
+extern "C" int aegis_package_guard_reconcile_marks(aegis_package_guard* p,int root) {
+    if(!p||p->request.kind!=AEGIS_PACKAGE_RECONCILE)return Fail(EINVAL);
+    std::string status,old;Installed actual;std::set<std::string> old_marks;
+    if(Read(root,"var/lib/dpkg/status",64u<<20,&status)<0
+       ||aegis::PackageReadInstalledRegistry(status,&actual)<0)return -1;
+    if(actual!=p->expected)return Fail(ESTALE);
+    if(CheckChoices(root,p->request.review.initial_choices)<0)return -1;
+    if(Read(root,"var/lib/apt/extended_states",16u<<20,&old)<0&&errno!=ENOENT)return -1;
+    if(aegis::PackageReadAutomaticRegistry(old,&old_marks)<0)return -1;
+    std::string state;
+    for(const auto& name:p->automatic)state+="Package: "+name+"\nArchitecture: "+std::get<1>(actual.at(name))+"\nAuto-Installed: 1\n\n";
+    int dir=Directory(root,"var/lib/apt");if(dir<0)return -1;
+    struct stat st;int error=0;
+    if(fstat(dir,&st)<0)error=errno;
+    else if(st.st_uid||st.st_gid||(st.st_mode&07022))error=EPERM;
+    int fd=error?-1:openat(dir,"extended_states.aegis-new",O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC|O_WRONLY,0644);
+    if(fd<0&&!error)error=errno;
+    if(fd>=0) {
+        for(size_t at=0;at<state.size()&&!error;) {
+            auto n=write(fd,state.data()+at,state.size()-at);if(n<0&&errno==EINTR)continue;
+            if(n<=0)error=n<0?errno:EIO;else at+=n;
+        }
+        if(!error&&fsync(fd)<0)error=errno;
+        if(!error&&renameat(dir,"extended_states.aegis-new",dir,"extended_states")<0)error=errno;
+        if(error)unlinkat(dir,"extended_states.aegis-new",0);close(fd);
+    }
+    if(!error&&fsync(dir)<0)error=errno;close(dir);
+    if(error)return Fail(error);
+    return aegis_package_guard_finish(p,root);
+}
 extern "C" int aegis_package_guard_commit(aegis_package_guard* p,int root) {
     if(aegis_package_guard_finish(p,root)<0)return -1;
+    if(p->request.kind==AEGIS_PACKAGE_RECONCILE)return 0; // retain private intent byte-for-byte
     return StoreChoices(root,p->request.review.initial_choices,p->request.review.result_choices);
 }
 extern "C" void aegis_package_guard_free(aegis_package_guard* p) { delete p; }

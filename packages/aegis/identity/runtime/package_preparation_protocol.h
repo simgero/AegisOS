@@ -3,7 +3,7 @@
 #include "package_preparer.h"
 #include "package_execution_protocol.h"
 namespace aegis::preparation {
-constexpr uint32_t kMagic=0x41455052,kVersion=8;
+constexpr uint32_t kMagic=0x41455052,kVersion=9;
 constexpr int kStage=3,kSource=4,kReply=5,kRequest=6,kExecutable=7,kArchive=8;
 struct Input { uint64_t bytes; char hash[65]; };
 struct Request {

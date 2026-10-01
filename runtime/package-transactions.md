@@ -1,20 +1,25 @@
-## Aktueller Stand: geprüfte Eingaben; Zusammenführung in Entwicklung
+## Aktueller Stand: Planer geprüft; gebundene Ausführung in Entwicklung
 
-`0fb41856` besteht **302 native Prüfungen**; der Nachweis der **54 unveränderten
-Java-Tests** bleibt gültig. Der interne Selektor hält private Generation,
-bisherige gemeinsame Basis und aktuelle gemeinsame Generation zusammen als
-verifizierte schreibgeschützte Ansichten. Historische gemeinsame Images werden
-vollständig erneut geprüft; Abbruch und Fehler geben keine Teilmenge frei.
-[Belege und Grenzen](../docs/component-tests.md).
+`2a0610b6` besteht **321 native Prüfungen**, einschließlich tatsächlicher
+APT-Auflösung mit privater Versionspriorität, passenden Abhängigkeiten,
+Entfernung und Downgrade. Der byte-identische Nachweis von **54 Java-Tests**
+bleibt gültig. [Belege und Grenzen](../docs/component-tests.md).
 
-Der nächste Entwicklungsschritt führt diese Ansichten in den isolierten APT-Planer.
-Explizite private Versionen haben Vorrang vor gemeinsamen Paketwurzeln;
-Abhängigkeiten muss APT passend dazu auflösen. Frühere gemeinsame Wurzeln dürfen
-nur entfallen, wenn keine beibehaltene Auswahl sie noch benötigt. Die ursprüngliche
-Paketdatenbank und automatischen Markierungen bleiben als separate Prüfbasis
-erhalten. Diese Planung allein ist weiterhin keine zusammengeführte oder
-aktivierte Generation. Der normale Transaktionsbinder darf ihre Ergebnisse
-nicht als gewöhnliches privates Update ausführen.
+Die nächste Ausführungsstufe bindet private Generation, bisherige und aktuelle
+gemeinsame Basis, vollständigen erwarteten Paketbestand einschließlich Holds
+sowie alle Manual-/Automatic-Markierungen. Die private Auswahl bleibt unverändert.
+Ein eigener interner Binder erzeugt einen Ausführungsplan auch für eine reine
+Basisfortschreibung ohne Paketänderungen. Der unabhängige native Wächter prüft
+die gesamte resultierende Registry und schreibt vollständige Markierungen erst
+nach beendeten Paketkindern atomar in den unveröffentlichten Kandidaten.
+Die normale Paketbindung nimmt keine Zusammenführungspläne entgegen.
+
+Diese Entwicklungsänderung ist noch nicht durch einen neuen Gerätetest bestätigt.
+Die Ausführung verwendet den vollständigen ursprünglichen privaten Bestand;
+Konfiguration und technische Kennungen dürfen nicht durch ein gemeinsames Overlay
+ersetzt werden. Integration in Broker-Admission, Autorisierung, Prüfung des noch
+aktuellen gemeinsamen Stands bei Veröffentlichung sowie Aktivierung beim nächsten
+Runtime-Start und der Nachweis im installierten Produkt bleiben erforderlich.
 
 ## Vorheriger Stand: gemischte Transaktionen; gemeinsame/private Zusammenführung offen
 

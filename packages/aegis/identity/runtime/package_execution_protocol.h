@@ -4,7 +4,8 @@
 #include <stddef.h>
 #include <string.h>
 #define AEGIS_PACKAGE_EXEC_MAGIC UINT32_C(0x41455045)
-#define AEGIS_PACKAGE_EXEC_VERSION 5u
+#define AEGIS_PACKAGE_EXEC_VERSION 6u
+#define AEGIS_PACKAGE_RECONCILIATION_ROOT_BYTES 66049u
 #define AEGIS_PACKAGE_CHOICES_BYTES 17408u
 #define AEGIS_PACKAGE_EXEC_ITEMS 64u
 #define AEGIS_PACKAGE_EXEC_NAME 160u
@@ -13,6 +14,7 @@
 #define AEGIS_PACKAGE_REMOVE 2u
 #define AEGIS_PACKAGE_MIXED 3u
 #define AEGIS_PACKAGE_SELECTION 4u // private metadata only, no APT package action
+#define AEGIS_PACKAGE_RECONCILE 5u // private base transition, including zero package effects
 #define AEGIS_PACKAGE_EXEC_READY 1u
 #define AEGIS_PACKAGE_EXEC_DONE 2u
 struct aegis_package_expected_effect {
@@ -26,6 +28,9 @@ struct aegis_package_execution_review {
     uint8_t reserved[6];
     char initial_choices[AEGIS_PACKAGE_CHOICES_BYTES], result_choices[AEGIS_PACKAGE_CHOICES_BYTES];
     struct aegis_package_expected_effect effects[AEGIS_PACKAGE_EXEC_ITEMS];
+    char reconciliation_roots[AEGIS_PACKAGE_RECONCILIATION_ROOT_BYTES];
+    char result_registry[65], result_automatic[65];
+    uint8_t reconciliation_reserved[5];
 };
 struct aegis_package_execution_request {
     uint32_t magic, version, user, serial;
@@ -85,11 +90,22 @@ static inline int aegis_package_choices_text(const char *text) {
 }
 static inline int aegis_package_review_valid(const struct aegis_package_execution_request *r) {
     const struct aegis_package_execution_review *v=&r->review;
-    if(!v->present)return r->kind!=AEGIS_PACKAGE_MIXED && r->kind!=AEGIS_PACKAGE_SELECTION && aegis_package_zero(v,sizeof(*v));
+    if(!v->present)return r->kind!=AEGIS_PACKAGE_MIXED && r->kind!=AEGIS_PACKAGE_SELECTION && r->kind!=AEGIS_PACKAGE_RECONCILE && aegis_package_zero(v,sizeof(*v));
     if(v->present!=1 || !aegis_package_hash(v->initial_status)
-       || !aegis_package_zero(v->reserved,sizeof(v->reserved)))return 0;
+       || !aegis_package_zero(v->reserved,sizeof(v->reserved))
+       || !aegis_package_zero(v->reconciliation_reserved,sizeof(v->reconciliation_reserved)))return 0;
     if(!aegis_package_choices_text(v->initial_choices) || !aegis_package_choices_text(v->result_choices)
        || (*v->initial_choices && !*v->result_choices))return 0;
+    if(r->kind==AEGIS_PACKAGE_RECONCILE) {
+        if(!*v->initial_choices || strcmp(v->initial_choices,v->result_choices)
+           || !aegis_package_hash(v->result_registry) || !aegis_package_hash(v->result_automatic))return 0;
+        size_t n=strnlen(v->reconciliation_roots,sizeof(v->reconciliation_roots));
+        if(!n || n==sizeof(v->reconciliation_roots)
+           || !aegis_package_zero(v->reconciliation_roots+n,sizeof(v->reconciliation_roots)-n))return 0;
+        for(size_t i=0;i<n;++i)if(v->reconciliation_roots[i]!='\n'
+            && ((unsigned char)v->reconciliation_roots[i]<33 || (unsigned char)v->reconciliation_roots[i]>126))return 0;
+    } else if(!aegis_package_zero(v->reconciliation_roots,sizeof(v->reconciliation_roots))
+              ||!aegis_package_zero(v->result_registry,65)||!aegis_package_zero(v->result_automatic,65))return 0;
     if(r->kind==AEGIS_PACKAGE_SELECTION && (r->count!=1 || !*v->result_choices
        || !strcmp(v->initial_choices,v->result_choices)))return 0;
     if(v->apt_state_presence==1) {
@@ -117,7 +133,7 @@ static inline int aegis_package_review_valid(const struct aegis_package_executio
 // The caller validates framing/review before relying on the effect mapping.
 static inline int aegis_package_has_archive(const struct aegis_package_execution_request *r, unsigned i) {
     return i<r->count && i<AEGIS_PACKAGE_EXEC_ITEMS && (r->kind==AEGIS_PACKAGE_ARCHIVES
-        || (r->kind==AEGIS_PACKAGE_MIXED && r->review.effects[i].after[0]));
+        || ((r->kind==AEGIS_PACKAGE_MIXED || r->kind==AEGIS_PACKAGE_RECONCILE) && r->review.effects[i].after[0]));
 }
 static inline unsigned aegis_package_archive_count(const struct aegis_package_execution_request *r) {
     unsigned count=0;
@@ -129,8 +145,8 @@ static inline int aegis_package_execution_valid(const struct aegis_package_execu
             || r->user < 10 || r->user >= 21473 || r->serial > INT32_MAX
             || !r->job || r->job > INT64_MAX || !aegis_package_hash(r->plan)
             || !aegis_package_zero(r->reserved, sizeof(r->reserved))
-            || (r->kind != AEGIS_PACKAGE_ARCHIVES && r->kind != AEGIS_PACKAGE_REMOVE && r->kind != AEGIS_PACKAGE_MIXED && r->kind != AEGIS_PACKAGE_SELECTION)
-            || !r->count || r->count > AEGIS_PACKAGE_EXEC_ITEMS || !aegis_package_review_valid(r)) return 0;
+            || (r->kind != AEGIS_PACKAGE_ARCHIVES && r->kind != AEGIS_PACKAGE_REMOVE && r->kind != AEGIS_PACKAGE_MIXED && r->kind != AEGIS_PACKAGE_SELECTION && r->kind != AEGIS_PACKAGE_RECONCILE)
+            || (!r->count && r->kind!=AEGIS_PACKAGE_RECONCILE) || r->count > AEGIS_PACKAGE_EXEC_ITEMS || !aegis_package_review_valid(r)) return 0;
     for (unsigned i = 0; i < AEGIS_PACKAGE_EXEC_ITEMS; i++) {
         if (i >= r->count) { if (!aegis_package_zero(r->items[i], sizeof(r->items[i]))) return 0;continue; }
         int archive=aegis_package_has_archive(r,i);

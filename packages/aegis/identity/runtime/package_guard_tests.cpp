@@ -1,6 +1,7 @@
 // Compile on aegis-build, run only in local Android QEMU. Private synthetic
 // control files exercise the independent native registry parser and comparison.
 #include "package_guard.h"
+#include "package_reconciliation.h"
 #include <gtest/gtest.h>
 #include <json/json.h>
 #include <openssl/sha.h>
@@ -50,6 +51,19 @@ class PackageExecutionGuard : public ::testing::Test {
         auto& r=request.review;r.present=1;r.apt_state_presence=2;r.apt_state_bytes=base_auto.size();
         strcpy(r.initial_status,Hash(base).c_str());strcpy(r.initial_apt_state,Hash(base_auto).c_str());
         strcpy(r.effects[0].name,"test-app");strcpy(r.effects[0].architecture,"all");strcpy(r.effects[0].after,"2");r.effects[0].reason=2;
+        ASSERT_TRUE(aegis_package_execution_valid(&request));
+    }
+    void Reconciliation(bool empty=false) {
+        request.kind=AEGIS_PACKAGE_RECONCILE;
+        ASSERT_EQ(0,mkdirat(root.get(),"var/lib/aegis",0700));
+        const std::string choices="AEGIS-PRIVATE-CHOICES1\n";
+        Write("var/lib/aegis/private-choices",choices);
+        strcpy(request.review.initial_choices,choices.c_str());strcpy(request.review.result_choices,choices.c_str());
+        strcpy(request.review.reconciliation_roots,"base-one\n");
+        if(empty) { request.count=0;memset(request.items,0,sizeof(request.items));memset(request.review.effects,0,sizeof(request.review.effects)); }
+        aegis::PackageInstalledRegistry expected;ASSERT_EQ(0,aegis::PackageReadInstalledRegistry(base+(empty?"":added),&expected));
+        strcpy(request.review.result_registry,Hash(aegis::PackageCanonicalInstalled(expected)).c_str());
+        strcpy(request.review.result_automatic,Hash(aegis::PackageCanonicalAutomatic(empty?std::set<std::string>{}:std::set<std::string>{"test-app"})).c_str());
         ASSERT_TRUE(aegis_package_execution_valid(&request));
     }
     void Begin() { ASSERT_EQ(0,aegis_package_guard_begin(root.get(),&request,&guard))<<strerror(errno);ASSERT_NE(nullptr,guard); }
@@ -233,6 +247,43 @@ TEST_F(PackageExecutionGuard, ManifestSymlinkCannotReadOutsideTheCandidate) {
     ASSERT_EQ(0,mkdirat(root.get(),"var/lib/aegis",0700));
     ASSERT_EQ(0,symlinkat("/system/build.prop",root.get(),"var/lib/aegis/private-choices"));
     EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(ELOOP,errno);EXPECT_EQ(nullptr,guard);
+}
+
+TEST_F(PackageExecutionGuard, ReconciliationAppliesAllMarksIncludingUnchangedRootAndRetainsPrivateIntent) {
+    Reconciliation();ASSERT_FALSE(HasFatalFailure());Begin();ASSERT_FALSE(HasFatalFailure());
+    Finish(base+added,base_auto+app_auto,ESTALE);
+    struct stat before,after;ASSERT_EQ(0,fstatat(root.get(),"var/lib/aegis/private-choices",&before,0));
+    ASSERT_EQ(0,aegis_package_guard_reconcile_marks(guard,root.get()))<<strerror(errno);
+    ASSERT_EQ(0,aegis_package_guard_finish(guard,root.get()));ASSERT_EQ(0,aegis_package_guard_commit(guard,root.get()));
+    ASSERT_EQ(0,fstatat(root.get(),"var/lib/aegis/private-choices",&after,0));EXPECT_EQ(before.st_ino,after.st_ino);
+    Finish(base+added,app_auto,0);Finish(base+added,base_auto+app_auto,ESTALE);
+}
+TEST_F(PackageExecutionGuard, ReconciliationRejectsWrongCompleteRegistryBeforePackageExecution) {
+    Reconciliation();ASSERT_FALSE(HasFatalFailure());strcpy(request.review.result_registry,std::string(64,'b').c_str());
+    EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(nullptr,guard);
+}
+TEST_F(PackageExecutionGuard, ReconciliationRejectsWrongCompleteMarkCommitmentBeforePackageExecution) {
+    Reconciliation();ASSERT_FALSE(HasFatalFailure());strcpy(request.review.result_automatic,std::string(64,'b').c_str());
+    EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(nullptr,guard);
+}
+TEST_F(PackageExecutionGuard, ReconciliationEmptyEffectsStillValidatesAndUpdatesFullMarks) {
+    Reconciliation(true);ASSERT_FALSE(HasFatalFailure());Begin();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(-1,aegis_package_guard_finish(guard,root.get()));EXPECT_EQ(ESTALE,errno);
+    ASSERT_EQ(0,aegis_package_guard_reconcile_marks(guard,root.get()));ASSERT_EQ(0,aegis_package_guard_commit(guard,root.get()));
+    Finish(base,"",0);
+}
+TEST_F(PackageExecutionGuard, ReconciliationCannotRepairUnexpectedPackageOrPrivateIntentChanges) {
+    Reconciliation();ASSERT_FALSE(HasFatalFailure());Begin();ASSERT_FALSE(HasFatalFailure());
+    Write("var/lib/dpkg/status",base+added+"Package: unexpected\nStatus: install ok installed\nArchitecture: all\nVersion: 1\n\n");
+    EXPECT_EQ(-1,aegis_package_guard_reconcile_marks(guard,root.get()));EXPECT_EQ(ESTALE,errno);
+    Write("var/lib/dpkg/status",base+added);Write("var/lib/aegis/private-choices","AEGIS-PRIVATE-CHOICES1\ntest-app\tall\t2\n");
+    EXPECT_EQ(-1,aegis_package_guard_reconcile_marks(guard,root.get()));EXPECT_EQ(ESTALE,errno);
+}
+TEST_F(PackageExecutionGuard, ReconciliationProtocolRejectsIntentReplacementAndOrdinaryHiddenEvidence) {
+    Reconciliation();ASSERT_FALSE(HasFatalFailure());auto bad=request;
+    strcpy(bad.review.result_choices,"AEGIS-PRIVATE-CHOICES1\ntest-app\tall\t2\n");EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=request;bad.kind=AEGIS_PACKAGE_ARCHIVES;EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=request;bad.review.present=0;EXPECT_FALSE(aegis_package_execution_valid(&bad));
 }
 
 }

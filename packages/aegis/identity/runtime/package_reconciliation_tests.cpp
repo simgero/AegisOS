@@ -89,4 +89,91 @@ TEST(PackageReconciliationGoals, InternalEvidenceCannotBeMistakenForAnOrdinaryAp
     EXPECT_EQ(-1,PackageResolverCheck(request));request.package.clear();request.action=PackageAction::Update;
     EXPECT_EQ(0,PackageResolverCheck(request));
 }
+PackageResolvedPlan ReconciliationPlan() {
+    PackageResolvedPlan p;p.requester=10;p.serial=42;p.personal=p.has_previous=p.reconciliation=true;
+    p.action=PackageAction::Update;p.source={268435456,std::string(64,'a')};
+    p.shared={268435456,std::string(64,'b')};p.previous_shared={268435456,std::string(64,'c')};
+    p.previous={p.source.sha256,p.previous_shared.sha256,p.source.bytes};p.planner_image_sha256=std::string(64,'d');
+    p.policy_sha256=std::string(64,'e');p.initial_status_sha256=std::string(64,'f');
+    p.initial_private_choices=Header;p.initial_apt_state_presence=PackageStatePresence::Absent;
+    auto& re=p.reconciliation_evidence;re.roots="app\ncore\n";
+    re.previous_status_sha256=std::string(64,'1');re.previous_automatic_sha256=std::string(64,'2');
+    re.current_status_sha256=std::string(64,'3');re.current_automatic_sha256=std::string(64,'4');
+    re.solver_automatic_sha256=std::string(64,'5');re.result_registry_sha256=std::string(64,'6');re.result_automatic_sha256=std::string(64,'7');
+    p.repositories={{"source",std::string(64,'8'),std::string(64,'9'),2000}};
+    p.changes={{"app","all","1","2","source",{1024,std::string(64,'0')},PackageInstallReason::Manual},
+               {"lib","all","1","2","source",{1024,std::string(64,'1')},PackageInstallReason::Automatic}};
+    return p;
+}
+TEST(PackageReconciliationBinding, BindsPrivateSourceAndNewBaseWithoutChangingPrivateIntent) {
+    auto p=ReconciliationPlan();PackageBoundPlan b;ASSERT_EQ(0,PackageBindReconciliationPlan(p,1000,&b))<<strerror(errno);
+    EXPECT_EQ(p.source.sha256,b.preparation.image.sha256);EXPECT_EQ(p.previous.image_sha256,b.publication.previous.image_sha256);
+    EXPECT_EQ(p.shared.sha256,b.publication.candidate.shared_base_sha256);EXPECT_TRUE(b.publication.personal);
+    EXPECT_FALSE(b.publication.create);EXPECT_EQ(AEGIS_PACKAGE_RECONCILE,b.preparation.execution.kind);
+    EXPECT_EQ(Header,std::string(b.preparation.execution.review.initial_choices));
+    EXPECT_EQ(Header,std::string(b.preparation.execution.review.result_choices));
+    EXPECT_EQ(p.reconciliation_evidence.result_registry_sha256,std::string(b.preparation.execution.review.result_registry));
+    EXPECT_EQ(b.preparation.execution.plan_sha256,b.publication.plan_sha256);
+}
+TEST(PackageReconciliationBinding, EmptyEffectsStillBindAnExplicitBaseTransitionAndFullMarks) {
+    auto p=ReconciliationPlan();p.changes.clear();p.repositories.clear();PackageBoundPlan b;
+    ASSERT_EQ(0,PackageBindReconciliationPlan(p,1000,&b))<<strerror(errno);
+    EXPECT_TRUE(b.preparation.execution.items.empty());EXPECT_TRUE(b.preparation.archives.empty());
+    EXPECT_EQ(0u,b.valid_until_unix);EXPECT_EQ(AEGIS_PACKAGE_RECONCILE,b.preparation.execution.kind);
+    EXPECT_NE(b.publication.previous.shared_base_sha256,b.publication.candidate.shared_base_sha256);
+}
+TEST(PackageReconciliationBinding, EverySnapshotAndCompleteResultChangesApprovalDigest) {
+    auto p=ReconciliationPlan();PackageBoundPlan first;ASSERT_EQ(0,PackageBindReconciliationPlan(p,1000,&first));
+    using Member=std::string PackageReconciliationEvidence::*;
+    for(Member member:{&PackageReconciliationEvidence::previous_status_sha256,&PackageReconciliationEvidence::previous_automatic_sha256,
+          &PackageReconciliationEvidence::current_status_sha256,&PackageReconciliationEvidence::current_automatic_sha256,
+          &PackageReconciliationEvidence::solver_automatic_sha256,&PackageReconciliationEvidence::result_registry_sha256,
+          &PackageReconciliationEvidence::result_automatic_sha256}) {
+        auto changed=p;(changed.reconciliation_evidence.*member)=std::string(64,'a');PackageBoundPlan b;
+        ASSERT_EQ(0,PackageBindReconciliationPlan(changed,1000,&b));EXPECT_NE(first.publication.plan_sha256,b.publication.plan_sha256);
+    }
+    auto changed=p;changed.previous_shared.bytes*=2;PackageBoundPlan b;
+    ASSERT_EQ(0,PackageBindReconciliationPlan(changed,1000,&b));EXPECT_NE(first.publication.plan_sha256,b.publication.plan_sha256);
+}
+TEST(PackageReconciliationBinding, RejectsWrongScopeBaseCreationAndOrdinaryEndpointWithoutChangingOutput) {
+    for(unsigned mode=0;mode<7;++mode) {
+        auto p=ReconciliationPlan();
+        if(mode==0)p.personal=false;if(mode==1)p.has_previous=false;if(mode==2)p.create_store=true;
+        if(mode==3)p.previous_shared.sha256=std::string(64,'d');if(mode==4)p.previous_shared={};
+        if(mode==5)p.reconciliation=false;if(mode==6)p.shared=p.previous_shared;
+        PackageBoundPlan b;b.publication.plan_sha256="unchanged";
+        EXPECT_EQ(-1,PackageBindReconciliationPlan(p,1000,&b));EXPECT_EQ("unchanged",b.publication.plan_sha256);
+    }
+    PackageBoundPlan b;EXPECT_EQ(-1,PackageBindResolvedPlan(ReconciliationPlan(),1000,&b));EXPECT_EQ(EOPNOTSUPP,errno);
+}
+TEST(PackageReconciliationBinding, MissingOrNoncanonicalRootAndResultEvidenceCannotBeApproved) {
+    for(const char* roots:{"","app","app\napp\n","core\napp\n","--option\n"}) {
+        auto p=ReconciliationPlan();p.reconciliation_evidence.roots=roots;PackageBoundPlan b;
+        EXPECT_EQ(-1,PackageBindReconciliationPlan(p,1000,&b));
+    }
+    auto p=ReconciliationPlan();p.reconciliation_evidence.result_registry_sha256.clear();PackageBoundPlan b;
+    EXPECT_EQ(-1,PackageBindReconciliationPlan(p,1000,&b));
+    p=ReconciliationPlan();p.initial_private_choices=Header+"private\tall\t1\n";
+    EXPECT_EQ(-1,PackageBindReconciliationPlan(p,1000,&b));EXPECT_EQ(ESTALE,errno);
+    p=ReconciliationPlan();p.changes[1].reason=PackageInstallReason::Manual;
+    EXPECT_EQ(-1,PackageBindReconciliationPlan(p,1000,&b));EXPECT_EQ(ESTALE,errno);
+}
+TEST(PackageReconciliationBinding, CompleteEvidenceRoundTripsAndUnusedTailCannotHideData) {
+    auto p=ReconciliationPlan();aegis_planning_evidence wire={};ASSERT_EQ(0,planning_wire::Encode(p,&wire));
+    PackageResolvedPlan decoded;ASSERT_EQ(0,planning_wire::Decode(wire,&decoded));
+    EXPECT_EQ(p.reconciliation_evidence.roots,decoded.reconciliation_evidence.roots);
+    EXPECT_EQ(p.reconciliation_evidence.result_registry_sha256,decoded.reconciliation_evidence.result_registry_sha256);
+    wire.roots[100]='x';EXPECT_EQ(-1,planning_wire::Decode(wire,&decoded));EXPECT_EQ(EPROTO,errno);
+}
+TEST(PackageReconciliationBinding, ProjectionChangesUntouchedMarksAndPreservesHoldAndAllInstalledVersions) {
+    PackageInstalledRegistry initial={{"app",{"1","all","install"}},{"core",{"1","all","hold"}},{"lib",{"1","all","install"}}},expected;
+    std::set<std::string> marks;
+    ASSERT_EQ(0,PackageReconciliationProject(initial,{},"core\n",&expected,&marks));
+    EXPECT_EQ(initial,expected);EXPECT_EQ((std::set<std::string>{"app","lib"}),marks);
+    EXPECT_EQ("AEGIS-INSTALLED1\napp\tall\t1\tinstall\ncore\tall\t1\thold\nlib\tall\t1\tinstall\n",PackageCanonicalInstalled(expected));
+    EXPECT_EQ("AEGIS-AUTOMATIC1\napp\nlib\n",PackageCanonicalAutomatic(marks));
+    auto before=expected;EXPECT_EQ(-1,PackageReconciliationProject(initial,{{"core","all","1","2",false}},"core\n",&expected,&marks));
+    EXPECT_EQ(EDEADLK,errno);EXPECT_EQ(before,expected);
+}
+
 }
