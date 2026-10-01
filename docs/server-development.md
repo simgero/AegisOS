@@ -176,3 +176,15 @@ Basis sind nachgewiesen. Beta (11/11, kein Administrator) ist nach frischer
 AOSP-Adminprüfung ebenfalls angelegt und zunächst gesperrt. Dessen erste
 Anmeldung, beidseitige Isolation und Persistenz werden im selben laufenden
 Testtreiber geprüft; sie sind mit diesem Zwischenstand noch nicht abgenommen.
+
+Im gleichen Lauf bestehen inzwischen auch Betas allererste Anmeldung und
+beide GNU-Isolationsrichtungen. Beide Originaljobs (Host-PIDs 5949/7619,
+Host-UIDs 1007500/1107500) laufen vor und nach den Negativproben weiter.
+Lesen der fremden GNU-Datei über Home, Android-CE-Pfad und `/proc/.../root`
+sowie SIGSTOP auf den fremden Prozess scheitern aus den unprivilegierten
+Kontexten. Alle sechs Namespace-Kennungen sind verschieden. Gleichnamige
+POSIX-Mqueues liefern nur die eigene Nachricht; fremde Queue-Namen sind
+nicht erreichbar. Beleg: `candidate-7fb41f5/two-user-isolation-proof.json`.
+SystemServer bleibt bis 18:40 UTC PID 1322, ohne beobachtetes FORTIFY-,
+Fatal-Signal-, Java-Fatal- oder Watchdog-Kill-Ereignis. Paket-/Neustartabnahme
+läuft anschließend weiter.
