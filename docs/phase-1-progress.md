@@ -752,3 +752,58 @@ korrigierten Java-Gerätetests kompilierten; beim Dienst scheiterte nun
 Der gleiche ASCII-Lesevorgang verwendet deshalb `Files.readAllBytes` und den
 expliziten String-Konstruktor. Die Bindung an PID, UID und Kernel-Startzeit
 bleibt erhalten. Ein erfolgreicher Gesamtabschluss ist noch nicht bestätigt.
+
+
+## 2026-10-01: Bestätigter Schlüsselentzug und ergänzter IPC-Nachweis
+
+Komponentenstand `1b1a0a9a3fa4d17b868087065d23df0ebe39c555` wurde auf
+`aegis-build` einschließlich vold erfolgreich kompiliert. Der verifizierte
+[Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T133453Z-1b1a0a9a-1b1a0a9a-zSMhW1)
+wurde über GitHub auf den Mac übertragen. Neun neue native
+`FscryptEviction`-Prüfungen und sechs `AegisCeLockTest`-Prüfungen bestehen im
+lokalen f2d1d0e7-Gast. Die nativen Prüfungen verwenden denselben Algorithmus
+wie der neue vold-Pfad; die Java-Prüfungen verwenden kontrollierte Rückgaben.
+Die tatsächlich installierten Plattformdienste des Testgasts bleiben f2d1d0e7.
+Benutzer, CE-Zustand, Schlüsselverzeichnisse und Runtime-Kontexte waren vor
+und nach diesen Prüfungen identisch. Der erste Transferversuch scheiterte
+vor der Ausführung an den Rechten des Testverzeichnisses; sein Fehlernachweis
+bleibt getrennt vom erfolgreichen zweiten Versuch erhalten.
+
+Nachweise: `out/components-1b1a0a9a/completion-tests-2/result.json`,
+Native-Protokoll SHA-256
+`169dd160489dd70e86a3dfd991f9164b1d27058882c123784758e6d3f8c4cbed`,
+Java-Protokoll SHA-256
+`900227999e81ee61a9eb236daa9e9b52d9cafd798a5078e339da15d8c8a5a8e4`.
+Der passende Vollbuild `aosp-20261001T134005Z-1b1a0a9a-98335bc1` ist
+kompiliert. Sein tatsächlicher Boot und die Tests mit einer absichtlich
+geöffnet gehaltenen verschlüsselten Datei stehen noch aus. Insbesondere
+müssen ein Ablauf über der zehnsekündigen Frist und die anschließende
+Wiederholung beziehungsweise Wiederanmeldung geprüft werden. Die bisherigen
+Ergebnisse schließen die reale Logout-Lücke noch nicht.
+
+Im getrennten lokalen 020ae750-Gast bestanden zusätzliche echte
+Unix-Socket-Kontrollen mit Simeon (10/10) und Isabelle (11/11): Jeder
+GNU-Kontext konnte den eigenen abstrakten Stream-Socket erreichen und die
+erwarteten Daten lesen. Die Verbindung zum fremden Socket wurde in beiden
+Richtungen mit `ECONNREFUSED` abgewiesen. Für jeden fremden Zugriffsversuch
+liegt ein erfolgreicher eigener Zugriff auf denselben Ziel-Listener vorher
+und nachher vor. Beide Listener wurden danach mit geprüfter Prozessidentität
+beendet, beide Benutzer regulär abgemeldet; die persönlichen Kontexte sind
+abgebaut. Ein erster, zu kurz begrenzter Listenerlauf zählt nicht als dieser
+vollständige Nachweis.
+
+Nachweis: `out/full-build-020ae750/identity-test/ipc-socket-proof.json`,
+Ereignisprotokoll SHA-256
+`e89e850ab4c0609b7626988c289e8a553e9740077bfba9dfbfc05f00cb3029f4`.
+Dies deckt abstrakte Unix-Stream-Sockets ab, keine pauschale IPC-Isolation
+oder D-Bus-Funktion.
+
+Offen ist ein tatsächlicher POSIX-Mqueue-Fehler: Der normale Runtime-Prozess
+kann nicht einmal eine eigene Nachrichtenwarteschlange erstellen. Der Kernel
+weist `mq_open` mit `EACCES` ab; SELinux protokolliert fehlendes `search` von
+`aegis_runtime_program` auf `mqueue:dir`. Die Richtlinie wurde im Gast nicht
+abgeschwächt. Eine gezielte Produktkorrektur braucht anschließend positive
+Eigenzugriffe, gegenseitige Isolation und Abbaukontrollen. System-V-IPC
+liefert dagegen wie konfiguriert `ENOSYS`: `CONFIG_SYSVIPC` ist bewusst aus,
+während `CONFIG_IPC_NS` und `CONFIG_POSIX_MQUEUE` aktiv sind. Dies wird nicht
+als bestandener System-V-IPC-Test gewertet.
