@@ -47,7 +47,9 @@ std::string Record(PackageOwner owner, const PackageGeneration& generation) {
 }
 int OpenAt(int directory, const char* name, int flags, mode_t mode = 0) {
     open_how how = {};
-    how.flags = flags | O_NOFOLLOW | O_CLOEXEC;
+    // Every caller requires a regular file or directory. Reject malformed FIFOs
+    // through the later type check without waiting for a peer during open().
+    how.flags = flags | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK;
     how.mode = mode;
     how.resolve = RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS | RESOLVE_NO_XDEV;
     return syscall(SYS_openat2, directory, name, &how, sizeof(how));

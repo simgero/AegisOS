@@ -5,6 +5,10 @@ gegenüber den aktuellen gemeinsamen und privaten Auswahlmetadaten. Sie meldet
 `packages=current`, `packages=activation-pending`, `packages=unconfirmed` oder
 `packages=not-active`, ohne einen laufenden Kontext zu ersetzen oder Arbeit zu starten.
 Eine gesperrte oder beschädigte Metadatenabfrage darf keinen aktuellen Stand behaupten.
+Auch das Öffnen wird nichtblockierend ausgeführt: FIFO-Dateien anstelle von
+Lock, Eigentümer, Auswahl oder Image müssen sofort an der Typprüfung scheitern.
+Die entsprechenden Tests haben einen begrenzten Kindprozess, damit eine Regression
+als Fehler endet und nicht die gesamte Testausführung hängen lässt.
 
 Die neue Abfrage liest ausschließlich begrenzte Metadaten, prüft Eigentümer,
 Dateityp, Rechte, Verknüpfungen und Bildgröße und gibt keine Deskriptoren zurück.
@@ -12,7 +16,7 @@ Sie hasht keine Abbilder innerhalb der AOSP-Admission. Die vollständige bisheri
 Inhaltsprüfung bleibt vor Auswahl und Ausführung zwingend. Native und Java-Protokolle
 trennen diese Beobachtung ausdrücklich von Ausführungs- und Startfreigaben.
 
-**Noch nicht kompiliert oder ausgeführt:** Sechs neue native und zwei neue Java-Tests
+**Noch nicht kompiliert oder ausgeführt:** Acht neue native und zwei neue Java-Tests
 sind ergänzt. Positive Anzeige bei tatsächlich laufenden CE-Kontexten, Änderungen
 durch andere Benutzer und Rückkehr zu `current` nach Abgleich brauchen anschließend
 Nachweise im passenden Produktimage. Der bereits laufende Vollbuild `020ae750`

@@ -6,6 +6,7 @@
 #include <openssl/sha.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -305,4 +306,53 @@ TEST_F(RuntimePackageStore, MetadataObservationRejectsMissingAliasedAndWrongSize
     ASSERT_EQ(0,symlinkat("../source-0",root.get(),name.c_str()));
     EXPECT_EQ(-1,store->SelectionMetadata(&output));EXPECT_EQ(ELOOP,errno);
     EXPECT_EQ(Digest("sentinel"),output.image_sha256);
+}
+
+TEST_F(RuntimePackageStore, MetadataOpenRejectsFifoLockAndOwnerWithoutWaiting) {
+    Start();ASSERT_TRUE(store);store.reset();
+    for(const char* name:{"lock","owner"}) {
+        const auto saved=std::string("saved-")+name;
+        ASSERT_EQ(0,renameat(root.get(),name,root.get(),saved.c_str()));
+        ASSERT_EQ(0,mkfifoat(root.get(),name,!strcmp(name,"lock")?0600:0400));
+        pid_t child=fork();ASSERT_GE(child,0);
+        if(!child) {
+            signal(SIGALRM,SIG_DFL);alarm(3); // A regression fails this child instead of hanging the suite.
+            std::unique_ptr<PackageStore> checked(PackageStore::Open(root.get(),shared,false));
+            const int error=errno;
+            _exit(!checked && error==EPERM?0:11);
+        }
+        int status=0;pid_t waited;
+        do { waited=waitpid(child,&status,0); } while(waited<0 && errno==EINTR);
+        ASSERT_EQ(child,waited);ASSERT_TRUE(WIFEXITED(status));EXPECT_EQ(0,WEXITSTATUS(status));
+        ASSERT_EQ(0,unlinkat(root.get(),name,0));
+        ASSERT_EQ(0,renameat(root.get(),saved.c_str(),root.get(),name));
+    }
+    store.reset(PackageStore::Open(root.get(),shared,false));EXPECT_TRUE(store);
+}
+TEST_F(RuntimePackageStore, MetadataObservationRejectsFifoSelectionAndImageWithoutWaiting) {
+    Start();ASSERT_TRUE(store);auto generation=Image("original");auto input=Source("original");
+    ASSERT_EQ(PackagePublish::Confirmed,store->Publish(nullptr,input.get(),generation,proceed));
+    store.reset();
+    for(const auto& name:{std::string("current"),generation.image_sha256+".image"}) {
+        const auto saved=std::string("saved-")+name;
+        ASSERT_EQ(0,renameat(root.get(),name.c_str(),root.get(),saved.c_str()));
+        ASSERT_EQ(0,mkfifoat(root.get(),name.c_str(),name=="current"?0400:0444));
+        pid_t child=fork();ASSERT_GE(child,0);
+        if(!child) {
+            signal(SIGALRM,SIG_DFL);alarm(3);
+            std::unique_ptr<PackageStore> checked(PackageStore::Open(root.get(),shared,false));
+            if(!checked)_exit(12);
+            auto output=Image("sentinel");
+            const int result=checked->SelectionMetadata(&output),error=errno;
+            _exit(result==-1 && error==EPERM && output.image_sha256==Digest("sentinel")?0:13);
+        }
+        int status=0;pid_t waited;
+        do { waited=waitpid(child,&status,0); } while(waited<0 && errno==EINTR);
+        ASSERT_EQ(child,waited);ASSERT_TRUE(WIFEXITED(status));EXPECT_EQ(0,WEXITSTATUS(status));
+        ASSERT_EQ(0,unlinkat(root.get(),name.c_str(),0));
+        ASSERT_EQ(0,renameat(root.get(),saved.c_str(),root.get(),name.c_str()));
+    }
+    store.reset(PackageStore::Open(root.get(),shared,false));ASSERT_TRUE(store);
+    PackageGeneration checked;unique_fd image(store->Current(&checked));
+    ASSERT_TRUE(image.ok());EXPECT_EQ("original",Read(image.get()));
 }
