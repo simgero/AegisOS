@@ -45,11 +45,43 @@ TEST(PackageResolvedPlan, BindsCanonicalEpochArchivesAndRequesterPrivateOwner) {
     EXPECT_EQ(268435456u,pub.candidate.bytes);EXPECT_EQ(2000u,b.valid_until_unix);
     EXPECT_EQ(prep.execution.plan_sha256,pub.plan_sha256);
 }
-TEST(PackageResolvedPlan, IndependentVersionThreeDigestVectorAndClockStableBinding) {
-    auto p=Plan();EXPECT_EQ("d29d9a89a4f93a003ea5273079a33347ab0d73554efc7d238797914f4fceb358",Digest(p));
+TEST(PackageResolvedPlan, IndependentVersionFourDigestVectorAndClockStableBinding) {
+    auto p=Plan();EXPECT_EQ("9baa6c48dcb922d9b6d5cfd53d81f945733c8eee0953af28b645311d80c83558",Digest(p));
     PackageBoundPlan b;ASSERT_EQ(0,PackageBindResolvedPlan(p,1999,&b));
     EXPECT_EQ(Digest(p),b.preparation.execution.plan_sha256);
 }
+TEST(PackageResolvedPlan, SameVersionPrivateSelectionBindsNoArchiveAndDurableIntent) {
+    auto p=Plan();p.changes.resize(1);auto& c=p.changes[0];
+    c.before_version=c.after_version;c.archive={};c.repository.clear();p.repositories.clear();
+    PackageBoundPlan b;ASSERT_EQ(0,PackageBindResolvedPlan(p,1000,&b))<<strerror(errno);
+    EXPECT_EQ(AEGIS_PACKAGE_SELECTION,b.preparation.execution.kind);EXPECT_TRUE(b.preparation.archives.empty());
+    EXPECT_EQ((std::vector<std::string>{"test-app"}),b.preparation.execution.items);EXPECT_EQ(0u,b.valid_until_unix);
+    EXPECT_EQ("AEGIS-PRIVATE-CHOICES1\ntest-app\tarm64\t2:1.0~rc1-1\n",std::string(b.preparation.execution.review.result_choices));
+    EXPECT_TRUE(b.publication.personal);EXPECT_EQ(p.requester,b.publication.requester);
+    EXPECT_EQ(b.preparation.execution.plan_sha256,b.publication.plan_sha256);
+    const auto original=Digest(p);p.requested_version.clear();EXPECT_NE(original,Digest(p));
+}
+TEST(PackageResolvedPlan, SameVersionSelectionRejectsWrongActionScopeArchiveAndAutomaticIntent) {
+    auto good=Plan();good.changes.resize(1);good.changes[0].before_version=good.changes[0].after_version;
+    good.changes[0].repository.clear();good.changes[0].archive={};good.repositories.clear();
+    auto p=good;p.personal=false;Reject(p,EALREADY);
+    p=good;p.action=PackageAction::Update;p.requested_package.clear();p.requested_version.clear();Reject(p);
+    p=good;p.action=PackageAction::Remove;p.requested_version.clear();Reject(p);
+    p=good;p.changes[0].reason=PackageInstallReason::Automatic;Reject(p);
+    p=good;p.changes[0].archive={1,H('a')};Reject(p);
+    p=good;p.changes[0].repository="debian-main";Reject(p);
+    p=good;p.requested_version="9";Reject(p,ESTALE);
+}
+TEST(PackageResolvedPlan, RepeatedPrivateSelectionIsNoOpAndLegacyIntentIsNeverInvented) {
+    auto p=Plan();p.changes.resize(1);p.changes[0].before_version=p.changes[0].after_version;
+    p.changes[0].archive={};p.changes[0].repository.clear();
+    p.has_previous=true;p.create_store=false;p.previous={p.source.sha256,p.shared.sha256,p.source.bytes};
+    Reject(p,ENODATA);p.initial_private_choices="AEGIS-PRIVATE-CHOICES1\n";
+    PackageBoundPlan b;ASSERT_EQ(0,PackageBindResolvedPlan(p,1000,&b));
+    p.initial_private_choices=b.preparation.execution.review.result_choices;Reject(p,EALREADY);
+    p.shared.sha256=H('4');Reject(p,ESTALE);
+}
+
 TEST(PackageResolvedPlan, EverySecurityRelevantChangeInvalidatesTheBinding) {
     std::set<std::string> digests{Digest(Plan())};
     const std::vector<std::function<void(PackageResolvedPlan&)>> changes={

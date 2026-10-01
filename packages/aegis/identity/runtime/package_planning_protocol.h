@@ -8,7 +8,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #define AEGIS_PLANNING_MAGIC UINT32_C(0x41504c4e)
-#define AEGIS_PLANNING_VERSION 5u
+#define AEGIS_PLANNING_VERSION 6u
 #define AEGIS_PLANNING_INPUT_FDS 6u
 struct aegis_planning_request {
     uint32_t magic,version,user,serial;

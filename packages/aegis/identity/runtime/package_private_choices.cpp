@@ -1,4 +1,5 @@
 #include "package_private_choices.h"
+#include "package_registry.h"
 #include <errno.h>
 namespace aegis {
 namespace {
@@ -37,6 +38,16 @@ int PackagePrivateChoicesDecode(const std::string& text,PackagePrivateChoices* o
         previous=name;data.emplace(name,std::move(c));at=end+1;
     }
     *output=std::move(data);return 0;
+}
+int PackageSameVersionSelection(const std::string& status,const std::string& automatic,
+    const std::string& requested,const std::string& version,PackageChange* output) {
+    if(!output || !PackagePlanNameValid(requested) || (!version.empty()&&!PackagePlanVersionValid(version)))return Fail(EINVAL);
+    PackageInstalledRegistry installed;std::set<std::string> marks;
+    if(PackageReadInstalledRegistry(status,&installed)<0 || PackageReadAutomaticRegistry(automatic,&marks)<0)return -1;
+    auto found=installed.find(requested);if(found==installed.end())return Fail(ENOENT);
+    const auto& [current,architecture,want]=found->second;
+    if(!version.empty()&&version!=current)return Fail(ESTALE);
+    *output={requested,architecture,current,current,"",{},PackageInstallReason::Manual};return 0;
 }
 int PackagePrivateChoicesApply(const std::string& before,PackageAction action,
     const std::string& requested,const std::string& version,const std::vector<PackageChange>& changes,std::string* after) {

@@ -64,6 +64,11 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
     } else if(!Empty(p.previous) || !Same(p.source,p.shared))return Fail(EINVAL);
     if(!p.personal && !Same(p.source,p.shared))return Fail(EINVAL);
     if(p.changes.empty())return Fail(EALREADY); // No job/approval for a no-op.
+    const bool selection=p.changes.size()==1 && !p.changes[0].before_version.empty()
+        && p.changes[0].before_version==p.changes[0].after_version;
+    if(selection && (p.action!=PackageAction::Install
+       || p.changes[0].name!=p.requested_package || p.changes[0].reason!=PackageInstallReason::Manual))return Fail(EINVAL);
+    if(selection && !p.personal)return Fail(EALREADY); // unchanged shared install
     PackageBoundPlan bound;auto& prep=bound.preparation;auto& exec=prep.execution;auto& pub=bound.publication;
     exec.requester=p.requester;exec.serial=p.serial;
     prep.image=p.source;exec.review.present=1;
@@ -75,7 +80,7 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
     pub.requester=p.requester;pub.serial=p.serial;pub.personal=p.personal;pub.create=p.create_store;
     pub.has_previous=p.has_previous;pub.previous=p.previous;pub.derive_source_hash=true;
     pub.candidate.bytes=p.source.bytes;if(p.personal)pub.candidate.shared_base_sha256=p.shared.sha256;
-    Encoding e;e.Text("org.aegisos.package.resolved-plan");e.Number(3);
+    Encoding e;e.Text("org.aegisos.package.resolved-plan");e.Number(4);
     e.Number(p.requester);e.Number(p.serial);e.Number(p.personal);e.Number(p.create_store);e.Number(p.has_previous);
     e.Number(static_cast<uint32_t>(p.action));e.Text(p.requested_package);e.Text(p.requested_version);
     e.Input(p.source);e.Input(p.shared);e.Generation(p.previous);
@@ -95,10 +100,10 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
         if(!PackagePlanNameValid(c.name) || (!previous.empty() && previous>=c.name) || (c.architecture!="arm64"&&c.architecture!="all")
            || (!c.before_version.empty() && !PackagePlanVersionValid(c.before_version))
            || (!c.after_version.empty() && !PackagePlanVersionValid(c.after_version))
-           || c.before_version==c.after_version
+           || (!selection && c.before_version==c.after_version)
            || (c.reason!=PackageInstallReason::Manual && c.reason!=PackageInstallReason::Automatic))return Fail(EINVAL);
         previous=c.name;
-        if(!c.after_version.empty()) {
+        if(!selection && !c.after_version.empty()) {
             if(!c.archive.bytes || c.archive.bytes>(uint64_t{2}<<30) || !Hash(c.archive.sha256))return Fail(EINVAL);
             archive_total+=c.archive.bytes;if(archive_total>(uint64_t{8}<<30))return Fail(EINVAL);
             if(!PackagePlanNameValid(c.repository) || !std::any_of(p.repositories.begin(),p.repositories.end(),
@@ -128,10 +133,11 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
     std::string desired;
     if(p.personal && PackagePrivateChoicesApply(p.initial_private_choices,p.action,p.requested_package,
                                                p.requested_version,p.changes,&desired)<0)return -1;
+    if(selection && desired==p.initial_private_choices)return Fail(EALREADY);
     e.Text(p.initial_private_choices);e.Text(desired);
     memcpy(exec.review.initial_choices,p.initial_private_choices.c_str(),p.initial_private_choices.size()+1);
     memcpy(exec.review.result_choices,desired.c_str(),desired.size()+1);
-    exec.kind=prep.archives.empty()?AEGIS_PACKAGE_REMOVE
+    exec.kind=selection?AEGIS_PACKAGE_SELECTION:prep.archives.empty()?AEGIS_PACKAGE_REMOVE
         :prep.archives.size()==exec.items.size()?AEGIS_PACKAGE_ARCHIVES:AEGIS_PACKAGE_MIXED;
     std::string digest=e.Digest();if(digest.empty())return Fail(EIO);
     exec.plan_sha256=digest;pub.plan_sha256=digest;

@@ -56,6 +56,35 @@ TEST(PackagePrivateChoices, StaleCurrentVersionAndRequestedSubstitutionCannotCha
     EXPECT_EQ(-1,PackagePrivateChoicesApply(before,PackageAction::Remove,"missing","",{Effect("test-app","1","")},&out));
     EXPECT_EQ(ENOENT,errno);EXPECT_EQ("unchanged",out);
 }
+TEST(PackagePrivateChoices, SameVersionEvidenceUsesCanonicalStatusAndMarksExplicitDependencyManual) {
+    const std::string status="Package: test-lib\nStatus: hold ok installed\nArchitecture: all\nVersion: 1:2.0-1\nDescription: folded\n still valid\n\n";
+    PackageChange c;ASSERT_EQ(0,PackageSameVersionSelection(status,"Package: test-lib\nAuto-Installed: 1\n\n","test-lib","1:2.0-1",&c));
+    EXPECT_EQ("all",c.architecture);EXPECT_EQ("1:2.0-1",c.before_version);EXPECT_EQ(c.before_version,c.after_version);
+    EXPECT_EQ(PackageInstallReason::Manual,c.reason);EXPECT_TRUE(c.repository.empty());EXPECT_EQ(0u,c.archive.bytes);
+    ASSERT_EQ(0,PackageSameVersionSelection(status,"","test-lib","",&c));EXPECT_EQ("1:2.0-1",c.after_version);
+}
+TEST(PackagePrivateChoices, SameVersionEvidenceRejectsUnknownDifferentAndPartlyInstalledPackages) {
+    const std::string status="Package: test-app\nStatus: install ok installed\nArchitecture: arm64\nVersion: 2\n\n";
+    PackageChange out;out.name="untouched";
+    EXPECT_EQ(-1,PackageSameVersionSelection(status,"","missing","",&out));EXPECT_EQ(ENOENT,errno);
+    EXPECT_EQ(-1,PackageSameVersionSelection(status,"","test-app","3",&out));EXPECT_EQ(ESTALE,errno);
+    auto bad=status;bad.replace(bad.find("ok installed"),12,"ok half-configured");
+    EXPECT_EQ(-1,PackageSameVersionSelection(bad,"","test-app","",&out));EXPECT_EQ(EBADMSG,errno);
+    bad=status;bad.replace(bad.find("ok installed"),12,"ok config-files");
+    EXPECT_EQ(-1,PackageSameVersionSelection(bad,"","test-app","",&out));EXPECT_EQ(ENOENT,errno);
+    EXPECT_EQ("untouched",out.name);
+}
+TEST(PackagePrivateChoices, SameVersionEvidenceRejectsMalformedAndAmbiguousRegistries) {
+    const std::string good="Package: test-app\nStatus: install ok installed\nArchitecture: all\nVersion: 1\n\n";
+    auto duplicate=good;duplicate.insert(duplicate.size()-1,"vErSiOn: 1\n");
+    PackageChange out;out.name="untouched";
+    for(const auto& bad:std::vector<std::string>{duplicate,good+good,good.substr(0,good.size()-2),good+"Package: unrelated\nStatus: install ok half-configured\n\n"}) {
+        EXPECT_EQ(-1,PackageSameVersionSelection(bad,"","test-app","",&out));EXPECT_EQ(EBADMSG,errno);
+    }
+    EXPECT_EQ(-1,PackageSameVersionSelection(good,"Package: test-app\nAuto-Installed: 9\n\n","test-app","",&out));
+    EXPECT_EQ(EBADMSG,errno);EXPECT_EQ("untouched",out.name);
+}
+
 TEST(PackagePrivateChoices, BoundLimitsRejectWithoutPartialOutput) {
     PackagePrivateChoices values;for(unsigned i=0;i<65;i++)values["pkg"+std::to_string(i)]={"all","1"};
     std::string out="unchanged";EXPECT_EQ(-1,PackagePrivateChoicesEncode(values,&out));EXPECT_EQ(E2BIG,errno);EXPECT_EQ("unchanged",out);

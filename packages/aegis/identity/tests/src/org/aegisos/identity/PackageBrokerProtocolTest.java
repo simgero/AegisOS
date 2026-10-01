@@ -113,6 +113,24 @@ public final class PackageBrokerProtocolTest {
         if(action==PackageBrokerProtocol.UPDATE)header=header.replace("\"package\":\"bash\"","\"package\":\"\"");
         return "{"+header+",\"changes\":["+String.join(",",effects)+"]}";
     }
+    @Test public void sameVersionPrivateChoiceIsExplicitAndCanUseInstalledEvidenceWithoutExpiry() {
+        String json=mixed(1,effect("bash","5.2","5.2",1)).replace("\"scope\":2","\"scope\":1").replace("2000","0");
+        PackageBrokerProtocol.Metadata m=review(json);assertEquals(1,m.changes.size());assertEquals(0,m.validUntil);
+        assertEquals("5.2",m.changes.get(0).before);assertEquals("5.2",m.changes.get(0).after);
+        assertEquals(1,m.changes.get(0).reason);m.requireIntent(new PackageBrokerProtocol.Intent(1,1,"bash","5.2"));
+        denied(()->m.requireIntent(new PackageBrokerProtocol.Intent(1,2,"bash","5.2")));
+    }
+    @Test public void unchangedEffectCannotBecomeSharedAutomaticMixedOrAnUnrequestedChoice() {
+        String good=mixed(1,effect("bash","5.2","5.2",1)).replace("\"scope\":2","\"scope\":1");
+        for(String bad:new String[]{good.replace("\"scope\":1","\"scope\":2"),
+                good.replace("\"reason\":1","\"reason\":2"),good.replace("\"action\":1","\"action\":3"),
+                mixed(2,effect("bash","5.2","5.2",1)).replace("\"scope\":2","\"scope\":1"),
+                good.replace("\"name\":\"bash\"","\"name\":\"libc6\""),
+                good.replace("\"version\":\"5.2\"","\"version\":\"5.1\""),
+                good.replace("]}",","+effect("libc6","1","2",2)+"]}"),
+                good.replace("\"before\":\"5.2\",\"after\":\"5.2\"","\"before\":\"\",\"after\":\"\"")})denied(()->review(bad));
+    }
+
     @Test public void mixedInstallPreservesConflictRemovalBeforeRequestedArchive() {
         PackageBrokerProtocol.Metadata value=review(mixed(1,
                 effect("app","1.0","",2),change(),effect("libc6","2.19","2.20",2)));

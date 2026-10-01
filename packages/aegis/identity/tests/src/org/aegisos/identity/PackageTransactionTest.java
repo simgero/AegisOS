@@ -101,6 +101,23 @@ public final class PackageTransactionTest {
         f.reply(13,0,null);f.transaction.start(prepared,DEADLINE);
         assertEquals("running",f.transaction.view(false).getString("state"));assertTrue(f.ops.isEmpty());
     }
+    @Test public void privateSameVersionChoiceStillRequiresBoundApprovalAndKeepsRequesterOwner() {
+        Map<String,Object> metadata=common();metadata.put("changes",List.of(
+                Map.of("name","bash","architecture","arm64","before","5.2","after","5.2","reason",1L)));
+        Fixture f=new Fixture();f.ready(new PackageBrokerProtocol.Metadata(metadata,true));
+        Bundle view=f.transaction.view(false);assertEquals("approval_required",view.getString("state"));
+        ArrayList<Bundle> changes=view.getParcelableArrayList("changes",Bundle.class);
+        assertEquals(1,changes.size());assertEquals("private_selection",changes.get(0).getString("effect"));
+        assertEquals("5.2",changes.get(0).getString("before"));assertEquals("5.2",changes.get(0).getString("after"));
+        assertFalse(f.calls.contains(13));
+        PackageApproval.Prepared prepared=f.transaction.approval();assertEquals(PackageApproval.Action.INSTALL,prepared.action);
+        assertEquals(10,prepared.privateOwner().id);assertEquals(17,prepared.privateOwner().serial);assertEquals(HASH,prepared.planSha256);
+        changes.get(0).putString("effect","package_change");
+        assertEquals("private_selection",f.transaction.view(false).getParcelableArrayList("changes",Bundle.class).get(0).getString("effect"));
+        f.reply(13,0,null);f.transaction.start(prepared,DEADLINE);assertEquals("running",f.transaction.view(false).getString("state"));
+        denied(()->f.transaction.start(prepared,DEADLINE));
+    }
+
     @Test public void failedBeginKeepsAllocatedJobForExactCleanup() {
         Fixture f=new Fixture();f.reply(8,OsConstants.EIO,null);denied(()->f.transaction.begin(DEADLINE));
         assertTrue(f.transaction.sealed());assertFalse(f.transaction.retired());

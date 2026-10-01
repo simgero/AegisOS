@@ -266,7 +266,7 @@ cc_binary {
 cc_library_static {
     name: "libaegis-package-metadata",
     defaults: ["aegis-runtime-native-defaults"],
-    srcs: ["runtime/package_apt_plan.cpp", "runtime/package_syntax.cpp", "runtime/package_private_choices.cpp"],
+    srcs: ["runtime/package_apt_plan.cpp", "runtime/package_syntax.cpp", "runtime/package_private_choices.cpp", "runtime/package_registry.cpp"],
     static_libs: ["libjsoncpp"],
     export_include_dirs: ["runtime"],
 }

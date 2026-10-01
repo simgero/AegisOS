@@ -213,6 +213,11 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     for(const auto& a:result.archives)proof.changes.push_back({a.effect.name,a.effect.architecture,
         a.effect.before_version,a.effect.after_version,a.repository,a.archive,
         a.effect.automatic?PackageInstallReason::Automatic:PackageInstallReason::Manual});
+    if(r.action==PackageAction::Install && result.effects.empty()) {
+        PackageChange selection;
+        if(PackageSameVersionSelection(status,automatic,r.package,r.version,&selection)<0)return fail(errno);
+        proof.changes.push_back(std::move(selection));
+    }
     result.phase=PackageResolverResult::Phase::Collected;return result;
 }
 }

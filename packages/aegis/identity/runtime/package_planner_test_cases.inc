@@ -230,6 +230,32 @@ TEST_F(RuntimePackagePlanning, ReadonlyPrivateChoicesReachEvidenceWithoutChangin
     EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
     evidence.reset();EXPECT_EQ(before,descriptors());
 }
+TEST_F(RuntimePackagePlanning, AlreadyInstalledVersionReturnsPrivateSelectionEvidenceWithoutArchiveOrMutation) {
+    mount_attr writable={};writable.attr_clr=MOUNT_ATTR_RDONLY;
+    ASSERT_EQ(0,syscall(SYS_mount_setattr,selected.get(),"",AT_EMPTY_PATH,&writable,sizeof(writable)));
+    ASSERT_EQ(std::string::npos,initial.find("Package: aegis-probe-lib\n"));
+    initial+="Package: aegis-probe-lib\nStatus: install ok installed\nArchitecture: arm64\nVersion: 2\n\n";
+    ASSERT_EQ(0,Write(selected.get(),"var/lib/dpkg/status",initial));
+    mount_attr readonly={};readonly.attr_set=MOUNT_ATTR_RDONLY;
+    ASSERT_EQ(0,syscall(SYS_mount_setattr,selected.get(),"",AT_EMPTY_PATH,&readonly,sizeof(readonly)));
+    request.personal=true;request.request.package="aegis-probe-lib";request.request.version="2";
+    int before=descriptors();ASSERT_EQ(0,Start())<<strerror(errno);
+    aegis::PackagePlanningResult result;int fd=-1;
+    ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,10000,&result,&fd));Fd evidence(fd);
+    ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)<<result.error<<" status="<<result.status;
+    ASSERT_TRUE(evidence.ok());EXPECT_EQ(1u,result.effects);ASSERT_EQ(1u,result.evidence.changes.size());
+    const auto& c=result.evidence.changes[0];EXPECT_EQ("aegis-probe-lib",c.name);EXPECT_EQ("arm64",c.architecture);
+    EXPECT_EQ("2",c.before_version);EXPECT_EQ("2",c.after_version);EXPECT_EQ(aegis::PackageInstallReason::Manual,c.reason);
+    EXPECT_EQ(0u,c.archive.bytes);EXPECT_TRUE(c.repository.empty());
+    EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
+    auto plan=result.evidence;plan.requester=10;plan.serial=1234;plan.personal=true;plan.create_store=true;
+    plan.source=plan.shared={image->original.bytes,image->original.sha256};plan.planner_image_sha256=image->original.sha256;
+    plan.action=aegis::PackageAction::Install;plan.requested_package=request.request.package;plan.requested_version="2";
+    aegis::PackageBoundPlan bound;ASSERT_EQ(0,aegis::PackageBindResolvedPlan(plan,time(nullptr),&bound))<<strerror(errno);
+    EXPECT_EQ(AEGIS_PACKAGE_SELECTION,bound.preparation.execution.kind);EXPECT_TRUE(bound.preparation.archives.empty());
+    evidence.reset();EXPECT_EQ(before,descriptors());
+}
+
 TEST_F(RuntimePackagePlanning, CancellationReapsWorkerAndDiscardsQueuedDirectory) {
     int before=descriptors();ASSERT_EQ(0,Start());
     ASSERT_EQ(0,aegis::PackagePlannerCancel(planner));

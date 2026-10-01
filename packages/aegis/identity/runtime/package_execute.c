@@ -516,7 +516,7 @@ int aegis_package_execute(uint32_t user, uint32_t serial, int permit_unbound_fix
         if (verify_output(root,request.job,result,&baseline,1)<0) error=errno;
         else result=0;
     }
-    if(!error && !result && guard) {
+    if(!error && !result && guard && request.kind!=AEGIS_PACKAGE_SELECTION) {
         error=run_command(&request,PACKAGE_SIMULATE,&result);
         if(!error && !result) {
             int fd=open("/run/aegis-apt-plan.json",O_RDONLY|O_NOFOLLOW|O_CLOEXEC|O_NONBLOCK);
@@ -524,7 +524,9 @@ int aegis_package_execute(uint32_t user, uint32_t serial, int permit_unbound_fix
             else { if(save_simulation(root,fd,request.job)<0 || aegis_package_guard_simulation(guard,fd)<0)error=errno;close(fd); }
         }
     }
-    if (!error && !result) error=run_command(&request,PACKAGE_ACTION,&result);
+    // A private same-version choice changes only the manifest and manual mark.
+    // Never run package scripts or an install/remove action for this operation.
+    if (!error && !result && request.kind!=AEGIS_PACKAGE_SELECTION) error=run_command(&request,PACKAGE_ACTION,&result);
     // Scripts may replace a packaged regular file with a FIFO. Reject special
     // nodes and invalid account metadata BEFORE dpkg opens candidate files for
     // verification, then validate again after the consistency commands finish.

@@ -267,6 +267,10 @@ public final class Aegis {
                 if (changes == null || changes.isEmpty()) throw new IllegalStateException("Missing complete review");
                 for (android.os.Bundle change : changes) {
                     String before = change.getString("before"), after = change.getString("after");
+                    if ("private_selection".equals(change.getString("effect"))) {
+                        System.out.println("  " + change.getString("name") + ": privat festhalten, Version " + after + " unverändert");
+                        continue;
+                    }
                     System.out.println("  " + change.getString("name") + " (" + change.getString("architecture") + "): "
                             + (before.isEmpty() ? "nicht installiert" : before) + " -> "
                             + (after.isEmpty() ? "entfernt" : after) + " ["

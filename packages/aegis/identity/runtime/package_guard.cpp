@@ -1,6 +1,7 @@
 #include "package_guard.h"
 #include "package_apt_plan.h"
 #include "package_private_choices.h"
+#include "package_registry.h"
 #include <openssl/sha.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -15,7 +16,7 @@
 #include <tuple>
 #include <vector>
 #include <new>
-using Installed=std::map<std::string,std::tuple<std::string,std::string,std::string>>;
+using Installed=aegis::PackageInstalledRegistry;
 struct aegis_package_guard {
     aegis_package_execution_request request={};
     Installed expected;
@@ -97,67 +98,7 @@ int StoreChoices(int root,const char* expected,const char* desired) {
     if(!error&&fsync(lib)<0)error=errno;
     if(dir>=0)close(dir);close(lib);return error?Fail(error):0;
 }
-using Fields=std::map<std::string,std::string>;
-// Debian status/extended_states, not terminal text. Unknown folded fields are
-// bounded and ignored; selected identity/state fields are single-line only.
-template<class Consumer> int Records(const std::string& text,Consumer consume) {
-    Fields fields;std::set<std::string> seen;std::string previous;size_t stanza=0,count=0;
-    auto finish=[&]() {
-        if(seen.empty())return 0;
-        if(++count>32768)return Fail(E2BIG);
-        int result=consume(fields);fields.clear();seen.clear();previous.clear();stanza=0;return result;
-    };
-    for(size_t at=0;at<text.size();) {
-        auto end=text.find('\n',at);if(end==std::string::npos)return Fail(EBADMSG);
-        auto line=text.substr(at,end-at);at=end+1;
-        if(line.size()>65536 || (stanza+=line.size()+1)>1048576)return Fail(EFBIG);
-        for(unsigned char c:line)if(!c||c=='\r'||(c<32&&c!='\t')||c==127)return Fail(EBADMSG);
-        if(line.empty()) { if(finish()<0)return -1;continue; }
-        if(line[0]==' '||line[0]=='\t') {
-            if(previous.empty()||fields.count(previous))return Fail(EBADMSG);
-            continue;
-        }
-        auto colon=line.find(':');if(colon==std::string::npos||!colon||colon>128)return Fail(EBADMSG);
-        auto key=line.substr(0,colon);
-        for(char& c:key) { if(c<=32||c>=127)return Fail(EBADMSG);if(c>='A'&&c<='Z')c+=32; }
-        if(!seen.insert(key).second||seen.size()>256)return Fail(EBADMSG);
-        previous=key;
-        if(key=="package"||key=="architecture"||key=="version"||key=="status"||key=="auto-installed") {
-            auto value=line.substr(colon+1);auto a=value.find_first_not_of(" \t"),z=value.find_last_not_of(" \t");
-            if(a==std::string::npos)return Fail(EBADMSG);value=value.substr(a,z-a+1);
-            if(value.size()>128)return Fail(EBADMSG);fields.emplace(key,std::move(value));
-        }
-    }
-    return finish();
-}
-int Status(const std::string& text,Installed* out) {
-    Installed data;std::set<std::string> names;
-    int result=Records(text,[&](const Fields& f) {
-        auto name=f.find("package"),status=f.find("status"),version=f.find("version"),arch=f.find("architecture");
-        if(name==f.end()||status==f.end()||!aegis::PackagePlanNameValid(name->second)
-           ||!names.insert(name->second).second)return Fail(EBADMSG);
-        auto first=status->second.find(' '),last=status->second.rfind(' ');
-        if(first==std::string::npos||first==last||status->second.substr(first+1,last-first-1)!="ok")return Fail(EBADMSG);
-        auto want=status->second.substr(0,first),state=status->second.substr(last+1);
-        if(want!="install"&&want!="deinstall"&&want!="purge"&&want!="hold"&&want!="unknown")return Fail(EBADMSG);
-        if(state=="config-files"||state=="not-installed")return 0;
-        if(state!="installed"||version==f.end()||arch==f.end()
-           ||!aegis::PackagePlanVersionValid(version->second)||(arch->second!="all"&&arch->second!="arm64"))return Fail(EBADMSG);
-        data.emplace(name->second,std::make_tuple(version->second,arch->second,want));return 0;
-    });
-    if(result<0)return -1;*out=std::move(data);return 0;
-}
-int Auto(const std::string& text,std::set<std::string>* out) {
-    std::set<std::string> names,data;
-    int result=Records(text,[&](const Fields& f) {
-        auto name=f.find("package"),arch=f.find("architecture"),flag=f.find("auto-installed");
-        if(name==f.end()||!aegis::PackagePlanNameValid(name->second)||!names.insert(name->second).second
-           ||(arch!=f.end()&&arch->second!="all"&&arch->second!="arm64")
-           ||flag==f.end()||(flag->second!="0"&&flag->second!="1"))return Fail(EBADMSG);
-        if(flag->second=="1")data.insert(name->second);return 0;
-    });
-    if(result<0)return -1;*out=std::move(data);return 0;
-}
+
 }
 extern "C" int aegis_package_guard_begin(int root,const aegis_package_execution_request* r,aegis_package_guard** out) {
     if(!out||*out||!r||!aegis_package_execution_valid(r)||r->review.present!=1)return Fail(EINVAL);
@@ -173,7 +114,7 @@ extern "C" int aegis_package_guard_begin(int root,const aegis_package_execution_
     }
     if(CheckChoices(root,r->review.initial_choices)<0)return -1;
     auto* p=new(std::nothrow) aegis_package_guard;if(!p)return Fail(ENOMEM);p->request=*r;
-    if(Status(status,&p->expected)<0||Auto(state,&p->automatic)<0) { int e=errno;delete p;return Fail(e); }
+    if(aegis::PackageReadInstalledRegistry(status,&p->expected)<0||aegis::PackageReadAutomaticRegistry(state,&p->automatic)<0) { int e=errno;delete p;return Fail(e); }
     if(MatchChoices(r->review.initial_choices,p->expected)<0) { int e=errno;delete p;return Fail(e); }
     for(auto it=p->automatic.begin();it!=p->automatic.end();) {
         if(!p->expected.count(*it))it=p->automatic.erase(it);else ++it;
@@ -217,10 +158,10 @@ extern "C" int aegis_package_guard_simulation(aegis_package_guard* p,int fd) {
 }
 extern "C" int aegis_package_guard_finish(aegis_package_guard* p,int root) {
     if(!p)return Fail(EINVAL);std::string status,state;Installed actual;std::set<std::string> automatic;
-    if(Read(root,"var/lib/dpkg/status",64u<<20,&status)<0||Status(status,&actual)<0)return -1;
+    if(Read(root,"var/lib/dpkg/status",64u<<20,&status)<0||aegis::PackageReadInstalledRegistry(status,&actual)<0)return -1;
     if(actual!=p->expected)return Fail(ESTALE);
     if(Read(root,"var/lib/apt/extended_states",16u<<20,&state)<0&&errno!=ENOENT)return -1;
-    if(Auto(state,&automatic)<0)return -1;
+    if(aegis::PackageReadAutomaticRegistry(state,&automatic)<0)return -1;
     for(auto it=automatic.begin();it!=automatic.end();) {
         if(!actual.count(*it))it=automatic.erase(it);else ++it;
     }

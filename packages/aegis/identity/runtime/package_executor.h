@@ -20,7 +20,9 @@ struct PackageExecution {
     // --no-download requires the canonical cache entry even for absolute .deb
     // arguments. A hash-based renaming alone is insufficient for APT.
     // Each archive is separately pinned by preparation's content hash.
-    // Remove items are package names. Mixed items follow review.effects: a
+    // Remove and metadata-only selection items are package names. Selection
+    // has one unchanged installed version and changes only private intent/marks.
+    // Mixed items follow review.effects: a
     // nonempty after version selects an archive, an empty version a removal.
     // Updates/private fallbacks are resolved
     // by the trusted planner into exact archives, never an implicit online run.

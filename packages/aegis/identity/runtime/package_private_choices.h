@@ -14,8 +14,12 @@ constexpr const char* kPrivateChoicesPath="var/lib/aegis/private-choices";
 int PackagePrivateChoicesDecode(const std::string& text,PackagePrivateChoices* output);
 int PackagePrivateChoicesEncode(const PackagePrivateChoices& choices,std::string* output);
 // Apply an explicitly approved intent to already validated complete effects.
-// Unchanged explicit installs use installed version evidence supplied separately
-// by the future no-op resolver path; never infer ownership from a file diff.
+// Unchanged explicit installs use canonical frozen installed version evidence;
+// never infer ownership from a file diff.
+// Only after a successful APT simulation has returned no package changes.
+// A requested already-installed dependency becomes an explicitly manual root.
+int PackageSameVersionSelection(const std::string& status,const std::string& automatic,
+    const std::string& requested,const std::string& version,PackageChange* output);
 int PackagePrivateChoicesApply(const std::string& before,PackageAction action,
     const std::string& requested,const std::string& version,const std::vector<PackageChange>& changes,
     std::string* after);

@@ -311,6 +311,26 @@ TEST_F(RuntimePackageExecutor, PrivateChoicesSurviveRealAptUpgradeRemovalAndImag
     EXPECT_EQ(empty,ControlFile(candidate.get(),"var/lib/aegis/private-choices"));
     EXPECT_EQ("local=kept\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));
 }
+TEST_F(RuntimePackageExecutor, SameVersionPrivateSelectionMarksManualWithoutReinstallAndSurvivesRemount) {
+    Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
+    const auto scripts=ControlFile(candidate.get(),"var/log/aegis-exec-script");ASSERT_NE("<unavailable>",scripts);
+    const auto status=ControlFile(candidate.get(),"var/lib/dpkg/status");
+    ASSERT_NE(std::string::npos,ControlFile(candidate.get(),"var/lib/apt/extended_states").find("Package: aegis-exec-lib\n"));
+    ASSERT_EQ(0,WriteAt(candidate.get(),"etc/aegis-exec.conf","local=kept\n",O_TRUNC));
+    Remount();ASSERT_FALSE(HasFatalFailure());
+    plan.kind=AEGIS_PACKAGE_SELECTION;plan.items={"aegis-exec-lib"};plan.review={};
+    InitialReview(candidate.get(),&plan.review);ASSERT_FALSE(HasFatalFailure());
+    auto& e=plan.review.effects[0];strcpy(e.name,"aegis-exec-lib");strcpy(e.architecture,"all");strcpy(e.before,"1");strcpy(e.after,"1");e.reason=1;
+    const std::string choices="AEGIS-PRIVATE-CHOICES1\naegis-exec-lib\tall\t1\n";strcpy(plan.review.result_choices,choices.c_str());
+    const auto job=std::to_string(plan.job);Completed();ASSERT_FALSE(HasFailure());Remount();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(choices,ControlFile(candidate.get(),"var/lib/aegis/private-choices"));
+    EXPECT_EQ(status,ControlFile(candidate.get(),"var/lib/dpkg/status"));EXPECT_EQ(scripts,ControlFile(candidate.get(),"var/log/aegis-exec-script"));
+    EXPECT_EQ("local=kept\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));EXPECT_EQ("1\n",ControlFile(candidate.get(),"usr/share/aegis-exec-library"));
+    EXPECT_EQ(std::string::npos,ControlFile(candidate.get(),"var/lib/apt/extended_states").find("Package: aegis-exec-lib\n"));
+    EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),("var/log/aegis-package-"+job+".log").c_str()));
+    EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),("var/log/aegis-package-"+job+"-simulate.json").c_str()));
+}
+
 TEST_F(RuntimePackageExecutor, PackageScriptCannotForgePrivateChoices) {
     Archives(1,false,"mkdir -p /var/lib/aegis\nprintf 'AEGIS-PRIVATE-CHOICES1\\n' > /var/lib/aegis/private-choices\n");
     Review(0,1);ASSERT_FALSE(HasFatalFailure());strcpy(plan.review.result_choices,"AEGIS-PRIVATE-CHOICES1\naegis-exec-app\tall\t1\n");

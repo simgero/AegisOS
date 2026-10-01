@@ -182,6 +182,7 @@ final class PackageTransaction {
                 item.putString("before", change.before);
                 item.putString("after", change.after);
                 item.putString("reason", change.reason == 1 ? "manual" : "automatic");
+                item.putString("effect", change.before.equals(change.after) ? "private_selection" : "package_change");
                 changes.add(item);
             }
             result.putParcelableArrayList("changes", changes);

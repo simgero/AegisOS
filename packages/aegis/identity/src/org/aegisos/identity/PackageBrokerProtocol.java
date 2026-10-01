@@ -77,7 +77,7 @@ final class PackageBrokerProtocol {
             name=text(v,"name");architecture=text(v,"architecture");before=text(v,"before");after=text(v,"after");
             reason=(int)number(v,"reason",1,2);
             if (!name(name) || !(architecture.equals("all") || architecture.equals("arm64"))
-                    || (!before.isEmpty() && !version(before)) || (!after.isEmpty() && !version(after)) || before.equals(after)) throw bad();
+                    || (!before.isEmpty() && !version(before)) || (!after.isEmpty() && !version(after)) || (before.isEmpty() && after.isEmpty())) throw bad();
         }
     }
     static final class Metadata {
@@ -95,7 +95,7 @@ final class PackageBrokerProtocol {
             digest=text(v,"digest");validUntil=number(v,"validUntil",0,Long.MAX_VALUE);
             if (!digest.isEmpty() && !hash(digest)) throw bad();
             if (review) {
-                if (!hash(digest) || (intent.action!=REMOVE && validUntil==0)) throw bad();
+                if (!hash(digest)) throw bad();
                 List<?> raw=list(v.get("changes"));
                 if (raw.isEmpty() || raw.size()>64) throw bad();
                 List<Change> checked=new ArrayList<>();String previous="";boolean requested=intent.action==UPDATE;
@@ -103,7 +103,10 @@ final class PackageBrokerProtocol {
                     Change c=new Change(object(item));
                     // Dependency resolution may install and remove in the same plan.
                     // Every archive-bearing effect still requires repository expiry.
-                    if (previous.compareTo(c.name)>=0 || (!c.after.isEmpty() && validUntil==0)) throw bad();
+                    boolean selection=c.before.equals(c.after);
+                    if (selection && (raw.size()!=1 || intent.scope!=PERSONAL || intent.action!=INSTALL
+                            || !c.name.equals(intent.name) || c.reason!=1)) throw bad();
+                    if (previous.compareTo(c.name)>=0 || (!c.after.isEmpty() && !selection && validUntil==0)) throw bad();
                     if (c.name.equals(intent.name)) {
                         if (c.after.isEmpty()!=(intent.action==REMOVE)
                                 || (!intent.version.isEmpty() && !intent.version.equals(c.after))) throw bad();
@@ -111,7 +114,8 @@ final class PackageBrokerProtocol {
                     }
                     previous=c.name;checked.add(c);
                 }
-                if (!requested) throw bad();
+                if (!requested || (intent.action!=REMOVE && validUntil==0
+                        && !checked.get(0).before.equals(checked.get(0).after))) throw bad();
                 changes=Collections.unmodifiableList(checked);
                 phase=REVIEWED;outcome=UNCONFIRMED;waitStatus=error=0;image=sharedBase="";imageBytes=0;
             } else {

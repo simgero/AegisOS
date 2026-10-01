@@ -20,7 +20,7 @@ enum class PackageInstallReason : uint32_t { Unspecified=0, Manual=1, Automatic=
 struct PackageChange {
     std::string name, architecture, before_version, after_version;
     // Empty after_version means remove (keep conffiles), never purge.
-    // Repository ID and archive must both be absent for a removal.
+    // Repository ID and archive are absent for removals and same-version private selection.
     std::string repository;
     PackageInput archive;
     PackageInstallReason reason=PackageInstallReason::Unspecified;
@@ -49,7 +49,7 @@ struct PackageResolvedPlan {
 struct PackageBoundPlan {
     PackagePreparation preparation;
     PackagePublication publication;
-    // Earliest repository expiry. 0 only for repository-free removal.
+    // Earliest repository expiry. 0 for repository-free removal or private selection.
     uint64_t valid_until_unix=0;
     // Complete validated review, including dependency marks and initial APT state.
     // The worker independently checks these effects and applies their marks;

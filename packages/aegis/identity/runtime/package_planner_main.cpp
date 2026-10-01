@@ -132,7 +132,7 @@ int main(int argc,char** argv) {
     unique_fd output(open("/tmp/aegis-planner",O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW));
     if(!output.ok())return 83;
     aegis_planning_reply reply={AEGIS_PLANNING_MAGIC,AEGIS_PLANNING_VERSION,user,serial,r.job,
-        uint32_t(result.phase),uint32_t(result.status),uint32_t(result.error),uint32_t(result.effects.size()),{}};
+        uint32_t(result.phase),uint32_t(result.status),uint32_t(result.error),uint32_t(result.evidence.changes.size()),{}};
     if(result.phase==aegis::PackageResolverResult::Phase::Collected&&!result.status&&!result.error
        &&aegis::planning_wire::Encode(result.evidence,&reply.evidence)<0)return 85;
     int fd=output.get();return aegis_planning_send(3,&reply,sizeof(reply),&fd,1)==0?0:84;

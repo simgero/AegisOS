@@ -80,6 +80,30 @@ class PackageExecutionGuard : public ::testing::Test {
         }
     }
 };
+TEST_F(PackageExecutionGuard, SameVersionSelectionRequiresExactPrivateManualReview) {
+    request.kind=AEGIS_PACKAGE_SELECTION;memset(request.items,0,sizeof(request.items));strcpy(request.items[0],"base-one");
+    auto& e=request.review.effects[0];e={};strcpy(e.name,"base-one");strcpy(e.architecture,"arm64");strcpy(e.before,"1");strcpy(e.after,"1");e.reason=1;
+    strcpy(request.review.result_choices,"AEGIS-PRIVATE-CHOICES1\nbase-one\tarm64\t1\n");
+    ASSERT_TRUE(aegis_package_execution_valid(&request));EXPECT_EQ(0u,aegis_package_archive_count(&request));
+    auto bad=request;bad.review={};EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=request;bad.review.effects[0].reason=2;EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=request;strcpy(bad.review.effects[0].after,"2");EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=request;bad.count=2;EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=request;strcpy(bad.items[0],"other-name");EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=request;strcpy(bad.review.initial_choices,bad.review.result_choices);EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=request;bad.review.result_choices[0]=0;EXPECT_FALSE(aegis_package_execution_valid(&bad));
+}
+TEST_F(PackageExecutionGuard, SameVersionSelectionPreservesHoldAndCommitsOnlyAfterManualMark) {
+    request.kind=AEGIS_PACKAGE_SELECTION;memset(request.items,0,sizeof(request.items));strcpy(request.items[0],"base-one");
+    auto& e=request.review.effects[0];e={};strcpy(e.name,"base-one");strcpy(e.architecture,"arm64");strcpy(e.before,"1");strcpy(e.after,"1");e.reason=1;
+    strcpy(request.review.result_choices,"AEGIS-PRIVATE-CHOICES1\nbase-one\tarm64\t1\n");
+    Begin();ASSERT_FALSE(HasFatalFailure());Finish(base,base_auto,ESTALE);Finish(base,"",0);
+    ASSERT_EQ(0,aegis_package_guard_commit(guard,root.get()))<<strerror(errno);
+    unique_fd fd(openat(root.get(),"var/lib/aegis/private-choices",O_RDONLY|O_CLOEXEC));ASSERT_TRUE(fd.ok());
+    char bytes[128]={};auto n=read(fd.get(),bytes,sizeof(bytes));ASSERT_GT(n,0);
+    EXPECT_EQ(std::string(request.review.result_choices),std::string(bytes,n));
+}
+
 TEST_F(PackageExecutionGuard, ExactChangePreservesUnrelatedHoldAndAutomaticState) {
     Begin();ASSERT_FALSE(HasFatalFailure());Finish(base+added,base_auto+app_auto,0);
 }
