@@ -1,6 +1,17 @@
 # Kontrollierter Paketabruf
 
-Aktuell erreicht das Vollimage `adee7ad7` nach echter frischer AOSP-Adminfreigabe
+Aktuell installiert das Vollimage `8168cf7f` nach echter frischer AOSP-Freigabe
+`hello` bis zur Einrichtung im isolierten Kandidaten. Die Übernahme scheitert
+anschließend an neuen fehlenden Dokumentations- und Übersetzungsdateien:
+Die geerbten Debian-Slim-Regeln schließen sie beim Entpacken aus, während die
+abschließende Dateiprüfung nur bereits vorher fehlende Dateien akzeptiert.
+Der kontrollierte dpkg-Aufruf ergänzt deshalb fest `--path-include=/*` und
+installiert neue Pakete vollständig. Die Prüfung bleibt unverändert; zwei
+Regressionstests prüfen vollständige Nutzdaten und weiterhin abgewiesenen
+Dateiverlust durch Paketskripte. Die Korrektur ist noch nicht gebaut oder im
+Gast getestet. [Aktuelle Belege und Prüfgrenzen](component-tests.md).
+
+Zuvor erreichte das Vollimage `adee7ad7` nach echter frischer AOSP-Adminfreigabe
 APT/dpkg im lokalen Enforcing-QEMU. Die private PTY-Metadatenprüfung funktioniert.
 Das gesicherte Installationsprotokoll zeigt den nächsten Fehler eindeutig:
 dpkg kann `/var/lib/dpkg/status-old` nicht anlegen. Die verwendete

@@ -303,6 +303,10 @@ static _Noreturn void apt(const struct aegis_package_execution_request *r, enum 
     args[n++] = "/usr/bin/apt-get";args[n++] = "-y";args[n++] = "--no-download";
     args[n++] = "-o";args[n++] = "Dpkg::Use-Pty=0";
     args[n++] = "-o";args[n++] = "Dpkg::Options::=--force-confold";
+    // The pinned slim base excludes documentation/locales through dpkg.cfg.
+    // New packages must be complete: the final matching command-line filter
+    // includes their full payload, while verification still rejects new loss.
+    args[n++] = "-o";args[n++] = "Dpkg::Options::=--path-include=/*";
     args[n++] = "-o";args[n++] = "Dir::Etc::sourcelist=/run/aegis-empty.list";
     args[n++] = "-o";args[n++] = "Dir::Etc::sourceparts=/run/aegis-empty.d";
     if(command==PACKAGE_SIMULATE) {

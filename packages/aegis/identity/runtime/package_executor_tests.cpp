@@ -84,11 +84,11 @@ int ReferencesTo(const struct stat& original) {
 void Octal(char* out,size_t width,uint64_t value) {
     snprintf(out,width,"%0*llo",static_cast<int>(width-1),static_cast<unsigned long long>(value));
 }
-void Tar(std::string& archive,const char* name,const std::string& contents,unsigned mode=0644) {
+void Tar(std::string& archive,const char* name,const std::string& contents,unsigned mode=0644,char type='0') {
     char header[512]={};EXPECT_LT(strlen(name),100u);memcpy(header,name,strlen(name));
     Octal(header+100,8,mode);Octal(header+108,8,0);Octal(header+116,8,0);
     Octal(header+124,12,contents.size());Octal(header+136,12,0);
-    memset(header+148,' ',8);header[156]='0';memcpy(header+257,"ustar",5);memcpy(header+263,"00",2);
+    memset(header+148,' ',8);header[156]=type;memcpy(header+257,"ustar",5);memcpy(header+263,"00",2);
     unsigned sum=0;for(unsigned char b:header)sum+=b;
     snprintf(header+148,8,"%06o",sum);header[155]=' ';
     archive.append(header,512);archive+=contents;archive.append((512-contents.size()%512)%512,'\0');
@@ -97,7 +97,7 @@ void Ar(std::string& archive,const char* name,const std::string& data) {
     char h[61];int n=snprintf(h,sizeof(h),"%-16s%-12u%-6u%-6u%-8o%-10zu`\n",name,0,0,0,0100644,data.size());
     EXPECT_EQ(60,n);archive.append(h,60);archive+=data;if(data.size()%2)archive+='\n';
 }
-std::string Deb(const char* kind,int version,bool waiting=false,const std::string& after="") {
+std::string Deb(const char* kind,int version,bool waiting=false,const std::string& after="",bool documentation=false) {
     std::string v=std::to_string(version),control,data;
     std::string fields="Package: aegis-exec-"+std::string(kind)+"\nVersion: "+v+
         "\nArchitecture: all\nMaintainer: AEGIS fixture <test@invalid>\nDescription: Local device fixture\n";
@@ -111,6 +111,15 @@ std::string Deb(const char* kind,int version,bool waiting=false,const std::strin
         Tar(control,"./prerm","#!/bin/sh\necho prerm >> /var/log/aegis-exec-script\n",0755);
         Tar(data,"./usr/bin/aegis-exec-app","#!/bin/sh\necho app-"+v+"\n",0755);
         Tar(data,"./etc/aegis-exec.conf","version="+v+"\n");
+        if(documentation) {
+            for(const char* name:{"./usr/share/doc/aegis-exec-app/","./usr/share/man/man1/",
+                                  "./usr/share/info/","./usr/share/locale/zxx/",
+                                  "./usr/share/locale/zxx/LC_MESSAGES/"})Tar(data,name,"",0755,'5');
+            Tar(data,"./usr/share/doc/aegis-exec-app/README","docs-"+v+"\n");
+            Tar(data,"./usr/share/man/man1/aegis-exec-app.1","manual-"+v+"\n");
+            Tar(data,"./usr/share/info/aegis-exec-app.info","info-"+v+"\n");
+            Tar(data,"./usr/share/locale/zxx/LC_MESSAGES/aegis-exec-app.mo","messages-"+v+"\n");
+        }
     } else Tar(data,"./usr/share/aegis-exec-library",v+"\n");
     control.append(1024,'\0');data.append(1024,'\0');std::string deb="!<arch>\n";
     Ar(deb,"debian-binary","2.0\n");Ar(deb,"control.tar",control);Ar(deb,"data.tar",data);return deb;
@@ -148,7 +157,7 @@ class RuntimePackageExecutor : public ::testing::Test {
         std::string executable(path);executable.resize(executable.find_last_of('/')+1);executable+=name;
         helper.reset(open(executable.c_str(),O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(helper.ok());
     }
-    void Archives(int version,bool waiting=false,const std::string& after="") {
+    void Archives(int version,bool waiting=false,const std::string& after="",bool documentation=false) {
         plan.archives=true;plan.items.clear();
         for(const char* name:{"var/cache","var/cache/apt","var/cache/apt/archives"}) {
             int made=mkdirat(candidate.get(),name,0755);
@@ -157,7 +166,7 @@ class RuntimePackageExecutor : public ::testing::Test {
         for(const char* kind:{"lib","app"}) {
             std::string name="aegis-exec-"+std::string(kind)+"_"+std::to_string(version)+"_all.deb";
             std::string path="var/cache/apt/archives/"+name;
-            ASSERT_EQ(0,WriteAt(candidate.get(),path.c_str(),Deb(kind,version,waiting,after))) << strerror(errno);
+            ASSERT_EQ(0,WriteAt(candidate.get(),path.c_str(),Deb(kind,version,waiting,after,documentation))) << strerror(errno);
             plan.items.push_back(name);
         }
     }
@@ -382,6 +391,30 @@ TEST_F(RuntimePackageExecutor, RejectsNewMissingDocumentationInsteadOfBroadSlimE
     ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
     EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EBADMSG,result.error);
     EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-package-1-verify.log").find("/usr/share/doc/coreutils/copyright"));
+}
+TEST_F(RuntimePackageExecutor, InstallsCompletePayloadDespiteInheritedPathExclusions) {
+    const char* config="etc/dpkg/dpkg.cfg.d/aegis-test-excludes";
+    const std::string exclusions="path-exclude=/usr/share/doc/*\npath-exclude=/usr/share/man/*\n"
+        "path-exclude=/usr/share/info/*\npath-exclude=/usr/share/locale/*\n";
+    ASSERT_EQ(0,WriteAt(candidate.get(),config,exclusions));
+    Archives(1,false,"",true);ASSERT_FALSE(HasFailure());
+    Review(0,1);ASSERT_FALSE(HasFailure());Completed();ASSERT_FALSE(HasFailure());
+    EXPECT_EQ(exclusions,ControlFile(candidate.get(),config));
+    EXPECT_EQ("docs-1\n",ControlFile(candidate.get(),"usr/share/doc/aegis-exec-app/README"));
+    EXPECT_EQ("manual-1\n",ControlFile(candidate.get(),"usr/share/man/man1/aegis-exec-app.1"));
+    EXPECT_EQ("info-1\n",ControlFile(candidate.get(),"usr/share/info/aegis-exec-app.info"));
+    EXPECT_EQ("messages-1\n",ControlFile(candidate.get(),"usr/share/locale/zxx/LC_MESSAGES/aegis-exec-app.mo"));
+    EXPECT_EQ(std::string::npos,ControlFile(candidate.get(),"var/log/aegis-package-1-verify.log").find("aegis-exec-app"));
+}
+TEST_F(RuntimePackageExecutor, StillRejectsNewDocumentationRemovedByPackageScript) {
+    Archives(1,false,"rm /usr/share/doc/aegis-exec-app/README\n",true);
+    ASSERT_FALSE(HasFailure());Review(0,1);ASSERT_FALSE(HasFailure());
+    ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(EBADMSG,result.error);
+    EXPECT_EQ(0,result.status);
+    EXPECT_NE(std::string::npos,ControlFile(candidate.get(),"var/log/aegis-package-1-verify.log")
+        .find("missing     /usr/share/doc/aegis-exec-app/README"));
 }
 TEST_F(RuntimePackageExecutor, CannotExtendMissingBaselineByRewritingItsLog) {
     // Upstream keeps this empty directory. Its path qualifies for the narrow

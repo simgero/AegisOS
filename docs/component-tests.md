@@ -1,3 +1,38 @@
+## Vollständige Paketdateien: Vollimage 8168cf7f
+
+Der [Vollbuild](https://github.com/simgero/AegisOS/releases/tag/aosp-20261001T004850Z-8168cf7f-9bdfd663)
+bootet am **2026-10-01T01:12:21Z** lokal mit Enforcing, FBE, dm-verity und
+authentifiziertem ADB; Boot-ID `fbd52d89-778d-4be8-b7b5-377d16a865eb`.
+Die vier installierten Pakethelfer sind bytegleich mit dem b7-Testkern.
+Die echte CLI verweigert fehlende Anmeldung, falsches Adminpasswort und
+Freigabe durch Nichtadmin Beta. Aufnahmen des korrekten persönlichen Pfads
+`packages/store/current` bestätigen unveränderte Auswahlen; Alpha bleibt gesperrt.
+
+Gültige Alpha-Freigaben führen jetzt `hello` 2.10-5 bis einschließlich Einrichtung,
+APT-Abhängigkeitsprüfung und leerem dpkg-Audit aus. Die abschließende
+Dateiprüfung lehnt jedoch neu fehlende Dokumentations-/Übersetzungsdateien ab.
+Das in der realen GNU-Shell gelesene `/etc/dpkg/dpkg.cfg.d/docker` enthält
+die geerbten Slim-Ausschlussregeln. Die vorherige `status-old`-Störung ist behoben.
+Es gibt noch keine veröffentlichte Generation oder erfolgreiche `hello`-Ausführung.
+
+Lesende Aufnahmen ausschließlich der synthetischen Kandidaten 6 und 7 erhalten
+die Installations- und Prüfprotokolle. Zusatzdeskriptoren sind geschlossen und
+temporäre Imagekopien gelöscht. Das ist Diagnose, kein Isolationsbeleg.
+Belege liegen unter `out/full-build-8168cf7f/identity-test/`, insbesondere
+`events.json`, den Vorher-/Nachher-Aufnahmen und `diagnostic-copy-7.json`.
+Ein einzelner Planversuch scheiterte vorher schon in der Update-Phase; ein
+neuer normaler Aufruf erreichte wieder die Freigabe. Dessen Ursache ist unbewiesen.
+
+Die Korrektur ergänzt beim kontrollierten dpkg-Aufruf fest
+`--path-include=/*`, damit neue Pakete vollständig entpackt werden. Die
+[dpkg-Regelreihenfolge](https://manpages.debian.org/trixie/dpkg/dpkg.1.en.html)
+wertet die letzte passende Regel aus. Die vollständige Vorher-/Nachher-Prüfung
+bleibt bestehen. Zwei neue Ausführungsfälle prüfen das wirkliche Installieren
+von Dokumentation/Übersetzungen trotz geerbter Filter sowie das weiterhin
+abgewiesene Entfernen einer neuen Dokumentationsdatei durch ein Paketskript.
+Diese Korrektur und ihre Tests sind hier erst vorbereitet; Build, lokale
+Komponententests und erneuter vollständiger CLI-Test stehen noch aus.
+
 ## Produktiver dpkg-Start: Vollimage adee7ad7
 
 Der [Vollbuild](https://github.com/simgero/AegisOS/releases/tag/aosp-20261001T000816Z-adee7ad7-a2241988)
