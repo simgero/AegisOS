@@ -312,3 +312,32 @@ Auch Betas alte Mqueues fehlen im neuen Kontext. Belege:
 `password-private-runtime-proof.json`, `private-package-locked-proof.json`,
 `private-metadata-readback.json`. Der vollständige Neustart beider VMs und
 der anschließende Zugriff beider Benutzer sind damit noch nicht vorweggenommen.
+
+### Sichtbare Bedienung und erster gepaarter Abschluss
+
+`candidate-c526571/qmp-ui-proof.json` ergänzt die Rohereignisprüfung um eine
+sichtbare Bedienfolge: QMP-TAB/RET öffnet in Android die Seite „Network &
+internet“; die virtuelle relative Maus klickt anschließend auf Zurück und
+öffnet wieder die Einstellungsübersicht. Screenshots und UI-XML stimmen überein.
+Drücken und Loslassen müssen in getrennten QMP-Eingabeframes erfolgen; ein
+anfängliches gemeinsames Event-Batch aktivierte den Klick nicht. Kein
+physischer Mac-/HVF-Test wird daraus abgeleitet.
+
+Der Abschluss vor Reboot bestätigt beide ursprünglichen Prozessidentitäten
+entfernt, keine persönlichen Kontexte, CE `[0]` und nur Systembenutzer 0 gestartet.
+Beide bekannten GNU-Dateien bleiben unlesbar. SystemServer war durchgehend
+PID 1373; keine fatalen Signale, FORTIFY-, Watchdog- oder Kontrollkanalfehler.
+`pre-reboot-health.json` hält drei frühe Upstream-Einmal-Rückgabewerte getrennt
+fest: Recovery-Refresh ohne vorherige pstore-Protokolle, ausdrücklich übersprungener
+System-Mainline-Initializer (der aktive Mainline-Initializer endet erfolgreich)
+und `misctrl`, dessen gepinnter Quellcode das erfolgreiche boolesche
+`SetProperty` in den Exitcode OR-verknüpft. Die gesetzte Eigenschaft wurde mit
+Gast-root verifiziert. Diese Meldungen werden nicht als verschwundene Fehler
+oder als abstürzende Dauerdienste umgedeutet.
+
+Nach gut 98 Minuten Kernel-Laufzeit endet Android mit `reboot: Power down`;
+der Helfer hängt seine bestehende UUID-Disk aus und meldet
+`AEGIS_HELPER_SHUTDOWN_CLEAN`. Der Launcher endet mit Code 0. Der erste
+vollständige Abschluss ist in `paired-shutdown-1.json` gebunden. `boot-2`
+startet anschließend exakt dasselbe Profilpaar ohne Neuanlage; die erneute
+Passwort-/Datei-/Paketprüfung steht noch aus.
