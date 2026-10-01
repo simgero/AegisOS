@@ -1,4 +1,27 @@
-## Aktueller Stand: privater Abgleich bis zur Veröffentlichung geprüft
+## Aktueller Stand: Auswahl und signierter Abgleichplan verbunden
+
+`7d43fe1c` besteht **356 native Prüfungen**; das byte-identische APK und alle
+Originalbelege bestätigen die vorherigen **54 Java-Tests**.
+[Belege und genaue Grenzen](../docs/component-tests.md).
+
+Der Broker verwaltet jetzt private, bisherige gemeinsame und aktuelle gemeinsame
+Generation gemeinsam. Die drei geprüften Ansichten gehen direkt unter derselben
+Auftrags-ID in die signierte APT-Planung und anschließend in die gesonderte
+Reconciliation-Bindung. Private Versionsvorgaben bleiben erhalten, auch wenn nur
+die gemeinsame Basis fortgeschrieben wird und keine Paketwirkung entsteht.
+Normale Paketaufträge können diesen Zustand nicht übernehmen. Abbruch, STOP und
+Fehler beim Planerstart behalten die vollständige Zuständigkeit für alle Ressourcen.
+Der interne konfigurierte Einstieg registriert sich vor dem Zugriff auf persönliches
+CE; erfolgreiche Produkt-Admission ist damit noch nicht nachgewiesen.
+
+Noch erforderlich ist die Verbindung dieses Auftrags zur konfigurierten
+CE-Vorbereitung, abgeleiteten Ausführungsautorisierung und bereits separat geprüften
+Veröffentlichung. Danach folgen erneute Auswahl und Aktivierung beim Runtime-Start
+und der Nachweis im passenden Vollimage mit zwei echten AOSP-Benutzern. Gewöhnliche
+private Paketaktionen brauchen ebenfalls die gemeinsame Publikationssperre.
+Das installierte Vollimage `d0b866e1` und seine vorhandenen Benutzer bleiben erhalten.
+
+## Vorheriger Stand: privater Abgleich bis zur Veröffentlichung geprüft
 
 `c844b9b4` besteht **347 native Prüfungen**; **54 Java-Tests** sind über das
 byte-identische APK und die Originalbelege bestätigt.

@@ -1,3 +1,48 @@
+## Gemeinsamer Auftrag für Dreifachauswahl und signierte Planung: 7d43fe1c
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T070855Z-7d43fe1c-7d43fe1c-UDH1zh) von
+`7d43fe1cb09411c39235170d54cb410a8b6a8a05` besteht am
+**2026-10-01T07:14:59Z alle 356 ausgewählten nativen Tests** aus 30 Suiten
+im lokalen Mac-QEMU (314.213 ms), ohne übersprungene Tests. Build auf
+`aegis-build` (43 Sekunden); Transport und Prüfsummen über GitHub.
+Das unveränderte Java-Test-APK und alle Originalbelege bestätigen weiterhin
+54 bereits bestandene Java-Tests; sie wurden nicht erneut ausgeführt.
+
+Der Broker behält die private, bisherige gemeinsame und aktuelle gemeinsame
+Ansicht unter einer eigenen Reconciliation-Auswahl. Nach bestätigtem Arbeiterende
+hält er genau drei Mount-Deskriptoren. Der Zustand ist ausdrücklich keine fertige
+Runtime-Auswahl. Nur eine passende Planungsübergabe darf diese Ressourcen unter
+derselben Auftrags-ID übernehmen. Ein normaler Paketauftrag, ein anderer Bereich
+oder eine falsche Benutzerseriennummer können sie weder umdeuten noch konsumieren.
+STOP und Abbruch schließen auch bereits im Socket wartende Ansichten erst nach
+bestätigter Kindprozessbeendigung; fehlgeschlagener Planerstart bleibt registriert.
+
+Drei neue verbundene Planertests verwenden vollständige gespeicherte Generationen,
+echte signierte Offline-APT-Auflösung und den separaten Reconciliation-Binder.
+Sie prüfen beide Paketwirkungen eines gemeinsamen Updates, unveränderte private
+Versionswahl mit null Paketwirkungen, wiederholbare Planbindung, gemeinsame
+Publikationssperre im Ziel und Abbruch nach der Übergabe. Fünf zusätzliche
+Auswahltests prüfen Ressourcenbesitz und Fehlerpfade. Der konfigurierte interne
+Einstieg registriert den Auftrag vor dem festen CE-Zugriff; dessen neuer Negativtest
+bestätigt bei fehlendem CE die erhaltene Fehler-/Abbruchzuständigkeit und verweigert
+eine Umdeutung zum gewöhnlichen Paketauftrag.
+
+Belege: `out/components-7d43fe1c/targeted-tests/`, `java-proof-reuse.json`.
+Native Log-SHA256: `20296bbdc0b3600556263932afc981d3e153ea1d4881b2e3187c0b5cd0ac899c`.
+Vorher/Nachher identisch: `7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+Alpha/Beta bleiben gestoppt und CE-gesperrt; Boot, Benutzer, Schlüssel und
+Runtime-Kontexte sind unverändert. Vier reale CE-Fixtures bleiben deaktiviert.
+
+**Grenzen:** Diese Tests verbinden Auswahl, signierten Planer und Bindung auf
+eigenen synthetischen Abbildern. Die separate mechanische Ausführung einschließlich
+Veröffentlichung ist weiterhin durch die vorherigen Tests abgedeckt. Beide Ketten
+müssen noch mit konfigurierter CE-Vorbereitung und abgeleiteter Autorisierung
+verbunden werden. Ebenso fehlen erneute Auswahl und Aktivierung beim Runtime-Start
+sowie der Nachweis im passenden installierten Produkt mit echten AOSP-Benutzern.
+Der neue interne Pfad erteilt keine Ausführungsfreigabe; gewöhnliche private Aktionen
+besitzen noch nicht durchgängig die gemeinsame Publikationssperre. `d0b866e1` bleibt
+das installierte Vollimage und beherrscht den privaten Abgleich noch nicht.
+
 ## Veröffentlichung des privaten Abgleichs mit Konkurrenzschutz: c844b9b4
 
 Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T064152Z-c844b9b4-c844b9b4-UPExwr) von
