@@ -99,3 +99,23 @@ In unseren beiden bisherigen Gast-Properties war der Wert leer.
 CE-Eviction-Frist bleibt unverändert. Dieser Startweg muss noch durch reale
 CLI-Antwortzeiten und alle Schutztests bestätigt werden. Die Tests prüfen
 weiterhin Systemserver-Neustarts und melden verzögerte/fehlgeschlagene Aktionen.
+
+Der dritte Start von `993f1e8` bestätigt beide Timeout-Properties als 50,
+Bootabschluss, SELinux Enforcing und authentifiziertes ADB mit dem bereits
+persistierten Hostschlüssel. Die QMP-Tastatur erzeugt im Gast `KEY_SPACE` DOWN/UP
+und öffnet den sichtbaren Sperrbildschirm. SystemServer bleibt PID 1117.
+Nach Korrektur der Eigentümer der ausschließlich per ADB installierten
+Testhelfer bestehen **44/44 native Gerätetests** aus FscryptEviction,
+RuntimeNamespace und RuntimeMemoryGroup in 228,841 Sekunden. Der vorherige
+Lauf mit Shell-Eigentümern wurde als ungültige Testinstallation abgebrochen.
+Rohbelege und SHA256-Querverweise: `fixed-993f1e8/component-progress.json`.
+
+Der echte CLI-Lauf legt den ersten Administrator als AOSP-Benutzer 10 an,
+setzt sein Passwort und bestätigt anschließend CE `[0]` (Benutzer 10 gesperrt).
+Der erste Anmeldevorbereitungsschritt scheitert jedoch geschlossen: Der
+langsame Android-Benutzerwechsel überschreitet AEGIS' feste 30-Sekunden-Frist;
+es wird noch kein Passwort angenommen. Ab `c989a7d` berücksichtigen deshalb
+auch die AEGIS-Wartefristen für Android-Zustandswechsel den Hardwarefaktor,
+mit einer absoluten Obergrenze von 120 Sekunden. Identitäts-/Zustandsprüfungen,
+frische Passwortprüfung und die separate zehnsekündige CE-Eviction bleiben
+unverändert. Der lokale Folgebuild und die endgültige Gastabnahme stehen aus.
