@@ -1,5 +1,9 @@
 # AOSP-Anbindung für AEGIS-Identität
 
+Für den aktuellen Entwicklungszugang siehe [Terminalanleitung](../../../docs/terminal-quickstart.md)
+und [lokale Serverabnahme](../../../docs/server-development.md). Die folgenden
+Abschnitte dokumentieren frühere Implementierungsstände.
+
 Stand 28. September 2026: **Bibliothek, Systemdienst und erste interaktive CLI
 sind auf `aegis-build` gebaut und im Image `25fde995` in lokalem QEMU installiert.**
 Der [reale Zwei-Benutzer-Test](../../../docs/identity-cli-qemu-test.md) bestätigt
