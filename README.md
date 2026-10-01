@@ -1,5 +1,15 @@
 # AegisOS
 
+## Aktueller Entwicklungsstand
+
+Der zusammengeführte Stand und die noch offenen Fehler stehen in
+[Phase 1: Implementierungsstand](docs/phase-1-progress.md). AEGIS ist noch
+nicht vollständig abgenommen. Die folgenden Build-Anleitungen enthalten auch
+historische Einrichtungsstände; aktuelle Nachweise haben Vorrang.
+
+- [Architektur und verbindlicher Entwicklerauftrag](docs/architecture/README.md)
+- [Bedrohungsmodell](security/THREAT_MODEL.md)
+
 Security-/Privacy-first Betriebssystem auf AOSP-Basis. Der erste Meilenstein ist
 ein ARM64-AOSP-Build mit nachgewiesenem Start in QEMU auf dem Mac. Ein erfolgreicher
 Build und ein erfolgreicher Boot werden getrennt nachgewiesen.
