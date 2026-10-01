@@ -150,3 +150,29 @@ aus. Belege: `fixed-993f1e8/{ce-fault-recovery.json,component-progress.json,
 identity-test/events.json}`. Die Belege benennen auch zwei korrigierte Fehler
 im Hosttreiber (legitimer CE-Sperrabschluss während Vorbereitung sowie
 Texteingabe beim Schließen einer möglicherweise noch offenen Passwortabfrage).
+
+## Neuer lokaler Abnahmelauf, Image `7fb41f57`
+
+Der vollständige lokale Run
+`/srv/aegis/runs/local-20261001T175333Z-7fb41f57-MCSAuT` ist
+`LOCAL_BUILD_VERIFIED`; zusätzliche Java-/Native-Testartefakte sind ebenfalls
+kompiliert. Das neue Profil liegt unter
+`out/server-stability/candidate-7fb41f5/profile`, Bootprotokolle unter `boot-1`.
+AVB-Digest: `47b71e2e2ba8e58bc47ce561411c397a332f066344ae789c45d1e6861b4fde63`.
+
+Dieser frische Gast erreicht am 1. Oktober 18:22 UTC Bootabschluss,
+authentifiziertes ADB, SELinux Enforcing und Hardwarefaktor 50. Bootanimation
+endet mit Status 0; bis einschließlich erster Benutzeranlage fehlen die zuvor
+beobachteten FORTIFY-/Watchdog-Abstürze. Tastatur, relative Mausbewegung und
+Mausklick sind über QMP und tatsächliche `getevent`-Ausgaben bestätigt;
+720×1280-Bildausgabe ist gespeichert (`input-display-proof.json`).
+
+Alpha (10/10, Administrator) wird mit AOSP-Passwort angelegt und zunächst
+CE-gesperrt. Die **erste** Anmeldung besteht jetzt ohne Aufwärmversuch:
+Vor dem Passwort weiterhin CE `[0]`, kein GNU-Kontext; anschließend bestätigte
+stabile Sitzung und echte GNU-Ausführung. Private Home-Rechte, Debian 13.7,
+Seccomp, leere Capability-Sätze, sechs Namespaces und nur lesbare gemeinsame
+Basis sind nachgewiesen. Beta (11/11, kein Administrator) ist nach frischer
+AOSP-Adminprüfung ebenfalls angelegt und zunächst gesperrt. Dessen erste
+Anmeldung, beidseitige Isolation und Persistenz werden im selben laufenden
+Testtreiber geprüft; sie sind mit diesem Zwischenstand noch nicht abgenommen.
