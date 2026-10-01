@@ -27,6 +27,36 @@ bewussten Provisionierung des eigenen Entwicklungsgastes zusätzlich
 öffentliche ADB-Schlüssel erhalten. ADB und Rootkonsole sind Entwicklungszugänge;
 die Benutzeraktionen im AEGIS-Terminal benötigen weiterhin AOSP-Passwörter.
 
+## Konkreter Start auf diesem Buildserver
+
+Nach Beendigung des automatischen Testgastes können die lokal vorhandenen
+Images für ein **neues eigenes Profil** verwendet werden. Im Repository
+`/home/simeongerodetti/AegisOS`:
+
+```sh
+AEGIS_PREPARED=out/server-stability/candidate-c526571
+AEGIS_PROFILE=out/qemu-profiles/server-personal-c526571
+AEGIS_RUN="$AEGIS_PREPARED/interactive-$(date -u +%Y%m%dT%H%M%SZ)"
+python3 scripts/qemu-with-secure-env.py \
+  "$AEGIS_PREPARED/images" out/server-stability/baseline/helper \
+  "$AEGIS_PREPARED/android.raw" "$AEGIS_PREPARED/runtime.bootconfig" \
+  "$AEGIS_RUN" --profile "$AEGIS_PROFILE" --create-profile \
+  --seconds 0 --cpus 8 --memory-mib 4096 --adb-port 15871 --network user
+```
+
+Bei **jedem weiteren Start** desselben Profils `--create-profile` weglassen
+und einen neuen Wert für `AEGIS_RUN` verwenden. Die Startprüfung hasht zuerst
+die gebundenen Dateien; auf dem Server ohne KVM dauert auch der Android-Start
+mehrere Minuten. Der Launcher bleibt im Vordergrund. In einem zweiten Terminal
+den tatsächlich ausgegebenen Run-Pfad für den ADB-Aufruf verwenden; nur beim
+allerersten Zugang zum neuen Profil `--authorize-this-host` ergänzen.
+
+Das synthetische Abnahmeprofil unter `candidate-c526571/profile` bleibt als
+Beleg erhalten. Seine Zufallspasswörter werden nicht ausgegeben. Das eigene
+Profil startet ohne persönliche Benutzer; dort `setup` verwenden und eigene
+Passwörter interaktiv setzen. Gemeinsame und private Testpakete gehören zum
+Abnahmeprofil, nicht zum unveränderlichen Factory-Image.
+
 ## Zwei Benutzer und GNU-Programme
 
 Im **selben** `aegis>`-Terminal nacheinander arbeiten; Passwörter nur in den
