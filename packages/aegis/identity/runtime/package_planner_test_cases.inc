@@ -208,6 +208,28 @@ TEST_F(RuntimePackagePlanning, OwnedChildCopiesOnlyMetadataAndReturnsEvidenceAft
     EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
     evidence.reset();EXPECT_EQ(before,descriptors());
 }
+TEST_F(RuntimePackagePlanning, ReadonlyPrivateChoicesReachEvidenceWithoutChangingSelectedMetadata) {
+    // This is exclusively owned synthetic storage. No real user's CE is opened.
+    mount_attr writable={};writable.attr_clr=MOUNT_ATTR_RDONLY;
+    ASSERT_EQ(0,syscall(SYS_mount_setattr,selected.get(),"",AT_EMPTY_PATH,&writable,sizeof(writable)));
+    ASSERT_EQ(std::string::npos,initial.find("Package: aegis-probe-lib\n"));
+    initial+="Package: aegis-probe-lib\nStatus: install ok installed\nArchitecture: arm64\nVersion: 1\n\n";
+    const std::string choices="AEGIS-PRIVATE-CHOICES1\naegis-probe-lib\tarm64\t1\n";
+    ASSERT_EQ(0,Write(selected.get(),"var/lib/dpkg/status",initial));
+    ASSERT_EQ(0,mkdirat(selected.get(),"var/lib/aegis",0700));
+    ASSERT_EQ(0,Write(selected.get(),"var/lib/aegis/private-choices",choices));
+    mount_attr readonly={};readonly.attr_set=MOUNT_ATTR_RDONLY;
+    ASSERT_EQ(0,syscall(SYS_mount_setattr,selected.get(),"",AT_EMPTY_PATH,&readonly,sizeof(readonly)));
+    int before=descriptors();ASSERT_EQ(0,Start())<<strerror(errno);
+    aegis::PackagePlanningResult result;int fd=-1;
+    ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,10000,&result,&fd));Fd evidence(fd);
+    ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)<<result.error<<" status="<<result.status;
+    ASSERT_TRUE(evidence.ok());EXPECT_EQ(choices,result.evidence.initial_private_choices);
+    EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));
+    EXPECT_EQ(choices,Read(selected.get(),"var/lib/aegis/private-choices"));
+    EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
+    evidence.reset();EXPECT_EQ(before,descriptors());
+}
 TEST_F(RuntimePackagePlanning, CancellationReapsWorkerAndDiscardsQueuedDirectory) {
     int before=descriptors();ASSERT_EQ(0,Start());
     ASSERT_EQ(0,aegis::PackagePlannerCancel(planner));

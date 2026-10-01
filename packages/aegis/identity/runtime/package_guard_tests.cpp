@@ -192,7 +192,7 @@ TEST_F(PackageExecutionGuard, CommitsOnlyTheReviewedInstalledChoiceAndReopensDur
     ASSERT_EQ(0,aegis_package_guard_commit(guard,root.get()))<<strerror(errno);
     unique_fd fd(openat(root.get(),"var/lib/aegis/private-choices",O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(fd.ok());
     char data[128]={};ASSERT_EQ(ssize_t(strlen(expected)),read(fd.get(),data,sizeof(data)));EXPECT_STREQ(expected,data);
-    struct stat st;ASSERT_EQ(0,fstat(fd.get(),&st));EXPECT_EQ(S_IFREG|0600,st.st_mode);EXPECT_EQ(0u,st.st_uid);EXPECT_EQ(1u,st.st_nlink);
+    struct stat st;ASSERT_EQ(0,fstat(fd.get(),&st));EXPECT_EQ(mode_t(S_IFREG|0600),st.st_mode);EXPECT_EQ(0u,st.st_uid);EXPECT_EQ(1u,st.st_nlink);
     EXPECT_EQ(-1,aegis_package_guard_commit(guard,root.get()));EXPECT_EQ(ESTALE,errno);
 }
 TEST_F(PackageExecutionGuard, ManifestCannotSelectAVersionOutsideTheCompleteFinalRegistry) {
