@@ -44,6 +44,8 @@ elif name == 'env':
         pathlib.Path(args[-1], 'runtime-storage-source.json').write_text('public framework source receipt transport fixture\n')
     if mode != 'missing_vold_receipt':
         pathlib.Path(args[-1], 'vold-source.json').write_text('public vold source receipt fixture\n')
+    if mode != 'missing_policy_receipt':
+        pathlib.Path(args[-1], 'runtime-policy-source.json').write_text('public SELinux policy receipt fixture\n')
     if os.environ.get('AEGIS_KERNEL_RUN') and mode != 'missing_kernel_receipt':
         pathlib.Path(args[-1], 'kernel-inputs.json').write_text('{"fixture":"kernel input transport only"}\n')
     if os.environ.get('AEGIS_RUNTIME_RUN'):
@@ -72,6 +74,8 @@ elif name == 'gh':
             target.write_bytes(b'corrupted image receipt')
         if mode == 'corrupt_storage_receipt' and filename == 'runtime-storage-source.json':
             target.write_bytes(b'corrupted framework source receipt')
+        if mode == 'corrupt_policy_receipt' and filename == 'runtime-policy-source.json':
+            target.write_bytes(b'corrupted SELinux policy receipt')
     elif action == 'edit':
         if mode == 'publish': sys.exit(9)
         (store/'published').touch()
@@ -149,6 +153,10 @@ class WorkerTests(unittest.TestCase):
                 self.assertEqual((root/'remote/runtime-storage-source.json').read_bytes(),
                                  (runs[0]/'artifacts/runtime-storage-source.json').read_bytes())
                 self.assertIn('runtime-storage-source.json', (root/'remote/SHA256SUMS').read_text())
+                for name in ('vold-source.json', 'runtime-policy-source.json'):
+                    self.assertEqual((root/'remote'/name).read_bytes(),
+                                     (runs[0]/'artifacts'/name).read_bytes())
+                    self.assertIn(name, (root/'remote/SHA256SUMS').read_text())
                 if runtime_kernel:
                     self.assertEqual((root/'remote/kernel-inputs.json').read_bytes(),
                                      (runs[0]/'artifacts/kernel-inputs.json').read_bytes())
@@ -164,6 +172,8 @@ class WorkerTests(unittest.TestCase):
     def test_corrupt_image_receipt_prevents_success(self): self.exercise('corrupt_image_receipt')
     def test_missing_storage_receipt_prevents_success(self): self.exercise('missing_storage_receipt')
     def test_missing_vold_receipt_prevents_success(self): self.exercise('missing_vold_receipt')
+    def test_missing_policy_receipt_prevents_success(self): self.exercise('missing_policy_receipt')
+    def test_corrupt_policy_receipt_prevents_success(self): self.exercise('corrupt_policy_receipt')
     def test_corrupt_storage_receipt_prevents_success(self): self.exercise('corrupt_storage_receipt')
     def test_selected_kernel_receipt_is_published_and_verified(self): self.exercise(runtime_kernel=True)
     def test_missing_kernel_receipt_prevents_success(self): self.exercise('missing_kernel_receipt', runtime_kernel=True)

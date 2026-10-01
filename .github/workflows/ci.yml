@@ -33,7 +33,7 @@ jobs:
       - name: Install disk and archive test tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-utils e2fsprogs erofs-utils cpio lz4
+          sudo apt-get install -y qemu-utils e2fsprogs erofs-utils cpio lz4 libxml2-utils
 
       - name: Validate build scripts
         run: |
