@@ -1,5 +1,30 @@
 # Phase 1: Implementierungsstand
 
+## 2026-10-01: Main-Zusammenführung und offener Fehler nach CE-Timeout
+
+Die Zusammenführung nach `main` ist ein Entwicklungsstand, keine vollständige
+Abnahme von Phase 1. Das Vollimage `1b1a0a9a` wurde über GitHub verifiziert und
+im lokalen Mac-QEMU mit Enforcing, FBE und dm-verity gestartet. Reguläre
+Abmeldung, unlesbare private GNU-Datei im gesperrten Zustand, abgewiesenes
+falsches Passwort und bytegleicher Inhalt nach korrekter Anmeldung sind geprüft.
+
+Eine diagnostisch außerhalb der persönlichen Runtime geöffnet gehaltene Datei
+verzögert die Abmeldung korrekt: Während des offenen Dateideskriptors blieb die
+Erfolgsmeldung aus; nach dessen explizitem Schließen bestätigte vold den
+Schlüsselentzug. Der Test mit 45 Sekunden Haltezeit überschritt hingegen die
+zehnsekündige Sperrfrist. AEGIS meldete keinen Erfolg und die persönliche Runtime
+war abgebaut. Der zwischengespeicherte CE-Zustand blieb jedoch entsperrt.
+Beim anschließenden Anmeldeversuch brach der CLI-Dienstkontakt ab; danach wurde
+ein anderer `system_server`-Prozess bei unveränderter Kernel-Boot-ID beobachtet.
+Die Ursache dieses Neustarts und eine sichere Wiederherstellung ohne Neustart
+sind noch zu beheben und erneut im Gast zu prüfen.
+
+Lokale Nachweise im primären Workspace:
+`out/full-build-1b1a0a9a/identity-test/normal-ce-cycle/`, `held-short-1/` und
+`held-long-1/` unter demselben `identity-test/`-Verzeichnis. Diese Fehlerprüfung
+ist kein bestandener Timeout-/Wiederanlaufnachweis. Die älteren Abschnitte
+beschreiben den jeweiligen damaligen Entwicklungsstand.
+
 ## 2026-09-30: Konfigurierte Paketvorbereitung im neuen Vollimage geprüft
 
 `178cbb6e` besteht **366/366 aktivierte native Tests** im passenden neuen
