@@ -188,3 +188,29 @@ nicht erreichbar. Beleg: `candidate-7fb41f5/two-user-isolation-proof.json`.
 SystemServer bleibt bis 18:40 UTC PID 1322, ohne beobachtetes FORTIFY-,
 Fatal-Signal-, Java-Fatal- oder Watchdog-Kill-Ereignis. Paket-/Neustartabnahme
 läuft anschließend weiter.
+
+### Paketabbruch: weiterer Fehler unter TCG
+
+Falsche Adminfreigabe und korrektes Nicht-Adminpasswort werden im Image
+`7fb41f57` beide abgewiesen, ohne gemeinsame Generation zu veröffentlichen.
+Nach dem zweiten Abbruch bleibt jedoch die Bestätigung des Aufräumens aus.
+Die gemeinsamen Staging-Dateien sind entfernt, beide GNU-Originalprozesse
+beendet und die Kontextgruppe leer; Linux-Status und neue Paketaufträge
+scheitern weiterhin. SystemServer bleibt PID 1322. Dies ist **keine bestandene
+Paketabnahme** und kein erfolgreicher Benutzer-Logout.
+
+Quellprüfung und Ablauf deuten auf die feste Zwei-Sekunden-Frist der
+Aufräumaufrufe hin: ein verspäteter Kontrollkanal-Reply vergiftet die gemeinsame
+Verbindung, deren Schließung alle nativen Kontexte sicher beendet. Der alte
+Stand protokolliert die Transportursache nicht, daher bleibt diese Zuordnung
+bis zur gezielten Wiederholung eine Diagnose. `c526571` gibt ausschließlich
+bestätigendem Aufräumen acht Sekunden (weiter unter der unveränderten
+Zehn-Sekunden-Protokollgrenze). Bei Kanalfehlern werden nun Operationsnummer,
+Exception-Klasse und abgelaufene Frist protokolliert, ohne Inhalte oder Secrets.
+
+Beleg: `candidate-7fb41f5/package-negative-failure.json`. Der Credential-Scan
+findet keine vollständigen Testpasswörter in den drei Bootlogs. Der Testtreiber
+verwirft seine Passwortpuffer. Android und KeyMint-Helfer sind anschließend
+geordnet heruntergefahren (`reboot: Power down`, Helper `clean`); das Paar
+bleibt zur Diagnose erhalten. Ein neuer lokaler Vollbuild und frischer
+Gesamttest folgen. Kein Build- oder Quellupload ist erfolgt.
