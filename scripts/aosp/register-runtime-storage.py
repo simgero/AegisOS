@@ -81,8 +81,22 @@ def patch_storage(data):
                     '            Slog.wtf(TAG, e);\n'
                     '            throw new IllegalStateException("AOSP storage mutation failed", e);\n')
         if operation == 'LOCK':
+            body = replace_once(body, '''        if (!isCeStorageUnlocked(userId)) {
+            Slog.d(TAG, "User " + userId + "'s CE storage is already locked");
+            return;
+        }
+''', '''        // Always ask vold: after a system-server restart its pending eviction
+        // must still be completed even when this process's CE cache is empty.
+''')
             body = replace_once(body, '            mVold.lockCeStorage(userId);',
-                    '            com.android.server.aegis.AegisCeLock.complete(() -> mVold.lockCeStorage(userId));')
+                    '''            com.android.server.aegis.AegisCeLock.completeUserLock(userId,
+                    () -> mVold.lockCeStorage(userId), () -> {
+                        synchronized (mLock) { mCeUnlockedUsers.remove(userId); }
+                    });''')
+            body = replace_once(body, '''        synchronized (mLock) {
+            mCeUnlockedUsers.remove(userId);
+        }
+''', '')
         elif name == 'destroyUserStorageKeys':
             body = replace_once(body, '            mVold.destroyUserStorageKeys(userId);',
                     '            com.android.server.aegis.AegisCeLock.complete(() -> mVold.destroyUserStorageKeys(userId));')
@@ -115,7 +129,15 @@ def patch_users(data):
                 return;
             }
             if (keyEvictedCallbacks == null) {'''
-    return replace_once(text, old, new).encode('utf-8')
+    text = replace_once(text, old, new)
+    # Do not interpret a failed lock's deliberately conservative completion
+    # cache as permission to dispatch unlocking/unlocked lifecycle callbacks.
+    check = 'StorageManager.isCeStorageUnlocked(userId)'
+    if check not in text:
+        raise ValueError('Pinned UserController unlock guards are missing')
+    text = text.replace(check, '(StorageManager.isCeStorageUnlocked(userId)\n'
+            '                && !com.android.server.aegis.AegisCeLock.isPending(userId))')
+    return text.encode('utf-8')
 
 
 def patch_resilient(data):

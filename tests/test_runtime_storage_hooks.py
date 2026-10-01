@@ -66,11 +66,14 @@ class StorageHookSourcesTests(unittest.TestCase):
             self.assertEqual(storage.count('.Operation.' + kind + '))'), 2 if kind == 'DESTROY' else 1)
         self.assertLess(storage.index('super.lockCeStorage_enforcePermission();'),
                         storage.index('.Operation.LOCK'))
-        self.assertLess(storage.index('.Operation.LOCK'), storage.index('if (!isCeStorageUnlocked(userId))'))
+        locking = storage[storage.index('public void lockCeStorage'):]
+        self.assertNotIn('if (!isCeStorageUnlocked(userId))', locking)
+        self.assertLess(locking.index('.Operation.LOCK'), locking.index('AegisCeLock.completeUserLock'))
         self.assertEqual(storage.count('throw new IllegalStateException("AOSP storage mutation failed", e);'), 4)
         users = self.target(hooks.USERS).read_text()
         self.assertIn('catch (RemoteException | RuntimeException failure)', users)
         self.assertLess(users.index('isCeStorageUnlocked(userId)'), users.index('.keyEvicted(userId)'))
+        self.assertIn('!com.android.server.aegis.AegisCeLock.isPending(userId)', users)
         backups = list((self.aosp / 'out/aegis-runtime-storage/backups').iterdir())
         self.assertEqual(len(backups), 1)
         self.assertEqual((backups[0] / hooks.STORAGE).read_bytes(), self.originals[hooks.STORAGE])
@@ -88,7 +91,7 @@ class StorageHookSourcesTests(unittest.TestCase):
         receipt=self.prepare();hooks.verify(self.aosp,receipt)
         self.assertEqual(receipt['schema'],7)
         storage=self.target(hooks.STORAGE).read_text()
-        self.assertLess(storage.index('AegisCeLock.complete('),storage.index('mCeUnlockedUsers.remove(userId)',storage.index('public void lockCeStorage')))
+        self.assertLess(storage.index('AegisCeLock.completeUserLock('),storage.index('mCeUnlockedUsers.remove(userId)',storage.index('public void lockCeStorage')))
 
     def test_updated_owned_bridge_preserves_its_previous_bytes(self):
         self.prepare()

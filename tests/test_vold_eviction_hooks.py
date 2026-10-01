@@ -32,6 +32,13 @@ bool destroy() {
     success &= evict_user_keys(s_ce_policies, user_id);
     success &= evict_user_keys(s_de_policies, user_id);
 }
+std::vector<int> fscrypt_get_unlocked_users() {
+    std::vector<int> user_ids;
+    for (const auto& [user_id, user_policies] : s_ce_policies) {
+        user_ids.push_back(user_id);
+    }
+    return user_ids;
+}
 '''}
         self.pins={'schema':1,'commit':h.COMMIT,'files':{n:h.digest(b) for n,b in self.originals.items()}}
         source=self.project/h.SOURCE;source.parent.mkdir(parents=True);source.write_bytes(b'inert header fixture\n')
@@ -46,7 +53,8 @@ bool destroy() {
         text=self.target('FsCrypt.cpp').read_text()
         self.assertIn('EvictUser(policy_map, user_id',text)
         self.assertNotIn('legacyEraseUnconditionally',text)
-        self.assertEqual(text.count('s_ce_locking.count(user_id)'),3)
+        self.assertEqual(text.count('s_ce_locking.count(user_id)'),4)
+        self.assertIn('if (!s_ce_locking.count(user_id)) user_ids.push_back(user_id);', text)
         self.assertIn('if (!fscrypt_lock_ce_storage(user_id)) return false;',text)
         self.assertIn('if (complete) s_ce_locking.erase(user_id);',text)
         self.assertIn('FS_IOC_GET_ENCRYPTION_KEY_STATUS',self.target('KeyUtil.cpp').read_text())

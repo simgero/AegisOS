@@ -41,3 +41,52 @@
             }
         });
     }
+    private boolean finishUserUnlocking(final UserState uss) {
+        final int userId = uss.mHandle.getIdentifier();
+        EventLog.writeEvent(EventLogTags.UC_FINISH_USER_UNLOCKING, userId);
+        mInjector.getUserJourneyLogger()
+                .logUserLifecycleEvent(userId, USER_LIFECYCLE_EVENT_UNLOCKING_USER,
+                EVENT_STATE_BEGIN);
+        // If the user's CE storage hasn't been unlocked yet, we cannot proceed.
+        if (!StorageManager.isCeStorageUnlocked(userId)) return false;
+        synchronized (mLock) {
+            // Do not proceed if unexpected state or a stale user
+            if (mStartedUsers.get(userId) != uss || uss.state != STATE_RUNNING_LOCKED) {
+                return false;
+            }
+        }
+        uss.mUnlockProgress.start();
+
+        // Prepare app storage before we go any further
+        uss.mUnlockProgress.setProgress(5,
+                    mInjector.getContext().getString(R.string.android_start_title));
+
+        // Call onBeforeUnlockUser on a worker thread that allows disk I/O
+        FgThread.getHandler().post(() -> {
+            if (!StorageManager.isCeStorageUnlocked(userId)) {
+                Slogf.w(TAG, "User's CE storage got locked unexpectedly, leaving user locked.");
+                return;
+            }
+
+            final TimingsTraceAndSlog t = new TimingsTraceAndSlog();
+            t.traceBegin("UM.onBeforeUnlockUser-" + userId);
+            mInjector.getUserManager().onBeforeUnlockUser(userId);
+            t.traceEnd();
+            synchronized (mLock) {
+                // Do not proceed if unexpected state
+                if (!uss.setState(STATE_RUNNING_LOCKED, STATE_RUNNING_UNLOCKING)) {
+                    return;
+                }
+            }
+            mInjector.getUserManagerInternal().setUserState(userId, uss.state);
+
+            uss.mUnlockProgress.setProgress(20);
+
+            mLastUserUnlockingUptime = SystemClock.uptimeMillis();
+
+            // Dispatch unlocked to system services; when fully dispatched,
+            // that calls through to the next "unlocked" phase
+            mHandler.obtainMessage(USER_UNLOCK_MSG, userId, 0, uss).sendToTarget();
+        });
+        return true;
+    }

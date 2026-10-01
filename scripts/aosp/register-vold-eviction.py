@@ -76,6 +76,9 @@ def patch_fscrypt(data):
         '    bool complete = evict_user_keys(s_ce_policies, user_id);\n'
         '    if (complete) s_ce_locking.erase(user_id);\n'
         '    return complete;')
+    text=replace_once(text, '        user_ids.push_back(user_id);',
+        '        // Pending policies are retained for eviction, not usable CE.\n'
+        '        if (!s_ce_locking.count(user_id)) user_ids.push_back(user_id);')
     for signature in ('bool fscrypt_create_user_keys(userid_t user_id, bool ephemeral) {',
                       'bool fscrypt_unlock_ce_storage(userid_t user_id, const std::vector<uint8_t>& secret) {'):
         text=replace_once(text,signature,signature+'\n    if (s_ce_locking.count(user_id)) { errno = EBUSY; return false; }')

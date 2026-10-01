@@ -5,6 +5,8 @@ import android.os.ServiceSpecificException;
 import android.os.SystemClock;
 import android.system.OsConstants;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
 
 /** Waits for the patched vold's confirmed kernel eviction, never a cached CE flag. */
@@ -12,6 +14,20 @@ public final class AegisCeLock {
     @FunctionalInterface public interface Attempt { void run() throws Exception; }
     @FunctionalInterface interface Sleep { void run(long millis) throws InterruptedException; }
     private AegisCeLock() {}
+    // A failed eviction is neither usable CE nor proof of locked storage. Keep
+    // AOSP's completion cache unchanged, but prevent unlock lifecycle publication.
+    // All mutations run under the existing per-user storage lease.
+    private static final Set<Integer> pending = ConcurrentHashMap.newKeySet();
+
+    public static boolean isPending(int userId) { return pending.contains(userId); }
+
+    public static void completeUserLock(int userId, Attempt evict, Attempt publishLocked)
+            throws Exception {
+        pending.add(userId);
+        complete(evict);
+        publishLocked.run();
+        pending.remove(userId);
+    }
 
     public static void complete(Attempt attempt) throws Exception {
         complete(attempt, SystemClock::elapsedRealtime, Thread::sleep, 10_000);

@@ -233,6 +233,7 @@ public final class AospIdentityBackend {
         if (locks.getCredentialType(key.id) != LockPatternUtils.CREDENTIAL_TYPE_PASSWORD) {
             throw new SecurityException("Target AOSP user has no password credential");
         }
+        completeStoppedUserLock(key);
         if (!activity.startUserInBackground(key.id)) {
             throw new IllegalStateException("AOSP did not start the target user");
         }
@@ -265,12 +266,27 @@ public final class AospIdentityBackend {
             if (locks.getCredentialType(key.id) != LockPatternUtils.CREDENTIAL_TYPE_PASSWORD) {
                 throw new SecurityException("Target AOSP user has no password credential");
             }
+            completeStoppedUserLock(key);
             if (!activity.switchUser(key.id)) {
                 throw new IllegalStateException("AOSP refused the login target");
             }
             requireCurrent(key);
         } finally {
             Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /** Finish an earlier failed eviction BEFORE Android can publish USER_UNLOCKED.
+     * This only removes key access; fresh LockSettings verification remains required.
+     */
+    private void completeStoppedUserLock(UserKey key) throws RemoteException {
+        requireCurrent(key);
+        if (!users.isUserRunning(key.id)) {
+            storage.lockCeStorage(key.id);
+            if (storage.isCeStorageUnlocked(key.id)) {
+                throw new IllegalStateException("Previous CE lock is not complete");
+            }
+            requireCurrent(key);
         }
     }
 

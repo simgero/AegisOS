@@ -387,6 +387,11 @@ public final class AegisIdentityService extends SystemService {
                 closeCurrentTerminal();
                 // This is Android's login-target selection, before any password
                 // input or personal authority. It may show the target's keyguard.
+                if (com.android.server.aegis.AegisCeLock.isPending(target.id)) {
+                    // Also recover if a non-AEGIS Android entry point started the
+                    // still-locked user since the failed logout. Never reuse auth.
+                    backend.stopAndroidUserAndLock(target);
+                }
                 backend.selectLoginTarget(target);
                 long deadline = SystemClock.elapsedRealtime() + 30_000;
                 while (true) {
