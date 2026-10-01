@@ -1,3 +1,41 @@
+## Runtime-Start mit konfiguriertem Abgleich verbunden: 1afeb727
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T091056Z-1afeb727-1afeb727-Y1pKT9)
+`1afeb727e31ad32c3b2bc252f59421df1b90968a` besteht am
+**2026-10-01T09:19:04Z alle 364 ausgewählten nativen Tests** aus 30 Suiten
+im lokalen Mac-QEMU (412.598 ms), ohne übersprungene Tests. Die Kompilierung auf
+`aegis-build` dauerte 43 Sekunden; Transport und Integritätsprüfung über GitHub.
+54 frühere Java-Tests sind über das byte-identische APK und erneut verifizierte
+Originalbelege bestätigt; sie wurden nicht erneut ausgeführt.
+
+Der Broker hält jetzt eine öffentliche Start-ID auch während der konfigurierten
+Reconciliation-Phasen. Ein veralteter fester CE-/Shared-Auswahllauf kann genau einen
+signierten Abgleich starten, dessen bestätigte Veröffentlichung eine neue Auswahl
+vor der Aktivierung verlangt. Interne Kind-IDs sind keine gültigen Fortsetzungen.
+Jeder Schritt benötigt frische Admission. Terminale Fehler bleiben bis STOP
+registriert; die gemeinsame Bereinigung sperrt alle Startfortsetzungen zuerst.
+
+Alle 20 RuntimeSelectionOwner-Tests bestehen. Zwei neue Tests prüfen STOP ohne
+verbleibendes Zeitbudget und verweigern die Übernahme eines normalen Paketauftrags
+als Runtime-Start. Bestehende Tests prüfen jetzt zusätzlich eine gültige Fortsetzung
+nach fremder Identität sowie HELLO nach bereits zurückgegebener Start-ID. Alle
+bisherigen synthetischen Planungs-, APT-, Publikations- und Abgleichtests bestehen.
+
+Belege: `out/components-1afeb727/targeted-tests/`, `java-proof-reuse.json` und
+`clock-preflight.json`. Native Log-SHA256:
+`32fcff34afab23636888ad852703461db339e264b5fa5ec7e3287bdf0129cc76`.
+Vorher/Nachher identisch: `7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+Alpha/Beta bleiben gestoppt und CE-gesperrt; Boot, Benutzer, Schlüssel, Enforcing
+und Runtime-Kontexte sind unverändert. Vier reale CE-Fixtures bleiben deaktiviert.
+
+**Grenze:** Die automatische positive Kette durch konfigurierte CE-Pfade und die
+anschließende Runtime-Aktivierung ist implementiert, aber diese Tests beweisen sie
+noch nicht unter tatsächlicher AOSP-Admission/SELinux im installierten Produkt.
+Dafür folgen das passende Vollimage und echte Benutzeranmeldungen. Gewöhnliche
+private Veröffentlichungen benötigen zusätzlich die gemeinsame Generationssperre,
+auch wenn bislang nur die Factory-Basis existiert. Das installierte `d0b866e1`
+bleibt unverändert; Zeitabgleich nach Mac-Ruhezustand ist ebenfalls noch offen.
+
 ## Signierter privater Abgleich bis zur Veröffentlichung: 58be0749
 
 Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T083553Z-58be0749-58be0749-Aikd3U)

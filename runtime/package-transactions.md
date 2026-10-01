@@ -1,4 +1,27 @@
-## Aktueller Stand: signierte Planung bis zur privaten Veröffentlichung verbunden
+## Aktueller Stand: Startablauf mit internem Paketabgleich verbunden
+
+Der Broker behält jetzt eine einzige öffentliche Start-ID über Auswahl, optionalen
+Abgleich, Veröffentlichung und erneute Auswahl hinweg. Jede Fortsetzung prüft
+Benutzer, Seriennummer, vorhandenen Auftrag und frische Admission. Die internen
+Kindaufträge bleiben im bestehenden Ressourcenbesitzer; STOP/HELLO sperrt zunächst
+jede weitere Fortsetzung und entfernt den Startauftrag erst nach bestätigter
+Bereinigung. Ein normaler Paketauftrag kann nicht zum Runtime-Start werden.
+
+Nur eine veraltete Auswahl aus den fest konfigurierten CE-/Shared-Pfaden darf den
+Abgleich beginnen. Signierte Planung, private Versionsvorgaben und die gemeinsame
+Publikationssperre bleiben maßgeblich. Nach bestätigter Veröffentlichung wird neu
+ausgewählt; bei erneuter Änderung gibt es keinen unbegrenzten Wiederholungsversuch.
+Terminale Fehler bleiben bis STOP erhalten. Direkte Owner-Aufrufe können während
+der Planungs-/Ausführungsphase nicht auf die Factory-Runtime ausweichen.
+
+`1afeb727` ist auf `aegis-build` kompiliert und besteht 364 ausgewählte native
+Prüfungen im lokalen QEMU, einschließlich 20 RuntimeSelectionOwner-Tests.
+[Belege und Grenzen](../docs/component-tests.md). Der positive Nachweis unter tatsächlicher AOSP-Admission in einem passenden
+Vollimage steht noch aus. Ebenso offen: gemeinsame Sperre für gewöhnliche private
+Paketaktionen sowie Abgleich, Konflikte und Neustart mit zwei echten Benutzern.
+Das aktuell installierte `d0b866e1` bleibt bis zum getesteten Ersatz erhalten.
+
+## Vorheriger Stand: signierte Planung bis zur privaten Veröffentlichung verbunden
 
 `58be0749` besteht **362 ausgewählte native Prüfungen**; das byte-identische APK
 und die Originalbelege bestätigen die vorherigen **54 Java-Tests**.
