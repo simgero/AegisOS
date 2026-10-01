@@ -513,7 +513,9 @@ def start_background(key):
     path = '/home/user/.aegis-proof/'+token
     # setsid may fork; the script records its actual inner PID, not shell $!.
     # Every update is an atomic rename, so readers never accept a partial row.
-    script = ('set -eu; umask 077; trap "" HUP; i=0; '
+    # This detached process writes to a regular log, not a terminal. Avoid
+    # pointless TIOCGWINSZ attempts after each child and their SELinux noise.
+    script = ('set -eu; shopt -u checkwinsize; umask 077; trap "" HUP; i=0; '
               'while [ "$i" -lt '+str(args.probe_seconds)+' ]; do i=$((i+1)); '
               'printf "%s %s %s\\n" "$0" "$BASHPID" "$i" > "$1.next"; '
               'mv "$1.next" "$1"; sleep 1; done')
