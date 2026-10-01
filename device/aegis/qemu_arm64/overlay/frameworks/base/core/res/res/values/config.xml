@@ -4,6 +4,11 @@
     <bool name="config_force_phone_globals_creation">false</bool>
     <bool name="config_voice_capable">false</bool>
     <bool name="config_sms_capable">false</bool>
+    <!-- A paused Mac/QEMU can leave guest wall time behind. Recheck through
+         Android's normal network time detector within one guest minute after
+         resuming, instead of the upstream 18-hour interval. Keep its configured
+         servers, automatic-time setting and signature/date checks unchanged. -->
+    <integer name="config_ntpPollingInterval">60000</integer>
     <!-- The android-16.0.0_r1 default is empty; retain any future upstream services here. -->
     <string-array name="config_deviceSpecificSystemServices" translatable="false">
         <item>org.aegisos.identity.AegisIdentityService</item>

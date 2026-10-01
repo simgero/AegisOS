@@ -1,5 +1,33 @@
 # Hardware des lokalen QEMU-Produkts
 
+## Zeitabweichung nach längerem Betrieb, 1. Oktober 2026
+
+Beim Pakettest im unveränderten Gast `d0b866e1` lag die Uhr um etwa
+46 Minuten hinter der Mac-Uhr. Android hatte seit dem Start nur eine
+NTP-Messung übernommen; der nächste reguläre Abruf war erst nach 18 Stunden
+Gastlaufzeit vorgesehen. Das passt zu einer angehaltenen virtuellen Uhr,
+beweist aber noch nicht den konkreten Auslöser. Aktuelle Debian-Signaturen
+wurden deshalb korrekt als nach dem Prüfzeitpunkt erstellt abgewiesen.
+
+`cmd network_time_update_service force_refresh` bezog erfolgreich eine neue
+Messung vom bereits konfigurierten `time.android.com`. Danach betrug die
+Abweichung zur Mac-Uhr weniger als eine Sekunde. Weder manuelle Testzeit noch
+geänderte Zeitserver oder gelockerte Signatur-/Datumsprüfungen wurden verwendet.
+Der ursprüngliche fehlgeschlagene Testlauf bleibt als Beleg erhalten.
+
+Für das nächste Produktimage setzt die QEMU-Ressourcenüberlagerung
+`config_ntpPollingInterval` auf 60.000 ms. Androids normaler Zeitdienst soll
+so bei verfügbarer Netzwerkverbindung binnen einer Gastminute erneut messen.
+Dies begrenzt die Zeitabweichung nach Pausen; es garantiert keine korrekte
+Offline-Uhr und ersetzt noch keinen Schlaf-/Aufwachtest des neuen Vollimages.
+Der aktuelle Gast verwendet weiterhin den alten Ressourcenstand; die einmalige
+Aktualisierung ist kein Nachweis der neuen periodischen Einstellung.
+
+Belege: `out/components-58be0749/clock-diagnostic/` mit ursprünglicher und neuer
+Zeitdienst-Ausgabe, Host-/Gast-Zeiten und Ergebnis. Der erste Paketlauf liegt
+unter `targeted-tests/`, der Lauf nach regulärem Zeitabgleich unter
+`targeted-tests-clock-synced/` im selben Komponentenordner.
+
 ## Virtuelle Eingabe im Testgast `026665fb`, 29. September 2026
 
 Der separate verwaltete Testgast zeigt Sperrbildschirm, Dialoge und Launcher
