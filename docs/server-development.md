@@ -21,7 +21,7 @@ und prüft deren SHA256SUMS. Es verwendet weder GitHub noch dessen Credentials.
 Erfolg heißt `LOCAL_BUILD_VERIFIED`; dies ist ausdrücklich keine Gastabnahme.
 
 Für QEMU werden die Images unter einem neuen Verzeichnis `images/` abgelegt.
-`scripts/prepare-server-qemu.py DIR --avbtool PATH/avbtool.py` prüft die
+`scripts/prepare-server-qemu.py DIR --avbtool PATH/avbtool.py --commit COMMIT` prüft die
 AVB-Kette mit den eingebetteten Entwicklungsschlüsseln und erstellt die
 Bootkonfiguration sowie neue Metadata-/Misc-/FRP-Partitionen. Anschließend
 erstellt `scripts/make-qemu-disk.py DIR` die unveränderliche GPT-Basisdisk.

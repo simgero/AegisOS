@@ -2,13 +2,16 @@
 """Verify local development AVB images and create fresh auxiliary QEMU partitions."""
 import argparse
 import json
+import re
 from pathlib import Path
 import struct
 import subprocess
 import sys
 
 
-def prepare(root, avbtool):
+def prepare(root, avbtool, commit):
+    if not re.fullmatch('[0-9a-f]{40}', commit):
+        raise ValueError('Expected the full source commit of the images')
     root = root.resolve()
     images = root / 'images'
     if any((root / name).exists() for name in
@@ -37,6 +40,8 @@ def prepare(root, avbtool):
         'androidboot.vendor.apex.com.android.hardware.gatekeeper=com.android.hardware.gatekeeper.cf_remote\n'
         'androidboot.vendor.apex.com.android.hardware.graphics.composer=com.android.hardware.graphics.composer.ranchu\n')
     (root / 'avb-checked.json').write_text(json.dumps({
+        'builder_commit': commit,
+        'status': 'TEST_KEY_AVB_CHECKED_PARTITIONS_PREPARED_NOT_BOOTED',
         'vbmeta_digest': digest, 'vbmeta_size': size, 'verification': verified.stdout,
         'trust': 'embedded AOSP development keys; direct QEMU kernel launch'}, indent=2) + '\n')
 
@@ -45,5 +50,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('directory', type=Path)
     parser.add_argument('--avbtool', required=True, type=Path)
+    parser.add_argument('--commit', required=True)
     args = parser.parse_args()
-    prepare(args.directory, args.avbtool.resolve())
+    prepare(args.directory, args.avbtool.resolve(), args.commit)

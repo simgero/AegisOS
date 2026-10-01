@@ -19,6 +19,9 @@ def execution(accel='auto', system=None, machine=None, kvm=None):
         raise ValueError('ARM64 KVM requires an ARM64 Linux host and accessible /dev/kvm')
     if accel not in ('hvf', 'kvm', 'tcg'):
         raise ValueError('Unsupported accelerator')
-    return ['-machine', ('virt-11.1' if system == 'Darwin' else 'virt-10.2') + ',gic-version=3',
+    # AOSP's boot_devices binding names the low PCI ECAM node. TCG's max CPU
+    # otherwise moves that node to 4010000000.pcie on this machine version.
+    board = ('virt-11.1' if system == 'Darwin' else 'virt-10.2,highmem-ecam=off')
+    return ['-machine', board + ',gic-version=3',
             '-accel', 'tcg,thread=multi' if accel == 'tcg' else accel,
             '-cpu', 'max' if accel == 'tcg' else 'host']

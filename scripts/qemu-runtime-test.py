@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Interactive synthetic two-user test for an explicitly selected fresh local QEMU.
 
-Build Android on aegis-build and receive verified images through GitHub first.
+Build Android on aegis-build; use checked local images or verified release images.
 This host-side tool only drives the running local guest. It creates synthetic
 AOSP test users when commanded; passwords remain in this process's memory.
 Do not use a personal profile. Existing users or output directories are refused.
@@ -29,7 +29,7 @@ parser.add_argument('--prepared',type=Path,required=True,help='Prepared image di
 parser.add_argument('--commit',required=True,help='Exact full image builder commit')
 parser.add_argument('--output',type=Path,required=True,help='New evidence directory; existing directories are refused')
 args=parser.parse_args()
-if sys.platform != 'darwin':parser.error('Guest tests run only on the local Mac, not on the build server')
+if sys.platform not in ('darwin', 'linux'):parser.error('Guest tests require macOS or Linux')
 if sys.flags.optimize:parser.error('Run without Python -O; acceptance assertions must stay enabled')
 if not re.fullmatch(r'[0-9a-f]{40}',args.commit):parser.error('Expected a full hexadecimal commit')
 RUN=args.run.resolve(strict=True)
@@ -48,7 +48,10 @@ assert re.fullmatch(r'127\.0\.0\.1:[0-9]{4,5}',address) and 1024<=int(address.rs
 ADB=['adb','-s',address]
 receipt=json.loads((PREPARED/'avb-checked.json').read_text())
 assert receipt['builder_commit']==COMMIT
-assert receipt['status']=='TEST_KEY_AVB_CHECKED_DISK_PREPARED_NOT_BOOTED'
+assert receipt['status'] in ('TEST_KEY_AVB_CHECKED_DISK_PREPARED_NOT_BOOTED',
+                             'TEST_KEY_AVB_CHECKED_PARTITIONS_PREPARED_NOT_BOOTED')
+disk_receipt=json.loads((PREPARED/'android.raw.json').read_text())
+assert disk_receipt['sha256']==manifest['bindings']['base_disk']['sha256']
 assert checked_output(ADB+['shell','getprop','ro.boot.vbmeta.digest'],text=True,timeout=20).strip()==receipt['vbmeta_digest']
 assert checked_output(ADB+['shell','getprop','sys.boot_completed'],timeout=20).strip()==b'1'
 assert checked_output(ADB+['shell','getenforce'],timeout=20).strip()==b'Enforcing'
@@ -79,6 +82,7 @@ pending = bytearray()
 shell_active = False
 held_login = None
 package_prompt = False
+ce_holders = {}
 GNU_PROMPT = "__AEGIS_GNU_"+secrets.token_hex(12)+"> "
 
 def clean(data):
@@ -357,6 +361,39 @@ def locked_gnu_file(key):
            'stdout_bytes':0,'stderr':result.stderr.decode(errors='replace'),
            'aosp_ce_state':rows[0],'expected_sha256':hashlib.sha256(gnu_probes[key].encode()).hexdigest(),
            'scope':'Previously GNU-written file is unreadable; identical-byte GNU read after reauthentication remains required'})
+
+
+def held_ce_file(operation, key):
+    """Controlled developer-root FD fault; never evidence of unprivileged isolation."""
+    assert key in gnu_written and not shell_active
+    if operation == 'start':
+        assert key not in ce_holders
+        uid, serial = users[key]
+        path = f'/data/misc_ce/{uid}/aegis/home/.aegis-proof/{gnu_files[key]}'
+        gate = '/data/local/aegis-debug/hold-' + secrets.token_hex(16)
+        # Bound the fixture itself to three minutes even if the driver disappears.
+        command = ('umask 077; exec 9<' + shlex.quote(path) + ' || exit 1; '
+                   'touch ' + shlex.quote(gate) + '; echo AEGIS_FD_HELD; '
+                   'n=0; while test -e ' + shlex.quote(gate) + ' && test "$n" -lt 1800; '
+                   'do sleep 0.1; n=$((n+1)); done; exec 9<&-; '
+                   'rm -f ' + shlex.quote(gate) + '; echo AEGIS_FD_RELEASED')
+        process = subprocess.Popen(ADB + ['shell', '-T', 'su 0 sh -c ' + shlex.quote(command)],
+                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ce_holders[key] = {'process': process, 'gate': gate,
+            'system_server': checked_output(ADB+['shell','pidof','system_server'], timeout=20).strip()}
+        ready, _, _ = select.select([process.stdout], [], [], 20)
+        assert ready and process.stdout.readline().strip() == b'AEGIS_FD_HELD'
+        record('held-ce-start-'+key, {'user':uid,'serial':serial,
+            'scope':'Developer-root holds an existing GNU-written CE file open for fault injection only'})
+    else:
+        holder = ce_holders[key]
+        run_control(ADB+['shell','su','0','rm','-f',holder['gate']],check=True,timeout=20)
+        output, error = holder['process'].communicate(timeout=20)
+        assert holder['process'].returncode == 0 and output.strip() == b'AEGIS_FD_RELEASED'
+        assert checked_output(ADB+['shell','pidof','system_server'],timeout=20).strip() == holder['system_server']
+        del ce_holders[key]
+        record('held-ce-release-'+key, {'original_system_server_survived':True,
+            'scope':'The original fixture closed its FD; CE completion and fresh authentication still required'})
 
 
 def until_any(markers, timeout=240):
@@ -899,6 +936,17 @@ try:
                 gnu_file(operation, 'alpha' if key == 'a' else 'beta')
             elif re.fullmatch(r'locked-gnu-[ab]',cmd):
                 locked_gnu_file('alpha' if cmd.endswith('-a') else 'beta')
+            elif re.fullmatch(r'held-ce-(start|release)-[ab]',cmd):
+                held_ce_file(cmd.split('-')[2], 'alpha' if cmd.endswith('-a') else 'beta')
+            elif re.fullmatch(r'pending-login-[ab]',cmd):
+                key='alpha' if cmd.endswith('-a') else 'beta'
+                assert key in ce_holders and not shell_active
+                action(cmd, 'login '+shlex.quote(names[key]))
+                assert 'Aktion nicht bestätigt' in events[-1]['output']
+                assert 'Passwort: ' not in events[-1]['output']
+                assert auth_state(key)['context']=='absent'
+                assert checked_output(ADB+['shell','pidof','system_server'],timeout=20).strip()==ce_holders[key]['system_server']
+                record(cmd+'-confirmed', 'No password sent, no runtime, original system_server survived pending eviction')
             elif cmd.startswith('gnu-checked '): checked_gnu('gnu-checked',cmd[len('gnu-checked '):])
             elif cmd.startswith('gnu '): gnu('gnu-command',cmd[4:])
             elif cmd in ('linux-start', 'linux-status', 'linux-stop'):
@@ -941,5 +989,8 @@ try:
             print('FAILED '+cmd+': '+type(exc).__name__, flush=True)
 finally:
     close()
+    for key in list(ce_holders):
+        try: held_ce_file('release', key)
+        except Exception: print('FD fixture cleanup unconfirmed; bounded fixture expires independently', flush=True)
     for value in credentials.values(): value[:]=b'\0'*len(value)
     print('Credential buffers cleared', flush=True)

@@ -15,8 +15,8 @@ from qemu_console import execute
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('run',type=Path)
-    parser.add_argument('--authorize-this-mac',action='store_true',
-                        help='Explicitly provision this Mac public ADB key in the development guest')
+    parser.add_argument('--authorize-this-host','--authorize-this-mac',dest='authorize_this_host',action='store_true',
+                        help='Explicitly provision this host public ADB key in the development guest')
     args=parser.parse_args()
     address=(args.run/'adb-address.txt').read_text().strip()
     if not re.fullmatch(r'127\.0\.0\.1:[0-9]{4,5}',address):
@@ -54,7 +54,7 @@ def main():
           'kill "$pid"; n=0; while kill -0 "$pid" 2>/dev/null; do '
           'n=$((n+1)); test "$n" -le 30; sleep 0.1; done; fi; '
           'rm -f /data/local/aegis-debug/bridge.pid; fi')
-    if args.authorize_this_mac:
+    if args.authorize_this_host:
         key=(Path.home()/'.android/adbkey.pub').read_text().strip()
         if len(key)>4096 or '\n' in key or '\r' in key:raise ValueError('Invalid public ADB key')
         decoded=base64.b64decode(key.split()[0],validate=True)
@@ -65,7 +65,7 @@ def main():
               "then printf '%s\\n' "+quoted+' >> /data/misc/adb/adb_keys; fi; '
               'chown system:shell /data/misc/adb/adb_keys; chmod 640 /data/misc/adb/adb_keys; '
               'restorecon /data/misc/adb/adb_keys')
-        print('Authorized this Mac public ADB key:',fingerprint)
+        print('Authorized this host public ADB key:',fingerprint)
     script=Path(__file__).resolve().parents[1]/'tools/qemu/adb-bridge.sh'
     encoded=base64.b64encode(script.read_bytes()).decode()
     guest("printf '%s' "+shlex.quote(encoded)+' | base64 -d > /data/local/aegis-debug/bridge.sh; '
