@@ -69,6 +69,10 @@ und verwirft die Speicherpuffer; es ersetzt ausdrücklich keinen Logout.
 
 Die Hintergrundproben sind nur bis 25 Minuten nach Start als Nachweis
 zugelassen; ihr natürliches Ende darf nicht als Logout-Erfolg ausgegeben werden.
+Für langsame ARM-/TCG-Gäste kann beim Treiberstart `--probe-seconds 7200`
+angegeben werden (zulässig: 1800–7200). Die Probe bleibt begrenzt; ihre
+Nachweisfrist endet stets fünf Minuten vor ihrer möglichen natürlichen
+Beendigung. Die tatsächlich gewählte Grenze steht im Startbeleg.
 
 ## Weitere gezielte Prüfungen
 

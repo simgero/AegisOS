@@ -28,7 +28,10 @@ parser.add_argument('--run',type=Path,required=True,help='Existing local QEMU ru
 parser.add_argument('--prepared',type=Path,required=True,help='Prepared image directory with avb-checked.json')
 parser.add_argument('--commit',required=True,help='Exact full image builder commit')
 parser.add_argument('--output',type=Path,required=True,help='New evidence directory; existing directories are refused')
+parser.add_argument('--probe-seconds',type=int,default=1800,
+                    help='Bounded GNU background probe duration, 1800–7200 seconds (longer for TCG)')
 args=parser.parse_args()
+if not 1800 <= args.probe_seconds <= 7200:parser.error('--probe-seconds must be 1800–7200')
 if sys.platform not in ('darwin', 'linux'):parser.error('Guest tests require macOS or Linux')
 if sys.flags.optimize:parser.error('Run without Python -O; acceptance assertions must stay enabled')
 if not re.fullmatch(r'[0-9a-f]{40}',args.commit):parser.error('Expected a full hexadecimal commit')
@@ -511,7 +514,7 @@ def start_background(key):
     # setsid may fork; the script records its actual inner PID, not shell $!.
     # Every update is an atomic rename, so readers never accept a partial row.
     script = ('set -eu; umask 077; trap "" HUP; i=0; '
-              'while [ "$i" -lt 1800 ]; do i=$((i+1)); '
+              'while [ "$i" -lt '+str(args.probe_seconds)+' ]; do i=$((i+1)); '
               'printf "%s %s %s\\n" "$0" "$BASHPID" "$i" > "$1.next"; '
               'mv "$1.next" "$1"; sleep 1; done')
     command = ('test -f "$HOME/.aegis-proof/'+gnu_files[key]+'"; '
@@ -533,7 +536,7 @@ def start_background(key):
     backgrounds[key]={'inner_pid':int(rows[0][0]),'tick':int(rows[0][1]),
                       'token':token,'started_monotonic':time.monotonic()}
     record('background-start-'+key, {'inner_pid':int(rows[0][0]),
-           'token':token,'bounded_seconds':1800,'scope':'Real GNU process; survival checks remain pending'})
+           'token':token,'bounded_seconds':args.probe_seconds,'scope':'Real GNU process; survival checks remain pending'})
 
 
 
@@ -564,7 +567,7 @@ def renew_background(key):
 def observe_background(key, gone=False):
     """Developer-root oracle; never a substitute for another user's denial."""
     job=backgrounds[key]
-    assert time.monotonic()-job['started_monotonic']<1500, 'Job may have expired naturally'
+    assert time.monotonic()-job['started_monotonic']<args.probe_seconds-300, 'Job may have expired naturally'
     uid,serial=users[key]
     token=job['token']
     boot_id=checked_output(ADB+['shell','cat','/proc/sys/kernel/random/boot_id'],text=True,timeout=20).strip()
