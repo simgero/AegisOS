@@ -265,3 +265,31 @@ Positive Paketveröffentlichung und gepaarter Neustart folgen gesondert.
 Authentifiziertes ADB besteht zusätzlich einen bytegenauen binären
 262144-Byte-Rundlauf (`adb-binary-proof.json`); `ro.adb.secure=1` bleibt gesetzt.
 Die aktuelle Bedienungsanleitung steht in [Terminalzugang](terminal-quickstart.md).
+
+### Gegenseitige Isolation und CE-Fehlerwiederanlauf im aktuellen Gast
+
+`candidate-c526571/two-user-isolation-proof.json` bestätigt beide Richtungen:
+echte GNU-Prozesse können fremde Dateien über CE-/Home-/Proc-Pfade nicht lesen,
+keine Bytes erhalten und den fremden Originalprozess nicht mit SIGSTOP
+anhalten. Beide Originalprozesse sind davor und danach identisch und machen
+Fortschritt. Sechs Namensräume sind jeweils verschieden. POSIX-Mqueue erlaubt
+in beiden Kontexten die eigene Nachricht unter gleichem Queue-Namen und weist
+den jeweiligen fremden Queue-Namen zurück. Das ist keine erschöpfende
+Syscall-/IPC-Matrix.
+
+Der echte CE-Fehlerfall besteht ebenfalls: kontrollierter Root-Dateideskriptor
+auf Alphas existierender GNU-Datei, unbestätigter Logout, verweigerter Login
+noch vor Passwortabfrage und ohne neuen Kontext. Nach Freigabe wird die
+anhängige Eviction abgeschlossen, bevor die neue Passwortabfrage erfolgt.
+Ein falsches Passwort entsperrt nichts; selbst der bekannte Dateipfad liefert
+keine Bytes. Frische korrekte Anmeldung und tatsächlicher GNU-Lesezugriff
+liefern anschließend denselben SHA-256. Der Originalprozess ist entfernt,
+SystemServer bleibt PID 1373. Beleg: `candidate-c526571/ce-fault-recovery.json`.
+
+Nach dem neuen Kontextstart sind eigene Home-Rechte, Symlink und Konfiguration
+erhalten, die alten persönlichen Mqueues dagegen verschwunden. Das zuvor mit
+frischer Alpha-Adminfreigabe gemeinsam veröffentlichte `ed` (Paketversion
+`1.21.1-1`) führt nun einen echten Editierauftrag aus. Vor dem Kontextneustart
+war es trotz Veröffentlichung bewusst noch nicht verfügbar; `linux status`
+meldete die ausstehende Aktivierung. Persönliche Paketinstallation und
+vollständiger gepaarter Neustart bleiben die folgenden Abnahmeschritte.
