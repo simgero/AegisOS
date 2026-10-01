@@ -2,8 +2,10 @@
 
 `scripts/qemu-runtime-test.py` steuert ausschließlich einen bereits laufenden
 lokalen QEMU-Gast über dessen authentifiziertes ADB und eine echte interaktive
-AEGIS-CLI. AOSP- und native Builds bleiben auf `aegis-build`; Quellcode und
-Artefakte kommen über GitHub. Der Treiber baut, bootet, ersetzt oder löscht
+AEGIS-CLI. AOSP- und native Builds laufen als `aegis-build`; auf dem Buildserver
+werden die lokal verifizierten Images direkt verwendet. Dafür sind weder
+GitHub-Releases noch Artefaktuploads vorgesehen; siehe
+[Serverentwicklung](server-development.md). Der Treiber baut, bootet, ersetzt oder löscht
 kein Profil. Er ist ein Entwicklungswerkzeug, keine neue persönliche Anmeldung.
 
 ## Voraussetzungen und Start
@@ -108,6 +110,9 @@ angefangene Transaktion dabei tatsächlich abgebrochen wurde, muss gesondert
 nachgewiesen werden. `package-status` und `package-cancel` rufen die
 entsprechenden CLI-Befehle auf. `package-unauthenticated` erwartet die
 Ablehnung einer persönlichen Installation aus einem unangemeldeten Kanal.
+Der Host wartet auf Paketplanung und Abschluss jeweils höchstens zehn Minuten,
+weil ARM unter TCG mehrere Minuten benötigen kann. Diese Wartezeit verändert
+weder die Gast-Autorisierung noch deren Fristen.
 
 `cli BEFEHL` ist für gezielte CLI-Prüfungen ohne weitere interaktive Rückfrage
 vorgesehen, beispielsweise die Ablehnung einer nicht verfügbaren Version.
