@@ -1,3 +1,51 @@
+## Zwei Benutzer, Isolation und gepaarter Neustart: 020ae750
+
+Am 2026-10-01 bestaetigt das lokale Vollimage020 zusaetzlich die folgenden
+Produktablaeufe mit Simeon10/10 und Isabelle11/11:
+
+- Beide echten GNU-Prozesse haben getrennte Host-UIDs und getrennte User-,
+  Mount-, PID-, IPC-, UTS- und Netzwerk-Namespaces. Gegenseitige Datei- und
+  Prozesszugriffe einschliesslich SIGSTOP scheitern aus beiden persoenlichen
+  Shells; derselbe fremde Prozess schreitet unmittelbar davor und danach fort.
+- Gleiche Dateinamen in HOME-Konfiguration, `/tmp`, `/run/user/1000` und eine
+  funktionierende FIFO-Verbindung tragen unabhaengige Benutzerwerte.
+- Der AOSP-Passwortwechsel fuer Isabelle gelingt. Ihr altes Passwort wird
+  vor und nach dem Neustart abgewiesen; CE bleibt dabei gesperrt. Das neue
+  Passwort erlaubt die unveraenderten persoenlichen Dateien und Programme.
+- Die regulaere Abmeldung beendet jeweils den zuvor beobachteten GNU-Prozess,
+  entfernt seinen Kontext und sperrt persoenliches CE. Der andere Benutzer
+  behält seinen laufenden Prozess. Vor dem Neustart sind beide abgemeldet.
+- Android und KeyMint werden geordnet gestoppt und mit **denselben beiden
+  Dateien** neu gestartet. Profil und Benutzer-Seriennummern bleiben gleich;
+  neue Boot-ID `d9a16feb-c4b8-4cf8-a786-937172e7a41f`, AVB, SELinux Enforcing
+  und zuerst gesperrtes persoenliches CE sind geprueft.
+- Nach eigener neuer Anmeldung liest jeder Benutzer seine urspruenglichen
+ 1024 Bytes identisch. HOME-Einstellungen bleiben erhalten, alte Temp-/Run-
+  und FIFO-Dateien sind verschwunden. Isabelle fuehrt privates `hello=2.10-5`
+  und gemeinsames `ed=1.21.1-1` aus; Simeon nur das gemeinsame `ed`.
+  Die gemeinsamen und privaten Paketgenerationen sind unveraendert.
+
+Belege mit eingefrorenen Ereignissen und gehashten Metadaten liegen in
+`out/full-build-020ae750/identity-test/two-user-isolation-proof.json` und
+`persistence-proof.json`. Der Testtreiber und seine Zugangsdaten bleiben im
+Speicher. Ein abgewiesenes altes Passwort startet den AOSP-Benutzer als
+RUNNING_LOCKED, ohne CE oder GNU-Kontext zu oeffnen. Der strenge
+Neustart-Checkpoint lehnte diesen noch gestarteten Zustand richtig ab; nach
+neuer korrekter Anmeldung und regulaerer Abmeldung gelang der Checkpoint.
+Der alte lokale Treiber verschluckte einmal Steuerzeilen nach `open`; der
+verzoegerte Test war keine langsame AOSP-Passwortpruefung. Einzelne Uebermittlung
+gelang sofort. Der wiederverwendbare Treiber trennt Diagnose-stdin bereits ab.
+
+**Grenzen:** FIFO beweist nur dateisystemgebundene IPC. Abstrakte Sockets,
+System-V-IPC, Session-D-Bus, verschiedene private Paketversionen, alle
+Paket-Autorisierungs-/Abbruch-/Parallelfaelle und verwaltete CLI-Loeschung
+bleiben offen. Bei der Abmeldung meldet vold zunaechst noch beschaeftigte
+verschluesselte Inodes; im neuen Lauf bestaetigt vold deren Bereinigung nach
+3,2 Sekunden. Die CLI-Rueckmeldung allein beweist nicht deren sofortige
+vollstaendige Bereinigung. Offene private Deskriptoren und private Loop-Abbilder
+waren in der anschliessenden Bestandsaufnahme nicht mehr vorhanden. Die lange
+Warnfolge des ersten Boots bleibt als separater Diagnosepunkt erhalten.
+
 ## Echter AOSP-Abgleich von privaten und gemeinsamen Paketen: 020ae750
 
 Der [Vollimage-Release](https://github.com/simgero/AegisOS/releases/tag/aosp-20261001T094654Z-020ae750-c9f7b953)
@@ -45,8 +93,9 @@ diese beiden Moduszeichen fuer die Auswertung und bewahrt den Rohmitschnitt.
 **Grenzen:** Dies beweist private Installation, gemeinsame Installation und deren
 positiven automatischen Abgleich. Unterschiedliche explizite Versionen desselben
 Pakets, Update/Entfernung mit vollstaendiger Autorisierungsmatrix, Konflikte,
-Parallelitaet/Abbruch, neue Benutzer, weitere Prozess-/IPC-/Temp-Isolation und der
-gepaarte Neustart dieses Profils sind noch offen. Dieses Vollimage enthaelt weder
+Parallelitaet/Abbruch, neue Benutzer und weitere IPC-Angriffspruefungen sind
+noch offen. Prozess-/Datei-/Temp-Isolation und der gepaarte Neustart sind
+im ergaenzenden Abschnitt oben dokumentiert. Dieses Vollimage enthaelt weder
 den neuen Aktivierungsstatus noch die freigeschaltete verwaltete CLI-Loeschung.
 Die erste richtige Anmeldung nach vorausgegangenem falschem Passwort beweist
 keinen Zugang ohne Aufwaermversuch.

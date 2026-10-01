@@ -90,6 +90,36 @@ aus und verlangt einen eindeutigen tatsächlich ausgegebenen Exitcode 0.
 `gnu BEFEHL` ist nur eine Diagnose ohne diese Erfolgsbehauptung. Eingaben und
 synthetische Dateiproben werden protokolliert; keine fremden Secrets verwenden.
 
+## Paketaktionen mit frischer Adminprüfung
+
+Der Treiber kann einen echten Paketplan bis zur Adminabfrage öffnen und dort
+anhalten: `package-install-user hello=2.10-5`, `package-install-all ed`,
+`package-remove-user hello`, `package-remove-all ed` sowie
+`package-update-user` und `package-update-all`. Bereich und Version werden
+unverändert an die Produkt-CLI weitergereicht; der Treiber führt kein APT aus.
+
+Den angezeigten Plan prüfen, danach genau eine Fortsetzung senden:
+`package-approve` verwendet Alphas aktuelles AOSP-Adminpasswort;
+`package-wrong` das falsche Testpasswort; `package-nonadmin` Betas korrektes
+aktuelles Passwort. Nach `passwd-b` ist das dessen neues Passwort.
+`package-cancel-plan` sendet eine leere Adminauswahl. Während der Abfrage sind
+andere Aktionssteuerungen gesperrt. `close` beendet den Testkanal; ob eine
+angefangene Transaktion dabei tatsächlich abgebrochen wurde, muss gesondert
+nachgewiesen werden. `package-status` und `package-cancel` rufen die
+entsprechenden CLI-Befehle auf. `package-unauthenticated` erwartet die
+Ablehnung einer persönlichen Installation aus einem unangemeldeten Kanal.
+
+`cli BEFEHL` ist für gezielte CLI-Prüfungen ohne weitere interaktive Rückfrage
+vorgesehen, beispielsweise die Ablehnung einer nicht verfügbaren Version.
+Die aufgezeichnete Antwort allein ist kein Erfolgssignal. Paketgenerationen,
+Antragsteller/Seriennummer, unveränderte fremde Speicher und ausgeführte
+Programme müssen jeweils unabhängig geprüft werden. Eine Adminfreigabe darf
+die persönliche Installation nicht auf das Administratorkonto umleiten.
+
+Die Paketsteuerung ist aus dem realen Zwei-Benutzer-Durchlauf mit Image
+`020ae750` übernommen. Ihre wiederverwendbare Integration ist vorbereitet;
+ihr nächster vollständiger Produktdurchlauf steht noch aus.
+
 ## Neustart und Belege
 
 ### Verwaltete CLI-Löschung: vorbereiteter zusätzlicher Durchlauf

@@ -78,6 +78,7 @@ client = None
 pending = bytearray()
 shell_active = False
 held_login = None
+package_prompt = False
 GNU_PROMPT = "__AEGIS_GNU_"+secrets.token_hex(12)+"> "
 
 def clean(data):
@@ -112,7 +113,7 @@ def until(marker, timeout=120):
     return result
 
 def close():
-    global client, master, shell_active
+    global client, master, shell_active, package_prompt
     if client and client.poll() is None:
         os.write(master, b'exit\n')
         try: client.wait(timeout=10)
@@ -122,6 +123,7 @@ def close():
     client = master = None
     pending.clear()
     shell_active=False
+    package_prompt=False
 
 def open_client():
     global master, client
@@ -356,6 +358,55 @@ def locked_gnu_file(key):
            'aosp_ce_state':rows[0],'expected_sha256':hashlib.sha256(gnu_probes[key].encode()).hexdigest(),
            'scope':'Previously GNU-written file is unreadable; identical-byte GNU read after reauthentication remains required'})
 
+
+def until_any(markers, timeout=240):
+    deadline=time.monotonic()+timeout
+    encoded=[x.encode() for x in markers]
+    while True:
+        hits=[(pending.index(token),i,token) for i,token in enumerate(encoded) if token in pending]
+        if hits:
+            pos,i,token=min(hits);end=pos+len(token);result=pending[:end];del pending[:end]
+            clean(result);return i,result
+        if time.monotonic()>=deadline:raise TimeoutError('Package state not observed')
+        ready,_,_=select.select([master],[],[],1)
+        if ready:
+            chunk=os.read(master,65536)
+            if not chunk:raise RuntimeError('CLI closed during package work')
+            pending.extend(chunk)
+        assert len(pending)<1024*1024
+
+def package_begin(action_name,scope,package="hello"):
+    global package_prompt
+    assert not shell_active and not package_prompt and held_login is None
+    assert client and client.poll() is None
+    assert action_name in ('install','remove','update') and scope in ('user','all')
+    assert re.fullmatch(r'[a-z0-9][a-z0-9+.-]{0,62}(=(?:[0-9]+:)?[0-9][a-zA-Z0-9.+~-]{0,100})?',package)
+    assert action_name=='install' or '=' not in package
+    command='linux package '+action_name+' --scope '+scope+(' '+package if action_name!='update' else '')
+    os.write(master,command.encode()+b'\n')
+    which,data=until_any(['Admin-Benutzer für diesen Plan (leer bricht ab): ','aegis> '])
+    record('package-'+action_name+'-'+scope,data)
+    package_prompt=which==0
+    if not package_prompt:raise RuntimeError('Package never reached approval; inspect native diagnostics')
+    package_name=package.split('=')[0]
+    assert (re.search(re.escape(package_name)+r' \((?:arm64|all)\): ',clean(data))
+            or action_name=='update'
+            or package_name+': privat festhalten, Version ' in clean(data))
+
+def package_approve(key, administrator="alpha"):
+    global package_prompt
+    assert package_prompt and client and client.poll() is None
+    os.write(master,names[administrator].encode()+b'\n')
+    data=until('Admin-Passwort für diesen Plan: ',30)
+    os.write(master,credentials[key]+b'\n')
+    data.extend(until('aegis> ',240))
+    package_prompt=False
+    record('package-approve-'+key,data)
+
+def package_cancel():
+    global package_prompt
+    assert package_prompt and client and client.poll() is None
+    os.write(master,b'\n');record('package-cancel-plan',until('aegis> ',30));package_prompt=False
 
 def resize(rows, columns):
     assert master is not None and client and client.poll() is None
@@ -704,6 +755,8 @@ try:
     for line in sys.stdin:
         cmd = line.strip()
         try:
+            if package_prompt and cmd not in ('quit','close','peek','scan','package-approve','package-wrong','package-nonadmin','package-cancel-plan'):
+                raise RuntimeError('Finish or cancel the pending package review before other controls')
             if cmd == 'quit': break
             if cmd == 'open': open_client()
             elif cmd == 'close': close(); record('close', 'Client closed; no AOSP logout implied')
@@ -770,6 +823,24 @@ try:
                                        ('Neues Passwort wiederholen: ', 'newbeta')])
                 assert 'Password changed by AOSP' in events[-1]['output']
                 current_credentials['beta']='newbeta'
+            elif re.fullmatch(r'package-(install|remove|update)-(user|all)( [a-z0-9][a-z0-9+.-]{0,62}(=(?:[0-9]+:)?[0-9][a-zA-Z0-9.+~-]{0,100})?)?',cmd):
+                words=cmd.split();_,operation,scope=words[0].split('-')
+                assert len(words)==(1 if operation=='update' else 2), 'Specify a package for install/remove; no package for update'
+                package_begin(operation,scope,words[1] if len(words)==2 else 'hello')
+            elif cmd in ('package-approve','package-wrong'):
+                package_approve(current_credentials['alpha'] if cmd=='package-approve' else 'wrong')
+            elif cmd == 'package-nonadmin': package_approve(current_credentials['beta'],'beta')
+            elif cmd == 'package-cancel-plan': package_cancel()
+            elif cmd == 'package-unauthenticated':
+                assert not shell_active and held_login is None
+                action(cmd,'linux package install hello --scope user')
+                assert 'Aktion abgelehnt' in events[-1]['output']
+            elif cmd in ('package-status','package-cancel'):
+                assert not shell_active and held_login is None
+                action(cmd,'linux '+cmd.replace('-',' '))
+            elif cmd.startswith('cli '):
+                assert not shell_active and held_login is None
+                action('cli-check',cmd[4:])
             elif cmd == 'shell': start_shell()
             elif cmd == 'basic-runtime': basic_runtime()
             elif cmd == 'home-initial':
