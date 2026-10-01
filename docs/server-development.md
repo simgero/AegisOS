@@ -222,3 +222,15 @@ Der Folgebuild `c52657113becde42d735669d4d64405c7740cc74` ist im Run
 `out/server-stability/host-tests-c526571.log`. Seine neue lokale QEMU-Kopie
 liegt unter `candidate-c526571`; eine erfolgreiche Wiederholung des zuvor
 fehlgeschlagenen Paketabbruchs ist damit noch nicht behauptet.
+
+Der frische `c526571`-Gast bootet mit AVB-Digest
+`90fe54bc5405a87535a0dcb47a6bd08d8e6714f78bb1999798e1131b2781bfb2`,
+SELinux Enforcing, Hardwarefaktor 50 und authentifiziertem ADB. Die
+Bootanimation endet erneut mit Status 0. Tastatur-/Mausereignisse und
+Framebuffer sind in `candidate-c526571/input-display-proof.json` gebunden.
+**177/177 ausgewählte Java-Gerätetests** bestehen (JUnit 59,113 Sekunden);
+SystemServer bleibt PID 1373, persönliche Benutzer fehlen weiterhin.
+Die drei unveränderten erschöpfenden User-ID-Tests wurden aus diesem Lauf
+bewusst ausgelassen; sie bestanden bereits im früheren vollständigen
+180-Test-Lauf. APK-, Log-Hash und Klassenauswahl stehen in
+`candidate-c526571/java-177-result.json`. Die neue echte CLI-Abnahme folgt.
