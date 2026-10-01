@@ -29,7 +29,7 @@ nicht, dass die ganze Zeile der DoD bereits geschlossen ist.
 | T09 | Runtime-Start/-Stopp vorhanden | Nur eigener Kontext beendet, Sitzung/CE und anderer Benutzer erhalten |
 | T10 | Bestätigter Logout, CE gesperrt, Peer weiter aktiv | Konkurrierenden Start und vollständigen Ressourcenabbau gezielt zuordnen/prüfen |
 | T11 | Echter EBUSY-/CE-Timeout mit sicherem Wiederanlauf | Zusammenwirken mit laufenden Paketaktionen ergänzen |
-| T12 | Gepaarter Reboot; frühere CLI-Löschung und Allocator-Tests | Vollständige aktuelle Löschung, neue Identität, persistente ID-Stilllegung und Zurückweisung veralteter Zuordnungen |
+| T12 | Gepaarter Reboot; frühere CLI-Löschung und Allocator-Tests | Vollständige aktuelle Löschung, neue Identität, ID-Stilllegung bis Systemserver-Ende und sichere Wiederverwendung nach Neustart |
 | T13 | Installation beider Bereiche mit gültiger/falscher/Nicht-Adminfreigabe | Alle sechs Aktion-/Bereichskombinationen, fehlende Autorisierung/Bereiche und manipulierte Eigentümer |
 | T14 | Gemeinsames ed und privates hello | Nachträglich angelegter Benutzer C und getrennte persönliche Konfiguration gemeinsamer Software |
 | T15 | Private Installation eines anderen Programms | Dasselbe Paket in zwei Versionen samt Abhängigkeiten, unauflösbare Version, private Entfernung/Rückkehr |
@@ -61,3 +61,14 @@ enthalten. Ein noch fehlender Teilfall hält die betreffende Zeile offen.
 Ältere Komponententests bleiben als solche gekennzeichnet. Der vollständige
 Referenzablauf mit unterschiedlichen Versionen desselben Pakets wird getrennt
 vom bisherigen ed/hello-Durchlauf nachgewiesen.
+
+
+## Benutzer-ID-Wiederverwendung
+
+Die geprüfte AOSP-Anpassung hält entfernte Nummern für die Lebensdauer des
+Systemservers zurück, auch bei erschöpftem Nummernraum. Das ist keine
+persistente Reservierung über einen Neustart. Die Abnahme muss deshalb
+zusätzlich die abgeschlossene CLI-Löschung, einen Neustart und die Anlage
+einer neuen Identität prüfen. Wird die alte Nummer wiederverwendet, müssen
+Seriennummer, Schlüsselzugriff und private Daten eindeutig zur neuen Person
+gehören; alte Pfade und Runtime-Zuordnungen dürfen keinen Zugriff eröffnen.

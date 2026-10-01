@@ -208,6 +208,33 @@ TEST_F(RuntimePackagePlanning, OwnedChildCopiesOnlyMetadataAndReturnsEvidenceAft
     EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
     evidence.reset();EXPECT_EQ(before,descriptors());
 }
+TEST_F(RuntimePackagePlanning, ExplicitOlderVersionSelectsMatchingDependencyDespiteNewerCandidate) {
+    // The signed fixture publishes versions 1 and 2 of both packages. The
+    // requested app=1 has an exact lib=1 dependency, even though 2 is the
+    // repository candidate. This is an ordinary private install, not rebase.
+    request.personal=true;request.request.version="1";
+    const int before=descriptors();ASSERT_EQ(0,Start())<<strerror(errno);
+    aegis::PackagePlanningResult result;int fd=-1;
+    ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,30000,&result,&fd));
+    Fd evidence(fd);
+    ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)
+        <<result.error<<" worker status="<<result.status<<" diagnostic="<<result.diagnostic;
+    ASSERT_TRUE(evidence.ok());ASSERT_EQ(2u,result.evidence.changes.size());
+    EXPECT_EQ(2u,result.effects);
+    const auto& app=result.evidence.changes[0];
+    const auto& lib=result.evidence.changes[1];
+    EXPECT_EQ("aegis-probe-app",app.name);EXPECT_EQ("aegis-probe-lib",lib.name);
+    for(const auto& change:result.evidence.changes) {
+        EXPECT_TRUE(change.before_version.empty());EXPECT_EQ("1",change.after_version);
+        EXPECT_EQ("all",change.architecture);EXPECT_GT(change.archive.bytes,0u);
+        EXPECT_EQ(64u,change.archive.sha256.size());
+    }
+    EXPECT_EQ(aegis::PackageInstallReason::Manual,app.reason);
+    EXPECT_EQ(aegis::PackageInstallReason::Automatic,lib.reason);
+    EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));
+    EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
+    evidence.reset();EXPECT_EQ(before,descriptors());
+}
 TEST_F(RuntimePackagePlanning, ReadonlyPrivateChoicesReachEvidenceWithoutChangingSelectedMetadata) {
     // This is exclusively owned synthetic storage. No real user's CE is opened.
     mount_attr writable={};writable.attr_clr=MOUNT_ATTR_RDONLY;
