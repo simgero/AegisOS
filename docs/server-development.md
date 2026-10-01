@@ -234,3 +234,14 @@ Die drei unveränderten erschöpfenden User-ID-Tests wurden aus diesem Lauf
 bewusst ausgelassen; sie bestanden bereits im früheren vollständigen
 180-Test-Lauf. APK-, Log-Hash und Klassenauswahl stehen in
 `candidate-c526571/java-177-result.json`. Die neue echte CLI-Abnahme folgt.
+
+Im frischen `c526571`-Profil bestehen inzwischen beide ersten persönlichen
+Anmeldungen (Alpha 10/10, Beta 11/11) ohne vorherigen Fehlversuch. Vor der
+Passworteingabe bleiben Ziel-CE und GNU-Kontext unverändert gesperrt/abwesend.
+Beide führen anschließend Debian 13.7 mit glibc 2.41 als Runtime-UID 1000 aus,
+mit schreibgeschützter Basis, eigenen Namensräumen, leerem Capability-Satz,
+Seccomp und NoNewPrivs. Zwei unterschiedliche 1024-Byte-Dateien werden aus
+GNU geschrieben, geprüft und mit Hash festgehalten; Beleg
+`candidate-c526571/first-login-proof.json`. Alpha besteht außerdem tatsächliche
+Terminalgrößenwechsel und Strg+C. Paketabbruch, adversariale Isolation und
+gepaarter Neustart sind in diesem neuen Lauf weiterhin ausstehend.
