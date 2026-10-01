@@ -1,3 +1,63 @@
+## Private Pakete, Zwei-Benutzer-Neustart und gemeinsamer Bestand: d0b866e1
+
+Der [Vollbuild](https://github.com/simgero/AegisOS/releases/tag/aosp-20261001T014320Z-d0b866e1-5ffa8331)
+mit Commit `d0b866e113e4d40a403c7182aa68732b85221fcb` wurde auf `aegis-build`
+gebaut, über GitHub verifiziert übertragen und am **2026-10-01T02:08:44Z**
+lokal gestartet. Enforcing, FBE, dm-verity, authentifiziertes ADB und die
+bytegleichen vier Pakethelfer aus dem 28-Test-Komponentenlauf sind bestätigt.
+
+Die tatsächliche CLI verweigert fehlende Anmeldung, falsches Adminpasswort
+und Freigabe durch Nichtadmin Beta ohne Veröffentlichung. Frische Alpha-
+Adminfreigabe veröffentlicht um **02:13:35 UTC** `hello` 2.10-5 nur für Beta
+(user/serial 11/11); Alpha (10/10) bleibt dabei CE-gesperrt. Nach Betas Runtime-
+Neustart laufen das echte Programm und die dpkg-Abfrage unter UID 1000 in
+`aegis_runtime_program`. Alpha sieht dieses private Paket nicht.
+
+Beide Benutzer schreiben eigene Dateien aus ihrer tatsächlichen GNU-Shell.
+Dateizugriffe und SIGSTOP auf den jeweils anderen Benutzer werden in beiden
+Richtungen abgewiesen; die ursprünglichen fremden Prozesse sind davor und
+danach nachweislich aktiv und machen Fortschritt. Alle sechs Namespace-
+Kennungen und Host-UIDs unterscheiden sich. Bei jedem Logout endet der
+ursprüngliche Hintergrundprozess vor seinem natürlichen Ablauf, der Kontext
+wird entfernt und AOSP meldet CE gesperrt. Die zuvor geschriebenen Dateien
+sind dann nicht lesbar. Resize und Unterbrechung eines Vordergrundprogramms
+wurden ebenfalls geprüft. Das ist keine vollständige Syscall-Isolationsprüfung.
+
+Android und KeyMint wurden sauber beendet und mit denselben beiden
+Datei-Inodes neu gestartet. Boot-ID vorher:
+`3af2980f-f6c9-4b82-9896-af8e34863aa7`, danach:
+`18880c8d-4132-48e9-a4de-9bb2823599a6` (**02:32:14 UTC**).
+Beide persönlichen CE-Speicher sind zunächst gesperrt. Falsche Passwörter
+entsperren keinen Benutzer; frische korrekte Anmeldungen stellen beide
+GNU-Dateien bytegenau wieder her. Betas `hello` bleibt ausführbar und für
+Alpha unsichtbar. Ein Passwortwechsel über AOSP weist anschließend das alte
+Passwort ab; das neue erhält Betas Datei und Programm. In sechs Bootprotokollen
+wurden keine vollständigen Testpasswörter gefunden; Passwörter liegen nur im
+lebenden Testtreiber, nicht in Belegdateien oder Kommandoargumenten.
+
+**Reproduzierbar offen:** Frische Adminfreigabe veröffentlicht anschließend
+`ed` 1.21.1-1 gemeinsam, während Beta CE-gesperrt bleibt. Alphas bereits
+laufender Kontext behält seinen alten Bestand; nach einem Runtime-Neustart
+führt Alpha `ed` aus und behält seine HOME-Datei. Beta kann sich anmelden,
+aber seine vorhandene private Generation referenziert noch die alte gemeinsame
+Basis. Sein Runtime-Start und auch `package update --user` scheitern. Die
+Prüfsummen beider gespeicherten Images stimmen weiterhin mit ihren Auswahlen
+überein. Der Startschutz in `package_prepare_worker.cpp` und die Planbindung
+in `package_plan.cpp` weisen diese unterschiedliche Basis ab; eine konsistente
+Zusammenführung fehlt. `linux status` zeigt zudem noch keine ausstehende
+Aktivierung an. Allgemeine Fehlertexte ersetzen keine Konflikterklärung.
+Dieser abgewiesene Start erfüllt die gewünschte gemeinsame/private Aktualisierung
+nicht. Beide Benutzer sind nach dem Fall gestoppt/CE-gesperrt, alle Kontexte
+und Pakethelfer beendet. Die gespeicherten Generationen bleiben erhalten.
+
+Belege: `out/full-build-d0b866e1/identity-test/package-install-proof.json`,
+`persistence-proof.json`, `shared-reconciliation-proof.json`, deren jeweilige
+unveränderte Ereignis-Snapshots und die referenzierten Vorher-/Nachher-Dateien.
+Die neue kanonische CLI-Schreibweise ist in diesem d0-Vollimage noch nicht
+installiert. Gemeinsame/private Zusammenführung, abweichende private Versionen,
+Entfernungs-/Aktualisierungseffekte, Aktivierungsstatus und vollständige
+Benutzer-Lebenszyklus-/Geräteabnahme bleiben Teil des offenen Gesamtziels.
+
 ## Vollständige Paketdateien: Vollimage 8168cf7f
 
 Der [Vollbuild](https://github.com/simgero/AegisOS/releases/tag/aosp-20261001T004850Z-8168cf7f-9bdfd663)
@@ -47,10 +107,18 @@ Die im Phase-1-Auftrag verlangte Schreibweise
 über denselben bestehenden Paket-/AOSP-Freigabeweg ergänzt. Auch `update`,
 `remove` und die Auftragssteuerung werden dort angeboten. Fehlende, doppelte,
 widersprüchliche oder unbekannte Bereiche sowie zusätzliche Eigentümeroptionen
-werden vor dem Dienstaufruf abgewiesen. Acht neue Java-Parserfälle sind
-vorbereitet, aber noch nicht auf dem Builder kompiliert oder im Gast ausgeführt.
-Diese CLI-Ergänzung behebt nicht die weiterhin offene gemeinsame/private
-Zusammenführung oder den vollständigen Zwei-Benutzer-Neustartnachweis.
+werden vor dem Dienstaufruf abgewiesen. Commit
+`592866d4c1f6ca4d8cbd0e99698d121d08bd22e8` wurde auf dem Builder kompiliert;
+der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T021040Z-592866d4-592866d4-FhX4NP)
+wurde über GitHub verifiziert empfangen. Am **2026-10-01T02:30:46Z** bestehen
+im lokalen d0-Gast alle **acht `PackageCommandTest`-Fälle**. Persönliche Benutzer,
+CE-/DE-Schlüsselkennungen und Runtime-Kontexte sind davor/danach unverändert;
+die persönlichen CE-Speicher bleiben gesperrt. Beleg:
+`out/components-592866d4/java-tests/result.json` mit `java.log` und beiden
+Zustandsaufnahmen. Das ist ein Parser-Nachweis; die neue installierte öffentliche
+CLI benötigt noch ein passendes Vollimage. Der oben dokumentierte tatsächliche
+Neustartablauf verwendet die vorherige CLI-Schreibweise. Die gemeinsame/private
+Zusammenführung wird durch diese Parser-Ergänzung nicht behoben.
 
 ## Produktiver dpkg-Start: Vollimage adee7ad7
 
