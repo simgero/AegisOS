@@ -118,3 +118,18 @@ Unabhängig gestartete Builddienste bleiben bei einem API-Neustart bestehen.
 Deaktivierung: `sudo -n systemctl disable --now aegis-build-http`.
 
 Tests: `python3 -m unittest discover -s tests -p test_build_http.py -v`.
+
+## Verifizierte Inbetriebnahme am 1. Oktober 2026
+
+Installierter Quellcommit: `efe5dc9925cb7495051b4c4b48a666e739adb790`.
+`aegis-build-http.service` ist aktiviert, der Listener bindet ausschließlich
+`100.122.101.48:8787`. Acht Integrationstests bestehen sowohl auf macOS als auch
+auf dem Ubuntu-Builder. Vom Mac über Tailscale wurden zusätzlich HTTP 401 ohne
+Passwort, normaler Benutzer und `sudo -n id` als root, stdin/Umgebungsvariablen,
+getrennte Ausgaben, Exit-Code 7, idempotente Wiederholung sowie Abbruch und
+Timeout von `sudo -n sleep` bestätigt. Die entsprechenden Smoke-Testjobs wurden
+gelöscht. Keine echten Builds wurden für diese Prüfung gestartet.
+
+Die lokale Passwortkopie liegt in `out/build-http/password` (0600, Git-ignoriert).
+Ein echter Serverneustart wurde nicht durchgeführt; der systemd-Autostart ist
+konfiguriert und als `enabled` geprüft.
