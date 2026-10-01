@@ -1,11 +1,12 @@
-## Aktueller Stand: Planer geprüft; gebundene Ausführung in Entwicklung
+## Aktueller Stand: gebundene Ausführung geprüft; Produktintegration offen
 
-`2a0610b6` besteht **321 native Prüfungen**, einschließlich tatsächlicher
-APT-Auflösung mit privater Versionspriorität, passenden Abhängigkeiten,
-Entfernung und Downgrade. Der byte-identische Nachweis von **54 Java-Tests**
-bleibt gültig. [Belege und Grenzen](../docs/component-tests.md).
+`a63c1214` besteht **338 native Prüfungen**, einschließlich tatsächlicher
+APT-Auflösung und separater Ausführung mit Konfigurationserhalt, passenden
+Abhängigkeiten, Downgrade und Basisfortschreibung ohne Paketänderungen.
+Der byte-identische Nachweis von **54 Java-Tests** bleibt gültig.
+[Belege und Grenzen](../docs/component-tests.md).
 
-Die nächste Ausführungsstufe bindet private Generation, bisherige und aktuelle
+Die geprüfte interne Ausführungsstufe bindet private Generation, bisherige und aktuelle
 gemeinsame Basis, vollständigen erwarteten Paketbestand einschließlich Holds
 sowie alle Manual-/Automatic-Markierungen. Die private Auswahl bleibt unverändert.
 Ein eigener interner Binder erzeugt einen Ausführungsplan auch für eine reine
@@ -14,7 +15,8 @@ die gesamte resultierende Registry und schreibt vollständige Markierungen erst
 nach beendeten Paketkindern atomar in den unveröffentlichten Kandidaten.
 Die normale Paketbindung nimmt keine Zusammenführungspläne entgegen.
 
-Diese Entwicklungsänderung ist noch nicht durch einen neuen Gerätetest bestätigt.
+Die Komponentenprüfungen erfolgen auf synthetischen, ausschließlich eigenen
+Abbildern; sie ersetzen keine Produktabnahme mit echten AOSP-Zugangsdaten.
 Die Ausführung verwendet den vollständigen ursprünglichen privaten Bestand;
 Konfiguration und technische Kennungen dürfen nicht durch ein gemeinsames Overlay
 ersetzt werden. Integration in Broker-Admission, Autorisierung, Prüfung des noch

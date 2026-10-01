@@ -1,3 +1,49 @@
+## Gebundene Zusammenführung und vollständige Ausführungsprüfung: a63c1214
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T061853Z-a63c1214-a63c1214-tn1zG7)
+von `a63c1214bc5cebdaa6a15ff8ce4e420b8d482267` besteht am
+**2026-10-01T06:23:58Z alle 338 ausgewählten nativen Tests** aus 30 Suiten
+im lokalen Mac-QEMU (237.810 ms), ohne übersprungene Tests. Entwicklung lokal,
+Build auf `aegis-build` (52 Sekunden), verifizierter Transport über GitHub.
+Der Java-54-Nachweis bleibt über das erneut geprüfte byte-identische APK erhalten.
+
+Der separate interne Binder bindet private, bisherige gemeinsame und neue
+gemeinsame Generation, vollständige Ergebnisregistry einschließlich Holds,
+alle automatischen Markierungen und unveränderte private Auswahl. Die normalen
+Paketaktionen akzeptieren diesen Modus nicht. Der unabhängige native Wächter
+rekonstruiert den gesamten erwarteten Bestand vor der Ausführung, kontrolliert
+ihn danach erneut und schreibt vollständige Paketmarkierungen atomar erst nach
+beendeten Paketkindern. Gemeinsame Änderungen werden nicht als neue private
+Paketauswahl gespeichert. Auch null Paketeffekte erfordern einen ausdrücklich
+gebundenen Basiswechsel und vollständige Validierung.
+
+Sieben neue Bindungstests prüfen Ausgangsversionen, Digeständerungen, leere
+Effekte, falsche Bereiche/Basen, vollständige Belege und Übertragung. Sechs
+neue unabhängige Wächtertests prüfen unveränderte Paketmarkierungen, vollständige
+Ergebnishashes, manipulierte zusätzliche Pakete/Privatauswahl und reine
+Metadatenänderungen. Vier tatsächliche Executor-Tests bestätigen Upgrade,
+Downgrade mit passender Bibliothek, Konfigurationserhalt, technische Eigentümer,
+unveränderte private Auswahl, Persistenz nach erneutem Mounten und ausbleibende
+Installationsskripte bei null Effekten. Ein falscher Gesamtergebnishash wird vor
+Paket-Skripten abgewiesen. Die vorhandenen neun echten APT-Planungstests prüfen
+jetzt zusätzlich die vollständigen übertragenen Ergebnishashes.
+
+Belege: `out/components-a63c1214/targeted-tests/`, `java-proof-reuse.json`.
+Native Log-SHA256: `e0427f440755c44fee8b0da6b2d9b9c48e9e61538fe56de6ccc2bfb96fa77af1`.
+Vorher/Nachher identisch: `7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+Alpha/Beta bleiben gestoppt und CE-gesperrt; Boot-ID, Benutzerschlüssel,
+Broker und SELinux bleiben unverändert. Die vier echten CE-Fixtures bleiben deaktiviert.
+
+**Grenzen:** Die neue Ausführung wurde auf ausschließlich eigenen synthetischen
+Abbildern geprüft. Die Planung und der Binder sind noch nicht über den produktiven
+Broker zu einer veröffentlichten und aktivierten Zusammenführung verbunden.
+Es fehlen insbesondere die durchgehende Dreifachauswahl unter CE-Admission,
+Autorisierung abgeleiteter Änderungen, Prüfung konkurrierender gemeinsamer
+Veröffentlichungen und Aktivierung beim nächsten Runtime-Start. Das installierte
+Vollimage bleibt `d0b866e1`; sein privater Beta-Bestand mit veralteter Basis ist
+weiterhin kein erfolgreicher Zusammenführungsnachweis. Die Abnahme mit echten
+AOSP-Zugangsdaten und zwei Benutzern bleibt erforderlich.
+
 ## Isolierter gemeinsamer/privater APT-Planer: 2a0610b6
 
 Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T054918Z-2a0610b6-2a0610b6-uML7Uv)
