@@ -13,6 +13,7 @@ struct PackageResolverRequest {
     PackageAction action=PackageAction::Install;
     std::string package, version;
     bool internet=false; // Trusted product policy; never a proxy address from a caller.
+    bool reconciliation=false; // Internal three-generation mode; only Update, no user operands.
 };
 struct PackageResolverResult {
     enum class Phase { Validate, Update, Simulate, Download, Indexes, Collected };

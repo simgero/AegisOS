@@ -1,4 +1,22 @@
-## Aktueller Stand: gemischte Transaktionen; gemeinsame/private Zusammenführung offen
+## Aktueller Stand: geprüfte Eingaben; Zusammenführung in Entwicklung
+
+`0fb41856` besteht **302 native Prüfungen**; der Nachweis der **54 unveränderten
+Java-Tests** bleibt gültig. Der interne Selektor hält private Generation,
+bisherige gemeinsame Basis und aktuelle gemeinsame Generation zusammen als
+verifizierte schreibgeschützte Ansichten. Historische gemeinsame Images werden
+vollständig erneut geprüft; Abbruch und Fehler geben keine Teilmenge frei.
+[Belege und Grenzen](../docs/component-tests.md).
+
+Der nächste Entwicklungsschritt führt diese Ansichten in den isolierten APT-Planer.
+Explizite private Versionen haben Vorrang vor gemeinsamen Paketwurzeln;
+Abhängigkeiten muss APT passend dazu auflösen. Frühere gemeinsame Wurzeln dürfen
+nur entfallen, wenn keine beibehaltene Auswahl sie noch benötigt. Die ursprüngliche
+Paketdatenbank und automatischen Markierungen bleiben als separate Prüfbasis
+erhalten. Diese Planung allein ist weiterhin keine zusammengeführte oder
+aktivierte Generation. Der normale Transaktionsbinder darf ihre Ergebnisse
+nicht als gewöhnliches privates Update ausführen.
+
+## Vorheriger Stand: gemischte Transaktionen; gemeinsame/private Zusammenführung offen
 
 Der Komponentenstand `2c7bf728` besteht **291 native Prüfungen**; die
 byte-identische Java-Test-App behält ihren **54-Test-Nachweis**. Eine bereits

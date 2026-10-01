@@ -17,12 +17,13 @@ using android::base::unique_fd;
 namespace aegis {
 struct PackagePlanner {
     pid_t process=0;
-    unique_fd selected,root,metadata,devices,sources,key,ca,channel;
+    unique_fd selected[3],metadata[3],root,devices,sources,key,ca,channel;
+    int anchor=-1;
     aegis_namespace* context=nullptr;
     aegis_child* network=nullptr;
     aegis_memory_group* group=nullptr;
     aegis_planning_request request={};
-    bool anchored=false,spawned=false,cancelled=false;
+    bool spawned=false,cancelled=false;
 };
 namespace {
 int Fail(int e) { errno=e;return -1; }
@@ -32,15 +33,16 @@ bool Owned(PackagePlanner* p) { return p&&p->process==syscall(SYS_getpid)&&aegis
 int Encode(const PackagePlanning& p,aegis_planning_request* r) {
     if(p.requester<10||p.requester>=21473||p.serial>INT32_MAX||!p.job||p.job>INT64_MAX)return Fail(EINVAL);
     if(PackageResolverCheck(p.request)<0)return -1;
+    if(p.request.reconciliation && (!p.personal || p.create_store))return Fail(EINVAL);
     if(p.request.package.size()>128||p.request.version.size()>128)return Fail(EINVAL);
     *r={};r->magic=AEGIS_PLANNING_MAGIC;r->version=AEGIS_PLANNING_VERSION;r->user=p.requester;r->serial=p.serial;r->job=p.job;
-    r->internet=p.request.internet;r->action=uint32_t(p.request.action);memcpy(r->package,p.request.package.data(),p.request.package.size());
+    r->reconciliation=p.request.reconciliation;r->internet=p.request.internet;r->action=uint32_t(p.request.action);memcpy(r->package,p.request.package.data(),p.request.package.size());
     memcpy(r->version_text,p.request.version.data(),p.request.version.size());return 0;
 }
 
 }
 int PackagePlanningCheck(const PackagePlanning& p) { aegis_planning_request r;return Encode(p,&r); }
-int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,int helper,
+static int Start(int groups,int factory,const int selected[3],int sources,int key,int helper,
                          const PackagePlanning& plan,uint64_t deadline,PackagePlanner** output,int network_helper,int ca_bundle) {
     if(!output||*output)return Fail(EINVAL);
     if(aegis_namespace_check_broker()<0)return -1;
@@ -51,9 +53,11 @@ int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,
     if(plan.request.internet && aegis_package_policy_file(ca_bundle,1048576)<0)return -1;
     auto* p=new(std::nothrow) PackagePlanner;if(!p)return Fail(ENOMEM);
     p->process=syscall(SYS_getpid);p->request=r;*output=p;
-    p->selected.reset(fcntl(selected,F_DUPFD_CLOEXEC,4));p->sources.reset(fcntl(sources,F_DUPFD_CLOEXEC,4));p->key.reset(fcntl(key,F_DUPFD_CLOEXEC,4));
+    const unsigned count=plan.request.reconciliation?3:1;
+    for(unsigned i=0;i<count;++i) { p->selected[i].reset(fcntl(selected[i],F_DUPFD_CLOEXEC,4));if(!p->selected[i].ok())return -1; }
+    p->sources.reset(fcntl(sources,F_DUPFD_CLOEXEC,4));p->key.reset(fcntl(key,F_DUPFD_CLOEXEC,4));
     p->ca.reset(fcntl(plan.request.internet?ca_bundle:key,F_DUPFD_CLOEXEC,4));
-    if(!p->selected.ok()||!p->sources.ok()||!p->key.ok()||!p->ca.ok())return -1;
+    if(!p->sources.ok()||!p->key.ok()||!p->ca.ok())return -1;
     int pair[2];if(socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair)<0)return -1;
     p->channel.reset(pair[0]);unique_fd child(pair[1]);
     if(aegis_memory_group_create_package(groups,plan.requester,plan.serial,&p->group)<0
@@ -67,14 +71,27 @@ int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,
     }
     p->root.reset(aegis_namespace_base_mount(p->context,factory));
     p->devices.reset(aegis_namespace_devices_mount(p->context));if(!p->root.ok()||!p->devices.ok())return -1;
-    if(aegis_namespace_temporary_base_begin(p->selected.get())<0)return -1;p->anchored=true;
-    p->metadata.reset(aegis_namespace_base_mount(p->context,p->selected.get()));if(!p->metadata.ok())return -1;
-    if(aegis_namespace_temporary_base_end(p->selected.get())<0)return -1;p->anchored=false;
-    int fds[]={p->root.get(),p->devices.get(),p->metadata.get(),p->sources.get(),p->key.get(),p->ca.get()};
+    for(unsigned i=0;i<count;++i) {
+        if(aegis_namespace_temporary_base_begin(p->selected[i].get())<0)return -1;p->anchor=i;
+        p->metadata[i].reset(aegis_namespace_base_mount(p->context,p->selected[i].get()));if(!p->metadata[i].ok())return -1;
+        if(aegis_namespace_temporary_base_end(p->selected[i].get())<0)return -1;p->anchor=-1;
+    }
+    // Ordinary requests carry only six descriptors; no arbitrary extra input.
+    int fds[]={p->root.get(),p->devices.get(),p->metadata[0].get(),p->sources.get(),p->key.get(),p->ca.get(),p->metadata[1].get(),p->metadata[2].get()};
     if(Left(deadline)<=0)return Fail(ETIMEDOUT);
-    if(aegis_planning_send(p->channel.get(),&r,sizeof(r),fds,AEGIS_PLANNING_INPUT_FDS)<0||aegis_namespace_resume(p->context)<0)return -1;
+    if(aegis_planning_send(p->channel.get(),&r,sizeof(r),fds,plan.request.reconciliation?8:6)<0||aegis_namespace_resume(p->context)<0)return -1;
     // Channel owns queued copies; originals remain registered until reaping.
     return Left(deadline)>0?0:Fail(ETIMEDOUT);
+}
+int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,int helper,
+    const PackagePlanning& plan,uint64_t deadline,PackagePlanner** output,int network_helper,int ca_bundle) {
+    if(plan.request.reconciliation)return Fail(EINVAL);
+    const int views[]={selected,-1,-1};return Start(groups,factory,views,sources,key,helper,plan,deadline,output,network_helper,ca_bundle);
+}
+int PackageReconciliationPlannerStart(int groups,int factory,const int selected[3],int sources,int key,int helper,
+    const PackagePlanning& plan,uint64_t deadline,PackagePlanner** output,int network_helper,int ca_bundle) {
+    if(!plan.request.reconciliation||!selected||selected[0]<0||selected[1]<0||selected[2]<0)return Fail(EINVAL);
+    return Start(groups,factory,selected,sources,key,helper,plan,deadline,output,network_helper,ca_bundle);
 }
 int PackagePlannerCancel(PackagePlanner* p) {
     if(!Owned(p))return -1;p->cancelled=true;int e=0;
@@ -98,7 +115,7 @@ int PackagePlannerFinish(PackagePlanner** pointer,bool cancel,int timeout,Packag
         if(aegis_child_wait(p->network,left,&network_exit)<0)return -1;
     }
     if(p->group&&aegis_memory_group_remove(&p->group)<0)return -1;
-    if(p->anchored) { if(aegis_namespace_temporary_base_end(p->selected.get())<0)return -1;p->anchored=false; }
+    if(p->anchor>=0) { if(aegis_namespace_temporary_base_end(p->selected[p->anchor].get())<0)return -1;p->anchor=-1; }
     PackagePlanningResult r;r.error=EIO;
     if(p->spawned && exited.code==CLD_EXITED)r.status=exited.status;
     unique_fd directory;
@@ -117,7 +134,7 @@ int PackagePlannerFinish(PackagePlanner** pointer,bool cancel,int timeout,Packag
                 r.outcome=reply.phase==uint32_t(PackageResolverResult::Phase::Collected)&&!r.status&&!r.error
                     ? PackagePlanningResult::Outcome::Collected : PackagePlanningResult::Outcome::Failed;
                 if(r.outcome==PackagePlanningResult::Outcome::Collected
-                   &&(planning_wire::Decode(reply.evidence,&r.evidence)<0 || r.evidence.changes.size()!=r.effects)) {
+                   &&(planning_wire::Decode(reply.evidence,&r.evidence)<0 || r.evidence.changes.size()!=r.effects || r.evidence.reconciliation!=bool(p->request.reconciliation))) {
                     r.outcome=PackagePlanningResult::Outcome::Failed;r.error=EPROTO;
                 }
             } else r.error=EPROTO;

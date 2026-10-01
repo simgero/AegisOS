@@ -1,3 +1,38 @@
+## Drei geprüfte Generationsansichten: 0fb41856
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T051630Z-0fb41856-0fb41856-IEaABz)
+von `0fb418568c4f35e4b47b81b59637f51910fd5cca` besteht am
+**2026-10-01T05:21:19Z alle 302 ausgewählten nativen Tests** in 27 Suiten
+im lokalen Mac-QEMU (221.270 ms). Entwicklung lokal, Build auf `aegis-build`,
+Transport über GitHub. Die unveränderte Java-Test-App ist byte-identisch zum
+unten dokumentierten 54-Test-Nachweis aus `f17a043c`.
+
+Der interne Selektor liefert genau drei schreibgeschützte, nicht ausführbare
+Ansichten: private Generation, ihre bisherige gemeinsame Basis und den aktuellen
+gemeinsamen Stand. Eine ältere gemeinsame Image-Datei wird anhand ihres
+vollständigen Inhalts, Eigentümers, Modus und ihrer Dateidentität erneut geprüft.
+Die gepinnte Werksbasis kann ebenfalls die frühere Basis sein. Fehlende oder
+veränderte Images führen zu keinem Ersatz durch eine andere Generation.
+Metadaten und alle drei Deskriptoren werden erst nach vollständiger Prüfung
+übertragen. Abbruch wartet auf das Prozessende und schließt auch bereits
+übertragene Ansichten; die bisherige Store-Auswahl bleibt unverändert.
+
+Belege: `out/components-0fb41856/targeted-tests/`, `java-proof-reuse.json`.
+Native Log-SHA256: `f19fe7aba4fe9e104fb36f01e57fdb12a57c806f9608186418c4a811e437962e`.
+Vorher/Nachher identisch: `7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+Die sieben neuen Selektorprüfungen verwenden tatsächliche synthetische
+Installations-/Updateimages; vier Store-Prüfungen untersuchen historische Images.
+
+**Grenzen:** Dies ist die Eingabestufe der Zusammenführung. Sie löst noch keine
+Abhängigkeiten auf, veröffentlicht keine zusammengeführte Generation und macht
+einen Start mit veralteter privater Basis nicht zulässig. Das installierte
+Vollimage bleibt `d0b866e1`; die vier echten CE-Fixtures bleiben deaktiviert.
+Die aktuelle Entwicklungsänderung erweitert als nächsten Schritt den isolierten
+Planer um diese drei Ansichten und explizite Paketziele. Ihre neue Testsuite ist
+hier noch nicht als bestanden ausgewiesen. Bindung, Ausführung, frische
+Autorisierung bzw. abgeleitete Aktivierungsberechtigung und Runtime-Start müssen
+anschließend durchgehend verbunden und im tatsächlichen Produkt nachgewiesen werden.
+
 ## Explizite private Auswahl einer installierten Version: 2c7bf728
 
 Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T045927Z-2c7bf728-2c7bf728-afFBQL)

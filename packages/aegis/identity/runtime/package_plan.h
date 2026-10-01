@@ -29,6 +29,9 @@ enum class PackageStatePresence : uint32_t { Unspecified=0, Absent=1, Present=2 
 struct PackageResolvedPlan {
     uint32_t requester=0, serial=0;
     bool personal=false, create_store=false, has_previous=false;
+    // Reconciliation evidence cannot enter the ordinary transaction binder.
+    // Binding all three generations and activation is a separate pending stage.
+    bool reconciliation=false;
     PackageAction action=PackageAction::Install;
     std::string requested_package, requested_version;
     PackageInput source, shared;

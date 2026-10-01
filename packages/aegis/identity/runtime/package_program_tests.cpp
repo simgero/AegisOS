@@ -42,13 +42,13 @@ TEST(RuntimePackageProgramEntry, RejectsArbitraryExecutablesBeforeReexec) {
     errno=0;EXPECT_EQ(-1,aegis_package_exec_program(nullptr,environment));EXPECT_EQ(EPERM,errno);
 }
 TEST(RuntimePackageProgramEntry, RefusesOversizedArgumentVectorBeforeReexec) {
-    std::vector<char*> arguments(130,const_cast<char*>("x"));
+    std::vector<char*> arguments(1026,const_cast<char*>("x"));
     arguments[0]=const_cast<char*>("/usr/bin/apt-get");arguments.back()=nullptr;
     char* environment[]={nullptr};errno=0;
     EXPECT_EQ(-1,aegis_package_exec_program(arguments.data(),environment));EXPECT_EQ(E2BIG,errno);
 }
 TEST(RuntimePackageProgramEntry, RefusesOversizedArgumentBytesBeforeReexec) {
-    std::string large(65536,'x');
+    std::string large(262144,'x');
     char* arguments[]={const_cast<char*>("/usr/bin/apt-get"),large.data(),nullptr};
     char* environment[]={nullptr};errno=0;
     EXPECT_EQ(-1,aegis_package_exec_program(arguments,environment));EXPECT_EQ(E2BIG,errno);

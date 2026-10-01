@@ -52,14 +52,14 @@ int Freeze(const char* path,bool executable) {
     mount_attr a={};a.attr_set=MOUNT_ATTR_RDONLY|MOUNT_ATTR_NOSUID|MOUNT_ATTR_NODEV|(executable?0:MOUNT_ATTR_NOEXEC);
     return syscall(SYS_mount_setattr,fd.get(),"",AT_EMPTY_PATH,&a,sizeof(a));
 }
-int Setup(int* fds,bool internet) {
+int Setup(int* fds,bool internet,bool reconciliation) {
     if(syscall(SYS_move_mount,fds[0],"",AT_FDCWD,"/mnt",MOVE_MOUNT_F_EMPTY_PATH)<0
        ||syscall(SYS_move_mount,fds[1],"",fds[0],"dev",MOVE_MOUNT_F_EMPTY_PATH)<0
        ||mount("proc","/mnt/proc","proc",MS_NOSUID|MS_NODEV|MS_NOEXEC,"hidepid=2,subset=pid")<0
        ||mount("tmpfs","/mnt/tmp","tmpfs",MS_NOSUID|MS_NODEV|MS_NOEXEC,"mode=1777,size=536870912,nr_inodes=32768")<0
        ||mount("tmpfs","/mnt/run","tmpfs",MS_NOSUID|MS_NODEV|MS_NOEXEC,"mode=0755,size=134217728,nr_inodes=4096")<0)return -1;
     for(const char* p:{"/mnt/run/aegis-plan-policy","/mnt/run/aegis-plan-input"})
-        if(mkdir(p,0755)<0||mount("tmpfs",p,"tmpfs",MS_NOSUID|MS_NODEV,"mode=0755,size=100663296,nr_inodes=2048")<0)return -1;
+        if(mkdir(p,0755)<0||mount("tmpfs",p,"tmpfs",MS_NOSUID|MS_NODEV,reconciliation?"mode=0755,size=272629760,nr_inodes=2048":"mode=0755,size=100663296,nr_inodes=2048")<0)return -1;
     unique_fd policy(open("/mnt/run/aegis-plan-policy",O_RDONLY|O_DIRECTORY|O_CLOEXEC));
     unique_fd input(open("/mnt/run/aegis-plan-input",O_RDONLY|O_DIRECTORY|O_CLOEXEC));
     unique_fd tmp(open("/mnt/tmp",O_RDONLY|O_DIRECTORY|O_CLOEXEC));
@@ -72,6 +72,12 @@ int Setup(int* fds,bool internet) {
        ||Copy(fds[2],"var/lib/dpkg/status",input.get(),"status",64u<<20)<0)return -1;
     if(Copy(fds[2],"var/lib/apt/extended_states",input.get(),"extended_states",16u<<20)<0&&errno!=ENOENT)return -1;
     if(Copy(fds[2],aegis::kPrivateChoicesPath,input.get(),"private-choices",AEGIS_PACKAGE_CHOICES_BYTES-1)<0&&errno!=ENOENT)return -1;
+    if(reconciliation) {
+        if(Copy(fds[6],"var/lib/dpkg/status",input.get(),"previous-status",64u<<20)<0
+           ||Copy(fds[7],"var/lib/dpkg/status",input.get(),"current-status",64u<<20)<0)return -1;
+        if(Copy(fds[6],"var/lib/apt/extended_states",input.get(),"previous-automatic",16u<<20)<0&&errno!=ENOENT)return -1;
+        if(Copy(fds[7],"var/lib/apt/extended_states",input.get(),"current-automatic",16u<<20)<0&&errno!=ENOENT)return -1;
+    }
 #ifdef AEGIS_PLANNER_PROBE
     // Device-only deterministic repository; never linked into the product helper.
     if(mkdirat(tmp.get(),"aegis-repo",0755)<0)return -1;
@@ -115,16 +121,18 @@ int main(int argc,char** argv) {
     if(aegis_check_package_context(user)<0)return 78;
 #endif
     umask(022); // Fixed policy/input directory modes, independent of broker umask.
-    int fds[AEGIS_PLANNING_INPUT_FDS]={-1,-1,-1,-1,-1,-1};aegis_planning_request r={};
-    if(aegis_planning_receive(3,&r,sizeof(r),fds,AEGIS_PLANNING_INPUT_FDS)<0)return 79;
+    int fds[AEGIS_PLANNING_INPUT_FDS]={-1,-1,-1,-1,-1,-1,-1,-1};aegis_planning_request r={};
+    if(recv(3,&r,sizeof(r),MSG_PEEK|MSG_TRUNC|MSG_DONTWAIT)!=ssize_t(sizeof(r)) || r.reconciliation>1)return 79;
+    const size_t expected=r.reconciliation?8:6;
+    if(aegis_planning_receive(3,&r,sizeof(r),fds,expected)<0 || expected!=(r.reconciliation?8u:6u))return 79;
     aegis::PackageResolverRequest request;
     bool valid=r.magic==AEGIS_PLANNING_MAGIC&&r.version==AEGIS_PLANNING_VERSION
-        &&r.user==user&&r.serial==serial&&r.job&&r.job<=INT64_MAX&&r.internet<=1
+        &&r.user==user&&r.serial==serial&&r.job&&r.job<=INT64_MAX&&r.internet<=1&&r.reconciliation<=1
         &&Fixed(r.package,sizeof(r.package))&&Fixed(r.version_text,sizeof(r.version_text));
     for(auto c:r.padding)if(c)valid=false;
     if(!valid)return 80;
-    request.internet=r.internet;request.action=static_cast<aegis::PackageAction>(r.action);request.package=r.package;request.version=r.version_text;
-    if(aegis::PackageResolverCheck(request)<0||Setup(fds,request.internet)<0) { perror("aegis planner setup");return 81; }
+    request.reconciliation=r.reconciliation;request.internet=r.internet;request.action=static_cast<aegis::PackageAction>(r.action);request.package=r.package;request.version=r.version_text;
+    if(aegis::PackageResolverCheck(request)<0||Setup(fds,request.internet,request.reconciliation)<0) { perror("aegis planner setup");return 81; }
     for(int fd:fds)close(fd);
     if(syscall(SYS_close_range,4u,~0u,0u)<0||syscall(SYS_pivot_root,".",".")<0
        ||umount2(".",MNT_DETACH)<0||chdir("/")<0)return 82;

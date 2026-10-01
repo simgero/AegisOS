@@ -44,6 +44,7 @@ struct Encoding {
 };
 }
 int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* output) {
+    if(p.reconciliation)return Fail(EOPNOTSUPP);
     if(!output || !now || now>INT64_MAX || p.requester<10 || p.requester>=21473 || p.serial>INT32_MAX
        || !Image(p.source) || !Image(p.shared) || !Hash(p.planner_image_sha256)
        || !Hash(p.policy_sha256) || !Hash(p.initial_status_sha256)

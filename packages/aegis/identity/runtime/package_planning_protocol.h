@@ -8,14 +8,14 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #define AEGIS_PLANNING_MAGIC UINT32_C(0x41504c4e)
-#define AEGIS_PLANNING_VERSION 6u
-#define AEGIS_PLANNING_INPUT_FDS 6u
+#define AEGIS_PLANNING_VERSION 7u
+#define AEGIS_PLANNING_INPUT_FDS 8u
 struct aegis_planning_request {
     uint32_t magic,version,user,serial;
     uint64_t job;
-    uint32_t action,internet;
+    uint32_t action,internet,reconciliation;
     char package[129],version_text[129];
-    uint8_t padding[6];
+    uint8_t padding[10];
 };
 struct aegis_planning_repository {
     char id[129],release[65],index[65];
@@ -27,7 +27,7 @@ struct aegis_planning_change {
     uint64_t bytes;
 };
 struct aegis_planning_evidence {
-    uint32_t repositories,changes,apt_presence,reserved;
+    uint32_t repositories,changes,apt_presence,reconciliation;
     uint64_t apt_bytes;
     char policy[65],status[65],apt_hash[65];
     char private_choices[AEGIS_PACKAGE_CHOICES_BYTES];
@@ -48,7 +48,7 @@ template<size_t N> inline bool Text(char (&to)[N],const std::string& from) {
 inline int Encode(const PackageResolvedPlan& p,aegis_planning_evidence* output) {
     aegis_planning_evidence e={};
     if(p.repositories.size()>16 || p.changes.size()>AEGIS_PACKAGE_EXEC_ITEMS) { errno=E2BIG;return -1; }
-    e.repositories=p.repositories.size();e.changes=p.changes.size();
+    e.reconciliation=p.reconciliation;e.repositories=p.repositories.size();e.changes=p.changes.size();
     if(!Text(e.private_choices,p.initial_private_choices))return errno=EINVAL,-1;
     e.apt_presence=uint32_t(p.initial_apt_state_presence);e.apt_bytes=p.initial_apt_state.bytes;
     if(!Text(e.policy,p.policy_sha256)||!Text(e.status,p.initial_status_sha256)||!Text(e.apt_hash,p.initial_apt_state.sha256))return errno=EINVAL,-1;
@@ -68,7 +68,8 @@ template<size_t N> inline bool Fixed(const char (&s)[N]) { return aegis_package_
 inline int Decode(const aegis_planning_evidence& e,PackageResolvedPlan* output) {
     if(e.repositories>16||e.changes>AEGIS_PACKAGE_EXEC_ITEMS||!Fixed(e.policy)||!Fixed(e.status)||!Fixed(e.apt_hash))return errno=EPROTO,-1;
     if(!aegis_package_choices_text(e.private_choices))return errno=EPROTO,-1;
-    PackageResolvedPlan p;p.initial_private_choices=e.private_choices;p.policy_sha256=e.policy;p.initial_status_sha256=e.status;
+    if(e.reconciliation>1)return errno=EPROTO,-1;
+    PackageResolvedPlan p;p.reconciliation=e.reconciliation;p.initial_private_choices=e.private_choices;p.policy_sha256=e.policy;p.initial_status_sha256=e.status;
     p.initial_apt_state_presence=static_cast<PackageStatePresence>(e.apt_presence);p.initial_apt_state={e.apt_bytes,e.apt_hash};
     for(unsigned i=0;i<e.repositories;++i) {
         const auto& r=e.sources[i];if(!Fixed(r.id)||!Fixed(r.release)||!Fixed(r.index))return errno=EPROTO,-1;

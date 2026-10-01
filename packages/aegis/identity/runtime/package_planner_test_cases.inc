@@ -324,11 +324,11 @@ TEST(PackagePlanningProtocol, RejectsExcessDescriptorsWithoutLeaking) {
     EXPECT_EQ(EPROTO,errno);EXPECT_EQ(-1,output);EXPECT_EQ(before,descriptors());
 }
 
-TEST(PackagePlanningProtocol, CarriesAllSixPolicyInputsAndRejectsAnExtraDescriptor) {
+TEST(PackagePlanningProtocol, CarriesAllEightReconciliationInputsAndRejectsAnExtraDescriptor) {
     using Fd=android::base::unique_fd;
     int pair[2];ASSERT_EQ(0,socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair));Fd first(pair[0]),second(pair[1]);
     Fd input(open("/dev/null",O_RDONLY|O_CLOEXEC));ASSERT_TRUE(input.ok());
-    int inputs[7];for(auto& fd:inputs)fd=input.get();
+    int inputs[9];for(auto& fd:inputs)fd=input.get();
     aegis_planning_request sent={},received={};sent.magic=AEGIS_PLANNING_MAGIC;sent.version=AEGIS_PLANNING_VERSION;
     int before=descriptors();int outputs[AEGIS_PLANNING_INPUT_FDS];for(auto& fd:outputs)fd=-1;
     ASSERT_EQ(0,aegis_planning_send(first.get(),&sent,sizeof(sent),inputs,AEGIS_PLANNING_INPUT_FDS));
@@ -340,7 +340,7 @@ TEST(PackagePlanningProtocol, CarriesAllSixPolicyInputsAndRejectsAnExtraDescript
         EXPECT_TRUE(fcntl(fd,F_GETFD)&FD_CLOEXEC);close(fd);
     }
     EXPECT_EQ(before,descriptors());
-    EXPECT_EQ(-1,aegis_planning_send(first.get(),&sent,sizeof(sent),inputs,7));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(-1,aegis_planning_send(first.get(),&sent,sizeof(sent),inputs,9));EXPECT_EQ(EINVAL,errno);
     EXPECT_EQ(-1,aegis_planning_receive(second.get(),&received,sizeof(received),outputs,AEGIS_PLANNING_INPUT_FDS));EXPECT_EQ(EAGAIN,errno);
     EXPECT_EQ(before,descriptors());
 }
@@ -461,7 +461,7 @@ TEST(PackagePlanningProtocol, EvidenceRejectsNoncanonicalStringsAndUnusedEntries
         auto bad=wire;
         if(mode==0)bad.sources[0].id[10]='x';
         if(mode==1)bad.effects[63].bytes=1;
-        if(mode==2)bad.reserved=1;
+        if(mode==2)bad.reconciliation=2;
         if(mode==3)memset(bad.effects[0].effect.before,'a',sizeof(bad.effects[0].effect.before));
         EXPECT_EQ(-1,aegis::planning_wire::Decode(bad,&decoded));EXPECT_EQ(EPROTO,errno);
         EXPECT_EQ(1u,decoded.changes.size());EXPECT_EQ("pkg",decoded.changes[0].name);
@@ -1020,4 +1020,117 @@ TEST_F(RuntimePackagePlanning, ConfiguredFailedSelectionReportsItsOwnedErrorOnce
     EXPECT_EQ(before,descriptors());
     EXPECT_EQ(-1,aegis::BrokerPollConfiguredPackage(owner,21472,1234,job,&status));EXPECT_EQ(ENOENT,errno);
     EXPECT_EQ(-1,aegis::BrokerContinueConfiguredPackagePlanning(owner,21472,1234,job,Deadline()));EXPECT_EQ(ENOENT,errno);
+}
+
+// Three independent synthetic generation views, with real immutable APT and
+// signed app/lib archives. The previous selector tests establish image hashes;
+// this stage proves descriptor ownership, metadata copying and solver behavior.
+class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
+ protected:
+    std::unique_ptr<AptImageFixture> old_image,new_image;
+    Fd previous,current;
+    std::string old_status,new_status,choices;
+    void Readonly(int fd,bool enabled) {
+        mount_attr attr={};if(enabled)attr.attr_set=MOUNT_ATTR_RDONLY;else attr.attr_clr=MOUNT_ATTR_RDONLY;
+        ASSERT_EQ(0,syscall(SYS_mount_setattr,fd,"",AT_EMPTY_PATH,&attr,sizeof(attr)));
+    }
+    std::string Packages(const char* version) {
+        std::string v=version;
+        return "\nPackage: aegis-probe-app\nStatus: install ok installed\nArchitecture: all\nVersion: "+v+
+            "\nDepends: aegis-probe-lib (= "+v+")\nDescription: selected app\n\nPackage: aegis-probe-lib\nStatus: install ok installed\nArchitecture: all\nVersion: "+v+"\nDescription: selected library\n\n";
+    }
+    void Configure(const std::string& selected_choices,bool remove=false,bool conflict=false,bool downgrade=false) {
+        ASSERT_EQ(std::string::npos,initial.find("Package: aegis-probe-app\n"));
+        const auto base=initial;initial+=Packages(downgrade?"2":"1");old_status=initial;
+        new_status=base+(remove?"":Packages(downgrade?"1":"2"));choices=selected_choices;
+        old_image=std::make_unique<AptImageFixture>();new_image=std::make_unique<AptImageFixture>();
+        previous.reset(old_image->create());current.reset(new_image->create());ASSERT_TRUE(previous.ok());ASSERT_TRUE(current.ok());
+        Readonly(selected.get(),false);ASSERT_FALSE(HasFatalFailure());
+        ASSERT_EQ(0,Write(selected.get(),"var/lib/dpkg/status",initial));
+        if(!choices.empty()) {
+            ASSERT_EQ(0,mkdirat(selected.get(),"var/lib/aegis",0700));
+            ASSERT_EQ(0,Write(selected.get(),"var/lib/aegis/private-choices",choices));
+        }
+        ASSERT_EQ(0,Write(previous.get(),"var/lib/dpkg/status",old_status));
+        ASSERT_EQ(0,Write(previous.get(),"var/lib/apt/extended_states",automatic));
+        ASSERT_EQ(0,Write(current.get(),"var/lib/dpkg/status",new_status));
+        ASSERT_EQ(0,Write(current.get(),"var/lib/apt/extended_states",conflict||remove?"":automatic));
+        Readonly(selected.get(),true);Readonly(previous.get(),true);Readonly(current.get(),true);
+        request.personal=true;request.request.reconciliation=true;request.request.action=aegis::PackageAction::Update;
+        request.request.package.clear();request.request.version.clear();
+    }
+    int StartThree() {
+        const int inputs[]={selected.get(),previous.get(),current.get()};
+        return aegis::PackageReconciliationPlannerStart(parent.get(),source,inputs,sources.get(),key.get(),helper.get(),request,Deadline(),&planner);
+    }
+    void Finish(bool success,size_t effects) {
+        int fd=-1;aegis::PackagePlanningResult result;
+        ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,10000,&result,&fd));Fd collected(fd);
+        EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));
+        EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
+        EXPECT_EQ(old_status,Read(previous.get(),"var/lib/dpkg/status"));
+        EXPECT_EQ(new_status,Read(current.get(),"var/lib/dpkg/status"));
+        if(!choices.empty())EXPECT_EQ(choices,Read(selected.get(),"var/lib/aegis/private-choices"));
+        if(!success) {
+            EXPECT_EQ(aegis::PackagePlanningResult::Outcome::Failed,result.outcome);EXPECT_FALSE(collected.ok());
+            if(choices.empty())EXPECT_EQ(ENODATA,result.error);
+            else { EXPECT_EQ(aegis::PackageResolverResult::Phase::Simulate,result.phase);EXPECT_EQ(100,result.status);EXPECT_FALSE(result.diagnostic.empty()); }
+            return;
+        }
+        ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)<<result.error<<" "<<result.status<<" "<<result.diagnostic;
+        ASSERT_TRUE(collected.ok());ASSERT_TRUE(result.evidence.reconciliation);
+        EXPECT_EQ(effects,result.evidence.changes.size());EXPECT_EQ(choices,result.evidence.initial_private_choices);
+        EXPECT_EQ(Hash(initial),result.evidence.initial_status_sha256);
+        EXPECT_EQ(Hash(automatic),result.evidence.initial_apt_state.sha256);
+        for(const char* name:{"simulate.log","simulation.json","receipt.json"})fprintf(stderr,"Reconciliation %s:\n%s\n",name,Read(fd,name).c_str());
+        EXPECT_NE(std::string::npos,Read(fd,"receipt.json").find(Hash(new_status)));
+        aegis::PackageBoundPlan bound;
+        EXPECT_EQ(-1,aegis::PackageBindResolvedPlan(result.evidence,time(nullptr),&bound));EXPECT_EQ(EOPNOTSUPP,errno);
+    }
+    void TearDown() override {
+        if(planner) { int fd=-1;aegis::PackagePlanningResult result;EXPECT_EQ(0,aegis::PackagePlannerFinish(&planner,true,5000,&result,&fd));if(fd>=0)close(fd); }
+        previous.reset();current.reset();
+        if(old_image)old_image->passed=!HasFailure();if(new_image)new_image->passed=!HasFailure();old_image.reset();new_image.reset();
+        RuntimePackagePlanning::TearDown();
+    }
+};
+TEST_F(RuntimeReconciliationPlanning, SharedUpdateResolvesNewAppAndItsDependency) {
+    Configure("AEGIS-PRIVATE-CHOICES1\n");ASSERT_FALSE(HasFatalFailure());int before=descriptors();
+    ASSERT_EQ(0,StartThree())<<strerror(errno);Finish(true,2);EXPECT_EQ(before,descriptors());
+}
+TEST_F(RuntimeReconciliationPlanning, PrivateAppKeepsItsOldDependencyInsteadOfTheNewSharedVersion) {
+    Configure("AEGIS-PRIVATE-CHOICES1\naegis-probe-app\tall\t1\n");ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,StartThree())<<strerror(errno);Finish(true,0);
+}
+TEST_F(RuntimeReconciliationPlanning, IncompatibleSharedRootAndPrivateLibraryReturnExplainedConflict) {
+    Configure("AEGIS-PRIVATE-CHOICES1\naegis-probe-lib\tall\t1\n",false,true);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,StartThree())<<strerror(errno);Finish(false,0);
+}
+TEST_F(RuntimeReconciliationPlanning, RemovedSharedRootsAreAutoremovedWhenNoPrivateRootNeedsThem) {
+    Configure("AEGIS-PRIVATE-CHOICES1\n",true);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,StartThree())<<strerror(errno);Finish(true,2);
+}
+TEST_F(RuntimeReconciliationPlanning, PrivateRootSurvivesSharedRemovalWithItsDependency) {
+    Configure("AEGIS-PRIVATE-CHOICES1\naegis-probe-app\tall\t1\n",true);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,StartThree())<<strerror(errno);Finish(true,0);
+}
+TEST_F(RuntimeReconciliationPlanning, SharedExactDowngradeResolvesAndDownloadsItsMatchingDependency) {
+    Configure("AEGIS-PRIVATE-CHOICES1\n",false,false,true);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,StartThree())<<strerror(errno);Finish(true,2);
+}
+TEST_F(RuntimeReconciliationPlanning, LegacyPrivateImageWithoutIntentCannotBeSilentlyRebased) {
+    Configure("");ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,StartThree())<<strerror(errno);Finish(false,0);
+}
+TEST_F(RuntimeReconciliationPlanning, CancellationClosesAllThreeViewsAfterActualReap) {
+    Configure("AEGIS-PRIVATE-CHOICES1\n");ASSERT_FALSE(HasFatalFailure());int before=descriptors();
+    ASSERT_EQ(0,StartThree())<<strerror(errno);int fd=-1;aegis::PackagePlanningResult result;
+    ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,true,10000,&result,&fd));
+    EXPECT_EQ(-1,fd);EXPECT_EQ(ECANCELED,result.error);EXPECT_EQ(before,descriptors());
+    EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));
+}
+TEST_F(RuntimeReconciliationPlanning, WrongInterfaceAndSharedScopeRefuseBeforeOwningAnyWorker) {
+    Configure("AEGIS-PRIVATE-CHOICES1\n");ASSERT_FALSE(HasFatalFailure());int before=descriptors();
+    EXPECT_EQ(-1,Start());EXPECT_EQ(EINVAL,errno);EXPECT_EQ(nullptr,planner);
+    request.personal=false;EXPECT_EQ(-1,StartThree());EXPECT_EQ(EINVAL,errno);EXPECT_EQ(nullptr,planner);
+    EXPECT_EQ(before,descriptors());
 }

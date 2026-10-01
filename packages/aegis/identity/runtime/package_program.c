@@ -11,8 +11,8 @@
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-#define MAX_ARGS 128u
-#define MAX_BYTES 65536u
+#define MAX_ARGS 1024u
+#define MAX_BYTES 262144u
 extern char **environ;
 static int command(const char *name) {
     return name && (!strcmp(name,"/usr/bin/apt-get") || !strcmp(name,"/usr/bin/dpkg")

@@ -1,4 +1,5 @@
 #include "package_apt_plan.h"
+#include "package_reconciliation.h"
 #include <json/json.h>
 #include <errno.h>
 #include <algorithm>
@@ -52,9 +53,9 @@ bool Version(const Json::Value& v,std::string* version,std::string* architecture
 int PackageReadAptOperation(const std::string& json,const std::string& command,
                             const std::vector<std::string>& arguments,std::vector<PackageAptEffect>* output) {
     if(!output || !Bounded(json) || (command!="install" && command!="remove" && command!="upgrade")
-       || arguments.size()>64)return Fail(EINVAL);
+       || arguments.size()>kPackageReconciliationRoots)return Fail(EINVAL);
     for(const auto& arg:arguments) {
-        if(arg.empty() || arg.size()>256)return Fail(EINVAL);
+        if(arg.empty() || arg.size()>257)return Fail(EINVAL);
         for(unsigned char c:arg)if(c<33 || c>126)return Fail(EINVAL);
     }
     Json::CharReaderBuilder settings;settings["collectComments"]=false;settings["allowComments"]=false;

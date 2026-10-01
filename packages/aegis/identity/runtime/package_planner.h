@@ -34,6 +34,14 @@ int PackagePlanningCheck(const PackagePlanning& request);
 // helper; its fixed loopback proxy cannot be used by ordinary runtimes/installers.
 int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,int helper,
                          const PackagePlanning& request,uint64_t deadline,PackagePlanner** worker,int network_helper=-1,int ca_bundle=-1);
+// Internal reconciliation planner: selected[0]=private, [1]=previous shared,
+// [2]=current shared, obtained together from the verified triple selector. Same
+// one-attempt mount ownership and cancellation duties as ordinary planning.
+// Requires personal, existing store and request.reconciliation. Returns evidence
+// only. Ordinary binder rejects it until the merge transaction is implemented.
+int PackageReconciliationPlannerStart(int groups,int factory,const int selected[3],
+    int sources,int key,int helper,const PackagePlanning& request,uint64_t deadline,
+    PackagePlanner** worker,int network_helper=-1,int ca_bundle=-1);
 int PackagePlannerCancel(PackagePlanner* worker);
 // Actual pidfd reap, cgroup emptiness/removal and temporary-anchor detach precede
 // success. Timeout retains ownership and all outputs. A Collected result returns
