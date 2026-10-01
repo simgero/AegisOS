@@ -58,7 +58,7 @@ def main():
     p.add_argument("--userdata-fs", choices=["f2fs", "ext4"], default="f2fs",
                    help="Filesystem of the userdata image (AOSP release uses f2fs)")
     args = p.parse_args()
-    from qemu_host import execution
+    from qemu_host import execution, hardware_timeout_multiplier
     host = execution()
     if not 1 <= args.seconds <= 300:
         p.error("Diagnostic duration must be 1–300 seconds")
@@ -69,6 +69,10 @@ def main():
     config = (images / "vendor-bootconfig.img").read_bytes().rstrip(b"\0") + b"\n"
     if args.bootconfig:
         config += args.bootconfig.read_bytes().rstrip(b"\0") + b"\n"
+    # init.vendor.rc publishes this as ro.hw_timeout_multiplier before Android
+    # starts. Keep the watchdog enabled with AOSP's intended emulation budget.
+    if b"androidboot.hw_timeout_multiplier=" not in config:
+        config += f"androidboot.hw_timeout_multiplier={hardware_timeout_multiplier(host)}\n".encode()
     config += b"\0" * (-len(config) % 4)
     ramdisk += config + struct.pack("<II", len(config), sum(config)) + b"#BOOTCONFIG\n"
     args.output.mkdir(parents=True, exist_ok=False)

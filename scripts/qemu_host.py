@@ -3,6 +3,17 @@ import os
 import platform
 
 
+def hardware_timeout_multiplier(command):
+    """AOSP Cuttlefish's slow-hardware policy, including software emulation.
+
+    See device/google/cuttlefish/host/commands/assemble_cvd/bootconfig_args.cpp
+    in the pinned source: 50 for cross-architecture execution, 3 for native VMs.
+    Native ARM without an accelerator also executes in TCG, so use 50 there.
+    """
+    accelerator = command[command.index('-accel') + 1].split(',')[0]
+    return 50 if accelerator == 'tcg' else 3
+
+
 def execution(accel='auto', system=None, machine=None, kvm=None):
     system = system or platform.system()
     machine = machine or platform.machine()

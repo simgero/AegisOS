@@ -9,6 +9,15 @@ spec.loader.exec_module(host)
 
 
 class QemuHostTests(unittest.TestCase):
+    def test_aosp_timeout_budget_tracks_actual_accelerator(self):
+        for system, machine, kvm, expected in (
+                ('Linux', 'x86_64', True, 50),
+                ('Linux', 'aarch64', False, 50),
+                ('Linux', 'aarch64', True, 3),
+                ('Darwin', 'arm64', False, 3)):
+            command = host.execution(system=system, machine=machine, kvm=kvm)
+            self.assertEqual(host.hardware_timeout_multiplier(command), expected)
+
     def test_x86_linux_uses_arm_software_emulation_even_with_kvm(self):
         for kvm in (False, True):
             self.assertEqual(host.execution(system='Linux', machine='x86_64', kvm=kvm),

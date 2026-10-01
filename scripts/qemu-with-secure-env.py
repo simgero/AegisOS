@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bounded local Android + Linux secure_env diagnostic using original AOSP HALs.
 
-Both VMs run on the Mac with HVF. By default both disks are ephemeral; an
+Both VMs run locally with HVF, KVM or explicit TCG. By default both disks are ephemeral; an
 explicit paired profile enables persistent Android and helper state together.
 No host directory sharing is enabled. Guest networking is off by default;
 --network user explicitly adds outbound QEMU user-mode networking to Android.
