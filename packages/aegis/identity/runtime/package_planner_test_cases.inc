@@ -234,7 +234,9 @@ TEST_F(RuntimePackagePlanning, AlreadyInstalledVersionReturnsPrivateSelectionEvi
     mount_attr writable={};writable.attr_clr=MOUNT_ATTR_RDONLY;
     ASSERT_EQ(0,syscall(SYS_mount_setattr,selected.get(),"",AT_EMPTY_PATH,&writable,sizeof(writable)));
     ASSERT_EQ(std::string::npos,initial.find("Package: aegis-probe-lib\n"));
-    initial+="Package: aegis-probe-lib\nStatus: install ok installed\nArchitecture: arm64\nVersion: 2\n\n";
+    // The signed fixture archive is Architecture: all. A native-only status
+    // record would request an architecture replacement, not an unchanged choice.
+    initial+="Package: aegis-probe-lib\nStatus: install ok installed\nArchitecture: all\nVersion: 2\n\n";
     ASSERT_EQ(0,Write(selected.get(),"var/lib/dpkg/status",initial));
     mount_attr readonly={};readonly.attr_set=MOUNT_ATTR_RDONLY;
     ASSERT_EQ(0,syscall(SYS_mount_setattr,selected.get(),"",AT_EMPTY_PATH,&readonly,sizeof(readonly)));
@@ -244,7 +246,7 @@ TEST_F(RuntimePackagePlanning, AlreadyInstalledVersionReturnsPrivateSelectionEvi
     ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,10000,&result,&fd));Fd evidence(fd);
     ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)<<result.error<<" status="<<result.status<<" phase="<<int(result.phase)<<" "<<result.diagnostic;
     ASSERT_TRUE(evidence.ok());fprintf(stderr,"Same-version APT hook: %s\n",Read(fd,"simulation.json").c_str());EXPECT_EQ(1u,result.effects);ASSERT_EQ(1u,result.evidence.changes.size());
-    const auto& c=result.evidence.changes[0];EXPECT_EQ("aegis-probe-lib",c.name);EXPECT_EQ("arm64",c.architecture);
+    const auto& c=result.evidence.changes[0];EXPECT_EQ("aegis-probe-lib",c.name);EXPECT_EQ("all",c.architecture);
     EXPECT_EQ("2",c.before_version);EXPECT_EQ("2",c.after_version);EXPECT_EQ(aegis::PackageInstallReason::Manual,c.reason);
     EXPECT_EQ(0u,c.archive.bytes);EXPECT_TRUE(c.repository.empty());
     EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
