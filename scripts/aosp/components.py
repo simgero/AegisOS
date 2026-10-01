@@ -12,7 +12,7 @@ import sys
 import tarfile
 import tempfile
 
-PROFILE = "aegis-qemu-arm64-components-v4"
+PROFILE = "aegis-qemu-arm64-components-v5"
 SCOPE = "COMPILED_NOT_INSTALLED_OR_TESTED"
 ASSETS = {"components.tar.gz", "components.json", "SHA256SUMS"}
 MODULES = {
@@ -43,7 +43,7 @@ MODULES = {
 }
 METADATA = (
     "project-commit.txt", "status", "SHA256SUMS", "source-files.json",
-    "product-source-files.json", "runtime-storage-source.json",
+    "product-source-files.json", "runtime-storage-source.json", "vold-source.json",
 )
 MEMBERS = {**{"modules/" + name: mode for name, mode in MODULES.items()},
            **{"metadata/" + name: 0o644 for name in METADATA}}

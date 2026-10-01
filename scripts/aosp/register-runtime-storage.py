@@ -37,7 +37,10 @@ ORIGINAL_FILES = SCHEMA_FOUR_ORIGINALS | BIOMETRIC_ORIGINALS
 LEGACY_SOURCE_FILES = {BRIDGE: SOURCE, REMOVAL_FILES: REMOVAL_SOURCE, REMOVAL_DATA: REMOVAL_DATA_SOURCE}
 PACKAGE_CREDENTIALS = 'services/core/java/com/android/server/aegis/AegisPackageCredentials.java'
 PACKAGE_CREDENTIALS_SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisPackageCredentials.java'
-SOURCE_FILES = {**LEGACY_SOURCE_FILES, PACKAGE_CREDENTIALS: PACKAGE_CREDENTIALS_SOURCE}
+SCHEMA_SIX_SOURCE_FILES = {**LEGACY_SOURCE_FILES, PACKAGE_CREDENTIALS: PACKAGE_CREDENTIALS_SOURCE}
+CE_LOCK = 'services/core/java/com/android/server/aegis/AegisCeLock.java'
+CE_LOCK_SOURCE = 'packages/aegis/identity/platform/com/android/server/aegis/AegisCeLock.java'
+SOURCE_FILES = {**SCHEMA_SIX_SOURCE_FILES, CE_LOCK: CE_LOCK_SOURCE}
 MARKER = 'out/aegis-runtime-storage/sources.json'
 PREFIX = 'com.android.server.aegis.AegisRuntimeStorage'
 
@@ -77,6 +80,12 @@ def patch_storage(data):
             body = replace_once(body, old,
                     '            Slog.wtf(TAG, e);\n'
                     '            throw new IllegalStateException("AOSP storage mutation failed", e);\n')
+        if operation == 'LOCK':
+            body = replace_once(body, '            mVold.lockCeStorage(userId);',
+                    '            com.android.server.aegis.AegisCeLock.complete(() -> mVold.lockCeStorage(userId));')
+        elif name == 'destroyUserStorageKeys':
+            body = replace_once(body, '            mVold.destroyUserStorageKeys(userId);',
+                    '            com.android.server.aegis.AegisCeLock.complete(() -> mVold.destroyUserStorageKeys(userId));')
         indented = '\n'.join('    ' + line if line else '' for line in body.splitlines())
         replacement = (prefix + permission + '\n'
                 f'        try ({PREFIX}.Lease aegisStorageLease =\n'
@@ -745,7 +754,7 @@ def originals_from_git(base):
 
 def validate_record(record):
     schema = record.get('schema') if isinstance(record, dict) else None
-    if type(schema) is not int or schema not in (1, 2, 3, 4, 5, 6):
+    if type(schema) is not int or schema not in (1, 2, 3, 4, 5, 6, 7):
         raise ValueError('Invalid storage-source receipt schema')
     expected_inputs = {1: {STORAGE, USERS}, 2: {STORAGE, USERS, RESILIENT},
                        3: SCHEMA_THREE_ORIGINALS, 4: SCHEMA_FOUR_ORIGINALS}.get(schema, ORIGINAL_FILES)
@@ -753,9 +762,10 @@ def validate_record(record):
                         2: {STORAGE, USERS, RESILIENT, BRIDGE, REMOVAL_FILES},
                         3: SCHEMA_THREE_ORIGINALS | LEGACY_SOURCE_FILES.keys(),
                         4: SCHEMA_FOUR_ORIGINALS | LEGACY_SOURCE_FILES.keys(),
-                        5: ORIGINAL_FILES | LEGACY_SOURCE_FILES.keys()}.get(
+                        5: ORIGINAL_FILES | LEGACY_SOURCE_FILES.keys(),
+                        6: ORIGINAL_FILES | SCHEMA_SIX_SOURCE_FILES.keys()}.get(
                                 schema, ORIGINAL_FILES | SOURCE_FILES.keys())
-    if (not isinstance(record, dict) or schema not in (1, 2, 3, 4, 5, 6)
+    if (not isinstance(record, dict) or schema not in (1, 2, 3, 4, 5, 6, 7)
             or record.get('status') != 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED'
             or record.get('aosp_tag') != 'android-16.0.0_r1'
             or not isinstance(record.get('inputs'), dict)
@@ -800,7 +810,7 @@ def prepare(project, aosp, originals=None, pins=None):
                FACE_REMOVAL: patch_aidl_removal(originals[FACE_REMOVAL]),
                FINGERPRINT_RESPONSE: patch_aidl_response(originals[FINGERPRINT_RESPONSE], 'FingerprintRemovalClient'),
                FACE_RESPONSE: patch_aidl_response(originals[FACE_RESPONSE], 'FaceRemovalClient'), **sources}
-    record = {'schema': 6, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
+    record = {'schema': 7, 'status': 'FRAMEWORK_SOURCES_PREPARED_NOT_TESTED',
               'aosp_tag': pins['aosp_tag'], 'inputs': pins['files'],
               'bridge_sha256': digest(sources[BRIDGE]),
               'outputs': {name: digest(data) for name, data in outputs.items()}}

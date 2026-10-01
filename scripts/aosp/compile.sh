@@ -27,6 +27,8 @@ python3 "$script_dir/register-package-crypto.py" --aosp /srv/aegis/work/aosp
 python3 "$script_dir/register-qemu-graphics.py" --aosp /srv/aegis/work/aosp
 python3 "$script_dir/register-runtime-storage.py" --project "$project" --aosp /srv/aegis/work/aosp \
     --receipt "$1/runtime-storage-source.json"
+python3 "$script_dir/register-vold-eviction.py" --project "$project" --aosp /srv/aegis/work/aosp \
+    --receipt "$1/vold-source.json"
 python3 "$script_dir/register-runtime-policy.py" --project "$project" --aosp /srv/aegis/work/aosp \
     --receipt "$1/runtime-policy-source.json"
 cp /srv/aegis/work/aosp/packages/aegis/identity/.aegis-source.json "$1/identity-source-files.json"
@@ -74,6 +76,8 @@ python3 "$script_dir/register-qemu-graphics.py" --aosp /srv/aegis/work/aosp --ch
 python3 "$script_dir/register-package-crypto.py" --aosp /srv/aegis/work/aosp --verify
 python3 "$script_dir/register-runtime-storage.py" --aosp /srv/aegis/work/aosp \
     --receipt "$1/runtime-storage-source.json" --verify
+python3 "$script_dir/register-vold-eviction.py" --aosp /srv/aegis/work/aosp \
+    --receipt "$1/vold-source.json" --verify
 python3 "$script_dir/register-runtime-policy.py" --aosp /srv/aegis/work/aosp \
     --receipt "$1/runtime-policy-source.json" --verify
 # Host-side readers for the actual delivered logical partition, built only here.

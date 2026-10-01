@@ -50,6 +50,8 @@ python3 "$script_dir/register-identity.py" "$project/packages/aegis/identity" "$
 python3 "$script_dir/register-package-crypto.py" --aosp "$aosp"
 python3 "$script_dir/register-runtime-storage.py" --project "$project" --aosp "$aosp" \
     --receipt "$run/runtime-storage-source.json"
+python3 "$script_dir/register-vold-eviction.py" --project "$project" --aosp "$aosp" \
+    --receipt "$run/vold-source.json"
 python3 "$script_dir/register-runtime-policy.py" --project "$project" --aosp "$aosp" \
     --receipt "$run/runtime-policy-source.json"
 cp "$aosp/packages/aegis/identity/.aegis-source.json" "$run/source-files.json"
@@ -68,15 +70,18 @@ python3 "$project/scripts/runtime/uid_layout.py" check --aosp "$aosp" \
 jobs=$(nproc)
 (( jobs <= 12 )) || jobs=12
 state COMPILING
-m -j"$jobs" aegis aegis-identity-service AegisIdentityTests AegisQemuHardwareOverlay services framework-res selinux_policy \
+m -j"$jobs" vold aegis aegis-identity-service AegisIdentityTests AegisQemuHardwareOverlay services framework-res selinux_policy \
     passwd_vendor group_vendor passwd_system_ext group_system_ext \
     aegis-runtime-init aegis-runtime-setup aegis-runtime-broker AegisRuntimeNativeTests libaegis_terminal_jni
 # The broker is compiled/linked here but remains absent from product startup
 # and from this version of the component transport archive.
 test -s "$(get_build_var PRODUCT_OUT)/system_ext/bin/aegis-runtime-broker"
+test -s "$(get_build_var PRODUCT_OUT)/system/bin/vold"
 python3 "$script_dir/register-package-crypto.py" --aosp "$aosp" --verify
 python3 "$script_dir/register-runtime-storage.py" --aosp "$aosp" \
     --receipt "$run/runtime-storage-source.json" --verify
+python3 "$script_dir/register-vold-eviction.py" --aosp "$aosp" \
+    --receipt "$run/vold-source.json" --verify
 python3 "$script_dir/register-runtime-policy.py" --aosp "$aosp" \
     --receipt "$run/runtime-policy-source.json" --verify
 product=$(get_build_var PRODUCT_OUT)

@@ -497,3 +497,36 @@ Integrators muss den bisherigen Besitznachweis kontrolliert migrieren,
 alle zusätzlichen Originaldateien pinnen und fremde Änderungen erhalten.
 Nach dem Kompilieren bleiben reale Erfolgs-, Fehler-, Doppelrückmeldungs-
 und ID-Wiederverwendungstests mit persönlichen Runtime-Kontexten erforderlich.
+
+
+### Bestätigung des Kernel-Schlüsselentzugs (2026-10-01, noch unbewiesen)
+
+Im realen f2d1d0e7-Gast bestätigte die CLI Alphas Abmeldung um 12:29:01 UTC,
+während vold offene verschlüsselte Dateien erst um 12:29:03.755 bereinigt
+hatte. `isCeStorageUnlocked=false` belegt daher noch keinen vollständigen
+Schlüsselentzug. Die bestandenen Paket- und Benutzerlöschtests ändern diesen
+Befund nicht.
+
+Der folgende Quellstand ergänzt einen separat gepinnten vold-Integrator.
+Er prüft den tatsächlichen Status desselben fscrypt-Schlüssels nach dem
+Entzug und meldet Erfolg nur bei `ABSENT`. Solange ein Volume noch offene
+Dateien hat, bleiben sämtliche Richtlinienzuordnungen erhalten. Ein erneuter
+Versuch prüft alle Volumes; eine teilweise entzogene CE-Identität darf nicht
+als bereits entsperrt behandelt oder erneut vorbereitet werden. Auch der
+Schlüssellöschpfad wartet vor dem Löschen der Schlüsseldateien auf den
+bestätigten CE- und DE-Entzug.
+
+StorageManagerService wiederholt ausschließlich die explizite vold-Antwort
+`EBUSY`, höchstens zehn Sekunden lang. Andere Fehler und Unterbrechungen
+brechen ab. Ein Timeout bleibt ein ausstehender Abschluss; Warten allein
+oder ein zwischengespeichertes CE-Flag autorisieren keinen Erfolg.
+Die bestehende Runtime-Lease umfasst die gesamte Folge einschließlich der
+Aktualisierung des Framework-Zustands.
+
+Neun native Fälle prüfen den gemeinsam verwendeten Statusalgorithmus;
+sechs Java-Fälle prüfen die begrenzte Wiederholung mit kontrollierten
+Rückgaben. Sie ersetzen keinen tatsächlichen verschlüsselten Dateitest.
+Die lokalen Integrationsprüfungen bestanden (6 vold-, 25 Framework-Fälle).
+Native/Java-Kompilierung, Gasttests sowie ein passendes vollständiges Image
+mit normaler und absichtlich offengehaltener CE-Datei stehen noch aus.
+Der bisherige Abmeldefehler bleibt bis zu diesem Nachweis offen.

@@ -42,6 +42,8 @@ elif name == 'env':
         pathlib.Path(args[-1], 'runtime-base-image.json').write_text('public image receipt transport fixture\n')
     if mode != 'missing_storage_receipt':
         pathlib.Path(args[-1], 'runtime-storage-source.json').write_text('public framework source receipt transport fixture\n')
+    if mode != 'missing_vold_receipt':
+        pathlib.Path(args[-1], 'vold-source.json').write_text('public vold source receipt fixture\n')
     if os.environ.get('AEGIS_KERNEL_RUN') and mode != 'missing_kernel_receipt':
         pathlib.Path(args[-1], 'kernel-inputs.json').write_text('{"fixture":"kernel input transport only"}\n')
     if os.environ.get('AEGIS_RUNTIME_RUN'):
@@ -161,6 +163,7 @@ class WorkerTests(unittest.TestCase):
     def test_missing_image_receipt_prevents_success(self): self.exercise('missing_image_receipt')
     def test_corrupt_image_receipt_prevents_success(self): self.exercise('corrupt_image_receipt')
     def test_missing_storage_receipt_prevents_success(self): self.exercise('missing_storage_receipt')
+    def test_missing_vold_receipt_prevents_success(self): self.exercise('missing_vold_receipt')
     def test_corrupt_storage_receipt_prevents_success(self): self.exercise('corrupt_storage_receipt')
     def test_selected_kernel_receipt_is_published_and_verified(self): self.exercise(runtime_kernel=True)
     def test_missing_kernel_receipt_prevents_success(self): self.exercise('missing_kernel_receipt', runtime_kernel=True)
