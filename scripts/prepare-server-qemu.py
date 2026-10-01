@@ -23,8 +23,16 @@ def prepare(root, avbtool, commit):
     digest = subprocess.check_output([sys.executable, str(avbtool), 'calculate_vbmeta_digest',
             '--image', 'vbmeta.img', '--hash_algorithm', 'sha256'], cwd=images, text=True).strip()
     size = 0
-    for name in ('vbmeta', 'vbmeta_system', 'vbmeta_system_dlkm', 'vbmeta_vendor_dlkm'):
-        data = (images / (name + '.img')).read_bytes()
+    for name in ('vbmeta', 'boot', 'init_boot', 'vbmeta_system', 'vbmeta_system_dlkm', 'vbmeta_vendor_dlkm'):
+        with (images / (name + '.img')).open('rb') as stream:
+            data = stream.read(256)
+            if data[:4] != b'AVB0':
+                stream.seek(-64, 2)
+                footer = stream.read(64)
+                if footer[:4] != b'AVBf':
+                    raise ValueError('Expected an AVB footer')
+                stream.seek(struct.unpack_from('>Q', footer, 20)[0])
+                data = stream.read(256)
         if data[:4] != b'AVB0':
             raise ValueError('Expected AVB metadata')
         auth, aux = struct.unpack_from('>QQ', data, 12)
