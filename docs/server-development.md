@@ -119,3 +119,34 @@ auch die AEGIS-Wartefristen für Android-Zustandswechsel den Hardwarefaktor,
 mit einer absoluten Obergrenze von 120 Sekunden. Identitäts-/Zustandsprüfungen,
 frische Passwortprüfung und die separate zehnsekündige CE-Eviction bleiben
 unverändert. Der lokale Folgebuild und die endgültige Gastabnahme stehen aus.
+
+## Nachgewiesene CE-Fehlerbehandlung im ersten korrigierten Image
+
+Die Java-Gerätesuite besteht inzwischen **180/180 Tests** (963,552 Sekunden
+unter TCG). Der Hostlauf mit den weiteren Launcher-/Shutdown-Änderungen besteht
+**280 Tests**, vier macOS-Tests übersprungen. Der lokale Build von `c989a7d`
+ist `LOCAL_BUILD_VERIFIED`; ein weiterer Build enthält nun zusätzlich einen
+gepinnten Bootanimation-Shutdown-Fix. Dieser wartet auf den Animationsthread,
+bevor der Hauptprozess gemeinsamen Zustand zerstört. Anlass ist eine während
+des normalen Prozessendes beobachtete FORTIFY-Meldung über einen zerstörten
+Mutex; die Behebung muss noch in wiederholten Gaststarts bestätigt werden.
+
+Im weiterhin laufenden Image `993f1e8` ist folgender echter Ablauf bestanden:
+AOSP-Anmeldung, GNU-Shell als UID/GID 1000 in privaten Namespaces, alle
+Capability-Sätze leer, Seccomp und NoNewPrivs aktiv, gemeinsame Basis nur lesbar,
+persönliches Home in CE. GNU schreibt eine Datei mit 1024 Bytes. Ein kontrollierter
+Root-Testhalter hält genau diese Datei offen. Logout beendet die Runtime,
+bestätigt die noch ausstehende CE-Eviction nicht und entzieht die Autorität.
+Eine sofortige Neuanmeldung wird ohne Passwortannahme abgewiesen; SystemServer
+bleibt PID 1117. Nach Schließen des Halters wird die Sperre abgeschlossen.
+Ein falsches Passwort wird von AOSP abgewiesen, CE bleibt `[0]` und die zuvor
+geschriebene Datei ist nicht lesbar. Eine frische richtige Anmeldung startet
+GNU wieder und liest dieselben Bytes mit identischer SHA-256-Prüfsumme.
+
+POSIX-Mqueue-Erzeugung durch unprivilegiertes GNU-Perl besteht ebenfalls;
+nach Runtime-Abbau und Neuanmeldung sind die alten Warteschlangen verschwunden.
+Die beidseitige Isolation zweier Benutzer und der Neustartnachweis stehen noch
+aus. Belege: `fixed-993f1e8/{ce-fault-recovery.json,component-progress.json,
+identity-test/events.json}`. Die Belege benennen auch zwei korrigierte Fehler
+im Hosttreiber (legitimer CE-Sperrabschluss während Vorbereitung sowie
+Texteingabe beim Schließen einer möglicherweise noch offenen Passwortabfrage).
