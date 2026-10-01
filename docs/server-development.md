@@ -80,3 +80,22 @@ Der folgende Lauf benutzt dasselbe neue Profil mit `--cpus 8`.
 Der Launcher erlaubt nun ausdrücklich 1–16 Gast-CPUs und mit `--memory-mib`
 2048–32768 MiB RAM; Standardwerte bleiben vier CPUs und 4096 MiB.
 Diese Zuteilung verändert keine Profilbindung, Passwörter oder Bootprüfung.
+
+Der Acht-CPU-Lauf (`fixed-993f1e8/boot-2`) erreicht `sys.boot_completed=1`,
+authentifiziertes ADB mit `ro.adb.secure=1`, SELinux Enforcing und CE `[0]`.
+Anschließend stirbt SystemServer erneut: UI-Thread für 89 Sekunden blockiert.
+Damit ist eine höhere CPU-Zahl allein keine Lösung. Der APK-Installationsversuch
+wird dabei mit `Broken pipe` abgebrochen; Gerätetests sind noch nicht bestanden.
+
+Die anschließende Quellprüfung findet einen konkreten fehlenden Bootparameter:
+Der **gepinnt vorhandene** Cuttlefish-Launcher setzt in
+`host/commands/assemble_cvd/bootconfig_args.cpp` für eine fremde Zielarchitektur
+`androidboot.hw_timeout_multiplier=50`, für native VMs `3`.
+`shared/config/init.vendor.rc` überträgt dies nach `ro.hw_timeout_multiplier`;
+`Build.HW_TIMEOUT_MULTIPLIER` und Watchdog verwenden diesen AOSP-Mechanismus.
+In unseren beiden bisherigen Gast-Properties war der Wert leer.
+`qemu-init.py` ergänzt deshalb ab `04d2c8f` genau dieses Hardwarebudget:
+50 unter TCG, 3 mit HVF/KVM. Es schaltet den Watchdog nicht aus; die AEGIS-
+CE-Eviction-Frist bleibt unverändert. Dieser Startweg muss noch durch reale
+CLI-Antwortzeiten und alle Schutztests bestätigt werden. Die Tests prüfen
+weiterhin Systemserver-Neustarts und melden verzögerte/fehlgeschlagene Aktionen.
