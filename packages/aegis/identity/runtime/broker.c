@@ -174,7 +174,8 @@ error:;
 }
 static int reply_until(int socket, int signals, const struct aegis_broker_request *request,
                         int error, enum aegis_broker_state state, uint64_t command,
-                        int wait_status, int exited, int master, const struct aegis_broker_package_reply *package) {
+                        int wait_status, int exited, int master, const struct aegis_broker_package_reply *package,
+                        const struct aegis_activation_status* activation) {
     for (;;) {
         uint64_t now = now_ns();
         if (!now || now >= request->deadline_ns) return fail(ETIMEDOUT);
@@ -182,6 +183,7 @@ static int reply_until(int socket, int signals, const struct aegis_broker_reques
                 || request->operation == AEGIS_BROKER_CONTINUE_START;
         int sent = aegis_broker_package_operation(request->operation)
                 ? aegis_broker_reply_package(socket, request, error, package)
+                : request->operation==AEGIS_BROKER_ACTIVATION ? aegis_broker_reply_activation(socket,request,error,state,activation)
                 : starting ? aegis_broker_reply_start(socket, request, error, command)
                 : (request->operation == AEGIS_BROKER_EXEC || request->operation == AEGIS_BROKER_RESULT)
                 ? aegis_broker_reply_terminal(socket, request, error, command, wait_status, exited, master)
@@ -243,11 +245,14 @@ static int serve(int listener, int signals, struct aegis_broker_owner *owner) {
             uint64_t command = 0;
             int master = -1, wait_status = 0, exited = 0, error = 0;
             struct aegis_broker_package_reply package = {0};
+            struct aegis_activation_status activation = {0};
             if (aegis_broker_package_operation(request->operation)) {
                 if (aegis_broker_owner_package(owner, &call, &package) < 0) error = errno;
                 else state = AEGIS_BROKER_READY;
             } else if (request->operation == AEGIS_BROKER_START || request->operation == AEGIS_BROKER_CONTINUE_START) {
                 if (aegis_broker_owner_start(owner, &call, &command, &state) < 0) error = errno;
+            } else if (request->operation == AEGIS_BROKER_ACTIVATION) {
+                if(aegis_broker_owner_activation(owner,request,&state,&activation)<0)error=errno;
             } else if (request->operation == AEGIS_BROKER_EXEC) {
                 if (aegis_broker_owner_exec(owner, &call, &command, &master) < 0) error = errno;
                 else state = AEGIS_BROKER_READY;
@@ -256,10 +261,11 @@ static int serve(int listener, int signals, struct aegis_broker_owner *owner) {
                     error = errno;
                 else { command = call.command; state = AEGIS_BROKER_READY; }
             } else if (aegis_broker_owner_apply(owner, request, &state) < 0) error = errno;
-            if (error <= 0 && state == AEGIS_BROKER_SEALED && request->operation != AEGIS_BROKER_STATUS)
+            if (error <= 0 && state == AEGIS_BROKER_SEALED && request->operation != AEGIS_BROKER_STATUS
+                    && request->operation != AEGIS_BROKER_ACTIVATION)
                 error = EIO;
             if (error < 0 || error > 4095) error = EIO;
-            int replied = reply_until(peer, signals, request, error, state, command, wait_status, exited, master, &package);
+            int replied = reply_until(peer, signals, request, error, state, command, wait_status, exited, master, &package, &activation);
             int saved = errno;
             // SCM_RIGHTS copies the reference. Never retain a second host PTY
             // after publication, or after an uncertain/failed send.

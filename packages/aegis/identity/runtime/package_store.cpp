@@ -267,6 +267,23 @@ int PackageStore::Current(PackageGeneration* output) {
     return fd;
 }
 
+int PackageStore::SelectionMetadata(PackageGeneration* output) {
+    if(!output)return Fail(EINVAL);
+    if(getpid()!=process_)return Fail(EPERM);
+    std::lock_guard<std::mutex> guard(mutex_);
+    if(!Check())return -1;
+    PackageGeneration value;
+    if(ReadSelection(&value)<0)return -1;
+    const auto name=value.image_sha256+".image";
+    unique_fd image(OpenAt(directory_,name.c_str(),O_RDONLY|O_NONBLOCK));
+    if(!image.ok())return errno==ENOENT?Fail(ESTALE):-1;
+    struct stat st;
+    if(!Metadata(image.get(),S_IFREG,0444,true)||fstat(image.get(),&st)<0
+       ||!Named(directory_,name.c_str(),image.get()))return -1;
+    if(st.st_size<0 || uint64_t(st.st_size)!=value.bytes)return Fail(ESTALE);
+    *output=std::move(value);return 0;
+}
+
 int PackageStore::RetainedShared(const std::string& hash,PackageGeneration* output) {
     if(!output || !Hash(hash))return Fail(EINVAL);
     if(getpid()!=process_ || owner_.personal)return Fail(EPERM);

@@ -267,3 +267,42 @@ TEST_F(RuntimePackageStore, InitializedSharedLockAndPartialMetadataNeverCountAsE
     unique_fd damaged(PackageStore::LockEmptyShared(root.get()));EXPECT_FALSE(damaged.ok());EXPECT_EQ(EEXIST,errno);
     std::unique_ptr<PackageStore> checked(PackageStore::Open(root.get(),shared,false));EXPECT_FALSE(checked);EXPECT_EQ(ENOENT,errno);
 }
+
+
+TEST_F(RuntimePackageStore, MetadataObservationTracksSelectionWithoutReturningImageAuthority) {
+    Start();ASSERT_TRUE(store);auto output=Image("sentinel");
+    EXPECT_EQ(-1,store->SelectionMetadata(&output));EXPECT_EQ(ENOENT,errno);
+    EXPECT_EQ(Digest("sentinel"),output.image_sha256);
+    auto first=Image("old payload"),second=Image("new payload");
+    auto a=Source("old payload"),b=Source("new payload");
+    ASSERT_EQ(PackagePublish::Confirmed,store->Publish(nullptr,a.get(),first,proceed));
+    ASSERT_EQ(0,store->SelectionMetadata(&output));EXPECT_EQ(first.image_sha256,output.image_sha256);
+    ASSERT_EQ(PackagePublish::Confirmed,store->Publish(&first,b.get(),second,proceed));
+    ASSERT_EQ(0,store->SelectionMetadata(&output));EXPECT_EQ(second.image_sha256,output.image_sha256);
+    EXPECT_EQ(second.bytes,output.bytes);EXPECT_TRUE(output.shared_base_sha256.empty());
+}
+TEST_F(RuntimePackageStore, MetadataObservationNeverSubstitutesForContentVerification) {
+    Start();ASSERT_TRUE(store);auto generation=Image("original");auto input=Source("original");
+    ASSERT_EQ(PackagePublish::Confirmed,store->Publish(nullptr,input.get(),generation,proceed));
+    const auto name=generation.image_sha256+".image";
+    unique_fd image(openat(root.get(),name.c_str(),O_WRONLY|O_CLOEXEC));ASSERT_TRUE(image.ok());
+    ASSERT_EQ(8,pwrite(image.get(),"tampered",8,0));ASSERT_EQ(0,fsync(image.get()));
+    PackageGeneration metadata;
+    ASSERT_EQ(0,store->SelectionMetadata(&metadata));EXPECT_EQ(generation.image_sha256,metadata.image_sha256);
+    // Observation intentionally does not hash an image under AOSP admission.
+    // The unchanged real consumer still refuses the same corrupt bytes.
+    PackageGeneration verified=Image("sentinel");unique_fd rejected(store->Current(&verified));
+    EXPECT_FALSE(rejected.ok());EXPECT_EQ(Digest("sentinel"),verified.image_sha256);
+}
+TEST_F(RuntimePackageStore, MetadataObservationRejectsMissingAliasedAndWrongSizedSelection) {
+    Start();ASSERT_TRUE(store);auto generation=Image("payload");auto input=Source("payload");
+    ASSERT_EQ(PackagePublish::Confirmed,store->Publish(nullptr,input.get(),generation,proceed));
+    const auto name=generation.image_sha256+".image";auto output=Image("sentinel");
+    unique_fd image(openat(root.get(),name.c_str(),O_WRONLY|O_CLOEXEC));ASSERT_TRUE(image.ok());
+    ASSERT_EQ(0,ftruncate(image.get(),2));EXPECT_EQ(-1,store->SelectionMetadata(&output));EXPECT_EQ(ESTALE,errno);
+    ASSERT_EQ(0,unlinkat(root.get(),name.c_str(),0));
+    EXPECT_EQ(-1,store->SelectionMetadata(&output));EXPECT_EQ(ESTALE,errno);
+    ASSERT_EQ(0,symlinkat("../source-0",root.get(),name.c_str()));
+    EXPECT_EQ(-1,store->SelectionMetadata(&output));EXPECT_EQ(ELOOP,errno);
+    EXPECT_EQ(Digest("sentinel"),output.image_sha256);
+}

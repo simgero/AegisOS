@@ -2113,3 +2113,23 @@ TEST_F(RuntimeSelectionOwner, ConfiguredPackageScopeUsesPinnedInputsAndOnlyPerso
     EXPECT_EQ(RuntimeSelectionState::Failed,state);EXPECT_EQ(ENOENT,result.error);
     ASSERT_EQ(0,BrokerCancelPackageSelection(broker,21472,1234,selected_job,Deadline()));EXPECT_EQ(fds,CountFDs());
 }
+
+TEST_F(RuntimeSelectionOwner, ActivationObservationDoesNotStartOrConsumePendingSelection) {
+    ASSERT_EQ(0,Configure());int baseline=CountFDs();
+    aegis_broker_request request={};request.magic=AEGIS_BROKER_MAGIC;request.version=AEGIS_BROKER_VERSION;
+    request.operation=AEGIS_BROKER_ACTIVATION;request.sequence=2;request.user=10;request.serial=42;
+    request.deadline_ns=Deadline();aegis_broker_state state; aegis_activation_status observed;
+    ASSERT_EQ(0,aegis_broker_owner_activation(broker,&request,&state,&observed));
+    EXPECT_EQ(AEGIS_BROKER_ABSENT,state);EXPECT_EQ(AEGIS_ACTIVATION_INACTIVE,observed.state);
+    EXPECT_EQ(0u,observed.error);EXPECT_EQ(baseline,CountFDs());
+    ASSERT_EQ(0,RegisterSelection());PackagePreparationResult result;AwaitSelection(&result);ASSERT_FALSE(HasFatalFailure());
+    int held=CountFDs();request.deadline_ns=Deadline();
+    ASSERT_EQ(0,aegis_broker_owner_activation(broker,&request,&state,&observed));
+    EXPECT_EQ(AEGIS_BROKER_SEALED,state);EXPECT_EQ(AEGIS_ACTIVATION_INACTIVE,observed.state);
+    EXPECT_EQ(held,CountFDs());RuntimeSelectionState selected;
+    ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,10,42,selected_job,&selected,&result));
+    EXPECT_EQ(RuntimeSelectionState::Selected,selected);
+    request.serial=43;EXPECT_EQ(-1,aegis_broker_owner_activation(broker,&request,&state,&observed));
+    EXPECT_EQ(ESTALE,errno);EXPECT_EQ(AEGIS_BROKER_SEALED,state);EXPECT_EQ(AEGIS_ACTIVATION_INACTIVE,observed.state);
+    EXPECT_EQ(held,CountFDs());ASSERT_EQ(0,Stop());EXPECT_EQ(baseline,CountFDs());
+}

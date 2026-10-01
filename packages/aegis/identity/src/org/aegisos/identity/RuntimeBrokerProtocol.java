@@ -14,12 +14,14 @@ final class RuntimeBrokerProtocol {
     // Pinned Linux/Bionic EAGAIN. No Android-dependent constant in the codec.
     static final int START_PENDING = 11;
     static final int ABSENT = 0, READY = 1, SEALED = 2;
+    static final int ACTIVATION = 15, ACTIVATION_REPLY_SIZE = 40;
+    static final int PACKAGES_INACTIVE = 0, PACKAGES_CURRENT = 1, PACKAGES_PENDING = 2, PACKAGES_UNKNOWN = 3;
     static final long MAX_WAIT_NANOS = 10_000_000_000L;
 
     private RuntimeBrokerProtocol() {}
 
     static void identity(int operation, int user, int serial) {
-        if (operation < HELLO || operation > PackageBrokerProtocol.CANCEL || serial < 0
+        if (operation < HELLO || operation > ACTIVATION || serial < 0
                 || (operation == HELLO ? user != 0 || serial != 0 : user < 10 || user >= 21473)
                 || (operation == STOP_USER && serial != 0)) {
             throw new IllegalArgumentException("Invalid internal runtime request");
@@ -27,7 +29,7 @@ final class RuntimeBrokerProtocol {
     }
 
     static byte[] request(int operation, long sequence, long deadline, int user, int serial, long now) {
-        if (operation > STATUS) throw new IllegalArgumentException("Terminal request needs a payload");
+        if (operation > STATUS && operation != ACTIVATION) throw new IllegalArgumentException("Terminal request needs a payload");
         return header(operation, sequence, deadline, user, serial, now, SIZE).array();
     }
 
@@ -123,13 +125,21 @@ final class RuntimeBrokerProtocol {
     }
 
     static final class Reply {
-        final int error, state, waitStatus;
+        final int error, state, waitStatus, activation, activationError;
         final long command;
         final boolean exited;
         Reply(int error, int state) { this(error, state, 0, 0, false); }
         Reply(int error, int state, long command, int waitStatus, boolean exited) {
+            this(error, state, command, waitStatus, exited, PACKAGES_INACTIVE, 0);
+        }
+        Reply(int error, int state, int activation, int activationError) {
+            this(error, state, 0, 0, false, activation, activationError);
+        }
+        private Reply(int error, int state, long command, int waitStatus, boolean exited,
+                int activation, int activationError) {
             this.error = error; this.state = state; this.command = command;
             this.waitStatus = waitStatus; this.exited = exited;
+            this.activation = activation; this.activationError = activationError;
         }
     }
 
@@ -157,6 +167,22 @@ final class RuntimeBrokerProtocol {
             throw new IllegalArgumentException("Invalid internal runtime completion state");
         }
         return new Reply(error, state);
+    }
+
+    /** Read-only metadata observation, never used as start or execution authority. */
+    static Reply activationReply(byte[] bytes, int length, long sequence, int user, int serial,
+            int descriptorCount) {
+        if (descriptorCount != 0) throw new IllegalArgumentException("Unexpected activation descriptors");
+        Reply header = parse(bytes, length, ACTIVATION, sequence, user, serial, ACTIVATION_REPLY_SIZE);
+        ByteBuffer data = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
+        int activation = data.getInt(SIZE), diagnostic = data.getInt(SIZE + 4);
+        if (activation < PACKAGES_INACTIVE || activation > PACKAGES_UNKNOWN || diagnostic < 0 || diagnostic > 4095
+                || (activation == PACKAGES_UNKNOWN ? diagnostic == 0 : diagnostic != 0)
+                || ((header.error != 0 || header.state != READY)
+                    ? activation != PACKAGES_INACTIVE : activation == PACKAGES_INACTIVE)) {
+            throw new IllegalArgumentException("Invalid package activation observation");
+        }
+        return new Reply(header.error, header.state, activation, diagnostic);
     }
 
     static Reply terminalReply(byte[] bytes, int length, int operation, long sequence, int user, int serial,

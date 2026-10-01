@@ -65,6 +65,12 @@ final class RuntimeBrokerConnection {
         return reply.state;
     }
 
+    RuntimeBrokerProtocol.Reply activation(int user, int serial, long deadlineNanos) {
+        RuntimeBrokerProtocol.Reply reply = call(RuntimeBrokerProtocol.ACTIVATION, user, serial, deadlineNanos, null, 0).reply;
+        success(reply);
+        return reply;
+    }
+
     /** Caller must bind this owned PTY and command to the admitted personal CLI session. */
     static final class Terminal implements AutoCloseable {
         final long command;
@@ -206,8 +212,10 @@ final class RuntimeBrokerConnection {
         boolean terminal = operation == RuntimeBrokerProtocol.EXEC || operation == RuntimeBrokerProtocol.RESULT;
         boolean starting = operation == RuntimeBrokerProtocol.START || operation == RuntimeBrokerProtocol.CONTINUE_START;
         boolean packaging = PackageBrokerProtocol.operation(operation);
+        boolean observing = operation == RuntimeBrokerProtocol.ACTIVATION;
         int expected = packaging ? PackageBrokerProtocol.MAX_REPLY : starting ? RuntimeBrokerProtocol.START_REPLY_SIZE
-                : terminal ? RuntimeBrokerProtocol.TERMINAL_REPLY_SIZE : RuntimeBrokerProtocol.SIZE;
+                : terminal ? RuntimeBrokerProtocol.TERMINAL_REPLY_SIZE
+                : observing ? RuntimeBrokerProtocol.ACTIVATION_REPLY_SIZE : RuntimeBrokerProtocol.SIZE;
         byte[] bytes = new byte[expected + 1];
         FileDescriptor[] received = null;
         ParcelFileDescriptor master = null;
@@ -229,6 +237,8 @@ final class RuntimeBrokerConnection {
                 start = RuntimeBrokerProtocol.startReply(bytes, length, operation, current, user, serial, command, descriptors);
                 reply = new RuntimeBrokerProtocol.Reply(RuntimeBrokerProtocol.startError(bytes),
                         start.ready ? RuntimeBrokerProtocol.READY : RuntimeBrokerProtocol.SEALED);
+            } else if (observing) {
+                reply = RuntimeBrokerProtocol.activationReply(bytes, length, current, user, serial, descriptors);
             } else if (terminal) {
                 reply = RuntimeBrokerProtocol.terminalReply(bytes, length, operation, current, user, serial,
                         command, descriptors);

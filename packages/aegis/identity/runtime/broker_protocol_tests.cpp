@@ -409,7 +409,7 @@ TEST(RuntimeBrokerPackage, PackageExtensionCannotBypassHandshakeIdentitySequence
     EXPECT_EQ(-1,aegis_broker_decode(p.data(),p.size(),2,100,&call));
     EXPECT_EQ(-1,aegis_broker_decode(p.data(),p.size(),1,1000000100,&call));
     p[24]=0;EXPECT_EQ(-1,aegis_broker_decode(p.data(),p.size(),1,100,&call));
-    p=package_begin();p[6]=15;EXPECT_EQ(-1,aegis_broker_decode(p.data(),p.size(),1,100,&call));
+    p=package_begin();p[6]=16;EXPECT_EQ(-1,aegis_broker_decode(p.data(),p.size(),1,100,&call));
 }
 TEST(RuntimeBrokerPackage, ErrorReceiptRetainsPartialBeginOwnershipAndContinuationIdentity) {
     Pair pair;ASSERT_EQ(0,socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair.fd));
@@ -452,4 +452,39 @@ TEST(RuntimeBrokerPackage, PackageCannotSupplyFileDescriptorsAndRejectedRightsAr
     ASSERT_EQ(static_cast<ssize_t>(packet.size()),sendmsg(pair.fd[1],&m,MSG_NOSIGNAL));
     aegis_broker_call call={};EXPECT_EQ(-1,aegis_broker_receive_call(pair.fd[0],1,100,&call));
     EXPECT_EQ(EPROTO,errno);EXPECT_EQ(before,open_fds());close(original);
+}
+
+
+TEST(RuntimeBrokerProtocol, ActivationUsesIndependentExactReadOnlyFrame) {
+    auto request=start();request.operation=AEGIS_BROKER_ACTIVATION;
+    aegis_broker_call call={};ASSERT_EQ(0,aegis_broker_decode(&request,32,1,100,&call));
+    EXPECT_EQ(AEGIS_BROKER_ACTIVATION,call.request.operation);EXPECT_EQ(0u,call.command);
+    EXPECT_EQ(0u,call.argc);EXPECT_EQ(0u,call.payload_bytes);
+    EXPECT_EQ(0,aegis_broker_package_operation(request.operation));
+    EXPECT_EQ(-1,parse(request)); // Cannot pass through the old mutating lifecycle entry.
+    unsigned char extra[40]={};memcpy(extra,&request,32);
+    EXPECT_EQ(-1,aegis_broker_decode(extra,sizeof(extra),1,100,&call));
+    request.serial=0xffffffffu;EXPECT_EQ(-1,aegis_broker_decode(&request,32,1,100,&call));
+}
+TEST(RuntimeBrokerProtocol, ActivationReplyKeepsLivenessSeparateFromPendingAndUnknown) {
+    Pair pair;ASSERT_EQ(0,socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair.fd));
+    auto request=start();request.operation=AEGIS_BROKER_ACTIVATION;
+    for(unsigned value:{AEGIS_ACTIVATION_CURRENT,AEGIS_ACTIVATION_PENDING,AEGIS_ACTIVATION_UNKNOWN}) {
+        aegis_activation_status status{value,value==AEGIS_ACTIVATION_UNKNOWN?unsigned(EWOULDBLOCK):0u};
+        ASSERT_EQ(0,aegis_broker_reply_activation(pair.fd[0],&request,0,AEGIS_BROKER_READY,&status));
+        aegis_broker_activation_reply reply={};ASSERT_EQ(40,recv(pair.fd[1],&reply,sizeof(reply),0));
+        EXPECT_EQ(0,reply.header.error);EXPECT_EQ(AEGIS_BROKER_READY,reply.header.state);
+        EXPECT_EQ(request.sequence,reply.header.sequence);EXPECT_EQ(request.serial,reply.header.serial);
+        EXPECT_EQ(value,reply.activation.state);EXPECT_EQ(status.error,reply.activation.error);
+    }
+    aegis_activation_status current{AEGIS_ACTIVATION_CURRENT,0};
+    EXPECT_EQ(-1,aegis_broker_reply_activation(pair.fd[0],&request,EIO,AEGIS_BROKER_SEALED,&current));
+    EXPECT_EQ(-1,aegis_broker_reply_activation(pair.fd[0],&request,0,AEGIS_BROKER_ABSENT,&current));
+    aegis_activation_status unknown{AEGIS_ACTIVATION_UNKNOWN,0};
+    EXPECT_EQ(-1,aegis_broker_reply_activation(pair.fd[0],&request,0,AEGIS_BROKER_READY,&unknown));
+    aegis_activation_status inactive{AEGIS_ACTIVATION_INACTIVE,0};
+    EXPECT_EQ(-1,aegis_broker_reply_activation(pair.fd[0],&request,0,AEGIS_BROKER_READY,&inactive));
+    ASSERT_EQ(0,aegis_broker_reply_activation(pair.fd[0],&request,0,AEGIS_BROKER_ABSENT,&inactive));
+    aegis_broker_activation_reply reply={};ASSERT_EQ(40,recv(pair.fd[1],&reply,sizeof(reply),0));
+    EXPECT_EQ(AEGIS_BROKER_ABSENT,reply.header.state);EXPECT_EQ(AEGIS_ACTIVATION_INACTIVE,reply.activation.state);
 }

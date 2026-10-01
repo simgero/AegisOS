@@ -61,7 +61,7 @@ static int parse_header(const void *packet, size_t size, uint64_t previous,
     struct aegis_broker_request value;
     memcpy(&value, packet, sizeof(value));
     if (value.magic != AEGIS_BROKER_MAGIC || value.version != AEGIS_BROKER_VERSION
-            || value.operation < AEGIS_BROKER_HELLO || value.operation > AEGIS_BROKER_PACKAGE_CANCEL
+            || value.operation < AEGIS_BROKER_HELLO || value.operation > AEGIS_BROKER_ACTIVATION
             || !value.sequence || value.sequence > INT64_MAX || value.sequence <= previous
             || now_ns > INT64_MAX || value.deadline_ns > INT64_MAX || value.deadline_ns <= now_ns
             || value.deadline_ns - now_ns > AEGIS_BROKER_MAX_WAIT_NS || value.serial > INT32_MAX)
@@ -197,6 +197,27 @@ int aegis_broker_reply(int fd, const struct aegis_broker_request *request,
     ssize_t sent = send(fd, &reply, sizeof(reply), MSG_DONTWAIT | MSG_NOSIGNAL);
     if (sent < 0) return -1;
     return sent == (ssize_t)sizeof(reply) ? 0 : fail(EIO);
+}
+
+int aegis_broker_reply_activation(int fd,const struct aegis_broker_request* request,
+        int error,enum aegis_broker_state state,const struct aegis_activation_status* activation) {
+    if(!request || !activation || request->magic!=AEGIS_BROKER_MAGIC
+       || request->version!=AEGIS_BROKER_VERSION || request->operation!=AEGIS_BROKER_ACTIVATION
+       || !request->sequence || request->sequence>INT64_MAX || request->user<10 || request->user>=21473
+       || request->serial>INT32_MAX || error<0 || error>4095
+       || (state!=AEGIS_BROKER_ABSENT && state!=AEGIS_BROKER_READY && state!=AEGIS_BROKER_SEALED)
+       || (error && state!=AEGIS_BROKER_SEALED) || activation->state>AEGIS_ACTIVATION_UNKNOWN
+       || activation->error>4095
+       || (activation->state==AEGIS_ACTIVATION_UNKNOWN ? !activation->error : activation->error)
+       || ((error || state!=AEGIS_BROKER_READY) ? activation->state!=AEGIS_ACTIVATION_INACTIVE
+                                             : activation->state==AEGIS_ACTIVATION_INACTIVE))return fail(EINVAL);
+    struct aegis_broker_activation_reply reply={
+        .header={.magic=AEGIS_BROKER_MAGIC,.version=AEGIS_BROKER_VERSION,.operation=request->operation,
+                 .sequence=request->sequence,.user=request->user,.serial=request->serial,.error=error,.state=state},
+        .activation=*activation};
+    _Static_assert(sizeof(reply)==40,"Activation reply wire layout");
+    ssize_t sent=send(fd,&reply,sizeof(reply),MSG_DONTWAIT|MSG_NOSIGNAL);
+    return sent<0?-1:sent==(ssize_t)sizeof(reply)?0:fail(EIO);
 }
 
 int aegis_broker_reply_terminal(int fd, const struct aegis_broker_request *request,

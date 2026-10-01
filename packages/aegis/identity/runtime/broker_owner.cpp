@@ -1724,6 +1724,68 @@ int BrokerStartConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_
 }
 } // namespace aegis
 
+int aegis_broker_owner_activation(aegis_broker_owner* owner,const aegis_broker_request* request,
+        aegis_broker_state* state,aegis_activation_status* activation) {
+    if(!state || !activation)return fail(EINVAL);
+    *state=AEGIS_BROKER_SEALED;*activation={AEGIS_ACTIVATION_INACTIVE,0};
+    if(owned(owner)<0)return -1;
+    if(!request || request->operation!=AEGIS_BROKER_ACTIVATION)return fail(EINVAL);
+    auto normalized=*request;normalized.operation=AEGIS_BROKER_STATUS;
+    if(aegis_broker_owner_apply(owner,&normalized,state)<0)return -1;
+    if(*state!=AEGIS_BROKER_READY)return 0;
+    auto observe=[&]() -> int {
+        runtime_selection_slot* selected=nullptr;
+        for(auto& candidate:owner->selections)
+            if(candidate && candidate->purpose==SelectionPurpose::Runtime && candidate->plan.requester==request->user) {
+                selected=candidate.get();break;
+            }
+        if(!owner->selection_enabled || !selected || !selected->configured_runtime
+           || selected->state!=RuntimeSelectionState::Activated)return fail(ENODATA);
+        if(selected->plan.serial!=request->serial)return fail(ESTALE);
+        // Synchronous scoped FDs close before returning to the admission caller.
+        // These observations never feed START/EXEC or replace full verification.
+        int shared_fd=-1,personal_fd=-1;
+        if(optional_shared_store(owner->selection_directory.get(),&shared_fd)<0)return -1;
+        unique_fd shared_dir(shared_fd);
+        PackageGeneration common{owner->selection_factory.sha256,"",owner->selection_factory.bytes};
+        auto scope=PackagePreparationResult::Scope::Factory;
+        std::unique_ptr<PackageStore> shared,personal;
+        if(shared_dir.ok()) {
+            shared.reset(PackageStore::Open(shared_dir.get(),{false,0,0},false));if(!shared)return -1;
+            PackageGeneration value;
+            if(shared->SelectionMetadata(&value)==0) { common=value;scope=PackagePreparationResult::Scope::Shared; }
+            else if(errno!=ENOENT)return -1;
+        }
+        if(aegis_namespace_check_broker()<0)return -1;
+        unique_fd data(open("/data",O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC));
+        if(!data.ok() || aegis_ce_find_package_store(data.get(),request->user,request->serial,&personal_fd)<0)return -1;
+        unique_fd personal_dir(personal_fd);
+        PackageGeneration current=common;
+        if(personal_dir.ok()) {
+            personal.reset(PackageStore::Open(personal_dir.get(),{true,request->user,request->serial},false));if(!personal)return -1;
+            PackageGeneration value;
+            if(personal->SelectionMetadata(&value)==0) { current=value;scope=PackagePreparationResult::Scope::Personal; }
+            else if(errno!=ENOENT)return -1;
+        }
+        const auto& active=selected->result;
+        bool same=active.scope==scope && active.generation.image_sha256==current.image_sha256
+            && active.generation.shared_base_sha256==current.shared_base_sha256
+            && active.generation.bytes==current.bytes && active.shared.sha256==common.image_sha256
+            && active.shared.bytes==common.bytes;
+        if(scope==PackagePreparationResult::Scope::Personal && current.shared_base_sha256!=common.image_sha256)same=false;
+        activation->state=same?AEGIS_ACTIVATION_CURRENT:AEGIS_ACTIVATION_PENDING;
+        return 0;
+    };
+    if(observe()<0) {
+        const int error=errno;
+        *activation={AEGIS_ACTIVATION_UNKNOWN,uint32_t(error>0 && error<=4095?error:EIO)};
+    }
+    if(remaining_ms(request->deadline_ns)<=0) {
+        *state=AEGIS_BROKER_SEALED;*activation={AEGIS_ACTIVATION_INACTIVE,0};return fail(ETIMEDOUT);
+    }
+    return 0;
+}
+
 // Each wire START retains one stable public ID. Internal child IDs may advance,
 // but are never accepted as replacement continuations. Only this coordinator
 // creates the configured reconciliation and reselects after confirmed publication.

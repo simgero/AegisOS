@@ -68,6 +68,13 @@ int aegis_broker_owner_start(struct aegis_broker_owner *owner,
                              const struct aegis_broker_call *call,
                              uint64_t *job, enum aegis_broker_state *state);
 
+/* Bounded read-only selection metadata, under the same fresh AOSP admission.
+ * No image hashing, worker, persistent mutation or descriptor escapes. Unknown
+ * observation never changes a running context or grants execution authority. */
+int aegis_broker_owner_activation(struct aegis_broker_owner* owner,
+    const struct aegis_broker_request* request,enum aegis_broker_state* state,
+    struct aegis_activation_status* activation);
+
 /* The same fresh AOSP user+serial/session/CE admission is required here.
  * EXEC never implicitly starts a missing/sealed context. Returns an owned PTY
  * and a process-lifetime unique command ID, NOT an authentication capability.

@@ -43,6 +43,12 @@ class PackageStore {
     // across later publication. Close all private FDs before AOSP CE eviction.
     int Current(PackageGeneration* generation);
 
+    // Bounded status observation ONLY: validate selected metadata and image
+    // type/owner/mode/link-count/size, but never read/hash image contents or
+    // return an image FD. This is NOT verification, admission or execution
+    // authority. Current() remains mandatory before using a selected image.
+    int SelectionMetadata(PackageGeneration* generation);
+
     // Read an immutable retained SHARED image referenced by a verified private
     // generation's base hash. Never changes current or opens a personal store.
     // The caller owns provenance of the hash; absence is ENOENT, corruption fails.

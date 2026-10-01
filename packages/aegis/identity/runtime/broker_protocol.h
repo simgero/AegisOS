@@ -24,7 +24,7 @@ enum aegis_broker_operation { AEGIS_BROKER_HELLO = 1, AEGIS_BROKER_START = 2,
     AEGIS_BROKER_PACKAGE_BEGIN = 8, AEGIS_BROKER_PACKAGE_PLAN = 9,
     AEGIS_BROKER_PACKAGE_REVIEW = 10, AEGIS_BROKER_PACKAGE_PREPARE = 11,
     AEGIS_BROKER_PACKAGE_STATUS = 12, AEGIS_BROKER_PACKAGE_START = 13,
-    AEGIS_BROKER_PACKAGE_CANCEL = 14 };
+    AEGIS_BROKER_PACKAGE_CANCEL = 14, AEGIS_BROKER_ACTIVATION = 15 };
 enum aegis_broker_state { AEGIS_BROKER_ABSENT = 0, AEGIS_BROKER_READY = 1,
     AEGIS_BROKER_SEALED = 2 };
 struct aegis_broker_request {
@@ -55,6 +55,22 @@ struct aegis_broker_call {
     uint32_t package_action, package_scope;
     char package_name[129], package_version[129], package_digest[65];
 };
+/* ACTIVATION is a separate 32-byte request and 40-byte reply, no descriptors.
+ * Observes a running context's immutable selection versus current store metadata.
+ * Never grants activation/admission or claims image-content verification.
+ * A successful non-READY reply must use INACTIVE. READY uses CURRENT/PENDING,
+ * or UNKNOWN with a positive diagnostic errno. Header errors clear the payload.
+ */
+enum aegis_activation_state { AEGIS_ACTIVATION_INACTIVE=0, AEGIS_ACTIVATION_CURRENT=1,
+    AEGIS_ACTIVATION_PENDING=2, AEGIS_ACTIVATION_UNKNOWN=3 };
+struct aegis_activation_status { uint32_t state, error; };
+struct aegis_broker_activation_reply {
+    struct aegis_broker_reply header;
+    struct aegis_activation_status activation;
+};
+int aegis_broker_reply_activation(int fd,const struct aegis_broker_request* request,
+    int error,enum aegis_broker_state state,const struct aegis_activation_status* activation);
+
 /* Both terminal replies are 48 bytes. EXEC success carries exactly one private
  * PTY master; RESULT carries no fd. exited=0 means running, not exit status 0.
  * Error replies contain no command, wait status, exit flag or descriptor.

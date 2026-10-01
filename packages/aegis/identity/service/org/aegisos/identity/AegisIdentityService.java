@@ -649,6 +649,7 @@ public final class AegisIdentityService extends SystemService {
                 try (RuntimeAdmission.Access access = admission.existing(binding)) {
                     requireRuntimeBinding(user, binding);
                     int state;
+                    String packageStatus = "";
                     if (operation == RuntimeBrokerProtocol.STOP_USER) {
                         // Stop keeps AOSP authentication and CE unlocked. It does
                         // not revoke other clients' identity or claim a logout.
@@ -659,14 +660,26 @@ public final class AegisIdentityService extends SystemService {
                         retireTerminals(user.id);
                         state = RuntimeBrokerProtocol.ABSENT;
                     } else {
-                        state = runtime.state(user.id, user.serial, access.deadlineNanos());
+                        RuntimeBrokerProtocol.Reply observation = runtime.activation(user.id, user.serial, access.deadlineNanos());
+                        state = observation.state;
+                        switch (observation.activation) {
+                            case RuntimeBrokerProtocol.PACKAGES_INACTIVE:
+                                packageStatus = " packages=not-active"; break;
+                            case RuntimeBrokerProtocol.PACKAGES_CURRENT:
+                                packageStatus = " packages=current"; break;
+                            case RuntimeBrokerProtocol.PACKAGES_PENDING:
+                                packageStatus = " packages=activation-pending; Neue Software wartet auf den nächsten Linux-Start."; break;
+                            case RuntimeBrokerProtocol.PACKAGES_UNKNOWN:
+                                packageStatus = " packages=unconfirmed; Paketstand derzeit ungeprüft; der laufende Kontext bleibt unverändert."; break;
+                            default: throw new IllegalStateException("Invalid package observation");
+                        }
                     }
                     access.checkCurrent();
                     requireRuntimeBinding(user, binding);
                     return "user=" + user.id + " serial=" + user.serial + " runtime="
                             + (state == RuntimeBrokerProtocol.READY ? "ready"
                                 : state == RuntimeBrokerProtocol.ABSENT ? "stopped" : "sealed")
-                            + " ce=unlocked";
+                            + " ce=unlocked" + packageStatus;
                 }
             });
         }

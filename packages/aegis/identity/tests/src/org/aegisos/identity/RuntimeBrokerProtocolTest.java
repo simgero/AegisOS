@@ -208,4 +208,33 @@ public final class RuntimeBrokerProtocolTest {
         assertFalse(RuntimeBrokerProtocol.startReply(failed, 40, 7, 2, 10, 1234, 17, 0).ready);
         assertEquals(116, RuntimeBrokerProtocol.startError(failed));
     }
+
+    private static byte[] activationResponse(int error, int state, int activation, int diagnostic) {
+        return ByteBuffer.allocate(40).order(ByteOrder.LITTLE_ENDIAN)
+                .put(response(RuntimeBrokerProtocol.ACTIVATION,error,state)).putInt(activation).putInt(diagnostic).array();
+    }
+    @Test public void activationReportsPendingOrUnknownWithoutChangingRuntimeLiveness() {
+        byte[] request=RuntimeBrokerProtocol.request(RuntimeBrokerProtocol.ACTIVATION,2,101,10,1234,100);
+        assertEquals(32,request.length);assertEquals(15,ByteBuffer.wrap(request).order(ByteOrder.LITTLE_ENDIAN).getShort(6));
+        for(int state:new int[]{1,2,3}) {
+            byte[] bytes=activationResponse(0,1,state,state==3?11:0);
+            RuntimeBrokerProtocol.Reply result=RuntimeBrokerProtocol.activationReply(bytes,40,2,10,1234,0);
+            assertEquals(RuntimeBrokerProtocol.READY,result.state);assertEquals(state,result.activation);
+            assertEquals(state==3?11:0,result.activationError);
+        }
+        RuntimeBrokerProtocol.Reply stopped=RuntimeBrokerProtocol.activationReply(activationResponse(0,0,0,0),40,2,10,1234,0);
+        assertEquals(RuntimeBrokerProtocol.ABSENT,stopped.state);assertEquals(0,stopped.activation);
+    }
+    @Test public void activationRejectsMalformedMetadataDescriptorsAndForeignBinding() {
+        for(int[] tuple:new int[][]{{0,1,0,0},{0,0,1,0},{0,1,3,0},{0,1,2,11},{5,2,2,0},{0,1,4,0},{0,1,3,4096}}) {
+            byte[] bytes=activationResponse(tuple[0],tuple[1],tuple[2],tuple[3]);
+            denied(()->RuntimeBrokerProtocol.activationReply(bytes,40,2,10,1234,0));
+        }
+        byte[] valid=activationResponse(0,1,2,0);
+        for(int length:new int[]{32,39,41})denied(()->RuntimeBrokerProtocol.activationReply(valid,length,2,10,1234,0));
+        denied(()->RuntimeBrokerProtocol.activationReply(valid,40,2,10,1234,1));
+        denied(()->RuntimeBrokerProtocol.activationReply(valid,40,2,11,1234,0));
+        denied(()->RuntimeBrokerProtocol.activationReply(valid,40,2,10,1235,0));
+        denied(()->RuntimeBrokerProtocol.reply(valid,40,RuntimeBrokerProtocol.ACTIVATION,2,10,1234));
+    }
 }
