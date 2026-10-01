@@ -1,3 +1,65 @@
+## Dauerhafte private Paketauswahl: 1fb194c9
+
+Der [Komponentenbuild](https://github.com/simgero/AegisOS/releases/tag/components-20261001T040359Z-1fb194c9-1fb194c9-cF0wUJ)
+von `1fb194c9f9454d8eb48cbefb1113c998e47d1489` besteht am
+**2026-10-01T04:07:53Z alle 280 ausgewählten nativen Tests** in 26 Suiten
+im bestehenden lokalen d0-QEMU-Gast. Entwicklung erfolgte im lokalen Worktree,
+Kompilierung auf `aegis-build`, Transport ausschließlich über GitHub.
+
+Eine kanonische, begrenzte Auswahl aus Paketname, Architektur und Version wird
+unter `var/lib/aegis/private-choices` innerhalb der privaten Imagegeneration
+geführt. Der Planer kopiert sie aus dem schreibgeschützten ausgewählten Image;
+Review und Plan-Digest binden alten und neuen Inhalt. Der Ausführungshelfer
+prüft beide gegen den vollständigen installierten Paketbestand und schreibt
+den neuen Inhalt erst nach erfolgreicher Paketprüfung und Beendigung aller
+Paketkinder atomar mit `fsync`. Das Verzeichnis ist `root:root 0700`, die Datei
+`0600`. Veröffentlichung und Hash des Gesamtimages umfassen damit auch die
+Auswahl. Abhängigkeiten werden nicht allein aufgrund ihrer Installation als
+bewusste private Auswahl erfasst; vorhandene Auswahl bleibt bei unabhängigen
+Änderungen erhalten. Entfernte gewählte Pakete verschwinden aus der Auswahl.
+Eine bestehende private Generation ohne Auswahlmanifest wird ausdrücklich
+abgewiesen; ihre Absicht wird nicht aus dem Paketbestand erraten.
+
+Neu geprüft wurden Codec/Framing und Grenzen, Bindung an den Digest,
+Übertragung durch den tatsächlichen isolierten Planer, exakte endgültige
+Versionszuordnung, Dateirechte und erneutes Öffnen, Symlink-Ablehnung sowie
+ein echtes APT-Installationsskript, das die Auswahl zu fälschen versucht.
+Der APT-Lebenszyklustest installiert Version 1, aktualisiert auf Version 2 und
+entfernt das Paket; nach jedem Schritt wird das Image erneut gemountet und
+die erwartete Auswahl gelesen. Eine persönlich geänderte Konfigurationsdatei
+bleibt erhalten. Die übrigen betroffenen Planungs-, Ausführungs-, Auswahl-,
+Abbruch-, Veröffentlichungs- und Transporttests bestehen ebenfalls.
+
+Der vorherige Lauf `15b80b98` deckte die noch auf 64 KiB begrenzte
+Memfd-Übergabe auf. Die erweiterte Beschreibung wurde vor Ausführung mit
+`EPERM` abgewiesen. Die gemeinsame Grenze beträgt jetzt begrenzte 128 KiB;
+ein neuer Test prüft die tatsächliche Request-Größe, den Grenzwert,
+die Ablehnung darüber sowie unverändert schreibgeschützte, versiegelte
+Deskriptoren. Der fehlgeschlagene Lauf behielt synthetische Testimages,
+füllte dadurch den Gast und verursachte Folgefehler. Seine Nachweise bleiben
+erhalten; die 26 nachweislich unbenutzten Testverzeichnisse wurden entfernt.
+Der erfolgreiche Folgelauf verwendet Abbruch beim ersten Fehler.
+
+Belege: `out/components-1fb194c9/targeted-tests/{result.json,native.log,before.json,after.json}`.
+Log-SHA256: `f9a3e794d7dd1e66c49d352a610bd5bc353bdf172c33e76c7d92c6cb5d85a175`.
+Vorher/Nachher identisch:
+`7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+Boot-ID `18880c8d-4132-48e9-a4de-9bb2823599a6`, Benutzer Alpha/Beta
+gestoppt und CE-gesperrt, keine persönlichen Runtime-Kontexte, SELinux
+Enforcing und echter Broker weiterhin laufend. Die Java-Test-APK ist
+byte-identisch zum unten dokumentierten 51-Test-Lauf (`7aafca8b7f749ea9637b0c85d5af5c53ea48ed874f7c9d147a2eebcf76bd2014`);
+die unveränderten Java-Tests wurden nicht wiederholt.
+
+**Grenzen:** Dies sind Komponentenprüfungen mit synthetischen Paketimages;
+das installierte Produkt bleibt d0. Vier deaktivierte echte CE-Fixtures
+bleiben deaktiviert. Der Codec kann eine explizite Auswahl gleicher Version
+repräsentieren; der öffentliche Planungs-/Ausführungsweg verwirft einen
+solchen No-op weiterhin. Dieser Weg, die Zusammenführung neuer gemeinsamer
+Generationen mit privaten Versionen und Konfigurationen, erklärte Konflikte
+und ausstehende Aktivierung sowie die vollständige Produktabnahme bleiben
+umzusetzen. Der reproduzierte Fehler der privaten Beta-Generation nach dem
+gemeinsamen Update ist durch diesen Komponentenlauf noch nicht behoben.
+
 ## Java-Freigabe gemischter Paketpläne: 73b2c062
 
 Der [Komponentenbuild](https://github.com/simgero/AegisOS/releases/tag/components-20261001T032720Z-73b2c062-73b2c062-0xzmN8)
