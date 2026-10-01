@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <new>
+#include <array>
 
 using android::base::unique_fd;
 namespace aegis {
@@ -32,7 +33,7 @@ struct PackagePreparer {
     pid_t process = 0;
     unique_fd store, source, channel;
     std::vector<unique_fd> archives;
-    bool cancelled=false,selection=false,has_shared=false,has_personal=false;
+    bool cancelled=false,selection=false,reconciliation=false,has_shared=false,has_personal=false;
     PackageInput factory;
     uint32_t user=0,serial=0;
     aegis_memory_group* group = nullptr;
@@ -124,7 +125,7 @@ bool File(int fd,mode_t type,bool executable) {
     char* args[]={label,nullptr};char* env[]={locale,nullptr};
     syscall(SYS_execveat,wire::kExecutable,"",args,env,AT_EMPTY_PATH);Failed();
 }
-PackagePreparationResult Response(PackagePreparer* p,const aegis_child_exit& exited,int* candidate) {
+PackagePreparationResult Response(PackagePreparer* p,const aegis_child_exit& exited,int candidates[3]) {
     PackagePreparationResult result{PackagePreparationOutcome::Unconfirmed,EIO};
     if(exited.code!=CLD_EXITED || exited.status!=0)return result;
     wire::Reply reply={};
@@ -133,7 +134,7 @@ PackagePreparationResult Response(PackagePreparer* p,const aegis_child_exit& exi
     message.msg_control=ancillary;message.msg_controllen=sizeof(ancillary);
     ssize_t n=recvmsg(p->channel.get(),&message,MSG_CMSG_CLOEXEC|MSG_DONTWAIT|MSG_TRUNC);
     if(n<0)return result;
-    unique_fd mount;unsigned count=0;bool bad=false;
+    std::array<unique_fd,3> mounts;unsigned count=0;bool bad=false;
     for(cmsghdr* c=CMSG_FIRSTHDR(&message);c;c=CMSG_NXTHDR(&message,c)) {
         auto* end=reinterpret_cast<unsigned char*>(message.msg_control)+message.msg_controllen;
         if(c->cmsg_len<CMSG_LEN(0)
@@ -142,14 +143,17 @@ PackagePreparationResult Response(PackagePreparer* p,const aegis_child_exit& exi
         size_t bytes=c->cmsg_len-CMSG_LEN(0);if(bytes%sizeof(int))bad=true;
         for(size_t i=0;i<bytes/sizeof(int);++i) {
             int fd;memcpy(&fd,CMSG_DATA(c)+i*sizeof(fd),sizeof(fd));
-            if(count++==0)mount.reset(fd);else close(fd);
+            if(count<mounts.size())mounts[count].reset(fd);else close(fd);++count;
         }
     }
     if(n!=static_cast<ssize_t>(sizeof(reply)) || bad || message.msg_flags&(MSG_TRUNC|MSG_CTRUNC)
        || reply.magic!=wire::kMagic || reply.version!=wire::kVersion
        || reply.user!=p->user || reply.serial!=p->serial || reply.job!=p->job
        || !aegis_package_hash(reply.plan) || p->plan!=reply.plan || reply.error<0 || reply.error>4095
-       || count!=(reply.error ? 0u : 1u))return result;
+       || count!=(reply.error ? 0u : p->reconciliation ? 3u : 1u))return result;
+    if(!p->reconciliation || reply.error) {
+        if(reply.previous_shared.bytes || !aegis_package_zero(reply.previous_shared.hash,65))return result;
+    }
     if(reply.error) {
         if(reply.scope || reply.selected.bytes || !aegis_package_zero(reply.selected.hash,65)
            || !aegis_package_zero(reply.shared_base,65) || reply.shared.bytes || !aegis_package_zero(reply.shared.hash,65))return result;
@@ -163,20 +167,31 @@ PackagePreparationResult Response(PackagePreparer* p,const aegis_child_exit& exi
         if(reply.scope==3 ? !aegis_package_hash(reply.shared_base) : !aegis_package_zero(reply.shared_base,65))return result;
         if(reply.scope==1 && (reply.selected.bytes!=p->factory.bytes || reply.selected.hash!=p->factory.sha256))return result;
         if(!wire::InputValid(reply.shared,uint64_t{32}<<30) || reply.shared.bytes%4096
-           || (reply.scope==3 ? strcmp(reply.shared.hash,reply.shared_base)!=0
+           || (reply.scope==3 ? (p->reconciliation ? strcmp(reply.shared.hash,reply.shared_base)==0
+                                                  : strcmp(reply.shared.hash,reply.shared_base)!=0)
                              : reply.shared.bytes!=reply.selected.bytes||strcmp(reply.shared.hash,reply.selected.hash)!=0))return result;
+        if(!p->has_shared && (reply.shared.hash!=p->factory.sha256 || reply.shared.bytes!=p->factory.bytes))return result;
+        if(p->reconciliation) {
+            if(reply.scope!=3 || !wire::InputValid(reply.previous_shared,uint64_t{32}<<30)
+               || reply.previous_shared.bytes%4096 || strcmp(reply.previous_shared.hash,reply.shared_base)!=0)return result;
+            if(reply.previous_shared.hash==p->factory.sha256 && reply.previous_shared.bytes!=p->factory.bytes)return result;
+            selected.previous_shared={reply.previous_shared.bytes,reply.previous_shared.hash};
+        }
         selected.shared={reply.shared.bytes,reply.shared.hash};
         selected.generation={reply.selected.hash,reply.shared_base,reply.selected.bytes};
         selected.scope=static_cast<PackagePreparationResult::Scope>(reply.scope);
     } else if(reply.scope || reply.selected.bytes || !aegis_package_zero(reply.selected.hash,65)
               || !aegis_package_zero(reply.shared_base,65) || reply.shared.bytes || !aegis_package_zero(reply.shared.hash,65))return result;
-    struct stat st;struct statfs fs;struct statvfs flags;
-    if(fcntl(mount.get(),F_GETFL)<0 || !(fcntl(mount.get(),F_GETFL)&O_PATH)
-       || fstat(mount.get(),&st)<0 || fstatfs(mount.get(),&fs)<0 || fstatvfs(mount.get(),&flags)<0
-       || st.st_mode!=(S_IFDIR|0755) || st.st_uid || st.st_gid || fs.f_type!=EXT4_SUPER_MAGIC
-       || (flags.f_flag&(ST_RDONLY|ST_NOSUID|ST_NODEV|ST_NOEXEC))
-            !=static_cast<unsigned long>(ST_NOSUID|ST_NODEV|ST_NOEXEC|(p->selection?ST_RDONLY:0)))return result;
-    *candidate=mount.release();return selected;
+    for(unsigned i=0;i<count;++i) {
+        const auto& mount=mounts[i];struct stat st;struct statfs fs;struct statvfs flags;
+        if(fcntl(mount.get(),F_GETFL)<0 || !(fcntl(mount.get(),F_GETFL)&O_PATH)
+           || fstat(mount.get(),&st)<0 || fstatfs(mount.get(),&fs)<0 || fstatvfs(mount.get(),&flags)<0
+           || st.st_mode!=(S_IFDIR|0755) || st.st_uid || st.st_gid || fs.f_type!=EXT4_SUPER_MAGIC
+           || (flags.f_flag&(ST_RDONLY|ST_NOSUID|ST_NODEV|ST_NOEXEC))
+                !=static_cast<unsigned long>(ST_NOSUID|ST_NODEV|ST_NOEXEC|(p->selection?ST_RDONLY:0)))return result;
+    }
+    for(unsigned i=0;i<count;++i)candidates[i]=mounts[i].release();
+    return selected;
 }
 } // namespace
 
@@ -214,7 +229,7 @@ static int Start(int groups,int store,int source,int helper,const std::vector<in
     if(!p)return Fail(ENOMEM);
     p->process=syscall(SYS_getpid);p->job=message.execution.job;p->plan=message.execution.plan;
     p->user=message.execution.user;p->serial=message.execution.serial;
-    p->selection=message.selection;p->has_shared=shared;p->has_personal=personal;
+    p->selection=message.selection;p->reconciliation=message.selection==2;p->has_shared=shared;p->has_personal=personal;
     p->factory={message.image.bytes,message.image.hash};
     *output=p; // From here onward the caller retains partial ownership on failure.
     p->store.reset(fcntl(store,F_DUPFD_CLOEXEC,128));
@@ -261,11 +276,11 @@ int PackageRuntimeSelectionCheck(const PackageRuntimeSelection& request) {
         && request.factory.bytes<=(uint64_t{32}<<30) && request.factory.bytes%4096==0
         && h.size()==64 && h.find_first_not_of("0123456789abcdef")==std::string::npos ? 0 : Fail(EINVAL);
 }
-int PackageRuntimeSelectionStart(int groups,int shared,int personal,int factory,int helper,
-                                 const PackageRuntimeSelection& request,PackagePreparer** output) {
+static int SelectionStart(int groups,int shared,int personal,int factory,int helper,
+                                 const PackageRuntimeSelection& request,PackagePreparer** output,bool reconciliation) {
     if(shared < -1 || personal < -1 || PackageRuntimeSelectionCheck(request)<0)return Fail(EINVAL);
     wire::Request message={};message.magic=wire::kMagic;message.version=wire::kVersion;
-    message.selection=1;message.has_shared=shared>=0;message.has_personal=personal>=0;
+    message.selection=reconciliation?2:1;message.has_shared=shared>=0;message.has_personal=personal>=0;
     auto& e=message.execution;e.magic=AEGIS_PACKAGE_EXEC_MAGIC;e.version=AEGIS_PACKAGE_EXEC_VERSION;
     e.user=request.requester;e.serial=request.serial;e.job=request.job;
     memcpy(e.plan,request.factory.sha256.c_str(),65);
@@ -274,10 +289,23 @@ int PackageRuntimeSelectionStart(int groups,int shared,int personal,int factory,
     return Start(groups,shared>=0?shared:factory,factory,helper,stores,message,output);
 }
 
-int PackagePreparerFinish(PackagePreparer** pointer,bool cancel,int timeout_ms,
-                           PackagePreparationResult* result,int* candidate) {
-    if(!pointer || !*pointer || !result || !candidate || *candidate!=-1 || timeout_ms<0 || timeout_ms>10000)return Fail(EINVAL);
+int PackageRuntimeSelectionStart(int groups,int shared,int personal,int factory,int helper,
+    const PackageRuntimeSelection& request,PackagePreparer** output) {
+    return SelectionStart(groups,shared,personal,factory,helper,request,output,false);
+}
+int PackageReconciliationSelectionStart(int groups,int shared,int personal,int factory,int helper,
+    const PackageRuntimeSelection& request,PackagePreparer** output) {
+    if(personal<0)return Fail(EINVAL);
+    return SelectionStart(groups,shared,personal,factory,helper,request,output,true);
+}
+
+static int Finish(PackagePreparer** pointer,bool cancel,int timeout_ms,
+                   PackagePreparationResult* result,int* candidates,bool reconciliation) {
+    if(!pointer || !*pointer || !result || !candidates || timeout_ms<0 || timeout_ms>10000)return Fail(EINVAL);
+    const unsigned count=reconciliation?3:1;
+    for(unsigned i=0;i<count;++i)if(candidates[i]!=-1)return Fail(EINVAL);
     auto* p=*pointer;if(!Owned(p))return -1;
+    if(p->reconciliation!=reconciliation)return Fail(EINVAL);
     int64_t start=Now();
     // A signal failure does not bypass the completion checks or abandon work.
     if(cancel)(void)PackagePreparerCancel(p);
@@ -290,13 +318,22 @@ int PackagePreparerFinish(PackagePreparer** pointer,bool cancel,int timeout_ms,
     if(p->group && aegis_memory_group_kill_and_wait(p->group,left)<0)return -1;
     if(p->group && aegis_memory_group_remove(&p->group)<0)return -1;
     PackagePreparationResult observed{PackagePreparationOutcome::Failed,ECANCELED};
-    int mount=-1;
-    if(p->spawned)observed=Response(p,exit,&mount);
-    unique_fd prepared(mount);
-    if(p->cancelled) { prepared.reset();observed={PackagePreparationOutcome::Failed,ECANCELED}; }
-    *candidate=prepared.release();
+    int mounts[3]={-1,-1,-1};
+    if(p->spawned)observed=Response(p,exit,mounts);
+    std::array<unique_fd,3> prepared;
+    for(unsigned i=0;i<3;++i)prepared[i].reset(mounts[i]);
+    if(p->cancelled) { for(auto& fd:prepared)fd.reset();observed={PackagePreparationOutcome::Failed,ECANCELED}; }
+    for(unsigned i=0;i<count;++i)candidates[i]=prepared[i].release();
     if(p->child)aegis_child_release(p->child);
     delete p;*pointer=nullptr; // Mount only transfers to the existing lifecycle owner on Prepared.
     *result=observed;return 0;
+}
+int PackagePreparerFinish(PackagePreparer** pointer,bool cancel,int timeout_ms,
+    PackagePreparationResult* result,int* candidate) {
+    return Finish(pointer,cancel,timeout_ms,result,candidate,false);
+}
+int PackageReconciliationSelectionFinish(PackagePreparer** pointer,bool cancel,int timeout_ms,
+    PackagePreparationResult* result,int candidates[3]) {
+    return Finish(pointer,cancel,timeout_ms,result,candidates,true);
 }
 } // namespace aegis

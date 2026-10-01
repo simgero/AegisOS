@@ -25,6 +25,7 @@
 #include <poll.h>
 #include <time.h>
 #include <memory>
+#include <array>
 using namespace aegis;
 using android::base::unique_fd;
 namespace {
@@ -912,6 +913,125 @@ class RuntimePackageSelection : public RuntimePackageTransaction {
     }
     std::string App(int fd) { return AptImageFixture::read(fd,"usr/bin/aegis-exec-app"); }
 };
+// Three readonly inputs are preparation for reconciliation, never a successful
+// merge or authorization. All stores here are synthetic, outside personal CE.
+class RuntimePackageReconciliation : public RuntimePackageSelection {
+ protected:
+    unique_fd private_store;
+    std::array<unique_fd,3> views;
+    PackageExecutionResult old_common,new_common;
+    PackageGeneration own;
+    void PrivateDirectory() {
+        ASSERT_EQ(0,mkdirat(root.get(),"reconcile-private",0700));
+        private_store.reset(openat(root.get(),"reconcile-private",O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(private_store.ok());
+    }
+    void ThreeGenerations(bool factory_base=false,bool current_base=false) {
+        Run(&old_common);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(PackageExecutionOutcome::Published,old_common.outcome);
+        Next(old_common,2);ASSERT_FALSE(HasFatalFailure());Run(&new_common);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(PackageExecutionOutcome::Published,new_common.outcome);
+        PrivateDirectory();ASSERT_FALSE(HasFatalFailure());
+        std::unique_ptr<PackageStore> personal(PackageStore::Open(private_store.get(),{true,10,42},true));ASSERT_TRUE(personal);
+        own=old_common.generation;own.shared_base_sha256=current_base?new_common.generation.image_sha256:
+            factory_base?selection.factory.sha256:old_common.generation.image_sha256;
+        unique_fd prior(openat(store.get(),(old_common.generation.image_sha256+".image").c_str(),O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(prior.ok());
+        const std::atomic_bool proceed{false};ASSERT_EQ(PackagePublish::Confirmed,personal->Publish(nullptr,prior.get(),own,proceed));
+    }
+    int ReconcileStart() {
+        return PackageReconciliationSelectionStart(parent.get(),store.get(),private_store.get(),factory.get(),prepare_helper.get(),selection,&worker);
+    }
+    void Finish(PackagePreparationResult* result,bool cancel=false) {
+        int fds[3]={-1,-1,-1};ASSERT_EQ(0,PackageReconciliationSelectionFinish(&worker,cancel,9000,result,fds))<<strerror(errno);
+        for(unsigned i=0;i<3;++i)views[i].reset(fds[i]);
+    }
+    void Unchanged() {
+        unique_fd current=Selection(new_common);ASSERT_TRUE(current.ok());
+        std::unique_ptr<PackageStore> personal(PackageStore::Open(private_store.get(),{true,10,42},false));ASSERT_TRUE(personal);
+        PackageGeneration result;unique_fd image(personal->Current(&result));ASSERT_TRUE(image.ok());
+        EXPECT_EQ(own.image_sha256,result.image_sha256);EXPECT_EQ(own.shared_base_sha256,result.shared_base_sha256);
+    }
+    void CheckViews(const PackagePreparationResult& result,bool factory_base) {
+        ASSERT_EQ(PackagePreparationOutcome::Prepared,result.outcome)<<result.error;
+        EXPECT_EQ(PackagePreparationResult::Scope::Personal,result.scope);
+        EXPECT_EQ(own.image_sha256,result.generation.image_sha256);EXPECT_EQ(own.shared_base_sha256,result.generation.shared_base_sha256);
+        EXPECT_EQ(new_common.generation.image_sha256,result.shared.sha256);EXPECT_EQ(new_common.generation.bytes,result.shared.bytes);
+        EXPECT_EQ(own.shared_base_sha256,result.previous_shared.sha256);
+        EXPECT_EQ(factory_base?selection.factory.bytes:old_common.generation.bytes,result.previous_shared.bytes);
+        for(const auto& fd:views) {
+            ASSERT_TRUE(fd.ok());struct statvfs flags;ASSERT_EQ(0,fstatvfs(fd.get(),&flags));
+            EXPECT_EQ(static_cast<unsigned long>(ST_RDONLY|ST_NOSUID|ST_NODEV|ST_NOEXEC),flags.f_flag&(ST_RDONLY|ST_NOSUID|ST_NODEV|ST_NOEXEC));
+            unique_fd attempt(openat(fd.get(),"must-not-exist",O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC,0600));EXPECT_FALSE(attempt.ok());EXPECT_EQ(EROFS,errno);
+        }
+        EXPECT_EQ("#!/bin/sh\necho app-1\n",App(views[0].get()));
+        EXPECT_EQ(factory_base?"<unavailable>":"#!/bin/sh\necho app-1\n",App(views[1].get()));
+        EXPECT_EQ("#!/bin/sh\necho app-2\n",App(views[2].get()));
+        Unchanged();
+    }
+    void TearDown() override {
+        for(auto& fd:views)fd.reset();
+        if(worker) { PackagePreparationResult ignored;Finish(&ignored,true);for(auto& fd:views)fd.reset(); }
+        if(private_store.ok()&&!HasFailure()) {
+            unique_fd scan(openat(private_store.get(),".",O_RDONLY|O_DIRECTORY|O_CLOEXEC));DIR* entries=fdopendir(scan.release());ASSERT_NE(nullptr,entries);
+            while(auto* e=readdir(entries)) {
+                if(!strcmp(e->d_name,".")||!strcmp(e->d_name,".."))continue;
+                struct stat st;ASSERT_EQ(0,fstatat(private_store.get(),e->d_name,&st,AT_SYMLINK_NOFOLLOW));ASSERT_TRUE(S_ISREG(st.st_mode));ASSERT_EQ(0u,st.st_uid);
+                EXPECT_EQ(0,unlinkat(private_store.get(),e->d_name,0));
+            }
+            closedir(entries);private_store.reset();EXPECT_EQ(0,unlinkat(root.get(),"reconcile-private",AT_REMOVEDIR));
+        }
+        private_store.reset();RuntimePackageSelection::TearDown();
+    }
+};
+TEST_F(RuntimePackageReconciliation, ReturnsPrivatePreviousAndCurrentSharedWithoutActivation) {
+    ThreeGenerations();ASSERT_FALSE(HasFatalFailure());int before=CountFDs();ASSERT_EQ(0,ReconcileStart());
+    // A one-mount consumer cannot accidentally accept this three-input job.
+    PackagePreparationResult result;int wrong=-1;EXPECT_EQ(-1,PackagePreparerFinish(&worker,false,0,&result,&wrong));
+    EXPECT_EQ(EINVAL,errno);EXPECT_EQ(-1,wrong);ASSERT_NE(nullptr,worker);
+    Finish(&result);ASSERT_FALSE(HasFatalFailure());CheckViews(result,false);ASSERT_FALSE(HasFatalFailure());
+    for(auto& fd:views)fd.reset();EXPECT_EQ(before,CountFDs());
+    PackagePreparationResult ordinary;Selected(store.get(),private_store.get(),&ordinary);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(PackagePreparationOutcome::Failed,ordinary.outcome);EXPECT_EQ(ESTALE,ordinary.error);EXPECT_FALSE(mount.ok());
+}
+TEST_F(RuntimePackageReconciliation, PinnedFactoryCanBeThePreviousSharedBase) {
+    ThreeGenerations(true);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,ReconcileStart());PackagePreparationResult result;
+    Finish(&result);ASSERT_FALSE(HasFatalFailure());CheckViews(result,true);
+}
+TEST_F(RuntimePackageReconciliation, MissingHistoricalBaseReturnsNoPartialViewsOrFallback) {
+    ThreeGenerations();ASSERT_FALSE(HasFatalFailure());const auto name=old_common.generation.image_sha256+".image";
+    ASSERT_EQ(0,renameat(store.get(),name.c_str(),store.get(),"retained-away.image"));int before=CountFDs();
+    ASSERT_EQ(0,ReconcileStart());PackagePreparationResult result;Finish(&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(ESTALE,result.error);
+    for(const auto& fd:views)EXPECT_FALSE(fd.ok());EXPECT_TRUE(result.previous_shared.sha256.empty());EXPECT_EQ(before,CountFDs());
+    ASSERT_EQ(0,renameat(store.get(),"retained-away.image",store.get(),name.c_str()));Unchanged();
+}
+TEST_F(RuntimePackageReconciliation, ForeignSerialCannotExportPrivateViews) {
+    ThreeGenerations();ASSERT_FALSE(HasFatalFailure());selection.serial++;int before=CountFDs();
+    ASSERT_EQ(0,ReconcileStart());PackagePreparationResult result;Finish(&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(ESTALE,result.error);
+    for(const auto& fd:views)EXPECT_FALSE(fd.ok());EXPECT_EQ(before,CountFDs());Unchanged();
+}
+TEST_F(RuntimePackageReconciliation, CurrentPrivateBaseNeedsNoReconciliation) {
+    ThreeGenerations(false,true);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,ReconcileStart());PackagePreparationResult result;
+    Finish(&result);ASSERT_FALSE(HasFatalFailure());EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(EALREADY,result.error);
+    for(const auto& fd:views)EXPECT_FALSE(fd.ok());Unchanged();
+}
+TEST_F(RuntimePackageReconciliation, EmptyPrivateStoreIsNotAReconciliationInput) {
+    std::unique_ptr<PackageStore> shared(PackageStore::Open(store.get(),{false,0,0},true));ASSERT_TRUE(shared);shared.reset();
+    PrivateDirectory();ASSERT_FALSE(HasFatalFailure());std::unique_ptr<PackageStore> personal(PackageStore::Open(private_store.get(),{true,10,42},true));ASSERT_TRUE(personal);personal.reset();
+    int before=CountFDs();ASSERT_EQ(0,ReconcileStart());PackagePreparationResult result;Finish(&result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(ENODATA,result.error);
+    for(const auto& fd:views)EXPECT_FALSE(fd.ok());EXPECT_EQ(before,CountFDs());
+}
+TEST_F(RuntimePackageReconciliation, CancellationReapsQueuedThreeMountsAndKeepsSelections) {
+    ThreeGenerations();ASSERT_FALSE(HasFatalFailure());int before=CountFDs();ASSERT_EQ(0,ReconcileStart());bool exited=false;
+    for(unsigned i=0;i<900;++i) {
+        if(AptImageFixture::read(parent.get(),"p10-s42/cgroup.events").find("populated 0\n")!=std::string::npos) { exited=true;break; }
+        usleep(10000);
+    }
+    ASSERT_TRUE(exited);PackagePreparationResult result;Finish(&result,true);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(PackagePreparationOutcome::Failed,result.outcome);EXPECT_EQ(ECANCELED,result.error);
+    for(const auto& fd:views)EXPECT_FALSE(fd.ok());EXPECT_EQ(before,CountFDs());
+    EXPECT_EQ("populated 0\nfrozen 0\n",AptImageFixture::read(parent.get(),"cgroup.events"));Unchanged();
+}
+
 class RuntimeSelectionOwner : public RuntimePackageSelection {
  protected:
     uint64_t selected_job=0;

@@ -256,6 +256,21 @@ int PackageStore::Current(PackageGeneration* output) {
     return fd;
 }
 
+int PackageStore::RetainedShared(const std::string& hash,PackageGeneration* output) {
+    if(!output || !Hash(hash))return Fail(EINVAL);
+    if(getpid()!=process_ || owner_.personal)return Fail(EPERM);
+    std::lock_guard<std::mutex> guard(mutex_);
+    if(!Check())return -1;
+    const auto name=hash+".image";
+    unique_fd fd(OpenAt(directory_,name.c_str(),O_RDONLY));
+    if(!fd.ok() || !Metadata(fd.get(),S_IFREG,0444,true))return -1;
+    struct stat st;if(fstat(fd.get(),&st)<0)return -1;
+    if(st.st_size<=0 || uint64_t(st.st_size)>kMaxImage)return Fail(EFBIG);
+    PackageGeneration value{hash,"",uint64_t(st.st_size)};
+    if(!Contents(fd.get(),value,-1,nullptr) || !Named(directory_,name.c_str(),fd.get()))return -1;
+    *output=std::move(value);return fd.release();
+}
+
 PackagePublish PackageStore::Publish(const PackageGeneration* expected_current, int source,
                                     const PackageGeneration& candidate,
                                     const std::atomic_bool& cancel) {

@@ -20,6 +20,7 @@ struct PackagePreparationResult {
     PackageGeneration generation={};
     enum class Scope { None, Factory, Shared, Personal } scope=Scope::None;
     PackageInput shared; // Verified shared/factory selection preceding personal selection.
+    PackageInput previous_shared; // Only reconciliation returns the private generation's verified prior base.
 };
 struct PackageRuntimeSelection {
     uint32_t requester=0, serial=0;
@@ -52,6 +53,17 @@ int PackageRuntimeSelectionCheck(const PackageRuntimeSelection& request);
 int PackageRuntimeSelectionStart(int groups,int shared_store,int personal_store,
                                  int factory,int helper,const PackageRuntimeSelection& request,
                                  PackagePreparer** worker);
+// Internal reconciliation input stage. Requires an existing private generation
+// whose shared base differs from current shared/factory. Returns three checked
+// readonly detached mounts: private, previous shared, current shared. It does
+// NOT merge, publish, authorize packages or make a stale runtime start valid.
+// Caller anchors personal CE under admission and registers ownership first, as
+// above. EALREADY means the private base is current; ENODATA means no private
+// generation; unavailable/corrupt old bases never fall back to current/factory.
+int PackageReconciliationSelectionStart(int groups,int shared_store,int personal_store,
+    int factory,int helper,const PackageRuntimeSelection& request,PackagePreparer** worker);
+int PackageReconciliationSelectionFinish(PackagePreparer** worker,bool cancel,int timeout_ms,
+    PackagePreparationResult* result,int mounts[3]);
 int PackagePreparerCancel(PackagePreparer* worker);
 // Actual child reaping + empty/removed group first. Timeout retains *worker.
 // On Prepared only, *candidate receives ONE detached nosuid/nodev/noexec ext4

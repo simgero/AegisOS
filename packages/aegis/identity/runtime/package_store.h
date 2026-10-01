@@ -38,6 +38,12 @@ class PackageStore {
     // across later publication. Close all private FDs before AOSP CE eviction.
     int Current(PackageGeneration* generation);
 
+    // Read an immutable retained SHARED image referenced by a verified private
+    // generation's base hash. Never changes current or opens a personal store.
+    // The caller owns provenance of the hash; absence is ENOENT, corruption fails.
+    // Full content/metadata verification precedes output, including after reopen.
+    int RetainedShared(const std::string& hash, PackageGeneration* generation);
+
     // Copy a complete already validated package image into broker-owned storage.
     // The source is never installed in place. It must contain consistent apt/
     // dpkg/files/config/technical-account state; this primitive does not prove

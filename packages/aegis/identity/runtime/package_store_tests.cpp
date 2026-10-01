@@ -91,6 +91,48 @@ TEST_F(RuntimePackageStore, SelectionSwitchPreservesOldOpenImageAndSurvivesReope
     EXPECT_EQ(O_RDONLY,fcntl(now.get(),F_GETFL)&O_ACCMODE);
 }
 
+TEST_F(RuntimePackageStore, RetainedSharedReopensExactOldImageWithoutChangingSelection) {
+    Start();ASSERT_TRUE(store);auto first=Image("old complete payload"),second=Image("new complete payload");
+    auto a=Source("old complete payload"),b=Source("new complete payload");
+    ASSERT_EQ(PackagePublish::Confirmed,store->Publish(nullptr,a.get(),first,proceed));
+    ASSERT_EQ(PackagePublish::Confirmed,store->Publish(&first,b.get(),second,proceed));
+    store.reset();store.reset(PackageStore::Open(root.get(),shared,false));ASSERT_TRUE(store);
+    PackageGeneration observed;unique_fd old(store->RetainedShared(first.image_sha256,&observed));
+    ASSERT_TRUE(old.ok())<<strerror(errno);EXPECT_EQ("old complete payload",Read(old.get()));
+    EXPECT_EQ(first.bytes,observed.bytes);EXPECT_EQ(first.image_sha256,observed.image_sha256);EXPECT_TRUE(observed.shared_base_sha256.empty());
+    EXPECT_EQ(O_RDONLY,fcntl(old.get(),F_GETFL)&O_ACCMODE);
+    unique_fd current(store->Current(&observed));ASSERT_TRUE(current.ok());EXPECT_EQ(second.image_sha256,observed.image_sha256);
+}
+TEST_F(RuntimePackageStore, RetainedSharedRejectsPrivateScopeAndInvalidHashesWithoutOutput) {
+    Start(personal);ASSERT_TRUE(store);auto image=Image("private",std::string(64,'a'));auto source=Source("private");
+    ASSERT_EQ(PackagePublish::Confirmed,store->Publish(nullptr,source.get(),image,proceed));
+    auto output=Image("sentinel");EXPECT_EQ(-1,store->RetainedShared(image.image_sha256,&output));EXPECT_EQ(EPERM,errno);
+    for(const auto& hash:{std::string("../current"),std::string(64,'G'),std::string(65,'a'),std::string()}) {
+        EXPECT_EQ(-1,store->RetainedShared(hash,&output));EXPECT_EQ(EINVAL,errno);
+    }
+    EXPECT_EQ(Digest("sentinel"),output.image_sha256);
+}
+TEST_F(RuntimePackageStore, RetainedSharedMissingOrAliasedImageNeverChangesOutput) {
+    Start();ASSERT_TRUE(store);auto output=Image("sentinel");const auto hash=Digest("old payload");
+    EXPECT_EQ(-1,store->RetainedShared(hash,&output));EXPECT_EQ(ENOENT,errno);
+    auto source=Source("old payload");const auto name=hash+".image";
+    ASSERT_EQ(0,symlinkat("../source-0",root.get(),name.c_str()));
+    EXPECT_EQ(-1,store->RetainedShared(hash,&output));EXPECT_EQ(ELOOP,errno);
+    EXPECT_EQ(Digest("sentinel"),output.image_sha256);
+}
+TEST_F(RuntimePackageStore, RetainedSharedRehashesHistoricalContentsAndChecksMetadata) {
+    Start();ASSERT_TRUE(store);auto first=Image("old payload"),second=Image("new payload");
+    auto a=Source("old payload"),b=Source("new payload");
+    ASSERT_EQ(PackagePublish::Confirmed,store->Publish(nullptr,a.get(),first,proceed));
+    ASSERT_EQ(PackagePublish::Confirmed,store->Publish(&first,b.get(),second,proceed));
+    const auto name=first.image_sha256+".image";unique_fd altered(openat(root.get(),name.c_str(),O_WRONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(altered.ok());
+    ASSERT_EQ(1,pwrite(altered.get(),"X",1,0));ASSERT_EQ(0,fsync(altered.get()));
+    auto output=Image("sentinel");EXPECT_EQ(-1,store->RetainedShared(first.image_sha256,&output));EXPECT_EQ(ESTALE,errno);
+    ASSERT_EQ(0,fchmod(altered.get(),0644));EXPECT_EQ(-1,store->RetainedShared(first.image_sha256,&output));EXPECT_EQ(EPERM,errno);
+    EXPECT_EQ(Digest("sentinel"),output.image_sha256);
+    unique_fd current(store->Current(&output));ASSERT_TRUE(current.ok());EXPECT_EQ(second.image_sha256,output.image_sha256);
+}
+
 TEST_F(RuntimePackageStore, StaleBaseMetadataCannotOverwriteNewPersonalSelection) {
     Start(personal);if(!store)return;
     auto data=Source("same bytes");auto first=Image("same bytes",std::string(64,'a'));
