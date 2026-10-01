@@ -72,7 +72,7 @@ struct execution_slot {
 };
 struct planning_slot {
     PackagePlanning plan;
-    bool configured=false;
+    bool configured=false,reconciliation=false,configured_reconciliation=false;
     PackagePreparationResult selected_source;
     PackageInput factory;
     PackagePlanner* worker=nullptr;
@@ -82,17 +82,19 @@ struct planning_slot {
     PackagePlanningResult result;
     bool resources() const { return worker || evidence.ok(); }
 };
-enum class SelectionPurpose { Runtime, SharedPackage, PersonalPackage };
+enum class SelectionPurpose { Runtime, SharedPackage, PersonalPackage, Reconciliation };
 struct runtime_selection_slot {
     SelectionPurpose purpose=SelectionPurpose::Runtime;
     std::optional<PackageIntent> intent;
     bool create_store=false; // Checked target absence, never inferred from fallback scope.
+    bool configured_reconciliation=false;
     PackageRuntimeSelection plan;
     PackagePreparer* worker=nullptr;
     unique_fd mount;
+    std::array<unique_fd,2> bases; // Reconciliation-only previous/current common views.
     RuntimeSelectionState state=RuntimeSelectionState::Selecting;
     PackagePreparationResult result;
-    bool resources() const { return worker || mount.ok(); }
+    bool resources() const { return worker || mount.ok() || bases[0].ok() || bases[1].ok(); }
 };
 struct slot {
     uint32_t user, serial;
@@ -360,10 +362,16 @@ static int reap_execution(execution_slot& slot,int wait) {
 
 static int reap_selection(runtime_selection_slot& slot,int wait) {
     if(!slot.worker)return 0;
-    PackagePreparationResult result;int mount=-1;
-    if(PackagePreparerFinish(&slot.worker,slot.state==RuntimeSelectionState::Sealed,wait,&result,&mount)<0)return -1;
-    slot.mount.reset(mount);slot.result=result;
-    slot.state=result.outcome==PackagePreparationOutcome::Prepared ? RuntimeSelectionState::Selected : RuntimeSelectionState::Failed;
+    PackagePreparationResult result;int mounts[3]={-1,-1,-1};
+    const bool reconciliation=slot.purpose==SelectionPurpose::Reconciliation;
+    int done=reconciliation
+        ? PackageReconciliationSelectionFinish(&slot.worker,slot.state==RuntimeSelectionState::Sealed,wait,&result,mounts)
+        : PackagePreparerFinish(&slot.worker,slot.state==RuntimeSelectionState::Sealed,wait,&result,&mounts[0]);
+    if(done<0)return -1;
+    slot.mount.reset(mounts[0]);slot.bases[0].reset(mounts[1]);slot.bases[1].reset(mounts[2]);slot.result=result;
+    slot.state=result.outcome==PackagePreparationOutcome::Prepared
+        ? (reconciliation?RuntimeSelectionState::ReconciliationInputs:RuntimeSelectionState::Selected)
+        : RuntimeSelectionState::Failed;
     return 0;
 }
 static int reap_planning(planning_slot& slot,int wait) {
@@ -729,6 +737,10 @@ static int start_planning(aegis_broker_owner* owner,const PackagePlanning& reque
                          int groups,int factory,int selected,int sources,int key,int helper,
                          uint64_t deadline,uint64_t* job,runtime_selection_slot* transferring,int network_helper,int ca_bundle) {
     if(!job||*job||request.job)return fail(EINVAL);
+    const bool reconciliation=transferring && transferring->purpose==SelectionPurpose::Reconciliation;
+    if(request.request.reconciliation!=reconciliation)return fail(EPERM);
+    if(reconciliation && (!request.personal || request.create_store || !transferring->mount.ok()
+       || !transferring->bases[0].ok() || !transferring->bases[1].ok()))return fail(EINVAL);
     if(admission(owner,request.requester,request.serial,deadline)<0||capacity(owner,request.requester,transferring)<0)return -1;
     if(!transferring&&owner->next_publication==INT64_MAX)return fail(EOVERFLOW);
     if(transferring && !request.personal && transferring->result.scope==PackagePreparationResult::Scope::Personal)return fail(EINVAL);
@@ -738,14 +750,18 @@ static int start_planning(aegis_broker_owner* owner,const PackagePlanning& reque
     for(auto& slot:owner->planners)if(!slot) { empty=&slot;break; }
     if(!empty)return fail(ENOSPC);
     auto slot=std::unique_ptr<planning_slot>(new(std::nothrow) planning_slot);if(!slot)return fail(ENOMEM);
-    slot->plan=plan;
+    slot->plan=plan;slot->reconciliation=reconciliation;
     if(transferring) {
+        slot->configured_reconciliation=transferring->configured_reconciliation;
         slot->configured=transferring->intent.has_value();
         slot->selected_source=transferring->result;slot->factory=transferring->plan.factory;
     }
     *empty=std::move(slot);if(!transferring)owner->next_publication=plan.job;*job=plan.job;
     auto& registered=**empty;
-    int started=PackagePlannerStart(groups,factory,selected,sources,key,helper,plan,deadline,&registered.worker,network_helper,ca_bundle);
+    const int inputs[]={selected,reconciliation?transferring->bases[0].get():-1,reconciliation?transferring->bases[1].get():-1};
+    int started=reconciliation
+        ? PackageReconciliationPlannerStart(groups,factory,inputs,sources,key,helper,plan,deadline,&registered.worker,network_helper,ca_bundle)
+        : PackagePlannerStart(groups,factory,selected,sources,key,helper,plan,deadline,&registered.worker,network_helper,ca_bundle);
     int start_error=errno;
     // The original selection remains owned until Start has either duplicated
     // its mount into the new registered worker or failed. No FD leaves the owner.
@@ -769,10 +785,13 @@ int BrokerStartPlanningFromSelection(aegis_broker_owner* owner,const PackagePlan
     if(admission(owner,request.requester,request.serial,deadline)<0)return -1;
     for(auto& selected:owner->selections)if(selected && selected->plan.job==selection_job) {
         if(selected->plan.requester!=request.requester||selected->plan.serial!=request.serial)return fail(ESTALE);
-        if(selected->purpose==SelectionPurpose::Runtime || selected->intent)return fail(EPERM);
-        if((selected->purpose==SelectionPurpose::PersonalPackage)!=request.personal)return fail(ESTALE);
+        if(selected->purpose==SelectionPurpose::Runtime || selected->intent || selected->configured_reconciliation)return fail(EPERM);
+        const bool reconciliation=selected->purpose==SelectionPurpose::Reconciliation;
+        if(request.request.reconciliation!=reconciliation)return fail(EPERM);
+        if((selected->purpose==SelectionPurpose::PersonalPackage || reconciliation)!=request.personal)return fail(ESTALE);
         if(reap_selection(*selected,0)<0)return errno==ETIMEDOUT?fail(EAGAIN):-1;
-        if(selected->state!=RuntimeSelectionState::Selected||!selected->mount.ok())return fail(EBUSY);
+        const auto ready=reconciliation?RuntimeSelectionState::ReconciliationInputs:RuntimeSelectionState::Selected;
+        if(selected->state!=ready||!selected->mount.ok())return fail(EBUSY);
         return start_planning(owner,request,groups,factory,selected->mount.get(),sources,key,helper,deadline,job,selected.get(),network_helper,ca_bundle);
     }
     return fail(ENOENT);
@@ -806,6 +825,8 @@ int BrokerReviewPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial
        ||slot->selected_source.scope==PackagePreparationResult::Scope::None)return fail(EPERM);
     const auto& selected=slot->selected_source;
     auto plan=slot->result.evidence;
+    if(plan.reconciliation!=slot->reconciliation || slot->plan.request.reconciliation!=slot->reconciliation)return fail(EPROTO);
+    if(slot->reconciliation)plan.previous_shared=selected.previous_shared;
     plan.requester=user;plan.serial=serial;plan.personal=slot->plan.personal;plan.create_store=slot->plan.create_store;
     plan.action=slot->plan.request.action;plan.requested_package=slot->plan.request.package;plan.requested_version=slot->plan.request.version;
     plan.source={selected.generation.bytes,selected.generation.image_sha256};plan.shared=selected.shared;
@@ -814,7 +835,9 @@ int BrokerReviewPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial
                                    : selected.scope==PackagePreparationResult::Scope::Shared;
     if(plan.has_previous)plan.previous=selected.generation;
     auto now=time(nullptr);if(now<=0)return fail(EIO);
-    PackageBoundPlan bound;if(PackageBindResolvedPlan(plan,uint64_t(now),&bound)<0)return -1;
+    PackageBoundPlan bound;
+    if((slot->reconciliation ? PackageBindReconciliationPlan(plan,uint64_t(now),&bound)
+                            : PackageBindResolvedPlan(plan,uint64_t(now),&bound))<0)return -1;
     if(slot->state==PlanningState::Reviewed && slot->bound.preparation.execution.plan_sha256!=bound.preparation.execution.plan_sha256)return fail(ESTALE);
     slot->bound=bound;slot->state=PlanningState::Reviewed;*output=std::move(bound);return 0;
 }
@@ -940,6 +963,7 @@ static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRunt
     auto slot=std::unique_ptr<runtime_selection_slot>(new(std::nothrow) runtime_selection_slot);
     if(!slot)return fail(ENOMEM);slot->plan=plan;slot->purpose=purpose;
     if(intent)slot->intent=*intent;
+    slot->configured_reconciliation=purpose==SelectionPurpose::Reconciliation && ce && state_root>=0;
     *job=++owner->next_publication;*empty=std::move(slot);
     auto& registered=**empty; // Own BEFORE opening CE, without deferred CLI FDs.
     unique_fd private_store,shared_store;int error=0;
@@ -958,7 +982,12 @@ static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRunt
     }
     if(!error && intent)registered.create_store=intent->personal ? personal==-1 : shared==-1;
     if(!error && remaining_ms(deadline)<=0)error=ETIMEDOUT;
-    if(!error && PackageRuntimeSelectionStart(groups,shared,personal,factory,helper,plan,&registered.worker)<0)error=errno;
+    if(!error) {
+        const int started=purpose==SelectionPurpose::Reconciliation
+            ? PackageReconciliationSelectionStart(groups,shared,personal,factory,helper,plan,&registered.worker)
+            : PackageRuntimeSelectionStart(groups,shared,personal,factory,helper,plan,&registered.worker);
+        if(started<0)error=errno;
+    }
     if(!error && remaining_ms(deadline)<=0)error=ETIMEDOUT;
     if(error) {
         registered.result={PackagePreparationOutcome::Failed,error};
@@ -982,6 +1011,18 @@ int BrokerPreparePackageSelection(aegis_broker_owner* owner,const PackageRuntime
                                   uint64_t deadline,uint64_t* job) {
     return prepare_runtime_selection(owner,request,groups,shared,personal,factory,helper,deadline,job,false,-1,
         personal_scope ? SelectionPurpose::PersonalPackage : SelectionPurpose::SharedPackage);
+}
+int BrokerPrepareReconciliationSelection(aegis_broker_owner* owner,const PackageRuntimeSelection& request,
+    int groups,int shared,int personal,int factory,int helper,uint64_t deadline,uint64_t* job) {
+    return prepare_runtime_selection(owner,request,groups,shared,personal,factory,helper,deadline,job,false,-1,SelectionPurpose::Reconciliation);
+}
+int BrokerBeginConfiguredReconciliation(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t deadline,uint64_t* job) {
+    if(owned(owner)<0)return -1;
+    if(!owner->selection_enabled || !owner->package_planner_enabled)return fail(ENOTSUP);
+    PackageRuntimeSelection plan;plan.requester=user;plan.serial=serial;plan.factory=owner->selection_factory;
+    return prepare_runtime_selection(owner,plan,owner->inputs[0],-1,-1,owner->selection_image.get(),
+        owner->selection_helper.get(),deadline,job,true,owner->selection_directory.get(),SelectionPurpose::Reconciliation);
 }
 int BrokerPrepareConfiguredPackageSelection(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                                              bool personal,uint64_t deadline,uint64_t* job) {
@@ -1026,6 +1067,30 @@ int BrokerContinueConfiguredPackagePlanning(aegis_broker_owner* owner,uint32_t u
         return start_planning(owner,plan,owner->inputs[0],owner->inputs[1],slot->mount.get(),
             owner->package_policy[0].get(),owner->package_policy[1].get(),owner->package_helpers[0].get(),
             deadline,&transferred,slot.get(),owner->package_helpers[1].get(),owner->package_policy[2].get());
+    }
+    return fail(ENOENT);
+}
+int BrokerContinueConfiguredReconciliationPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t job,uint64_t deadline) {
+    if(!job || job>INT64_MAX)return fail(EINVAL);
+    if(admission(owner,user,serial,deadline)<0)return -1;
+    if(!owner->package_planner_enabled)return fail(ENOTSUP);
+    for(const auto& slot:owner->planners)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial)return fail(ESTALE);
+        return fail(slot->configured_reconciliation?EALREADY:EPERM);
+    }
+    for(auto& slot:owner->selections)if(slot && slot->plan.job==job) {
+        if(slot->plan.requester!=user || slot->plan.serial!=serial)return fail(ESTALE);
+        if(!slot->configured_reconciliation || slot->purpose!=SelectionPurpose::Reconciliation || slot->intent)return fail(EPERM);
+        if(reap_selection(*slot,0)<0)return errno==ETIMEDOUT?fail(EAGAIN):-1;
+        if(slot->state==RuntimeSelectionState::Failed)return fail(slot->result.error?slot->result.error:EIO);
+        if(slot->state!=RuntimeSelectionState::ReconciliationInputs)return fail(EBUSY);
+        PackagePlanning plan;plan.requester=user;plan.serial=serial;plan.personal=true;
+        plan.request.action=PackageAction::Update;plan.request.reconciliation=true;plan.request.internet=true;
+        uint64_t transferred=0;
+        return start_planning(owner,plan,owner->inputs[0],owner->inputs[1],slot->mount.get(),owner->package_policy[0].get(),
+            owner->package_policy[1].get(),owner->package_helpers[0].get(),deadline,&transferred,slot.get(),
+            owner->package_helpers[1].get(),owner->package_policy[2].get());
     }
     return fail(ENOENT);
 }
@@ -1288,7 +1353,7 @@ static int prepare_planned_transaction(aegis_broker_owner* owner,uint32_t user,u
     uint64_t job,const std::string& digest,int groups,int stage,int store,int source,
     int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline,bool configured) {
     auto* slot=find_planning(owner,user,serial,job);if(!slot)return -1;
-    if(slot->configured!=configured)return fail(EPERM);
+    if(slot->configured!=configured || slot->configured_reconciliation)return fail(EPERM);
     if(slot->state!=PlanningState::Reviewed)return fail(EBUSY);
     if(slot->bound.preparation.execution.plan_sha256!=digest)return fail(ESTALE);
     if(slot->plan.personal && (stage!=-1 || store!=-1))return fail(EINVAL);
@@ -1482,7 +1547,8 @@ int BrokerPollConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_t
             status.result.error=result.error;
             slot.reset();break;
         case RuntimeSelectionState::Sealed:status.phase=ConfiguredPackagePhase::Sealed;break;
-        case RuntimeSelectionState::Activated:return fail(EPROTO);
+        case RuntimeSelectionState::Activated:
+        case RuntimeSelectionState::ReconciliationInputs:return fail(EPROTO);
         }
         *output=std::move(status);return 0;
     }

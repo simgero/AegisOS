@@ -1089,6 +1089,24 @@ class RuntimePackageReconciliation : public RuntimePackageSelection {
         unique_fd prior(openat(store.get(),(old_common.generation.image_sha256+".image").c_str(),O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(prior.ok());
         const std::atomic_bool proceed{false};ASSERT_EQ(PackagePublish::Confirmed,personal->Publish(nullptr,prior.get(),own,proceed));
     }
+    uint64_t owned_job=0;
+    int OwnInputs() {
+        selection.job=0;
+        return BrokerPrepareReconciliationSelection(broker,selection,parent.get(),store.get(),private_store.get(),
+            factory.get(),prepare_helper.get(),Deadline(),&owned_job);
+    }
+    void AwaitOwnedInputs() {
+        RuntimeSelectionState state=RuntimeSelectionState::Selecting;PackagePreparationResult result;
+        for(unsigned i=0;i<900 && state==RuntimeSelectionState::Selecting;++i) {
+            ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
+            ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,10,42,owned_job,&state,&result));
+            if(state==RuntimeSelectionState::Selecting)usleep(10000);
+        }
+        ASSERT_EQ(RuntimeSelectionState::ReconciliationInputs,state)<<result.error;
+        EXPECT_EQ(own.image_sha256,result.generation.image_sha256);
+        EXPECT_EQ(own.shared_base_sha256,result.previous_shared.sha256);
+        EXPECT_EQ(new_common.generation.image_sha256,result.shared.sha256);
+    }
     int ReconcileStart() {
         return PackageReconciliationSelectionStart(parent.get(),store.get(),private_store.get(),factory.get(),prepare_helper.get(),selection,&worker);
     }
@@ -1120,6 +1138,7 @@ class RuntimePackageReconciliation : public RuntimePackageSelection {
         Unchanged();
     }
     void TearDown() override {
+        if(broker) { EXPECT_EQ(0,aegis_broker_owner_stop_all(broker,Deadline()));EXPECT_EQ(0,aegis_broker_owner_release(&broker)); }
         for(auto& fd:views)fd.reset();
         if(worker) { PackagePreparationResult ignored;Finish(&ignored,true);for(auto& fd:views)fd.reset(); }
         if(private_store.ok()&&!HasFailure()) {
@@ -1134,6 +1153,52 @@ class RuntimePackageReconciliation : public RuntimePackageSelection {
         private_store.reset();RuntimePackageSelection::TearDown();
     }
 };
+TEST_F(RuntimePackageReconciliation, OwnerRetainsExactlyThreeInputsUntilStopWithoutRuntimeActivation) {
+    ThreeGenerations();ASSERT_FALSE(HasFatalFailure());const int before=CountFDs();ASSERT_EQ(0,OwnInputs());AwaitOwnedInputs();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(before+3,CountFDs());
+    aegis_broker_request start={};start.magic=AEGIS_BROKER_MAGIC;start.version=AEGIS_BROKER_VERSION;start.operation=AEGIS_BROKER_START;
+    start.sequence=2;start.user=10;start.serial=42;start.deadline_ns=Deadline();aegis_broker_state state;
+    EXPECT_EQ(-1,aegis_broker_owner_apply(broker,&start,&state));EXPECT_EQ(EBUSY,errno);EXPECT_EQ(AEGIS_BROKER_SEALED,state);
+    EXPECT_EQ(-1,aegis_broker_owner_release(&broker));EXPECT_EQ(EBUSY,errno);
+    ASSERT_EQ(0,Stop());EXPECT_EQ(before,CountFDs());Unchanged();
+}
+TEST_F(RuntimePackageReconciliation, OrdinaryPlanningCannotConsumeThreeViewJobOrChangeItsScope) {
+    ThreeGenerations();ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,OwnInputs());AwaitOwnedInputs();ASSERT_FALSE(HasFatalFailure());
+    PackagePlanning request;request.requester=10;request.serial=42;request.personal=true;request.request.action=PackageAction::Update;
+    uint64_t transferred=0;
+    EXPECT_EQ(-1,BrokerStartPlanningFromSelection(broker,request,owned_job,parent.get(),-1,-1,-1,-1,Deadline(),&transferred));EXPECT_EQ(EPERM,errno);EXPECT_EQ(0u,transferred);
+    request.request.reconciliation=true;request.personal=false;
+    EXPECT_EQ(-1,BrokerStartPlanningFromSelection(broker,request,owned_job,parent.get(),-1,-1,-1,-1,Deadline(),&transferred));EXPECT_EQ(ESTALE,errno);
+    AwaitOwnedInputs();ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,BrokerCancelPackageSelection(broker,10,42,owned_job,Deadline()));Unchanged();
+}
+TEST_F(RuntimePackageReconciliation, CancelConsumesQueuedTripleAfterChildExitAndClosesAllDescriptors) {
+    ThreeGenerations();ASSERT_FALSE(HasFatalFailure());const int before=CountFDs();ASSERT_EQ(0,OwnInputs());bool exited=false;
+    for(unsigned i=0;i<900;i++) {
+        if(AptImageFixture::read(parent.get(),"p10-s42/cgroup.events").find("populated 0\n")!=std::string::npos) { exited=true;break; }
+        usleep(10000);
+    }
+    ASSERT_TRUE(exited);ASSERT_EQ(0,BrokerCancelPackageSelection(broker,10,42,owned_job,Deadline()));EXPECT_EQ(before,CountFDs());Unchanged();
+}
+TEST_F(RuntimePackageReconciliation, ForeignSerialCannotInspectTransferOrCancelOwnedTriple) {
+    ThreeGenerations();ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,OwnInputs());AwaitOwnedInputs();ASSERT_FALSE(HasFatalFailure());
+    RuntimeSelectionState state=RuntimeSelectionState::Activated;PackagePreparationResult result;result.error=77;
+    EXPECT_EQ(-1,BrokerPollRuntimeSelection(broker,10,43,owned_job,&state,&result));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(RuntimeSelectionState::Activated,state);EXPECT_EQ(77,result.error);
+    EXPECT_EQ(-1,BrokerCancelPackageSelection(broker,10,43,owned_job,Deadline()));EXPECT_EQ(ESTALE,errno);
+    PackagePlanning request;request.requester=10;request.serial=43;request.personal=true;
+    request.request.action=PackageAction::Update;request.request.reconciliation=true;uint64_t transferred=0;
+    EXPECT_EQ(-1,BrokerStartPlanningFromSelection(broker,request,owned_job,parent.get(),-1,-1,-1,-1,Deadline(),&transferred));
+    EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,transferred);
+    AwaitOwnedInputs();ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,Stop());Unchanged();
+}
+TEST_F(RuntimePackageReconciliation, FailedThreeViewPlannerStartConsumesSelectionAndRetainsSameFailedJob) {
+    ThreeGenerations();ASSERT_FALSE(HasFatalFailure());const int before=CountFDs();ASSERT_EQ(0,OwnInputs());AwaitOwnedInputs();ASSERT_FALSE(HasFatalFailure());
+    PackagePlanning request;request.requester=10;request.serial=42;request.personal=true;request.request.action=PackageAction::Update;request.request.reconciliation=true;
+    uint64_t transferred=0;
+    EXPECT_EQ(-1,BrokerStartPlanningFromSelection(broker,request,owned_job,parent.get(),-1,-1,-1,-1,Deadline(),&transferred));EXPECT_EQ(owned_job,transferred);
+    RuntimeSelectionState state;PackagePreparationResult selection_result;
+    EXPECT_EQ(-1,BrokerPollRuntimeSelection(broker,10,42,owned_job,&state,&selection_result));EXPECT_EQ(ENOENT,errno);
+    ASSERT_EQ(0,BrokerCancelPlanning(broker,10,42,transferred,Deadline()));EXPECT_EQ(before,CountFDs());Unchanged();
+}
 TEST_F(RuntimePackageReconciliation, ReturnsPrivatePreviousAndCurrentSharedWithoutActivation) {
     ThreeGenerations();ASSERT_FALSE(HasFatalFailure());int before=CountFDs();ASSERT_EQ(0,ReconcileStart());
     // A one-mount consumer cannot accidentally accept this three-input job.

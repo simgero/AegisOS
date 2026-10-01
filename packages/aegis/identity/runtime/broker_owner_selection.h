@@ -3,7 +3,7 @@
 #include "broker_owner.h"
 #include "package_preparer.h"
 namespace aegis {
-enum class RuntimeSelectionState { Selecting, Selected, Activated, Failed, Sealed };
+enum class RuntimeSelectionState { Selecting, Selected, Activated, Failed, Sealed, ReconciliationInputs };
 // Internal authenticated requester API. Caller holds fresh AOSP id/serial/CE
 // admission and anchors all non-CE inputs. No public wire registration yet.
 // Register BEFORE opening personal CE/spawning, share monotone broker job IDs.
@@ -26,6 +26,16 @@ int BrokerPrepareCeRuntimeSelection(aegis_broker_owner* owner,const PackageRunti
 int BrokerPreparePackageSelection(aegis_broker_owner* owner,const PackageRuntimeSelection& request,
                                   bool personal_scope,int groups,int shared,int personal,int factory,int helper,
                                   uint64_t deadline,uint64_t* job);
+// Internal three-view selection. ReconciliationInputs is deliberately NOT
+// Selected: it cannot be adopted by START or consumed by an ordinary planner.
+// Every private/old-common/current-common mount stays in the owner until one
+// explicit planning handoff or confirmed STOP. No private FD is exported.
+int BrokerPrepareReconciliationSelection(aegis_broker_owner* owner,const PackageRuntimeSelection& request,
+    int groups,int shared,int personal,int factory,int helper,uint64_t deadline,uint64_t* job);
+// Product inputs and CE/serial are opened only after registering the new job.
+// This internal entry grants neither package authority nor runtime activation.
+int BrokerBeginConfiguredReconciliation(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t deadline,uint64_t* job);
 // Product variant uses ONLY startup-pinned factory/helper/state/cgroup inputs.
 // The caller holds fresh authenticated requester+serial+AOSP CE admission.
 // Personal scope opens fixed checked CE after registration; shared scope never

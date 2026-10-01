@@ -61,6 +61,11 @@ int BrokerBeginConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_
 // owned state. Failure never proves quiescence or releases cancellation duties.
 int BrokerContinueConfiguredPackagePlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                                               uint64_t job,uint64_t deadline);
+// Internal automatic-reconciliation path, separate from CLI package intent.
+// Requires fresh original-session CE admission, consumes only its three retained
+// inputs and derives a fixed Update request. It grants no execution authority.
+int BrokerContinueConfiguredReconciliationPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
+    uint64_t job,uint64_t deadline);
 enum class PlanningState { Running, Collected, Reviewed, Complete, Sealed };
 // Register before snapshot copying/APT. Same requester admission, 16-slot budget,
 // monotonically minted IDs and STOP/HELLO/disconnect ownership as execution.
