@@ -1,5 +1,13 @@
 # Passwort- und Verschlüsselungsgrundlage
 
+Aktueller Bezug: Die [Server-Teilabnahme](server-acceptance.md) dokumentiert
+AOSP-Anmeldung, Passwortwechsel, CE-Fehlerwiederanlauf und gepaarte Persistenz
+im Image `c526571`. Die nachstehende Algorithmenbeschreibung bezieht sich auf
+den gepinnten AOSP-/Kernel-Stand; der frühere Mac-Lauf ist als historische
+Konfigurationsbeobachtung zu lesen. Für den aktuellen Host gelten dieselben
+Grenzen des Software-KeyMint-/TPM-Helfers. Die
+[vollständige Phase-1-Abnahme](phase-1-acceptance-progress.md) bleibt offen.
+
 Stand 28. September 2026; historische Entwicklungsbasis `android-16.0.0_r1`,
 Kernel `6.12.18-android16-1-g50eb8d5d443b-ab13257114-4k`.
 Die AEGIS-Anbindung delegiert Authentifizierung und Schlüsselverwaltung an
