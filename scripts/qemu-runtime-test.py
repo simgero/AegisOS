@@ -407,7 +407,7 @@ def mqueue_probe(operation, key):
     value = 'MESSAGE_'+key
     code = 'use strict; use warnings; '
     if operation == 'create':
-        code += (f'for my $name ("{common}","{own}") {{ '
+        code += (f'for my $entry ("{common}","{own}") {{ my $name="$entry"; '
                  'my $fd=syscall(180,$name,194,0600,0); die "mq_open:$!" if $fd<0; '
                  f'my $data="{value}"; '
                  'die "mq_send:$!" if syscall(182,$fd,$data,length($data),0,0)!=0; '
@@ -424,7 +424,7 @@ def mqueue_probe(operation, key):
                  'die "close:$!" if syscall(57,$fd)!=0; print "MQUEUE_PRIVATE_MESSAGE_AND_PEER_DENIAL\\n";')
     elif operation == 'empty':
         assert key in mq_created
-        code += (f'for my $name ("{common}","{own}") {{ '
+        code += (f'for my $entry ("{common}","{own}") {{ my $name="$entry"; '
                  'die "old queue survived" if syscall(180,$name,2048,0,0)>=0; '
                  'die "wrong denial:$!" if 0+$! != 2; } print "MQUEUE_OLD_NAMESPACE_GONE\\n";')
     else:
