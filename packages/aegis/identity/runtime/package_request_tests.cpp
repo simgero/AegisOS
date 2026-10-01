@@ -1,4 +1,5 @@
 #include "package_request.h"
+#include "package_execution_protocol.h"
 #include <android-base/unique_fd.h>
 #include <gtest/gtest.h>
 #include <linux/memfd.h>
@@ -40,7 +41,7 @@ TEST(PackageRequestDescriptor, RejectsUnsealedPartiallySealedAndWrongSizeRequest
     auto partial = Input(F_SEAL_SHRINK); ASSERT_TRUE(partial.ok());
     EXPECT_EQ(-1, aegis_package_reopen_request(partial.get(), sizeof(payload))); EXPECT_EQ(EPERM, errno);
     auto input = Input(); ASSERT_TRUE(input.ok());
-    for (size_t bytes : {size_t(0), sizeof(payload)-1, sizeof(payload)+1, size_t(65537)}) {
+    for (size_t bytes : {size_t(0), sizeof(payload)-1, sizeof(payload)+1, size_t(AEGIS_PACKAGE_REQUEST_MAX_BYTES+1)}) {
         EXPECT_EQ(-1, aegis_package_reopen_request(input.get(), bytes)); EXPECT_EQ(EPERM, errno);
     }
 }
@@ -80,4 +81,26 @@ TEST(PackageRequestDescriptor, ScmRightsKeepsReadonlyAccessAfterOriginalCloses) 
     EXPECT_EQ(-1, pwrite(transferred.get(), "x", 1, 0)); EXPECT_EQ(EBADF, errno);
     char value[sizeof(payload)] = {}; ASSERT_EQ(static_cast<ssize_t>(sizeof(value)), pread(transferred.get(), value, sizeof(value), 0));
     EXPECT_EQ(0, memcmp(payload, value, sizeof(value)));
+}
+
+TEST(PackageRequestDescriptor, FullExecutionReviewFitsBoundedSealedTransport) {
+    static_assert(sizeof(aegis_package_execution_request)<=AEGIS_PACKAGE_REQUEST_MAX_BYTES);
+    for(size_t bytes : {sizeof(aegis_package_execution_request),size_t(AEGIS_PACKAGE_REQUEST_MAX_BYTES),size_t(AEGIS_PACKAGE_REQUEST_MAX_BYTES+1)}) {
+        unique_fd fd(syscall(SYS_memfd_create,"package-review-size-test",MFD_CLOEXEC|MFD_ALLOW_SEALING));
+        ASSERT_TRUE(fd.ok());ASSERT_EQ(0,ftruncate(fd.get(),bytes));
+        const char end='x';ASSERT_EQ(1,pwrite(fd.get(),&end,1,bytes-1));
+        ASSERT_EQ(0,fcntl(fd.get(),F_ADD_SEALS,seals));
+        unique_fd readonly(aegis_package_reopen_request(fd.get(),bytes));
+        if(bytes>AEGIS_PACKAGE_REQUEST_MAX_BYTES) {
+            EXPECT_FALSE(readonly.ok());EXPECT_EQ(EPERM,errno);
+            char path[64];snprintf(path,sizeof(path),"/proc/self/fd/%d",fd.get());
+            unique_fd direct(open(path,O_RDONLY|O_CLOEXEC));ASSERT_TRUE(direct.ok());
+            EXPECT_EQ(-1,aegis_package_request_readonly(direct.get(),bytes));EXPECT_EQ(EPERM,errno);
+        } else {
+            ASSERT_TRUE(readonly.ok())<<strerror(errno);
+            EXPECT_EQ(0,aegis_package_request_readonly(readonly.get(),bytes));
+            char got=0;ASSERT_EQ(1,pread(readonly.get(),&got,1,bytes-1));EXPECT_EQ(end,got);
+            EXPECT_EQ(-1,pwrite(readonly.get(),&end,1,0));EXPECT_EQ(EBADF,errno);
+        }
+    }
 }

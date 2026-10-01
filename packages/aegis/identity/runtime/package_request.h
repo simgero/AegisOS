@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#define AEGIS_PACKAGE_REQUEST_MAX_BYTES 131072u
+
 /* Seals protect contents, not a descriptor's access mode. SELinux checks that
  * mode again across exec/SCM_RIGHTS. Receivers need no write authority over the
  * broker's bounded request object. This is transport validation, not admission. */
@@ -14,7 +16,7 @@ static inline int aegis_package_request_readonly(int fd, size_t bytes) {
     struct stat st;
     int flags = fcntl(fd, F_GETFL);
     if (flags < 0 || fstat(fd, &st) < 0) return -1;
-    if (!bytes || bytes > 65536 || !S_ISREG(st.st_mode) || st.st_nlink
+    if (!bytes || bytes > AEGIS_PACKAGE_REQUEST_MAX_BYTES || !S_ISREG(st.st_mode) || st.st_nlink
             || st.st_size != (off_t)bytes || (flags & (O_ACCMODE | O_PATH)) != O_RDONLY
             || fcntl(fd, F_GET_SEALS) != (F_SEAL_WRITE | F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL)) {
         errno = EPERM; return -1;
@@ -28,7 +30,7 @@ static inline int aegis_package_request_readonly(int fd, size_t bytes) {
 static inline int aegis_package_reopen_request(int source, size_t bytes) {
     struct stat before, after;
     if (fstat(source, &before) < 0) return -1;
-    if (!bytes || bytes > 65536 || !S_ISREG(before.st_mode) || before.st_nlink
+    if (!bytes || bytes > AEGIS_PACKAGE_REQUEST_MAX_BYTES || !S_ISREG(before.st_mode) || before.st_nlink
             || before.st_size != (off_t)bytes
             || fcntl(source, F_GET_SEALS) != (F_SEAL_WRITE | F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL)) {
         errno = EPERM; return -1;
