@@ -182,7 +182,9 @@ def check_prepared(key,before):
 
 def action(label, command, prompts=()):
     if not client or client.poll() is not None: raise RuntimeError('Open the CLI first')
-    auth_key = ('alpha' if label in ('login-a','wrong-a') else 'beta') if prompts and label in ('login-a','wrong-a','switch-b','wrong-b','old-b','login-b-new') else None
+    auth_labels = {'login-a':'alpha', 'wrong-a':'alpha', 'switch-b':'beta',
+                   'wrong-b':'beta', 'old-b':'beta', 'login-b-new':'beta', 'login-c':'gamma'}
+    auth_key = auth_labels.get(label) if prompts else None
     auth_before = auth_state(auth_key) if auth_key is not None else None
     os.write(master, command.encode()+b'\n')
     response = bytearray()
@@ -693,7 +695,7 @@ def switch_from_second_console(key):
         record('second-console-open',read_prompt('aegis> '))
         os.write(second_master,('login '+shlex.quote(names[key])+'\n').encode())
         record('second-console-auth-prompt',read_prompt('Passwort: '))
-        os.write(second_master,credentials[key]+b'\n')
+        os.write(second_master,credentials[current_credentials[key]]+b'\n')
         output=read_prompt('aegis> ')
         record('second-console-login-'+key,output)
         assert re.search(r'(?m)^user='+str(users[key][0])+r' serial='+str(users[key][1])+r' ',clean(output))
@@ -708,16 +710,19 @@ def switch_from_second_console(key):
     finally:
         if second_slave is not None: os.close(second_slave)
         if second is not None and second.poll() is None:
-            os.write(second_master,b'exit\n')
-            try: second.wait(timeout=10)
+            # A failed prompt assertion may leave a password request active.
+            # Closing this transport must never inject a guessed command.
+            second.terminate()
+            try: second.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                second.terminate();second.wait(timeout=5)
+                second.kill();second.wait(timeout=5)
         os.close(second_master)
 
 
 def expect_ce(which):
     expected={0}
-    choices={'base':(), 'a':('alpha',), 'b':('beta',), 'both':('alpha','beta')}
+    choices={'base':(), 'a':('alpha',), 'b':('beta',), 'both':('alpha','beta'),
+             'c':('gamma',), 'all':tuple(users)}
     assert which in choices
     for key in choices[which]: expected.add(users[key][0])
     mount=checked_output(ADB+['shell','dumpsys','mount'],text=True,timeout=20)
@@ -770,7 +775,7 @@ def removal_state():
 
 
 def removal_denied(kind):
-    assert not shell_active and held_login is None and set(users)=={'alpha','beta'}
+    assert not shell_active and held_login is None and {'alpha','beta'} <= set(users)
     action('removal-authority-before-'+kind,'status')
     status=events[-1]['output']
     actor='beta' if kind=='nonadmin' else 'alpha'
@@ -794,7 +799,7 @@ def removal_denied(kind):
 
 
 def remove_beta():
-    assert not shell_active and held_login is None and set(users)=={'alpha','beta'}
+    assert not shell_active and held_login is None and {'alpha','beta'} <= set(users)
     required={'remove-denial-state-unchanged-'+x for x in ('unauthenticated','nonadmin','self','wrong-password')}
     assert required <= {e['action'] for e in events},'Run the four real permission checks first'
     action('removal-authority-before-success','status')
@@ -902,6 +907,22 @@ try:
                 action(cmd, 'user add '+shlex.quote(names['beta']),
                        [('Passwort des neuen Benutzers: ', 'beta'), ('Passwort wiederholen: ', 'beta'),
                         ('Passwort des angemeldeten Administrators für diese Anlage: ', 'alpha')])
+            elif cmd == 'add-c':
+                assert not shell_active and 'gamma' not in users
+                if 'gamma' not in names:
+                    names['gamma']='Runtime Test Gamma'
+                    credentials['gamma']=bytearray(secrets.choice(b'abcdefghjkmnpqrstuvwxyz23456789') for _ in range(16))
+                    current_credentials['gamma']='gamma'
+                action(cmd, 'user add '+shlex.quote(names['gamma']),
+                       [('Passwort des neuen Benutzers: ', 'gamma'), ('Passwort wiederholen: ', 'gamma'),
+                        ('Passwort des angemeldeten Administrators für diese Anlage: ', current_credentials['alpha'])])
+                assert 'gamma' in users and users['gamma'] not in (users['alpha'], users['beta'])
+                record('third-user-created', {'identity':users['gamma'],
+                       'scope':'Created through the real CLI after explicit caller setup; package and data isolation still require GNU checks'})
+            elif cmd == 'login-c':
+                assert 'gamma' in users and not shell_active
+                action(cmd, 'login '+shlex.quote(names['gamma']), [('Passwort: ', 'gamma')])
+                assert 'ce=unlocked' in events[-1]['output'] and 'foreground=true' in events[-1]['output']
             elif cmd in ('switch-b', 'wrong-b', 'old-b', 'login-b-new'):
                 key = {'switch-b':'beta', 'wrong-b':'wrong', 'old-b':'beta', 'login-b-new':'newbeta'}[cmd]
                 action(cmd, 'switch '+shlex.quote(names['beta']), [('Passwort: ', key)])

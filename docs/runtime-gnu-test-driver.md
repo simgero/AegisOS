@@ -96,6 +96,18 @@ aus und verlangt einen eindeutigen tatsächlich ausgegebenen Exitcode 0.
 `gnu BEFEHL` ist nur eine Diagnose ohne diese Erfolgsbehauptung. Eingaben und
 synthetische Dateiproben werden protokolliert; keine fremden Secrets verwenden.
 
+## Nachträglich angelegter dritter Benutzer
+
+`add-c` legt als angemeldeter Alpha-Admin den zusätzlichen Benutzer Gamma über
+die echte CLI mit frischer Adminbestätigung an. Dessen Passwort wird ebenfalls
+nur im Treiberspeicher erzeugt. `login-c` prüft vor der Passwortübermittlung,
+dass die Vorbereitung keinen CE-Zugriff oder Runtime-Kontext gewährt. Danach
+sind `linux-start`, `shell` und `gnu-checked` für den echten Software- und
+Isolationsnachweis auszuführen. Die Anlage allein gilt nicht als Paketprüfung.
+`expect-ce c` erwartet nur System/Gamma entsperrt; `expect-ce all` erwartet
+alle im Treiber angelegten Benutzer. Alphas und Betas bisherige Datei- und
+Prozessbelege werden durch die Anlage nicht ersetzt.
+
 ## Paketaktionen mit frischer Adminprüfung
 
 Der Treiber kann einen echten Paketplan bis zur Adminabfrage öffnen und dort

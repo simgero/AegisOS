@@ -5,6 +5,10 @@ Die [Zieldefinition und DoD](architecture/phase-1-dod.md) legt die vollständige
 Abschlusskriterien fest. Die fünf nachstehenden Server-Meilensteine erfüllen
 noch nicht die gesamte Pflicht-Testmatrix des Phase-1-Auftrags.
 
+Der [laufende vollständige Abnahmeabgleich](phase-1-acceptance-progress.md)
+ordnet die bisherigen Belege allen 17 Pflichtbereichen zu und dokumentiert
+die noch auszuführenden Varianten.
+
 ## 2026-10-01: Serverabnahme der fünf Terminal-Meilensteine
 
 Die [aktuelle Abnahme](server-acceptance.md) bestätigt im Image `c526571`
