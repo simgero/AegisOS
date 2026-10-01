@@ -262,7 +262,10 @@ def checked_gnu(label, command):
     os.write(master,line.encode()+b'\n')
     data=until(marker+':',30)+until('\n',5)+until(GNU_PROMPT,5)
     record(label,data)
-    output=clean(data)
+    # Readline emits these mode toggles next to the first output byte. Keep
+    # the original terminal transcript in record(), but normalize only the
+    # protocol toggles for line-oriented checks such as a GNU checksum.
+    output=clean(data).replace('\x1b[?2004h','').replace('\x1b[?2004l','')
     matches=re.findall(r'(?m)^'+re.escape(marker)+r':([0-9]+)$',output)
     assert matches==['0'], 'GNU command failed or completion record missing'
     return output
