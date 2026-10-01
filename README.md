@@ -42,6 +42,8 @@ Artefakte für diese weitere Integration; ein erfolgreicher Build ist kein Bootn
 
 ## Dauerhafter Buildserver
 
+Passwortgeschützter Befehlszugriff über Tailscale: [HTTP-API und Client](docs/build-http.md).
+
 `build.sh` startet einen vollständigen Quellcode-Build auf einem
 **Ubuntu-24.04- oder Ubuntu-26.04-x86-64-Server mit systemd**, mindestens
 **64 GB RAM** und für den Erstbuild **450 GiB freiem Speicher unter `/srv/aegis`**.
