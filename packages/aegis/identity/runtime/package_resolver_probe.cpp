@@ -58,7 +58,7 @@ int Setup(int* fds,unsigned mode) {
     unique_fd tmp(open("/mnt/tmp",O_RDONLY|O_DIRECTORY|O_CLOEXEC));
     if(!policy.ok()||!input.ok()||!tmp.ok()||mkdirat(policy.get(),"empty",0755)<0
        ||Text(policy.get(),"empty.conf","")<0
-       ||Text(policy.get(),"config",mode==5?"APT::Get::AllowUnauthenticated \"true\";\n":aegis::PackageResolverConfiguration())<0
+       ||Text(policy.get(),"config",mode==5?"APT::Get::AllowUnauthenticated \"true\";\n":aegis::PackageResolverConfiguration(false,false,mode!=6&&mode!=7))<0
        ||Text(policy.get(),"sources.list","deb [signed-by=/run/aegis-plan-policy/key.asc] copy:/tmp/aegis-repo ./\n")<0
        ||Copy(fds[2],"var/lib/dpkg/status",input.get(),"status",64u<<20)<0)return -1;
     if(Copy(fds[2],"var/lib/apt/extended_states",input.get(),"extended_states",16u<<20)<0&&errno!=ENOENT)return -1;

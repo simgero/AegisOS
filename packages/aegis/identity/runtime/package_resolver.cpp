@@ -110,18 +110,18 @@ bool Same(const std::vector<PackageAptEffect>& a,const std::vector<PackageAptEff
     return true;
 }
 }
-const char* PackageResolverConfiguration(bool internet,bool reconciliation) {
+const char* PackageResolverConfiguration(bool internet,bool reconciliation,bool exact_version) {
     static const std::string online=std::string(policy)+
         "Acquire::http::Proxy \"socks5h://127.0.0.1:1080\";\n"
         "Acquire::https::Proxy \"socks5h://127.0.0.1:1080\";\n"
         "Acquire::https::CaInfo \"/run/aegis-plan-policy/ca.pem\";\n";
-    // The complete root set is exact. Let APT consider non-candidate dependency
-    // versions so an explicitly selected older root can keep matching libraries.
+    // Exact requested roots, both ordinary installs and reconciliation, may
+    // need non-candidate dependency versions to keep matching libraries.
     // Trust, signatures and all root/hold postconditions stay unchanged.
     static const std::string solver="APT::Solver \"3.0\";\nAPT::Solver::Strict-Pinning \"false\";\n";
     static const std::string reconcile_offline=std::string(policy)+solver;
     static const std::string reconcile_online=online+solver;
-    if(reconciliation)return internet?reconcile_online.c_str():reconcile_offline.c_str();
+    if(reconciliation||exact_version)return internet?reconcile_online.c_str():reconcile_offline.c_str();
     return internet?online.c_str():policy;
 }
 PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequest& r) {
@@ -137,7 +137,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
        ||Read("/run/aegis-plan-policy/key.asc",1048576,true,&key)<0
        ||Read("/run/aegis-plan-input/status",64u<<20,true,&status)<0)return fail(errno);
     if(r.internet&&Read("/run/aegis-plan-policy/ca.pem",1048576,true,&ca)<0)return fail(errno);
-    if(config!=PackageResolverConfiguration(r.internet,r.reconciliation)||sources.empty()||key.empty())return fail(EPERM);
+    if(config!=PackageResolverConfiguration(r.internet,r.reconciliation,!r.version.empty())||sources.empty()||key.empty())return fail(EPERM);
     bool present=Read("/run/aegis-plan-input/extended_states",16u<<20,true,&automatic)==0;
     if(!present&&errno!=ENOENT)return fail(errno);
     bool chosen=Read("/run/aegis-plan-input/private-choices",AEGIS_PACKAGE_CHOICES_BYTES-1,true,&choices)==0;
@@ -174,7 +174,12 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     auto invocation=[&](bool download) {
         std::vector<std::string> args={"/usr/bin/apt-get","-q",download?"--download-only":"--simulate"};
         if(download)args.push_back("--yes");
-        if(r.reconciliation) { args.push_back("--auto-remove");args.push_back("--allow-downgrades"); }
+        if(r.reconciliation)args.push_back("--auto-remove");
+        // Download-only with --yes also requires explicit downgrade consent.
+        // The requested version and every dependency change remain reviewed
+        // before any installation; unversioned ordinary actions keep defaults.
+        if(r.reconciliation || (r.action==PackageAction::Install&&!r.version.empty()))
+            args.push_back("--allow-downgrades");
         args.push_back(action);args.insert(args.end(),terms.begin(),terms.end());return args;
     };
     auto effects=[&](const std::string& bytes,std::vector<PackageAptEffect>* out) {

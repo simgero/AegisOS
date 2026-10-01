@@ -89,3 +89,25 @@ zulässiger Einzelwartezeit, insgesamt begrenzt auf 180 Sekunden. Nur ETIMEDOUT
 wird erneut beobachtet; andere Fehler werden sofort gemeldet. Produktionscode,
 Startup-/Cleanup-Fristen und Signaturprüfung bleiben unverändert. Erst der
 Folgelauf kann den eigentlichen Versionsfall bestätigen oder widerlegen.
+
+
+## Reproduzierter Versionsfehler und gezielte Korrektur
+
+Mit korrekter begrenzter Beobachtung besteht der unveränderte Vergleichsfall.
+Die explizite ältere Version scheitert dagegen reproduzierbar mit APT-Status
+100: `aegis-probe-app` benötigt Bibliothek 1, APT wählt Kandidat 2.
+`version-regression-bounded.log` und die zugehörige JSON-Datei binden den
+Fehler an das aktuelle Image; SystemServer bleibt PID 1358.
+
+Die Korrektur verwendet den bereits für Reconciliation eingesetzten APT-3.0-
+Solver auch bei expliziten Versionswünschen und lässt passende ältere
+Abhängigkeiten zu. Unversionierte normale Aktionen behalten ihre bisherige
+Konfiguration. Der reine Downloadplan akzeptiert dabei auch ausdrücklich
+angeforderte Downgrades; die tatsächliche Installation benötigt weiterhin den
+vollständigen gebundenen Plan und frische AOSP-Adminfreigabe. Quellen-, TLS-,
+Signatur- und exakte Versionsprüfung werden nicht abgeschwächt.
+
+Zusätzliche Gerätetests prüfen einen Downgrade von bereits vorhandener Version
+2 samt Bibliothek auf Version 1 sowie die Ablehnung einer nicht verfügbaren
+Version ohne stillen Ersatz. Die Korrektur ist vor dem Folgelauf noch nicht
+als bestanden oder als neuer Image-Abnahmestand auszugeben.

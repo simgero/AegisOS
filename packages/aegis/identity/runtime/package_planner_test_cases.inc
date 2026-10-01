@@ -248,6 +248,43 @@ TEST_F(RuntimePackagePlanning, ExplicitOlderVersionSelectsMatchingDependencyDesp
     EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
     evidence.reset();EXPECT_EQ(before,descriptors());
 }
+TEST_F(RuntimePackagePlanning, ExplicitDowngradeDownloadsExactOlderAppAndDependencyWithoutChangingInstalledState) {
+    mount_attr writable={};writable.attr_clr=MOUNT_ATTR_RDONLY;
+    ASSERT_EQ(0,syscall(SYS_mount_setattr,selected.get(),"",AT_EMPTY_PATH,&writable,sizeof(writable)));
+    initial+="\nPackage: aegis-probe-app\nStatus: install ok installed\nArchitecture: all\nVersion: 2\nDepends: aegis-probe-lib (= 2)\nDescription: installed newer application\n\n"
+             "Package: aegis-probe-lib\nStatus: install ok installed\nArchitecture: all\nVersion: 2\nDescription: installed newer dependency\n\n";
+    automatic="Package: aegis-probe-lib\nArchitecture: all\nAuto-Installed: 1\n\n";
+    ASSERT_EQ(0,Write(selected.get(),"var/lib/dpkg/status",initial));
+    ASSERT_EQ(0,Write(selected.get(),"var/lib/apt/extended_states",automatic));
+    mount_attr readonly={};readonly.attr_set=MOUNT_ATTR_RDONLY;
+    ASSERT_EQ(0,syscall(SYS_mount_setattr,selected.get(),"",AT_EMPTY_PATH,&readonly,sizeof(readonly)));
+    request.personal=true;request.request.version="1";
+    ASSERT_EQ(0,Start())<<strerror(errno);
+    aegis::PackagePlanningResult result;int fd=-1;
+    ASSERT_EQ(0,FinishPlanBounded(&result,&fd))<<strerror(errno);Fd evidence(fd);
+    ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)
+        <<result.error<<" status="<<result.status<<" "<<result.diagnostic;
+    ASSERT_TRUE(evidence.ok());ASSERT_EQ(2u,result.evidence.changes.size());
+    EXPECT_EQ("aegis-probe-app",result.evidence.changes[0].name);
+    EXPECT_EQ("aegis-probe-lib",result.evidence.changes[1].name);
+    for(const auto& change:result.evidence.changes) {
+        EXPECT_EQ("2",change.before_version);EXPECT_EQ("1",change.after_version);
+        EXPECT_GT(change.archive.bytes,0u);EXPECT_EQ(64u,change.archive.sha256.size());
+    }
+    EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));
+    EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
+}
+TEST_F(RuntimePackagePlanning, UnavailableExactVersionNeverSubstitutesNewerCandidate) {
+    request.personal=true;request.request.version="99";
+    ASSERT_EQ(0,Start())<<strerror(errno);
+    aegis::PackagePlanningResult result;int fd=-1;
+    ASSERT_EQ(0,FinishPlanBounded(&result,&fd))<<strerror(errno);Fd evidence(fd);
+    EXPECT_EQ(aegis::PackagePlanningResult::Outcome::Failed,result.outcome);
+    EXPECT_EQ(aegis::PackageResolverResult::Phase::Simulate,result.phase);
+    EXPECT_EQ(100,result.status);EXPECT_FALSE(evidence.ok());EXPECT_TRUE(result.evidence.changes.empty());
+    EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));
+    EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
+}
 TEST_F(RuntimePackagePlanning, ReadonlyPrivateChoicesReachEvidenceWithoutChangingSelectedMetadata) {
     // This is exclusively owned synthetic storage. No real user's CE is opened.
     mount_attr writable={};writable.attr_clr=MOUNT_ATTR_RDONLY;

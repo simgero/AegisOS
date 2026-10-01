@@ -27,7 +27,10 @@ struct PackageResolverResult {
 // Write these exact bytes to the readonly policy/config before any APT starts.
 // policy/sources.list and policy/key.asc are immutable product inputs, not
 // client strings. A source must specify this exact keyring via signed-by.
-const char* PackageResolverConfiguration(bool internet=false,bool reconciliation=false);
+// Exact user version requests need the same complete dependency search as
+// reconciliation; this never relaxes repository trust or exact-root checks.
+const char* PackageResolverConfiguration(bool internet=false,bool reconciliation=false,
+                                         bool exact_version=false);
 int PackageResolverCheck(const PackageResolverRequest& request);
 // On success /tmp/aegis-planner retains signed APT lists, downloaded archives,
 // exact simulation, index-targets, and a native snapshot receipt. The owner MUST

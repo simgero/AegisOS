@@ -52,7 +52,7 @@ int Freeze(const char* path,bool executable) {
     mount_attr a={};a.attr_set=MOUNT_ATTR_RDONLY|MOUNT_ATTR_NOSUID|MOUNT_ATTR_NODEV|(executable?0:MOUNT_ATTR_NOEXEC);
     return syscall(SYS_mount_setattr,fd.get(),"",AT_EMPTY_PATH,&a,sizeof(a));
 }
-int Setup(int* fds,bool internet,bool reconciliation) {
+int Setup(int* fds,bool internet,bool reconciliation,bool exact_version) {
     if(syscall(SYS_move_mount,fds[0],"",AT_FDCWD,"/mnt",MOVE_MOUNT_F_EMPTY_PATH)<0
        ||syscall(SYS_move_mount,fds[1],"",fds[0],"dev",MOVE_MOUNT_F_EMPTY_PATH)<0
        ||mount("proc","/mnt/proc","proc",MS_NOSUID|MS_NODEV|MS_NOEXEC,"hidepid=2,subset=pid")<0
@@ -65,7 +65,7 @@ int Setup(int* fds,bool internet,bool reconciliation) {
     unique_fd tmp(open("/mnt/tmp",O_RDONLY|O_DIRECTORY|O_CLOEXEC));
     if(!policy.ok()||!input.ok()||!tmp.ok()||mkdirat(policy.get(),"empty",0755)<0
        ||Text(policy.get(),"empty.conf","")<0
-       ||Text(policy.get(),"config",aegis::PackageResolverConfiguration(internet,reconciliation))<0
+       ||Text(policy.get(),"config",aegis::PackageResolverConfiguration(internet,reconciliation,exact_version))<0
        ||CopyFd(fds[3],policy.get(),"sources.list",16384)<0
        ||CopyFd(fds[4],policy.get(),"key.asc",1048576)<0
        ||(internet&&CopyFd(fds[5],policy.get(),"ca.pem",1048576)<0)
@@ -132,7 +132,7 @@ int main(int argc,char** argv) {
     for(auto c:r.padding)if(c)valid=false;
     if(!valid)return 80;
     request.reconciliation=r.reconciliation;request.internet=r.internet;request.action=static_cast<aegis::PackageAction>(r.action);request.package=r.package;request.version=r.version_text;
-    if(aegis::PackageResolverCheck(request)<0||Setup(fds,request.internet,request.reconciliation)<0) { perror("aegis planner setup");return 81; }
+    if(aegis::PackageResolverCheck(request)<0||Setup(fds,request.internet,request.reconciliation,!request.version.empty())<0) { perror("aegis planner setup");return 81; }
     for(int fd:fds)close(fd);
     if(syscall(SYS_close_range,4u,~0u,0u)<0||syscall(SYS_pivot_root,".",".")<0
        ||umount2(".",MNT_DETACH)<0||chdir("/")<0)return 82;
