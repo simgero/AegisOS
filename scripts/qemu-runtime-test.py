@@ -83,6 +83,8 @@ shell_active = False
 held_login = None
 package_prompt = False
 ce_holders = {}
+mq_prefix = 'aegis_' + secrets.token_hex(8)
+mq_created = set()
 GNU_PROMPT = "__AEGIS_GNU_"+secrets.token_hex(12)+"> "
 
 def clean(data):
@@ -394,6 +396,44 @@ def held_ce_file(operation, key):
         del ce_holders[key]
         record('held-ce-release-'+key, {'original_system_server_survived':True,
             'scope':'The original fixture closed its FD; CE completion and fresh authentication still required'})
+
+
+def mqueue_probe(operation, key):
+    # ARM64 kernel syscall numbers, shared by the pinned Android and GNU ABI.
+    # Linux mq_open's raw syscall takes the name WITHOUT glibc's leading '/'.
+    assert shell_active
+    peer = 'beta' if key == 'alpha' else 'alpha'
+    common, own, foreign = mq_prefix+'_common', mq_prefix+'_'+key, mq_prefix+'_'+peer
+    value = 'MESSAGE_'+key
+    code = 'use strict; use warnings; '
+    if operation == 'create':
+        code += (f'for my $name ("{common}","{own}") {{ '
+                 'my $fd=syscall(180,$name,194,0600,0); die "mq_open:$!" if $fd<0; '
+                 f'my $data="{value}"; '
+                 'die "mq_send:$!" if syscall(182,$fd,$data,length($data),0,0)!=0; '
+                 'die "close:$!" if syscall(57,$fd)!=0; } print "MQUEUE_CREATED\\n";')
+    elif operation == 'isolation':
+        assert key in mq_created and peer in mq_created
+        code += (f'my $foreign="{foreign}"; '
+                 'die "foreign queue accessible" if syscall(180,$foreign,2048,0,0)>=0; '
+                 'die "wrong denial:$!" if 0+$! != 2; '
+                 f'my $name="{common}"; my $fd=syscall(180,$name,2048,0,0); '
+                 'die "own open:$!" if $fd<0; my $data="\\0"x8192; my $prio="\\0"x4; '
+                 'my $n=syscall(183,$fd,$data,8192,$prio,0); die "receive:$!" if $n<0; '
+                 f'die "wrong user message" if substr($data,0,$n) ne "{value}"; '
+                 'die "close:$!" if syscall(57,$fd)!=0; print "MQUEUE_PRIVATE_MESSAGE_AND_PEER_DENIAL\\n";')
+    elif operation == 'empty':
+        assert key in mq_created
+        code += (f'for my $name ("{common}","{own}") {{ '
+                 'die "old queue survived" if syscall(180,$name,2048,0,0)>=0; '
+                 'die "wrong denial:$!" if 0+$! != 2; } print "MQUEUE_OLD_NAMESPACE_GONE\\n";')
+    else:
+        raise ValueError('Unknown mqueue probe')
+    checked_gnu('mqueue-'+operation+'-'+key,
+                'test "$(uname -m)" = aarch64; perl -e '+shlex.quote(code))
+    if operation == 'create': mq_created.add(key)
+    record('mqueue-'+operation+'-proof-'+key, {'user':users[key],
+           'scope':'Actual unprivileged GNU Perl in the personal IPC namespace; raw ARM64 POSIX-mqueue syscalls'})
 
 
 def until_any(markers, timeout=240):
@@ -938,6 +978,8 @@ try:
                 locked_gnu_file('alpha' if cmd.endswith('-a') else 'beta')
             elif re.fullmatch(r'held-ce-(start|release)-[ab]',cmd):
                 held_ce_file(cmd.split('-')[2], 'alpha' if cmd.endswith('-a') else 'beta')
+            elif re.fullmatch(r'mqueue-(create|isolation|empty)-[ab]',cmd):
+                mqueue_probe(cmd.split('-')[1], 'alpha' if cmd.endswith('-a') else 'beta')
             elif re.fullmatch(r'pending-login-[ab]',cmd):
                 key='alpha' if cmd.endswith('-a') else 'beta'
                 assert key in ce_holders and not shell_active

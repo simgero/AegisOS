@@ -17,7 +17,10 @@ def main():
     parser.add_argument('run',type=Path)
     parser.add_argument('--authorize-this-host','--authorize-this-mac',dest='authorize_this_host',action='store_true',
                         help='Explicitly provision this host public ADB key in the development guest')
+    parser.add_argument('--wait-boot',type=int,default=0,
+                        help='Wait at most this many seconds for Android boot before provisioning ADB (0–1800)')
     args=parser.parse_args()
+    if not 0<=args.wait_boot<=1800: parser.error('--wait-boot must be 0–1800')
     address=(args.run/'adb-address.txt').read_text().strip()
     if not re.fullmatch(r'127\.0\.0\.1:[0-9]{4,5}',address):
         parser.error('Expected a local-only ADB endpoint')
@@ -33,6 +36,16 @@ def main():
 
     def guest(command):
         return execute(console,'su 0 sh -c '+shlex.quote('set -e; '+command))
+
+    deadline=time.monotonic()+args.wait_boot
+    while True:
+        try:
+            guest('test "$(getprop sys.boot_completed)" = 1; test -d /data/misc/adb')
+            break
+        except (RuntimeError, TimeoutError):
+            if time.monotonic()>=deadline:
+                raise SystemExit('Android boot is not ready for ADB. Inspect the guest logs or use --wait-boot.')
+            time.sleep(2)
 
     # In the current legacy image the property is absent and can be set once.
     # If an image explicitly sets it to 0, refuse rather than bypassing read-only properties.
