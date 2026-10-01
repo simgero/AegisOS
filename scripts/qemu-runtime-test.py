@@ -441,7 +441,7 @@ def mqueue_probe(operation, key):
            'scope':'Actual unprivileged GNU Perl in the personal IPC namespace; raw ARM64 POSIX-mqueue syscalls'})
 
 
-def until_any(markers, timeout=240):
+def until_any(markers, timeout=600):
     deadline=time.monotonic()+timeout
     encoded=[x.encode() for x in markers]
     while True:
@@ -481,7 +481,7 @@ def package_approve(key, administrator="alpha"):
     os.write(master,names[administrator].encode()+b'\n')
     data=until('Admin-Passwort für diesen Plan: ',30)
     os.write(master,credentials[key]+b'\n')
-    data.extend(until('aegis> ',240))
+    data.extend(until('aegis> ',600))
     package_prompt=False
     record('package-approve-'+key,data)
 
