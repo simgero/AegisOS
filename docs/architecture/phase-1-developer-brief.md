@@ -527,6 +527,11 @@ Die hier vorliegende Spezifikation beschreibt diese Deliverables; sie belegt der
 
 ## 20. Definition of Done
 
+Die [eigenständige Zieldefinition und DoD](phase-1-dod.md) bündelt diese
+Abschlussanforderungen und alle Pflichtfälle aus Abschnitt 17 als prüfbare
+Abnahmekriterien. Sie unterscheidet die bisherige Teilabnahme vom vollständigen
+Phase-1-Abschluss.
+
 Phase 1 gilt als erfolgreich, wenn auf einer frischen Entwicklungsumgebung der folgende Ablauf reproduzierbar demonstriert werden kann:
 
 ```text

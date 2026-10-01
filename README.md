@@ -2,6 +2,10 @@
 
 ## Aktueller Entwicklungsstand
 
+**Phase 1 ist teilabgenommen, noch nicht vollständig abgeschlossen.**
+Die [Zieldefinition und Definition of Done](docs/architecture/phase-1-dod.md)
+beschreibt alle Pflichtkriterien für den Abschluss.
+
 Die fünf beauftragten Terminal-Meilensteine sind direkt auf dem Buildserver
 im ARM64-QEMU-Prototyp nachgewiesen: [Abnahme und Grenzen](docs/server-acceptance.md).
 [Terminalzugang und konkreter Startbefehl](docs/terminal-quickstart.md) beschreiben
