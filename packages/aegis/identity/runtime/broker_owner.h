@@ -56,11 +56,14 @@ int aegis_broker_owner_apply(struct aegis_broker_owner *owner,
                              const struct aegis_broker_request *request,
                              enum aegis_broker_state *state);
 
-/* START may create a context from an already registered selection; its EAGAIN
- * reply returns that owned job. CONTINUE_START requires that exact live job,
- * user and serial and MUST NOT re-create work removed by STOP/HELLO. No FD
- * escapes. Other errors clear job, preserving incomplete cleanup ownership.
- * With enabled bootstrap, the first START registers the initial selection. */
+/* START retains one public job across initial selection, optional configured
+ * reconciliation, confirmed publication, reselection and activation. Internal
+ * child IDs are never accepted as public continuations. EAGAIN means retained
+ * pending work; CONTINUE_START requires the exact public job, user and serial
+ * and MUST NOT re-create work removed by STOP/HELLO. No FD escapes. Other errors
+ * clear the reply job and latch failure until STOP, retaining cleanup ownership.
+ * With enabled bootstrap, the first START registers the fixed CE/shared selection.
+ * Only configured stale selections may reconcile, at most once per start. */
 int aegis_broker_owner_start(struct aegis_broker_owner *owner,
                              const struct aegis_broker_call *call,
                              uint64_t *job, enum aegis_broker_state *state);

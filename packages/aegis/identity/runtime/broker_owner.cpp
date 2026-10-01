@@ -89,6 +89,7 @@ struct runtime_selection_slot {
     std::optional<PackageIntent> intent;
     bool create_store=false; // Checked target absence, never inferred from fallback scope.
     bool configured_reconciliation=false;
+    bool configured_runtime=false; // Fixed broker CE/shared paths, never caller-supplied fixtures.
     PackageRuntimeSelection plan;
     PackagePreparer* worker=nullptr;
     unique_fd mount;
@@ -96,6 +97,13 @@ struct runtime_selection_slot {
     RuntimeSelectionState state=RuntimeSelectionState::Selecting;
     PackagePreparationResult result;
     bool resources() const { return worker || mount.ok() || bases[0].ok() || bases[1].ok(); }
+};
+enum class RuntimeStartPhase { Selecting, ReconciliationSelection, Planning, Execution, Reselecting, Activated, Failed };
+struct runtime_start_slot {
+    uint32_t user,serial;
+    uint64_t public_job,child_job;
+    RuntimeStartPhase phase=RuntimeStartPhase::Selecting;
+    int error=0;
 };
 struct slot {
     uint32_t user, serial;
@@ -116,9 +124,15 @@ struct aegis_broker_owner {
     std::array<std::unique_ptr<publication_slot>,MAX_PUBLICATIONS> publications;
     std::array<std::unique_ptr<execution_slot>,MAX_PUBLICATIONS> executions;
     std::array<std::unique_ptr<runtime_selection_slot>,MAX_CONTEXTS+MAX_PUBLICATIONS> selections;
+    std::array<std::optional<runtime_start_slot>,MAX_CONTEXTS> starts;
 };
 
 static int fail(int error) { errno = error; return -1; }
+static runtime_start_slot* find_start(aegis_broker_owner* owner,uint32_t user) {
+    for(auto& slot:owner->starts)if(slot && slot->user==user)return &*slot;
+    return nullptr;
+}
+
 static int root_main(void) {
     uid_t real, effective, saved;
     gid_t greal, geffective, gsaved;
@@ -248,6 +262,8 @@ int aegis_broker_owner_create(int parent_fd, int base_fd, int setup_fd, int init
 // however, package resources participate in the SAME production STOP/HELLO/
 // disconnect path as runtime contexts. Only exact completed teardown is absent.
 static int publication_guard(struct aegis_broker_owner* owner,uint32_t user,uint32_t serial) {
+    if(auto* start=find_start(owner,user);start && start->serial!=serial)return fail(ESTALE);
+
     for(const auto& slot:owner->planners)if(slot && slot->plan.requester==user) {
         if(slot->plan.serial!=serial)return fail(ESTALE);
         if(slot->state==PlanningState::Sealed)return fail(EBUSY);
@@ -427,6 +443,11 @@ static int stop(struct aegis_broker_owner *owner, uint32_t user, uint64_t deadli
     int error = 0;
     // Signal EVERY matching package worker before the first potentially blocking
     // context/child wait. A timeout never leaves later jobs unvisited.
+    // A failed/partial STOP may leave resources to reap, but cannot leave a
+    // continuation that advances them or starts a replacement child.
+    for(auto& slot:owner->starts)if(slot && (!user || slot->user==user)) {
+        slot->phase=RuntimeStartPhase::Failed;slot->error=ECANCELED;
+    }
     seal_publications(owner,user);
     for(auto& slot:owner->planners) {
         if(!slot || (user && slot->plan.requester!=user))continue;
@@ -468,6 +489,7 @@ static int stop(struct aegis_broker_owner *owner, uint32_t user, uint64_t deadli
         if(reap_execution(*slot,left)<0) { if(!error)error=errno; }
         else slot.reset();
     }
+    if(!error)for(auto& slot:owner->starts)if(slot && (!user || slot->user==user))slot.reset();
     return error ? fail(error) : 0;
 }
 
@@ -501,6 +523,14 @@ int aegis_broker_owner_apply(struct aegis_broker_owner *owner,
         return 0;
     }
     if(publication_guard(owner,request->user,request->serial)<0)return -1;
+    if(request->operation==AEGIS_BROKER_START) {
+        // Direct owner callers must not bypass a pending planner/executor and
+        // accidentally fall back to the factory context while no selector exists.
+        auto* start=find_start(owner,request->user);
+        if(start && start->phase!=RuntimeStartPhase::Selecting
+           && start->phase!=RuntimeStartPhase::Reselecting && start->phase!=RuntimeStartPhase::Activated)
+            return fail(start->phase==RuntimeStartPhase::Failed ? start->error : EBUSY);
+    }
     struct slot *empty = NULL;
     for (unsigned i = 0; i < MAX_CONTEXTS; i++) {
         struct slot *slot = &owner->slots[i];
@@ -694,7 +724,13 @@ int admission(aegis_broker_owner* owner,uint32_t user,uint32_t serial,uint64_t d
     }
     return 0;
 }
-int capacity(aegis_broker_owner* owner,uint32_t user,const runtime_selection_slot* transferring=nullptr, const planning_slot* planning=nullptr) {
+int capacity(aegis_broker_owner* owner,uint32_t user,const runtime_selection_slot* transferring=nullptr,
+             const planning_slot* planning=nullptr,const runtime_start_slot* starting=nullptr) {
+    if(auto* start=find_start(owner,user);start && start->phase!=RuntimeStartPhase::Activated) {
+        const bool handoff=(transferring && transferring->plan.job==start->child_job)
+            || (planning && planning->plan.job==start->child_job) || start==starting;
+        if(!handoff)return fail(EBUSY);
+    }
     unsigned count=0;
     for(const auto& slot:owner->planners)if(slot && slot.get()!=planning) {
         count++;if(slot->plan.requester==user)return fail(EBUSY);
@@ -945,7 +981,7 @@ static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRunt
                                      int groups,int shared,int personal,int factory,int helper,
                                      uint64_t deadline,uint64_t* job,bool ce,int state_root=-1,
                                      SelectionPurpose purpose=SelectionPurpose::Runtime,
-                                     const PackageIntent* intent=nullptr) {
+                                     const PackageIntent* intent=nullptr,const runtime_start_slot* starting=nullptr) {
     if(!job || *job || request.job || shared < -1 || personal < -1)return fail(EINVAL);
     if(admission(owner,request.requester,request.serial,deadline)<0)return -1;
     if(purpose==SelectionPurpose::SharedPackage && (ce || personal!=-1))return fail(EINVAL);
@@ -954,7 +990,7 @@ static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRunt
         for(const auto& slot:owner->selections)if(slot && slot->purpose==purpose
                 && slot->plan.requester==request.requester)return fail(EALREADY);
     }
-    if(capacity(owner,request.requester)<0)return -1;
+    if(capacity(owner,request.requester,nullptr,nullptr,starting)<0)return -1;
     if(owner->next_publication==INT64_MAX)return fail(EOVERFLOW);
     auto plan=request;plan.job=owner->next_publication+1;
     if(PackageRuntimeSelectionCheck(plan)<0)return -1;
@@ -965,6 +1001,7 @@ static int prepare_runtime_selection(aegis_broker_owner* owner,const PackageRunt
     if(!slot)return fail(ENOMEM);slot->plan=plan;slot->purpose=purpose;
     if(intent)slot->intent=*intent;
     slot->configured_reconciliation=purpose==SelectionPurpose::Reconciliation && ce && state_root>=0;
+    slot->configured_runtime=purpose==SelectionPurpose::Runtime && ce && state_root>=0;
     *job=++owner->next_publication;*empty=std::move(slot);
     auto& registered=**empty; // Own BEFORE opening CE, without deferred CLI FDs.
     unique_fd private_store,shared_store;int error=0;
@@ -1674,6 +1711,102 @@ int BrokerStartConfiguredPackage(aegis_broker_owner* owner,uint32_t user,uint32_
 }
 } // namespace aegis
 
+// Each wire START retains one stable public ID. Internal child IDs may advance,
+// but are never accepted as replacement continuations. Only this coordinator
+// creates the configured reconciliation and reselects after confirmed publication.
+static int start_selection(aegis_broker_owner* owner,runtime_start_slot& start,uint64_t deadline,
+                           SelectionPurpose purpose) {
+    PackageRuntimeSelection plan;plan.requester=start.user;plan.serial=start.serial;
+    plan.factory=owner->selection_factory;uint64_t registered=0;
+    int result=prepare_runtime_selection(owner,plan,owner->inputs[0],-1,-1,
+        owner->selection_image.get(),owner->selection_helper.get(),deadline,&registered,true,
+        owner->selection_directory.get(),purpose,nullptr,&start);
+    if(registered)start.child_job=registered; // Retain partial ownership even on failure.
+    return result;
+}
+static int advance_start(aegis_broker_owner* owner,runtime_start_slot& start,
+                         const aegis_broker_request& request,aegis_broker_state* state) {
+    if(start.phase==RuntimeStartPhase::Failed)return fail(start.error);
+    if(admission(owner,start.user,start.serial,request.deadline_ns)<0)return -1;
+    if(start.phase==RuntimeStartPhase::Planning) {
+        for(auto& slot:owner->planners)if(slot && slot->plan.job==start.child_job) {
+            if(slot->plan.requester!=start.user || slot->plan.serial!=start.serial
+               || !slot->configured_reconciliation || slot->configured)return fail(ESTALE);
+            if(reap_planning(*slot,0)<0)
+                return errno==ETIMEDOUT && slot->worker && slot->state==PlanningState::Running ? 1 : fail(errno==EAGAIN?EIO:errno);
+            if(slot->state!=PlanningState::Collected && slot->state!=PlanningState::Reviewed)
+                return fail(slot->result.error?slot->result.error:EIO);
+            if(BrokerPrepareConfiguredReconciliationTransaction(owner,start.user,start.serial,
+                    start.child_job,request.deadline_ns)<0)return fail(errno==EAGAIN?EIO:errno);
+            start.phase=RuntimeStartPhase::Execution;
+            return 1; // The transferred execution owns the new preparation.
+        }
+        return fail(ESTALE);
+    }
+    if(start.phase==RuntimeStartPhase::Execution) {
+        for(auto& slot:owner->executions)if(slot && slot->plan.job==start.child_job) {
+            if(slot->plan.requester!=start.user || slot->plan.serial!=start.serial
+               || !slot->configured_reconciliation || slot->configured_intent)return fail(ESTALE);
+            if(reap_execution(*slot,0)<0) {
+                const bool working=(slot->state==PublicationState::Preparing && slot->preparer)
+                    || (slot->state==PublicationState::Running && slot->executor)
+                    || (slot->state==PublicationState::Publishing && slot->publisher);
+                return errno==ETIMEDOUT && working ? 1 : fail(errno==EAGAIN?EIO:errno);
+            }
+            if((slot->state==PublicationState::Preparing && slot->preparer)
+               || (slot->state==PublicationState::Running && slot->executor)
+               || (slot->state==PublicationState::Publishing && slot->publisher))return 1;
+            if(slot->state==PublicationState::Prepared) {
+                if(BrokerStartConfiguredReconciliation(owner,start.user,start.serial,start.child_job,
+                        request.deadline_ns)<0)return fail(errno==EAGAIN?EIO:errno);
+                return 1;
+            }
+            if(slot->state!=PublicationState::Complete)
+                return fail(slot->state==PublicationState::Sealed?ECANCELED:EPROTO);
+            if(slot->result.outcome!=PackageExecutionOutcome::Published || slot->result.error || slot->resources())
+                return fail(slot->result.error?slot->result.error:EIO);
+            slot.reset();
+            start.phase=RuntimeStartPhase::Reselecting;
+            if(start_selection(owner,start,request.deadline_ns,SelectionPurpose::Runtime)<0)
+                return fail(errno==EAGAIN?EIO:errno);
+            return 1;
+        }
+        return fail(ESTALE);
+    }
+    for(auto& slot:owner->selections)if(slot && slot->plan.job==start.child_job) {
+        if(slot->plan.requester!=start.user || slot->plan.serial!=start.serial)return fail(ESTALE);
+        const bool recon=start.phase==RuntimeStartPhase::ReconciliationSelection;
+        if(slot->purpose!=(recon?SelectionPurpose::Reconciliation:SelectionPurpose::Runtime))return fail(ESTALE);
+        if(reap_selection(*slot,0)<0)
+            return errno==ETIMEDOUT && slot->worker && slot->state==RuntimeSelectionState::Selecting ? 1 : fail(errno==EAGAIN?EIO:errno);
+        if(recon) {
+            if(!slot->configured_reconciliation || slot->intent)return fail(EPERM);
+            if(slot->state!=RuntimeSelectionState::ReconciliationInputs)return fail(slot->result.error?slot->result.error:EIO);
+            if(BrokerContinueConfiguredReconciliationPlanning(owner,start.user,start.serial,start.child_job,
+                    request.deadline_ns)<0)return fail(errno==EAGAIN?EIO:errno);
+            start.phase=RuntimeStartPhase::Planning;
+            return 1;
+        }
+        // Retry precisely one stale configured selection. The three-view worker
+        // revalidates why it was stale; hash/receipt/choice corruption cannot be
+        // converted to approval. A second shared change requires a fresh login.
+        if(start.phase==RuntimeStartPhase::Selecting && slot->state==RuntimeSelectionState::Failed
+           && slot->result.error==ESTALE && slot->configured_runtime && !slot->resources()
+           && owner->package_install_enabled) {
+            slot.reset();start.phase=RuntimeStartPhase::ReconciliationSelection;
+            if(start_selection(owner,start,request.deadline_ns,SelectionPurpose::Reconciliation)<0)
+                return fail(errno==EAGAIN?EIO:errno);
+            return 1;
+        }
+        if(slot->state!=RuntimeSelectionState::Selected && slot->state!=RuntimeSelectionState::Activated)
+            return fail(slot->result.error?slot->result.error:EBUSY);
+        // apply() may invoke STOP on expired authority and erase the cursor.
+        // Do not dereference start after this call; the caller looks it up again.
+        return aegis_broker_owner_apply(owner,&request,state);
+    }
+    return fail(ESTALE);
+}
+
 int aegis_broker_owner_start(aegis_broker_owner* owner,const aegis_broker_call* call,
                              uint64_t* job,aegis_broker_state* state) {
     if(!job || !state)return fail(EINVAL);
@@ -1685,38 +1818,52 @@ int aegis_broker_owner_start(aegis_broker_owner* owner,const aegis_broker_call* 
     if((!continuation && request.operation!=AEGIS_BROKER_START)
             || (continuation ? !call->command || call->command>INT64_MAX : call->command!=0))
         return fail(EINVAL);
-    // Validate framing/deadline before looking up any resource. The normalized
-    // START is internal only; absence on continuation is rejected before apply.
-    auto start=request;start.operation=AEGIS_BROKER_START;
+    auto normalized=request;normalized.operation=AEGIS_BROKER_START;
     uint64_t now;if(now_ns(&now)<0)return -1;
     aegis_broker_request checked;
-    if(aegis_broker_parse(&start,sizeof(start),start.sequence>1?start.sequence-1:0,now,&checked)<0)return -1;
-    runtime_selection_slot* selected=nullptr;
-    for(auto& slot:owner->selections)if(slot && slot->purpose==SelectionPurpose::Runtime && slot->plan.requester==request.user) {
-        selected=slot.get();break;
+    if(aegis_broker_parse(&normalized,sizeof(normalized),normalized.sequence>1?normalized.sequence-1:0,now,&checked)<0)return -1;
+    auto* start=find_start(owner,request.user);
+    if(start && (start->serial!=request.serial || (continuation && start->public_job!=call->command)))return fail(ESTALE);
+    if(!start) {
+        runtime_selection_slot* selected=nullptr;
+        for(auto& slot:owner->selections)if(slot && slot->purpose==SelectionPurpose::Runtime && slot->plan.requester==request.user) {
+            selected=slot.get();break;
+        }
+        if(selected && selected->plan.serial!=request.serial)return fail(ESTALE);
+        if(continuation && (!selected || selected->plan.job!=call->command))return fail(ESTALE);
+        std::optional<runtime_start_slot>* empty=nullptr;
+        for(auto& entry:owner->starts)if(!entry) { empty=&entry;break; }
+        if(!empty)return fail(ENOSPC);
+        if(!selected && owner->selection_enabled) {
+            for(const auto& slot:owner->slots)if(slot.context && slot.user==request.user)return fail(ESTALE);
+            PackageRuntimeSelection plan;plan.requester=request.user;plan.serial=request.serial;
+            plan.factory=owner->selection_factory;uint64_t registered=0;
+            if(prepare_runtime_selection(owner,plan,owner->inputs[0],-1,-1,
+                    owner->selection_image.get(),owner->selection_helper.get(),request.deadline_ns,
+                    &registered,true,owner->selection_directory.get())<0)return -1;
+            for(auto& slot:owner->selections)if(slot && slot->plan.job==registered) { selected=slot.get();break; }
+            if(!selected)return fail(EIO);
+        }
+        if(!selected) {
+            int result=aegis_broker_owner_apply(owner,&normalized,state);
+            return result<0 && errno==EAGAIN ? fail(EIO) : result;
+        }
+        empty->emplace(runtime_start_slot{request.user,request.serial,selected->plan.job,selected->plan.job});
+        start=&**empty;
     }
-    if(selected && selected->plan.serial!=request.serial)return fail(ESTALE);
-    if(continuation && (!selected || selected->plan.job!=call->command))return fail(ESTALE);
-    if(!selected && owner->selection_enabled) {
-        // Existing contexts must already own their registered generation. No
-        // post-bootstrap fallback to the factory-mount compatibility path.
-        for(const auto& slot:owner->slots)if(slot.context && slot.user==request.user)return fail(ESTALE);
-        PackageRuntimeSelection plan;plan.requester=request.user;plan.serial=request.serial;
-        plan.factory=owner->selection_factory;uint64_t registered=0;
-        if(prepare_runtime_selection(owner,plan,owner->inputs[0],-1,-1,
-                owner->selection_image.get(),owner->selection_helper.get(),request.deadline_ns,
-                &registered,true,owner->selection_directory.get())<0)return -1;
-        for(auto& slot:owner->selections)if(slot && slot->plan.job==registered) { selected=slot.get();break; }
-        if(!selected)return fail(EIO);
+    const uint64_t public_job=start->public_job;
+    int result=advance_start(owner,*start,normalized,state),error=errno;
+    // Only the explicit internal pending result may become wire EAGAIN. A
+    // helper/context failure bearing that errno must remain a terminal failure.
+    if(result<0 && error==EAGAIN)error=EIO;
+    // apply() can remove this entry on deadline expiry. Never use the old pointer.
+    start=find_start(owner,request.user);
+    if(result>=0) {
+        if(!start || start->public_job!=public_job)return fail(ESTALE);
+        *job=public_job;
+        if(result==0)start->phase=RuntimeStartPhase::Activated;
+    } else if(start) {
+        start->phase=RuntimeStartPhase::Failed;start->error=error;
     }
-    uint64_t selected_job=selected ? selected->plan.job : 0;
-    int result=aegis_broker_owner_apply(owner,&start,state),error=errno;
-    if(result==0 || (error==EAGAIN && selected_job)) *job=selected_job;
-    // Only a still-owned selector may ask the service to wait. An unrelated
-    // EAGAIN (e.g. setup I/O failure) must never turn into a new implicit start.
-    if(result<0 && error==EAGAIN && (!selected || !selected->worker
-            || selected->state!=RuntimeSelectionState::Selecting)) {
-        *job=0;return fail(EIO);
-    }
-    return result<0 ? fail(error) : 0;
+    return result==1 ? fail(EAGAIN) : result<0 ? fail(error) : 0;
 }

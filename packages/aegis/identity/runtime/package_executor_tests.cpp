@@ -1899,6 +1899,7 @@ TEST_F(RuntimeSelectionOwner, StartContinuationCannotRecreateStoppedOrReplacedJo
     EXPECT_EQ(-1,StartJob(10,42,original,&job));EXPECT_EQ(EAGAIN,errno);EXPECT_EQ(original,job);
     EXPECT_EQ(-1,StartJob(11,42,original,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
     EXPECT_EQ(-1,StartJob(10,43,original,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
+    EXPECT_EQ(-1,StartJob(10,42,original,&job));EXPECT_EQ(EAGAIN,errno);EXPECT_EQ(original,job);
     ASSERT_EQ(0,Stop());EXPECT_EQ(fds,CountFDs());
     EXPECT_EQ(-1,StartJob(10,42,original,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);EXPECT_EQ(fds,CountFDs());
     ASSERT_EQ(0,RegisterSelection());Freeze();ASSERT_FALSE(HasFatalFailure());EXPECT_GT(selected_job,original);
@@ -1908,9 +1909,35 @@ TEST_F(RuntimeSelectionOwner, StartContinuationCannotRecreateStoppedOrReplacedJo
 }
 TEST_F(RuntimeSelectionOwner, HelloInvalidatesContinuationEvenWithSameIdentity) {
     ASSERT_EQ(0,RegisterSelection());Freeze();ASSERT_FALSE(HasFatalFailure());auto original=selected_job;
+    uint64_t job=99;EXPECT_EQ(-1,StartJob(10,42,original,&job));EXPECT_EQ(EAGAIN,errno);EXPECT_EQ(original,job);
     aegis_broker_state state;ASSERT_EQ(0,Apply(AEGIS_BROKER_HELLO,0,0,&state));
-    uint64_t job=99;EXPECT_EQ(-1,StartJob(10,42,original,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
+    EXPECT_EQ(-1,StartJob(10,42,original,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
     EXPECT_EQ("populated 0\nfrozen 0\n",AptImageFixture::read(parent.get(),"cgroup.events"));
+}
+TEST_F(RuntimeSelectionOwner, ZeroBudgetStopNeverLeavesAResumableStart) {
+    const int before=CountFDs();ASSERT_EQ(0,RegisterSelection());Freeze();ASSERT_FALSE(HasFatalFailure());
+    const auto original=selected_job;uint64_t job=99;
+    ASSERT_EQ(-1,StartJob(10,42,original,&job));ASSERT_EQ(EAGAIN,errno);ASSERT_EQ(original,job);
+    // STOP seals first even when it cannot finish reaping in this call. Whether
+    // SIGKILL has already reaped is scheduling-dependent; continuation never is.
+    const int stopped=aegis_broker_owner_stop_all(broker,0);
+    EXPECT_TRUE(stopped==0 || errno==ETIMEDOUT || errno==EBUSY);
+    EXPECT_EQ(-1,StartJob(10,42,original,&job));EXPECT_TRUE(errno==ECANCELED || errno==ESTALE);EXPECT_EQ(0u,job);
+    ASSERT_EQ(0,Stop());EXPECT_EQ(before,CountFDs());
+    EXPECT_EQ(-1,StartJob(10,42,original,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
+    ASSERT_EQ(0,RegisterSelection());EXPECT_GT(selected_job,original);ASSERT_EQ(0,Stop());
+}
+TEST_F(RuntimeSelectionOwner, RuntimeStartCannotAdoptAnOrdinaryPackageJob) {
+    const int before=CountFDs();uint64_t package_job=0;
+    ASSERT_EQ(0,BrokerPreparePackageSelection(broker,selection,true,parent.get(),-1,-1,
+        factory.get(),prepare_helper.get(),Deadline(),&package_job));
+    uint64_t job=99;EXPECT_EQ(-1,StartJob(10,42,package_job,&job));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(0u,job);
+    EXPECT_EQ(-1,StartJob(10,42,0,&job));EXPECT_EQ(EBUSY,errno);EXPECT_EQ(0u,job);
+    RuntimeSelectionState state;PackagePreparationResult result;
+    ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,10,42,package_job,&state,&result));
+    EXPECT_TRUE(state==RuntimeSelectionState::Selecting || state==RuntimeSelectionState::Selected);
+    ASSERT_EQ(0,Stop());EXPECT_EQ(before,CountFDs());
+    ASSERT_EQ(0,RegisterSelection());EXPECT_GT(selected_job,package_job);ASSERT_EQ(0,Stop());
 }
 TEST_F(RuntimeSelectionOwner, FailedSelectionIsNotPendingAndCannotSilentlyRestart) {
     selection.factory.sha256=std::string(64,'f');ASSERT_EQ(0,RegisterSelection());
