@@ -307,6 +307,10 @@ allow aegis_runtime_program aegis_runtime_devices_file:lnk_file r_file_perms;
 allow aegis_runtime_program aegis_runtime_devices_file:chr_file rw_file_perms;
 allow aegis_runtime_program self:unix_stream_socket create_stream_socket_perms;
 allow aegis_runtime_program self:unix_dgram_socket create_socket_perms;
+# Each context mounts mqueue after entering its private IPC namespace. POSIX
+# mq_open/mq_unlink need access to those inodes, without namespace/mount powers.
+allow aegis_runtime_program mqueue:dir { search read open getattr write add_name remove_name };
+allow aegis_runtime_program mqueue:file { create open read write getattr setattr unlink };
 neverallow aegis_runtime_program self:global_capability_class_set *;
 neverallow aegis_runtime_program self:user_namespace create;
 neverallow { aegis_runtime_init aegis_runtime_program } fs_type:filesystem { mount remount relabelfrom relabelto };

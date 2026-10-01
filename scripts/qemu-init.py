@@ -56,8 +56,8 @@ def main():
     p.add_argument("--userdata-fs", choices=["f2fs", "ext4"], default="f2fs",
                    help="Filesystem of the userdata image (AOSP release uses f2fs)")
     args = p.parse_args()
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        p.error("Run on the Apple Silicon Mac")
+    from qemu_host import execution
+    host = execution()
     if not 1 <= args.seconds <= 300:
         p.error("Diagnostic duration must be 1–300 seconds")
     images = args.images.resolve()
@@ -70,8 +70,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     output = args.output.resolve()
     (output / "initrd.img").write_bytes(ramdisk)
-    command = ["qemu-system-aarch64", "-machine", "virt-11.1,gic-version=3",
-               "-accel", "hvf", "-cpu", "host", "-smp", "4", "-m", "4096",
+    command = ["qemu-system-aarch64", *host, "-smp", "4", "-m", "4096",
                "-nodefaults", "-display", "none", "-net", "none", "-no-reboot",
                "-serial", "stdio", "-monitor", "none", "-kernel", str(images / "kernel"),
                "-initrd", str(output / "initrd.img"), "-append",

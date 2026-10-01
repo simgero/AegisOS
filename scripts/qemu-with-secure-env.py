@@ -112,7 +112,9 @@ def main():
     p.add_argument('bootconfig',type=Path)
     p.add_argument('output',type=Path)
     p.add_argument('--seconds',type=int,default=180,help='0 keeps the VMs running until the QEMU window is closed')
-    p.add_argument('--display',choices=['none','cocoa'],default='none')
+    p.add_argument('--display',choices=['none','cocoa','gtk'],default='none')
+    p.add_argument('--helper-timeout',type=int,default=180,
+                   help='Bounded helper startup wait; software emulation needs longer than HVF')
     p.add_argument('--framebuffer-format',choices=['rgba','bgra'],
                    help='Override the local compositor framebuffer format for diagnostics')
     p.add_argument('--pointer',choices=['mouse','tablet'],default='mouse',
@@ -125,6 +127,7 @@ def main():
     p.add_argument('--create-profile',action='store_true',help='Explicitly provision a NEW profile')
     args=p.parse_args()
     if not 0<=args.seconds<=600: p.error('Duration must be 0–600 seconds')
+    if not 30<=args.helper_timeout<=600: p.error('Helper timeout must be 30–600 seconds')
     if args.adb_port and not 1024<=args.adb_port<=65535: p.error('ADB port must be 1024–65535')
     if args.create_profile and not args.profile: p.error('--create-profile requires --profile')
     # Termination enters the same cleanup path as Ctrl-C.
@@ -179,8 +182,9 @@ def run(args,manifest=None):
                     '-netdev','user,id=aegis-net,ipv6=off',
                     '-device','virtio-net-pci,id=aegis-nic,netdev=aegis-net,mac=52:54:00:ae:61:01']
     (output/'network-mode.txt').write_text(args.network+'\n')
-    helper=['qemu-system-aarch64','-machine','virt-11.1,gic-version=3','-accel','hvf',
-            '-cpu','host','-smp','2','-m','1024','-nodefaults','-display','none','-net','none',
+    from qemu_host import execution
+    helper=['qemu-system-aarch64',*execution(),
+            '-smp','2','-m','1024','-nodefaults','-display','none','-net','none',
             '-no-reboot','-serial','stdio','-monitor','none','-kernel',str(images/'kernel'),
             '-initrd',str(output/'helper-initrd.img'),'-append',
             'console=ttyAMA0 earlycon=pl011,0x09000000 panic=1 printk.devkmsg=on',
@@ -219,7 +223,7 @@ def run(args,manifest=None):
         with (output/'helper.log').open('w') as hostlog,(output/'android.log').open('w') as guestlog:
             try:
                 host=subprocess.Popen(helper,stdin=subprocess.PIPE,stdout=hostlog,stderr=subprocess.STDOUT);processes.append(host)
-                deadline=time.monotonic()+30
+                deadline=time.monotonic()+args.helper_timeout
                 while not all(path.exists() for path in sockets.values()):
                     if host.poll() is not None or time.monotonic()>deadline:
                         raise RuntimeError('Helper failed before opening channels; inspect helper.log')
