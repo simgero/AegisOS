@@ -15,10 +15,14 @@ struct PackagePublication {
     // and private shared-base identity are pinned BEFORE action approval. The
     // separate trusted worker derives the digest, then copy-verifies it.
     bool derive_source_hash = false;
-    // Reconciliation must publish against the exact common generation used by
-    // its verified plan. The worker owns the common store lock until the private
+    // Personal actions must publish against the exact common generation used
+    // by their verified plan. The worker owns the common store lock until the private
     // selection is durable; it rejects changed/absent/locked common state.
     bool fence_shared_current = false;
+    // Derived only when the reviewed common hash is the pinned factory hash.
+    // Allows no selected common generation while holding its directory/store
+    // lock through private publication; never treats malformed metadata as empty.
+    bool allow_factory_shared = false;
     PackageGeneration expected_shared;
 
 };

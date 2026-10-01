@@ -37,8 +37,8 @@ std::string Get(int directory,const char* path) {
     char text[1024];ssize_t n=read(fd.get(),text,sizeof(text));
     return n<0?"<failed>":std::string(text,n);
 }
-int Put(int directory,const char* path,const char* text) {
-    unique_fd fd(openat(directory,path,O_WRONLY|O_CLOEXEC|O_NOFOLLOW));
+int Put(int directory,const char* path,const char* text,int flags=0) {
+    unique_fd fd(openat(directory,path,O_WRONLY|flags|O_CLOEXEC|O_NOFOLLOW,0600));
     if(!fd.ok())return -1;
     return write(fd.get(),text,strlen(text))==static_cast<ssize_t>(strlen(text)) ? 0 : -1;
 }
@@ -125,6 +125,14 @@ class RuntimePackagePublisher : public ::testing::Test {
         request.personal=true;request.fence_shared_current=true;request.expected_shared=common;
         request.candidate.shared_base_sha256=common.image_sha256;
     }
+    void FactoryFence() {
+        ASSERT_EQ(0,mkdirat(directory.get(),"common",0700));
+        shared_store.reset(openat(directory.get(),"common",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(shared_store.ok());
+        ASSERT_EQ(0,Put(directory.get(),"common-source","factory",O_CREAT|O_EXCL));
+        common={Digest("factory",7),"",7};
+        request.personal=true;request.fence_shared_current=true;request.allow_factory_shared=true;
+        request.expected_shared=common;request.candidate.shared_base_sha256=common.image_sha256;
+    }
     void TearDown() override {
         for(auto*& job:jobs)if(job) {
             PackagePublicationResult result;
@@ -168,6 +176,36 @@ TEST_F(RuntimePackagePublisher, PublishesWithActualChildAndClosesOwnedDescriptor
     EXPECT_EQ(nullptr,jobs[0]);EXPECT_EQ(PackagePublish::Confirmed,result.publication);
     EXPECT_EQ(0,result.error);EXPECT_EQ(before,Descriptors());Selection("complete generation");
 }
+TEST_F(RuntimePackagePublisher, FactoryFencePublishesPrivateWithoutInitializingSharedMetadata) {
+    FactoryFence();ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,Start());PackagePublicationResult result;
+    ASSERT_EQ(0,Finish(0,&result));ASSERT_EQ(PackagePublish::Confirmed,result.publication)<<result.error;
+    Selection("complete generation",true);
+    unique_fd empty(PackageStore::LockEmptyShared(shared_store.get()));ASSERT_TRUE(empty.ok());
+    struct stat st;EXPECT_EQ(-1,fstatat(shared_store.get(),"owner",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+}
+TEST_F(RuntimePackagePublisher, FactoryFenceAllowsValidInitializedStoreWithNoSelectedGeneration) {
+    FactoryFence();ASSERT_FALSE(HasFatalFailure());
+    { std::unique_ptr<PackageStore> common_empty(PackageStore::Open(shared_store.get(),{false,0,0},true));ASSERT_TRUE(common_empty); }
+    ASSERT_EQ(0,Start());PackagePublicationResult result;ASSERT_EQ(0,Finish(0,&result));
+    ASSERT_EQ(PackagePublish::Confirmed,result.publication)<<result.error;Selection("complete generation",true);
+    std::unique_ptr<PackageStore> common_empty(PackageStore::Open(shared_store.get(),{false,0,0},false));ASSERT_TRUE(common_empty);
+    PackageGeneration unchanged;unique_fd none(common_empty->Current(&unchanged));EXPECT_FALSE(none.ok());EXPECT_EQ(ENOENT,errno);
+}
+TEST_F(RuntimePackagePublisher, FirstSharedGenerationInvalidatesAnEarlierFactoryPlanBeforePrivateMutation) {
+    FactoryFence();ASSERT_FALSE(HasFatalFailure());
+    { std::unique_ptr<PackageStore> first(PackageStore::Open(shared_store.get(),{false,0,0},true));ASSERT_TRUE(first);
+      const std::atomic_bool proceed{false};PackageGeneration generation=request.candidate;generation.shared_base_sha256.clear();
+      ASSERT_EQ(PackagePublish::Confirmed,first->Publish(nullptr,source.get(),generation,proceed)); }
+    ASSERT_EQ(0,Start());PackagePublicationResult result;ASSERT_EQ(0,Finish(0,&result));
+    EXPECT_EQ(PackagePublish::Rejected,result.publication);EXPECT_EQ(ESTALE,result.error);
+    struct stat st;EXPECT_EQ(-1,fstatat(store.get(),"owner",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+}
+TEST_F(RuntimePackagePublisher, FactoryPermissionNeverTreatsPartialSharedMetadataAsAbsence) {
+    FactoryFence();ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,Put(shared_store.get(),"owner","broken",O_CREAT|O_EXCL));
+    ASSERT_EQ(0,Start());PackagePublicationResult result;ASSERT_EQ(0,Finish(0,&result));
+    EXPECT_EQ(PackagePublish::Rejected,result.publication);EXPECT_EQ(ENOENT,result.error);
+    struct stat st;EXPECT_EQ(-1,fstatat(store.get(),"owner",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+}
 TEST_F(RuntimePackagePublisher, SharedFenceSurvivesCallerDescriptorCloseAndReleasesAfterCompletion) {
     Fenced();ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,Start())<<strerror(errno);shared_store.reset();
     PackagePublicationResult result;ASSERT_EQ(0,Finish(0,&result));ASSERT_EQ(PackagePublish::Confirmed,result.publication)<<result.error;
@@ -190,10 +228,11 @@ TEST_F(RuntimePackagePublisher, LockedCommonStoreRejectsWithoutPrivateMutation) 
 TEST_F(RuntimePackagePublisher, SharedFenceRejectsMissingDescriptorAndInconsistentEvidenceBeforeSpawn) {
     Fenced();ASSERT_FALSE(HasFatalFailure());const auto valid=request;int before=Descriptors();
     EXPECT_EQ(-1,PackagePublisherStart(parent.get(),store.get(),source.get(),helper.get(),request,&jobs[0]));EXPECT_EQ(EINVAL,errno);EXPECT_EQ(nullptr,jobs[0]);
-    for(int which=0;which<4;which++) {
+    for(int which=0;which<5;which++) {
         request=valid;
         switch(which) { case 0:request.personal=false;break;case 1:request.expected_shared.image_sha256=std::string(64,'f');break;
-          case 2:request.expected_shared.shared_base_sha256=std::string(64,'c');break;case 3:request.fence_shared_current=false;break; }
+          case 2:request.expected_shared.shared_base_sha256=std::string(64,'c');break;case 3:request.fence_shared_current=false;break;
+          case 4:request.fence_shared_current=false;request.expected_shared={};request.allow_factory_shared=true;break; }
         EXPECT_EQ(-1,Start());EXPECT_EQ(EINVAL,errno);EXPECT_EQ(nullptr,jobs[0]);
     }
     request=valid;EXPECT_EQ(before,Descriptors());

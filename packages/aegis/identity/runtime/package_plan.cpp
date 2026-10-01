@@ -96,11 +96,12 @@ static int Bind(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* outp
     pub.requester=p.requester;pub.serial=p.serial;pub.personal=p.personal;pub.create=p.create_store;
     pub.has_previous=p.has_previous;pub.previous=p.previous;pub.derive_source_hash=true;
     pub.candidate.bytes=p.source.bytes;if(p.personal)pub.candidate.shared_base_sha256=p.shared.sha256;
-    if(reconciliation) {
+    if(p.personal) {
         pub.fence_shared_current=true;
+        pub.allow_factory_shared=!reconciliation && p.shared.sha256==p.planner_image_sha256;
         pub.expected_shared={p.shared.sha256,"",p.shared.bytes};
     }
-    Encoding e;e.Text("org.aegisos.package.resolved-plan");e.Number(reconciliation?5:4);
+    Encoding e;e.Text("org.aegisos.package.resolved-plan");e.Number(reconciliation?5:6);
     e.Number(p.requester);e.Number(p.serial);e.Number(p.personal);e.Number(p.create_store);e.Number(p.has_previous);
     e.Number(static_cast<uint32_t>(p.action));e.Text(p.requested_package);e.Text(p.requested_version);
     e.Input(p.source);e.Input(p.shared);e.Generation(p.previous);

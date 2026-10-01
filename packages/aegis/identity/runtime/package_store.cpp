@@ -200,7 +200,8 @@ bool PackageStore::Check() const {
 PackageStore* PackageStore::Open(int directory, PackageOwner owner, bool create) {
     if (geteuid() || !Owner(owner)) { Fail(EINVAL); return nullptr; }
     unique_fd root(OpenAt(directory, ".", O_RDONLY | O_DIRECTORY));
-    if (!root.ok() || !Metadata(root.get(), S_IFDIR, 0700, false)) return nullptr;
+    if (!root.ok() || !Metadata(root.get(), S_IFDIR, 0700, false)
+            || flock(root.get(), LOCK_EX | LOCK_NB) < 0) return nullptr;
     if (create && !Empty(root.get())) return nullptr;
     unique_fd lock(OpenAt(root.get(), "lock", create ? O_RDWR | O_CREAT | O_EXCL : O_RDONLY, create ? 0600 : 0));
     if (!lock.ok() || !Metadata(lock.get(), S_IFREG, 0600, true)
@@ -219,6 +220,16 @@ PackageStore* PackageStore::Open(int directory, PackageOwner owner, bool create)
             || !ReadSmall(identity.get(), &actual)) return nullptr;
     if (actual != expected) { Fail(ESTALE); return nullptr; }
     return new PackageStore(root.release(), lock.release(), owner);
+}
+
+int PackageStore::LockEmptyShared(int directory) {
+    if(geteuid())return Fail(EPERM);
+    // Reopen rather than dup: the lock must use an independent open-file
+    // description even if several workers received the same broker descriptor.
+    unique_fd root(OpenAt(directory,".",O_RDONLY|O_DIRECTORY));
+    if(!root.ok() || !Metadata(root.get(),S_IFDIR,0700,false)
+       || flock(root.get(),LOCK_EX|LOCK_NB)<0 || !Empty(root.get()))return -1;
+    return root.release();
 }
 
 int PackageStore::ReadSelection(PackageGeneration* output) const {

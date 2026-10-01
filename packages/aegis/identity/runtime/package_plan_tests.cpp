@@ -45,8 +45,8 @@ TEST(PackageResolvedPlan, BindsCanonicalEpochArchivesAndRequesterPrivateOwner) {
     EXPECT_EQ(268435456u,pub.candidate.bytes);EXPECT_EQ(2000u,b.valid_until_unix);
     EXPECT_EQ(prep.execution.plan_sha256,pub.plan_sha256);
 }
-TEST(PackageResolvedPlan, IndependentVersionFourDigestVectorAndClockStableBinding) {
-    auto p=Plan();EXPECT_EQ("9baa6c48dcb922d9b6d5cfd53d81f945733c8eee0953af28b645311d80c83558",Digest(p));
+TEST(PackageResolvedPlan, IndependentVersionSixDigestVectorAndClockStableBinding) {
+    auto p=Plan();EXPECT_EQ("7aa6d03f6513fe6c20ce79848c0d362a3f7c34a8b0236b72a220f24e703010f2",Digest(p));
     PackageBoundPlan b;ASSERT_EQ(0,PackageBindResolvedPlan(p,1999,&b));
     EXPECT_EQ(Digest(p),b.preparation.execution.plan_sha256);
 }
@@ -271,4 +271,21 @@ TEST(PackageResolvedPlan, PrivateChoicesAreBoundAndLegacyMissingManifestIsNotInf
     EXPECT_EQ(p.initial_private_choices,std::string(bound.preparation.execution.review.initial_choices));
     EXPECT_EQ(p.initial_private_choices+"test-app\tarm64\t2:1.0~rc1-1\n",std::string(bound.preparation.execution.review.result_choices));
     p.initial_private_choices="broken";Reject(p,EBADMSG);
+}
+
+TEST(PackageResolvedPlan, EveryPrivateActionFencesSharedAndOnlyPinnedFactoryAllowsAbsence) {
+    for(auto action:{PackageAction::Install,PackageAction::Update,PackageAction::Remove}) {
+        auto p=action==PackageAction::Remove?Removal():Plan();p.action=action;
+        if(action==PackageAction::Update) { p.requested_package.clear();p.requested_version.clear(); }
+        PackageBoundPlan shared;ASSERT_EQ(0,PackageBindResolvedPlan(p,1000,&shared));
+        EXPECT_TRUE(shared.publication.fence_shared_current);EXPECT_FALSE(shared.publication.allow_factory_shared);
+        EXPECT_EQ(p.shared.sha256,shared.publication.expected_shared.image_sha256);
+        EXPECT_EQ(p.shared.bytes,shared.publication.expected_shared.bytes);
+        p.planner_image_sha256=p.shared.sha256;PackageBoundPlan factory;
+        ASSERT_EQ(0,PackageBindResolvedPlan(p,1000,&factory));EXPECT_TRUE(factory.publication.fence_shared_current);
+        EXPECT_TRUE(factory.publication.allow_factory_shared);EXPECT_NE(shared.publication.plan_sha256,factory.publication.plan_sha256);
+        p.personal=false;PackageBoundPlan common;ASSERT_EQ(0,PackageBindResolvedPlan(p,1000,&common));
+        EXPECT_FALSE(common.publication.fence_shared_current);EXPECT_FALSE(common.publication.allow_factory_shared);
+        EXPECT_TRUE(common.publication.expected_shared.image_sha256.empty());
+    }
 }

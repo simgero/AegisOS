@@ -1342,7 +1342,20 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
     unique_fd fixed_source;
     if(configured_source&&!error && target && target->fence_shared_current) {
         int fd=-1;
-        if(optional_shared_store(owner->selection_directory.get(),&fd)<0)error=errno;
+        if(target->allow_factory_shared) {
+            if(target->expected_shared.image_sha256!=owner->selection_factory.sha256
+               || target->expected_shared.bytes!=owner->selection_factory.bytes)error=EPROTO;
+            // Provision only the empty fixed directory, never package metadata
+            // or a common generation. Its inode coordinates the first common
+            // publication too; PackageStore holds that lock before initialization.
+            if(!error && mkdirat(owner->selection_directory.get(),"shared-packages",0700)<0
+               && errno!=EEXIST)error=errno;
+            if(!error) {
+                fd=package_owned_child(owner->selection_directory.get(),"shared-packages","u:object_r:aegis_package_shared_file:s0");
+                if(fd<0)error=errno;
+                else if(fsync(owner->selection_directory.get())<0)error=errno;
+            }
+        } else if(optional_shared_store(owner->selection_directory.get(),&fd)<0)error=errno;
         slot.target_inputs[3].reset(fd);
         if(!error && fd<0)error=ESTALE;
     }
@@ -1429,9 +1442,9 @@ static int prepare_planned_transaction(aegis_broker_owner* owner,uint32_t user,u
 }
 int BrokerPreparePlannedTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
     uint64_t job,const std::string& digest,int groups,int stage,int store,int source,
-    int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline) {
+    int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline,int shared_store) {
     return prepare_planned_transaction(owner,user,serial,job,digest,groups,stage,store,source,
-        prepare_helper,execute_helper,publish_helper,deadline,false);
+        prepare_helper,execute_helper,publish_helper,deadline,false,false,shared_store);
 }
 int BrokerPrepareConfiguredTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
                                         uint64_t job,uint64_t deadline) {

@@ -250,3 +250,20 @@ TEST_F(RuntimePackageStore, ConfirmedSelectionSurvivesPublisherExitWithoutDestru
     ASSERT_GE(selected.get(),0);EXPECT_EQ("committed before exit",Read(selected.get()));
 }
 } // namespace
+
+TEST_F(RuntimePackageStore, EmptySharedFencePreventsFirstInitializationWithoutWritingMetadata) {
+    unique_fd fence(PackageStore::LockEmptyShared(root.get()));ASSERT_TRUE(fence.ok())<<strerror(errno);
+    std::unique_ptr<PackageStore> blocked(PackageStore::Open(root.get(),shared,true));EXPECT_FALSE(blocked);EXPECT_EQ(EWOULDBLOCK,errno);
+    unique_fd second(PackageStore::LockEmptyShared(root.get()));EXPECT_FALSE(second.ok());EXPECT_EQ(EWOULDBLOCK,errno);
+    struct stat st;EXPECT_EQ(-1,fstatat(root.get(),"lock",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    EXPECT_EQ(-1,fstatat(root.get(),"owner",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    fence.reset();Start();ASSERT_TRUE(store);
+}
+TEST_F(RuntimePackageStore, InitializedSharedLockAndPartialMetadataNeverCountAsEmptyFactory) {
+    Start();ASSERT_TRUE(store);
+    unique_fd held(PackageStore::LockEmptyShared(root.get()));EXPECT_FALSE(held.ok());EXPECT_EQ(EWOULDBLOCK,errno);
+    store.reset();unique_fd nonempty(PackageStore::LockEmptyShared(root.get()));EXPECT_FALSE(nonempty.ok());EXPECT_EQ(EEXIST,errno);
+    ASSERT_EQ(0,unlinkat(root.get(),"lock",0));
+    unique_fd damaged(PackageStore::LockEmptyShared(root.get()));EXPECT_FALSE(damaged.ok());EXPECT_EQ(EEXIST,errno);
+    std::unique_ptr<PackageStore> checked(PackageStore::Open(root.get(),shared,false));EXPECT_FALSE(checked);EXPECT_EQ(ENOENT,errno);
+}

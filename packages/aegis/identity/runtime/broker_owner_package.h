@@ -94,10 +94,12 @@ int BrokerReviewPlanning(aegis_broker_owner* owner,uint32_t user,uint32_t serial
 // Source/stage/store/helper FDs are internally pinned under fresh admission,
 // never CLI inputs; the preparer checks source bytes against retained selection.
 // Personal scope uses its CE-anchored stage/store; supplied stage/store must be -1.
+// A private bound plan additionally requires its reviewed common-store FD,
+// including the empty fixed directory when its base is the pinned factory.
 // NEW fresh AOSP admin approval is still required before BrokerStartExecution.
 int BrokerPreparePlannedTransaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
     uint64_t job,const std::string& digest,int groups,int stage,int store,int source,
-    int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline);
+    int prepare_helper,int execute_helper,int publish_helper,uint64_t deadline,int shared_store=-1);
 // Product handoff from its retained Reviewed job. No supplied digest, source,
 // stage, store, helper or archive FD. Registers execution before opening CE or
 // mutating a target; retained source bytes are checked asynchronously. Only a

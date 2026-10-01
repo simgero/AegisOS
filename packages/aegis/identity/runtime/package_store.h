@@ -28,6 +28,11 @@ class PackageStore {
     // process lock. Creation requires an empty directory. No path traversal,
     // automatic repair, deletion of old generations or retention policy here.
     static PackageStore* Open(int directory, PackageOwner owner, bool create);
+    // Pins and exclusively locks a pristine shared directory without creating
+    // metadata. Returns an owned read-only FD; EEXIST means nonempty, never a
+    // claim that existing metadata is valid. All Open calls take this same
+    // directory lock before initialization and keep it for the store lifetime.
+    static int LockEmptyShared(int directory);
     ~PackageStore();
     PackageStore(const PackageStore&) = delete;
     PackageStore& operator=(const PackageStore&) = delete;

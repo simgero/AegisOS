@@ -73,21 +73,33 @@ int main(int argc, char**) {
         if (owner.personal) { owner.user_id=request.user;owner.serial=request.serial; }
         auto candidate=wire::Generation(request.candidate);
         std::unique_ptr<PackageStore> shared,store;
+        android::base::unique_fd empty_shared;
         if((request.flags&wire::kDerive) && DigestSource(wire::kSource,&candidate)<0)reply.error=errno;
         else {
             // Always common before private: a concurrent common publisher can
             // neither change the reviewed generation nor deadlock on our private
             // store. All hashing and lock acquisition stay in this owned worker.
             if(request.flags&wire::kFenceShared) {
-                shared.reset(PackageStore::Open(wire::kSharedStore,{false,0,0},false));
-                if(!shared)reply.error=errno;
-                else {
-                    PackageGeneration actual;
-                    android::base::unique_fd image(shared->Current(&actual));
-                    if(!image.ok())reply.error=errno;
-                    else if(actual.image_sha256!=request.expected_shared.sha256
-                         || actual.bytes!=request.expected_shared.bytes
-                         || !actual.shared_base_sha256.empty())reply.error=ESTALE;
+                const bool factory=request.flags&wire::kFactoryShared;
+                if(factory) {
+                    empty_shared.reset(PackageStore::LockEmptyShared(wire::kSharedStore));
+                    if(!empty_shared.ok() && errno!=EEXIST)reply.error=errno;
+                }
+                if(!reply.error && !empty_shared.ok()) {
+                    shared.reset(PackageStore::Open(wire::kSharedStore,{false,0,0},false));
+                    if(!shared)reply.error=errno;
+                    else {
+                        PackageGeneration actual;
+                        android::base::unique_fd image(shared->Current(&actual));
+                        // A valid initialized store with no selection also uses
+                        // the factory. Missing selected bytes return ESTALE;
+                        // malformed/symlinked metadata never becomes absence.
+                        if(!image.ok()) {
+                            if(!factory || errno!=ENOENT)reply.error=errno;
+                        } else if(actual.image_sha256!=request.expected_shared.sha256
+                             || actual.bytes!=request.expected_shared.bytes
+                             || !actual.shared_base_sha256.empty())reply.error=ESTALE;
+                    }
                 }
             }
             if(!reply.error) {

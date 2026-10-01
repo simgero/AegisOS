@@ -61,7 +61,8 @@ bool Encode(const PackagePublication& value,wire::Request* out) {
     out->user=value.requester;out->serial=value.serial;out->job=value.job;
     out->flags=(value.personal?wire::kPersonal:0)|(value.create?wire::kCreate:0)
               |(value.has_previous?wire::kPrevious:0)|(value.derive_source_hash?wire::kDerive:0)
-              |(value.fence_shared_current?wire::kFenceShared:0);
+              |(value.fence_shared_current?wire::kFenceShared:0)
+              |(value.allow_factory_shared?wire::kFactoryShared:0);
     return String(value.plan_sha256,out->plan) && Image(value.candidate,&out->candidate)
         && Image(value.expected_shared,&out->expected_shared)
         && (value.has_previous ? Image(value.previous,&out->previous)

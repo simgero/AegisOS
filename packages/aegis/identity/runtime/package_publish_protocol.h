@@ -5,8 +5,8 @@
 #include <cstring>
 #include <climits>
 namespace aegis::publication {
-constexpr uint32_t kMagic = 0x41455050, kVersion = 3;
-constexpr uint32_t kPersonal = 1, kCreate = 2, kPrevious = 4, kDerive = 8, kFenceShared = 16;
+constexpr uint32_t kMagic = 0x41455050, kVersion = 4;
+constexpr uint32_t kPersonal = 1, kCreate = 2, kPrevious = 4, kDerive = 8, kFenceShared = 16, kFactoryShared = 32;
 constexpr int kStore = 3, kSource = 4, kReply = 5, kRequest = 6, kExecutable = 7, kSharedStore = 8;
 struct Image { uint64_t bytes; char sha256[65], base[65]; };
 struct Request {
@@ -38,7 +38,8 @@ inline bool ValidImage(const Image& value, bool personal, bool derive=false) {
 inline bool Valid(const Request& value) {
     bool personal = value.flags & kPersonal;
     return value.magic==kMagic && value.version==kVersion && !value.reserved
-        && !(value.flags&~(kPersonal|kCreate|kPrevious|kDerive|kFenceShared))
+        && !(value.flags&~(kPersonal|kCreate|kPrevious|kDerive|kFenceShared|kFactoryShared))
+        && (!(value.flags&kFactoryShared) || (value.flags&kFenceShared))
         && value.user>=10 && value.user<21473 && value.serial<=INT32_MAX
         && value.job && value.job<=INT64_MAX && Hash(value.plan)
         && ValidImage(value.candidate,personal,value.flags&kDerive)
