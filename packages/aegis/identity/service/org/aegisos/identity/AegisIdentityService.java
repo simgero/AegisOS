@@ -393,7 +393,7 @@ public final class AegisIdentityService extends SystemService {
                     backend.stopAndroidUserAndLock(target);
                 }
                 backend.selectLoginTarget(target);
-                long deadline = SystemClock.elapsedRealtime() + 30_000;
+                long deadline = SystemClock.elapsedRealtime() + AospIdentityBackend.STATE_TIMEOUT_MS;
                 while (true) {
                     requireOwner();
                     requireInteractive();

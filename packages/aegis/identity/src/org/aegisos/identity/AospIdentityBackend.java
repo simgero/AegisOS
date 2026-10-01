@@ -8,6 +8,7 @@ import android.app.admin.DevicePolicyManager;
 import android.content.Context;
 import android.content.pm.UserInfo;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Looper;
 import android.os.Process;
 import android.os.RemoteException;
@@ -45,7 +46,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * written to disk, or converted into Strings. AOSP owns its parcelled copies.
  */
 public final class AospIdentityBackend {
-    private static final long STATE_TIMEOUT_MS = 30_000;
+    // Android user start/switch/stop can exceed 30 seconds under cross-ISA TCG.
+    // Waiting grants no authority: all state/identity checks and fresh AOSP
+    // credential verification still apply. Cap even Cuttlefish's factor 50 at
+    // two minutes; do not change credential or kernel CE-eviction deadlines.
+    static final long STATE_TIMEOUT_MS = 30_000L
+            * Math.min(4, Math.max(1, Build.HW_TIMEOUT_MULTIPLIER));
     private final UserManager users;
     private final IActivityManager activity;
     private final ILockSettings locks;

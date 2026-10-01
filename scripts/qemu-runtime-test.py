@@ -100,7 +100,7 @@ def record(action, text):
     (OUT/'events.json').write_text(json.dumps(events, indent=2, ensure_ascii=False)+'\n')
     print(json.dumps(entry, ensure_ascii=False), flush=True)
 
-def until(marker, timeout=120):
+def until(marker, timeout=180):
     token = marker.encode()
     deadline = time.monotonic() + timeout
     while token not in pending:
