@@ -25,6 +25,8 @@ fi
 python3 "$script_dir/register-identity.py" "$project/packages/aegis/identity" /srv/aegis/work/aosp
 python3 "$script_dir/register-package-crypto.py" --aosp /srv/aegis/work/aosp
 python3 "$script_dir/register-qemu-graphics.py" --aosp /srv/aegis/work/aosp
+python3 "$script_dir/register-bootanimation.py" --aosp /srv/aegis/work/aosp \
+    --receipt "$1/bootanimation-source.json"
 python3 "$script_dir/register-runtime-storage.py" --project "$project" --aosp /srv/aegis/work/aosp \
     --receipt "$1/runtime-storage-source.json"
 python3 "$script_dir/register-vold-eviction.py" --project "$project" --aosp /srv/aegis/work/aosp \
@@ -73,6 +75,8 @@ jobs=$(nproc)
 (( jobs <= 16 )) || jobs=16
 m -j"$jobs"
 python3 "$script_dir/register-qemu-graphics.py" --aosp /srv/aegis/work/aosp --check
+python3 "$script_dir/register-bootanimation.py" --aosp /srv/aegis/work/aosp \
+    --receipt "$1/bootanimation-source.json" --verify
 python3 "$script_dir/register-package-crypto.py" --aosp /srv/aegis/work/aosp --verify
 python3 "$script_dir/register-runtime-storage.py" --aosp /srv/aegis/work/aosp \
     --receipt "$1/runtime-storage-source.json" --verify
