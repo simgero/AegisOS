@@ -166,10 +166,12 @@ def auth_state(key):
 def check_prepared(key,before):
     after=auth_state(key)
     assert after['foreground']==str(users[key][0]), 'Prepared login target is not foreground'
-    assert after['target_unlocked']==before['target_unlocked'], 'Login preparation changed target CE before password'
+    # Completing a previously pending eviction may remove the old cached CE
+    # state. Preparation must never grant new CE access without a password.
+    assert not after['target_unlocked'] or before['target_unlocked'], 'Login preparation unlocked target CE before password'
     assert after['context']==before['context'], 'Login preparation changed GNU context before password'
     record('prepared-before-password-'+key,{'before':before,'after':after,
-        'scope':'No password sent yet. Foreground target is selected; CE and GNU context unchanged. Completed switch is enforced by service, not inferred from foreground alone.'})
+        'scope':'No password sent yet. Foreground target is selected; no new CE access and GNU context unchanged. Pending eviction may finish locking CE. Completed switch is enforced by service, not inferred from foreground alone.'})
 
 
 def action(label, command, prompts=()):
