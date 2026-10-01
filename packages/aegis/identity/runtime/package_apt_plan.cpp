@@ -89,9 +89,15 @@ int PackageReadAptOperation(const std::string& json,const std::string& command,
             if(effect.before_version.empty() || versions.isMember("install"))return Fail(EBADMSG);
             effect.architecture=current_arch;
         } else {
-            if(!versions.isMember("install") || !Version(versions["install"],&effect.after_version,&effect.architecture)
-               || effect.before_version==effect.after_version
-               || ((mode=="install")!=effect.before_version.empty()))return Fail(EBADMSG);
+            if(!versions.isMember("install") || !Version(versions["install"],&effect.after_version,&effect.architecture))return Fail(EBADMSG);
+            // APT 3.0.3 reports an explicit already-installed selection as
+            // mode=install with equal current/install versions (not reinstall).
+            // Preserve this evidence. Only the resolver may classify it as a
+            // metadata-only choice after checking the frozen installed registry.
+            const bool retained=mode=="install" && !effect.before_version.empty()
+                && effect.before_version==effect.after_version && current_arch==effect.architecture;
+            if(!retained && (effect.before_version==effect.after_version
+               || ((mode=="install")!=effect.before_version.empty())))return Fail(EBADMSG);
         }
         if(item["architecture"]=="all" && effect.architecture!="all")return Fail(EBADMSG);
         result.push_back(std::move(effect));

@@ -242,8 +242,8 @@ TEST_F(RuntimePackagePlanning, AlreadyInstalledVersionReturnsPrivateSelectionEvi
     int before=descriptors();ASSERT_EQ(0,Start())<<strerror(errno);
     aegis::PackagePlanningResult result;int fd=-1;
     ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,10000,&result,&fd));Fd evidence(fd);
-    ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)<<result.error<<" status="<<result.status;
-    ASSERT_TRUE(evidence.ok());EXPECT_EQ(1u,result.effects);ASSERT_EQ(1u,result.evidence.changes.size());
+    ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)<<result.error<<" status="<<result.status<<" phase="<<int(result.phase)<<" "<<result.diagnostic;
+    ASSERT_TRUE(evidence.ok());fprintf(stderr,"Same-version APT hook: %s\n",Read(fd,"simulation.json").c_str());EXPECT_EQ(1u,result.effects);ASSERT_EQ(1u,result.evidence.changes.size());
     const auto& c=result.evidence.changes[0];EXPECT_EQ("aegis-probe-lib",c.name);EXPECT_EQ("arm64",c.architecture);
     EXPECT_EQ("2",c.before_version);EXPECT_EQ("2",c.after_version);EXPECT_EQ(aegis::PackageInstallReason::Manual,c.reason);
     EXPECT_EQ(0u,c.archive.bytes);EXPECT_TRUE(c.repository.empty());
