@@ -69,6 +69,37 @@ SU-Komponententests würden diese fehlende Produktberechtigung nicht prüfen.
 Die echte Paketinstallation und der vollständige Zwei-Benutzer-Ablauf bleiben
 unbewiesen; erfolgreiche Komponententests allein bestätigen sie nicht.
 
+## Tatsächliche Adminprüfung im Vollimage 9b8e5065
+
+Das passende Vollimage bootet am 30. September um 23:54:44 UTC im lokalen
+Mac-QEMU mit Enforcing, FBE, dm-verity und authentifiziertem ADB. Die vier
+Pakethelfer sind bytegleich zu den zuletzt geprüften b7-Komponenten. Der
+Paketplan erreicht nun die öffentliche Adminabfrage; der frühere Broker-
+`setattr`-Fehler ist behoben.
+
+Der nicht angemeldete Aufruf wird ohne Zustandsänderung abgewiesen. Beta ist
+anschließend als normaler Benutzer angemeldet, Alpha als Administrator gestoppt
+und CE-gesperrt. AOSP weist ein falsches Alpha-Passwort zurück; die Freigabe
+mit Betas korrektem Passwort scheitert an dessen fehlender Adminrolle. Nach
+beiden Versuchen bleiben die Generationsauswahlen unverändert, Alpha gesperrt
+und Betas Runtime erhalten. Ein neuer Plan ist ohne erneute Anmeldung möglich;
+der versiegelte alte Paket-Binder verweigert weitere Statusaufrufe.
+
+Mit dem korrekten Alpha-Passwort erreicht der Auftrag am 1. Oktober um
+00:00:23 UTC den tatsächlichen Ausführungshelfer. Dessen `readback()` scheitert
+vor APT/dpkg an `getattr` auf `/dev/pts/ptmx`: Der Helfer erzeugt einen eigenen
+`devpts`-Mount mit `newinstance`, dessen Multiplexer bisher den allgemeinen
+`devpts`-Typ erhielt. Die Richtlinie ergänzt einen eigenen
+`aegis_package_worker_devpts`-Typ, den Übergang beim Anlegen durch den Helfer
+und ausschließlich `getattr` für die anschließende Prüfung. Es werden keine
+Terminal-Ein-/Ausgabe- oder allgemeinen Android-PTY-Rechte ergänzt.
+
+Es wurde noch kein Paket veröffentlicht. Abbruch und normale Abmeldung sperren
+beide Testkonten und entfernen alle persönlichen Runtime-Kontexte. Belege:
+`out/full-build-9b8e5065/identity-test/`. Die neue Policy benötigt erneut ein
+passendes Vollimage und den echten Produktablauf; Komponententests ersetzen
+keinen dieser noch fehlenden Nachweise.
+
 ## Stand von Broker, Richtlinie und Paketauftrag
 
 Das Vollimage `40179351` bootet bereits mit Enforcing, der korrigierten

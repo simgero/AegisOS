@@ -1,3 +1,27 @@
+## Öffentliche Paketfreigabe: Vollimage 9b8e5065
+
+Der [Vollbuild](https://github.com/simgero/AegisOS/releases/tag/aosp-20260930T233124Z-9b8e5065-61eda95a)
+mit Commit `9b8e5065cf174fe49f4082cc871ee20980595a29` besteht Build- und
+Policy-Prüfungen auf `aegis-build`; der GitHub-Upload ist um 23:48:05 UTC
+rückverglichen. Der lokale QEMU-Boot ist um 23:54:44 UTC mit Enforcing, FBE,
+dm-verity und authentifiziertem ADB geprüft. Boot-ID:
+`1b133025-bf4a-44ee-b792-51782a44b2b4`. Die vier Pakethelfer stimmen bytegenau
+mit den b7-Komponenten überein; unveränderte SU-Suiten wurden nicht wiederholt.
+
+Die echte CLI zeigt den Plan für `hello` an. Nicht angemeldeter Aufruf,
+falsches Alpha-Adminpasswort und Betas fehlende Adminrolle verhindern eine
+Veröffentlichung. Alpha bleibt gestoppt/CE-gesperrt; Beta behält seinen
+persönlichen Runtime-Kontext. Eine korrekte frische Alpha-Freigabe erreicht
+am **2026-10-01T00:00:23Z** den Ausführungshelfer; dessen private PTY-
+Metadatenprüfung wird noch von SELinux verweigert. Keine Installation ist
+bestätigt. Der folgende Policy-Fix beschränkt die Metadatenfreigabe auf einen
+eigenen Geräte-Typ dieses Helfers. Er muss im passenden Vollimage geprüft werden.
+
+Belege: `out/full-build-9b8e5065/identity-test/` mit Ereignissen, allen Vorher-/
+Nachher-Aufnahmen, Helper-Bytevergleich und anschließendem Abmelden beider
+Testkonten. Paketinstallation, gemeinsame/private Kohärenz und vollständiger
+Zwei-Benutzer-Neustartablauf bleiben offen.
+
 ## Atomare APT-Planablage: 62 gezielte native Tests
 
 Commit `b7ee7fc836b79d13c9563e40f5fbd9d8c56f5845` besteht am

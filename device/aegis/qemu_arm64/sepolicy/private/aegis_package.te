@@ -10,6 +10,8 @@ type aegis_package_program, domain, coredomain, aegis_runtime_domain,
 type aegis_package_network, domain, coredomain, aegis_runtime_domain;
 type aegis_package_scratch_file, file_type, coredomain_socket;
 type aegis_package_hook_file, file_type;
+# Only the fixed helper creates this private devpts instance.
+type aegis_package_worker_devpts, fs_type;
 neverallow { aegis_package_exec_domain -aegis_package_program } self:process fork;
 neverallow { aegis_package_dac_domain -aegis_package_worker -aegis_package_program } self:process fork;
 
@@ -52,6 +54,10 @@ allow aegis_package_worker aegis_runtime_base_file:lnk_file r_file_perms;
 allow aegis_package_worker aegis_runtime_base_file:file r_file_perms;
 allow aegis_package_worker aegis_runtime_devices_file:lnk_file r_file_perms;
 allow aegis_package_worker aegis_runtime_devices_file:chr_file rw_file_perms;
+# readback() validates ptmx after pivot into the freshly created newinstance.
+# Label it separately from Android and personal runtime PTYs; no terminal I/O.
+type_transition aegis_package_worker devpts:chr_file aegis_package_worker_devpts;
+allow aegis_package_worker aegis_package_worker_devpts:chr_file getattr;
 allow aegis_package_worker aegis_runtime_devices_file:file r_file_perms;
 allow aegis_package_worker aegis_runtime_broker:fd use;
 allow aegis_package_worker aegis_runtime_broker:unix_stream_socket { read write getattr getopt setopt shutdown };
