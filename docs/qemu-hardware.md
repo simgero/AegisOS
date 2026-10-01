@@ -23,6 +23,13 @@ Offline-Uhr und ersetzt noch keinen Schlaf-/Aufwachtest des neuen Vollimages.
 Der aktuelle Gast verwendet weiterhin den alten Ressourcenstand; die einmalige
 Aktualisierung ist kein Nachweis der neuen periodischen Einstellung.
 
+Der [Komponentenbuild `7e49bceb`](https://github.com/simgero/AegisOS/releases/tag/components-20261001T084623Z-7e49bceb-7e49bceb-Z4VqyJ)
+ist erfolgreich. `aapt2 dump resources` bestätigt im erzeugten und anschließend
+über GitHub bezogenen `framework-res.apk` den Wert 60.000 ms; SHA256:
+`199d238de5d1b72e2a938b48e0ba29fd49861c53821bf54c6a6bfc756837e6c2`.
+Die 23 übrigen exportierten Module sind identisch zu `58be0749`.
+Nachweise: `out/components-7e49bceb/compiled-ntp-resource.{txt,json}`.
+
 Belege: `out/components-58be0749/clock-diagnostic/` mit ursprünglicher und neuer
 Zeitdienst-Ausgabe, Host-/Gast-Zeiten und Ergebnis. Der erste Paketlauf liegt
 unter `targeted-tests/`, der Lauf nach regulärem Zeitabgleich unter

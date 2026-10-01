@@ -1,25 +1,30 @@
-## Aktueller Stand: Auswahl und signierter Abgleichplan verbunden
+## Aktueller Stand: signierte Planung bis zur privaten Veröffentlichung verbunden
 
-`7d43fe1c` besteht **356 native Prüfungen**; das byte-identische APK und alle
-Originalbelege bestätigen die vorherigen **54 Java-Tests**.
+`58be0749` besteht **362 ausgewählte native Prüfungen**; das byte-identische APK
+und die Originalbelege bestätigen die vorherigen **54 Java-Tests**.
 [Belege und genaue Grenzen](../docs/component-tests.md).
 
-Der Broker verwaltet jetzt private, bisherige gemeinsame und aktuelle gemeinsame
-Generation gemeinsam. Die drei geprüften Ansichten gehen direkt unter derselben
-Auftrags-ID in die signierte APT-Planung und anschließend in die gesonderte
-Reconciliation-Bindung. Private Versionsvorgaben bleiben erhalten, auch wenn nur
-die gemeinsame Basis fortgeschrieben wird und keine Paketwirkung entsteht.
-Normale Paketaufträge können diesen Zustand nicht übernehmen. Abbruch, STOP und
-Fehler beim Planerstart behalten die vollständige Zuständigkeit für alle Ressourcen.
-Der interne konfigurierte Einstieg registriert sich vor dem Zugriff auf persönliches
-CE; erfolgreiche Produkt-Admission ist damit noch nicht nachgewiesen.
+Ein Brokerauftrag verbindet jetzt private, bisherige gemeinsame und aktuelle
+gemeinsame Generation mit signierter APT-Planung, separater Bindung, vollständiger
+privater Vorbereitung, tatsächlicher Ausführung und gesperrter Veröffentlichung.
+Das erneute Öffnen bestätigt Konfiguration, technische Eigentümer, Paketdatenbank
+und unveränderte private Versionsvorgaben. Eine reine Basisfortschreibung ohne
+Paketänderung ist möglich. Beschädigte Programme und eine inzwischen geänderte
+gemeinsame Auswahl verhindern die Veröffentlichung; STOP schließt den gesamten
+Auftrag. Normale Paketpläne können diesen internen Weg nicht übernehmen.
 
-Noch erforderlich ist die Verbindung dieses Auftrags zur konfigurierten
-CE-Vorbereitung, abgeleiteten Ausführungsautorisierung und bereits separat geprüften
-Veröffentlichung. Danach folgen erneute Auswahl und Aktivierung beim Runtime-Start
-und der Nachweis im passenden Vollimage mit zwei echten AOSP-Benutzern. Gewöhnliche
-private Paketaktionen brauchen ebenfalls die gemeinsame Publikationssperre.
-Das installierte Vollimage `d0b866e1` und seine vorhandenen Benutzer bleiben erhalten.
+Die Tests verwenden ausschließlich eigene synthetische Abbilder. Die internen
+konfigurierten Einstiege öffnen CE nach Registrierung und leiten die Ausführung
+nur aus dem vorhandenen Reconciliation-Plan ab; dieser positive CE-Weg muss noch
+im passenden Produktimage nachgewiesen werden. Noch fehlen automatische
+Weiterführung, erneute Auswahl und Aktivierung beim Runtime-Start sowie die
+gemeinsame Sperre für gewöhnliche private Paketaktionen. Danach sind Abgleich,
+Konflikte und Neustart mit zwei echten AOSP-Benutzern zu prüfen.
+
+`7e49bceb` ändert ausschließlich die QEMU-Zeitressource und ihre Dokumentation;
+die übrigen exportierten Module sind byte-identisch. Der korrigierte periodische
+Zeitabgleich ist gebaut, aber noch nicht im Vollimage installiert.
+Das aktuelle Vollimage `d0b866e1` und seine vorhandenen Benutzer bleiben erhalten.
 
 ## Vorheriger Stand: privater Abgleich bis zur Veröffentlichung geprüft
 

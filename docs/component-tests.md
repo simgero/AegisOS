@@ -1,3 +1,55 @@
+## Signierter privater Abgleich bis zur Veröffentlichung: 58be0749
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T083553Z-58be0749-58be0749-Aikd3U)
+`58be074933ba55a9a178c29d3c452294a142beda` besteht am
+**2026-10-01T08:50:05Z alle 362 ausgewählten nativen Tests** aus 30 Suiten
+im lokalen Mac-QEMU (595.407 ms), ohne übersprungene Tests. Der Build auf
+`aegis-build` dauerte 40 Sekunden; Transport und Prüfung erfolgten über GitHub.
+54 frühere Java-Tests sind durch das byte-identische APK und die erneut geprüften
+Originalbelege bestätigt; sie wurden nicht erneut ausgeführt.
+
+Die zuvor getrennten internen Ketten sind verbunden: Der Broker übergibt seine
+Dreifachauswahl unter derselben Auftrags-ID an den signierten Planer, bindet dessen
+Belege und Archive und bereitet daraus die vollständige private Kopie vor.
+Tatsächliche Offline-APT-Ausführung, unabhängige Prüfung, gesperrte Veröffentlichung
+und erneutes Öffnen bestätigen neue gemeinsame Paketversionen bei erhaltener
+privater Konfiguration, expliziter Versionswahl und technischen Eigentümern 42:42.
+Eine private Vorgabe kann auch einen Basiswechsel ohne Paketänderungen bewirken.
+Geänderte gemeinsame Auswahl nach Vorbereitung verhindert die Veröffentlichung;
+STOP schließt Belege, Kandidat und gemeinsame Referenz. Gewöhnliche Paketpläne
+können den getrennten Reconciliation-Einstieg nicht übernehmen.
+
+Der erste neue Ausführungstest in `a36ead79` wurde korrekt abgewiesen: Sein
+synthetischer Ausgangsbestand enthielt noch das absichtlich manipulierte APT des
+reinen Planertests sowie Paketstatus ohne Maintainer. `58be0749` vervollständigt
+die positiven Testdaten einschließlich Dateiprüfsummen. Ein eigener Negativtest
+behält das beschädigte Programm und bestätigt die unveränderte Ablehnung mit
+unveränderter gemeinsamer und privater Auswahl. Keine Konsistenzprüfung wurde
+abgeschwächt. Alle 17 Tests der verbundenen Reconciliation-Planung bestehen.
+
+Der erste Lauf von `58be0749` scheiterte an Debian-Signaturen aus Sicht einer
+46 Minuten zurückliegenden Gastuhr. Androids normaler Netzwerkzeitdienst wurde
+aktualisiert; derselbe unveränderte Komponentenstand bestand danach die vollständige
+Auswahl. Originalfehler und Zeitdiagnose bleiben erhalten. Die separat gebaute
+QEMU-Konfiguration `7e49bceb` enthält einen geprüften Zeitabgleich von 60.000 ms;
+alle 23 übrigen exportierten Module sind byte-identisch. Die periodische Wirkung
+ist noch nicht im Vollimage geprüft: [Zeitdiagnose](qemu-hardware.md).
+
+Belege: `out/components-58be0749/targeted-tests-clock-synced/`,
+`java-proof-reuse.json`, `clock-diagnostic/`; ursprünglicher Lauf `targeted-tests/`.
+Native Log-SHA256: `712424eb3bf61a913ac7a455a61baeb9e358a69b6fcaaf79ed214f55955a35c0`.
+Vorher/Nachher identisch: `7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+Alpha/Beta bleiben gestoppt und CE-gesperrt; Boot, Benutzer, Schlüssel und
+Runtime-Kontexte sind unverändert. Vier reale CE-Fixtures bleiben deaktiviert.
+
+**Offen:** Die positiven Nachweise verwenden eigene synthetische Abbilder.
+Konfigurierte CE-Vorbereitung und abgeleitete Ausführung sind intern implementiert,
+aber noch nicht unter tatsächlicher AOSP-Admission positiv geprüft. Der Auftrag
+muss mit erneuter Auswahl und Aktivierung beim Runtime-Start verbunden werden.
+Gewöhnliche private Paketaktionen benötigen ebenfalls die gemeinsame Sperre;
+anschließend folgt das passende Vollimage mit zwei echten Benutzern, Abgleich,
+Konflikten und Neustart. Das installierte `d0b866e1` bleibt unverändert.
+
 ## Gemeinsamer Auftrag für Dreifachauswahl und signierte Planung: 7d43fe1c
 
 Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T070855Z-7d43fe1c-7d43fe1c-UDH1zh) von
