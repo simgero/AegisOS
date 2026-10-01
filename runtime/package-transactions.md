@@ -26,6 +26,14 @@ kein neues installiertes Produktimage. Private Absichten dauerhaft speichern,
 gegen gemeinsame Änderungen auflösen sowie ausstehende Aktivierung und echte
 Konflikte anzeigen bleiben die nächsten integrierten Anforderungen.
 
+`73b2c062` ergänzt die Java-Freigabegrenze: Gemischte Effekte werden vollständig
+angenommen und angezeigt, während Zielrichtung, exakte angeforderte Version und
+Repository-Gültigkeit erhalten bleiben. **51 Android-Instrumentierungstests**
+für Protokoll, Transaktion, Freigabekoordinator und CLI bestanden im lokalen
+QEMU. Der Komponentenstand ist weiterhin nicht im Produktimage installiert;
+echte Passwortfreigabe und vollständige gemeinsame/private Zusammenführung
+werden durch diese Fixtures nicht erneut nachgewiesen.
+
 Die folgenden Abschnitte dokumentieren frühere Stände und deren damalige Grenzen.
 
 ## Früherer Stand: Plan aus signierter Quelle bis zur veröffentlichten Generation verbunden

@@ -1,3 +1,39 @@
+## Java-Freigabe gemischter Paketpläne: 73b2c062
+
+Der [Komponentenbuild](https://github.com/simgero/AegisOS/releases/tag/components-20261001T032720Z-73b2c062-73b2c062-0xzmN8)
+von `73b2c062bdd69b3e24a8358a835ae0b2f03bb2ba` korrigiert eine zusätzliche
+Integrationslücke nach dem nativen 130-Test-Nachweis: Die Java-Metadatenprüfung
+hatte bisher für sämtliche Effekte die Richtung der angeforderten Aktion verlangt.
+Sie akzeptiert nun vollständige gemischte Installations-/Entfernungspläne,
+prüft die angeforderte Richtung und exakte Version weiterhin am Zielpaket und
+verlangt für jeden Installationseffekt eine Repository-Gültigkeit, auch bei
+einer angeforderten Entfernung. Sortierung, Eindeutigkeit und unveränderliche
+vollständige Reviews bleiben erhalten. Die Freigabeansicht überträgt alle Effekte
+und behält Antragsteller und Plan-Digest; eine veränderte UI-Kopie ändert den Plan nicht.
+
+Auf `aegis-build` gebaut und über GitHub mit Prüfsummen übertragen. Am
+**2026-10-01T03:28:11Z** bestanden im bestehenden lokalen d0-QEMU-Gast
+**51/51 Android-Instrumentierungstests**: `PackageBrokerProtocolTest` 16,
+`PackageTransactionTest` 13, `PackageApprovalTest` 14 und `PackageCommandTest` 8.
+Darunter sind sieben neue Regressionsfälle für gemischte Effekte, falsche
+Zielrichtung/Version, fehlende Gültigkeit sowie die vollständige Freigabeansicht.
+
+Belege: `out/components-73b2c062/java-tests/result.json`, `java.log`,
+`before.json` und `after.json`. Log-SHA256:
+`d472c386a29ad76e1dba996b9dd470fe7b8a33234cbcdde036ffb72d9227bb9c`.
+Beide Zustandssnapshots sind identisch:
+`7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+Boot-ID bleibt `18880c8d-4132-48e9-a4de-9bb2823599a6`; persönliche Benutzer
+bleiben gestoppt/CE-gesperrt, Runtime-Kontexte leer und SELinux Enforcing.
+
+**Grenze:** Ausgeführt wurde die Test-APK mit Protokoll-/Koordinator-Fixtures.
+Das installierte Produktimage bleibt d0; dies ist kein neuer Nachweis tatsächlicher
+AOSP-Passwortfreigabe oder produktiver gemischter Paketinstallation. Die unten
+reproduzierte fehlende gemeinsame/private Zusammenführung ist weiterhin offen.
+Nach diesem Ersatznachweis wurden 75 obsolete Komponentendateien aus d0,
+592866d4 und 7fc2f44a entfernt (424796160 Byte frei geworden). Ihre Metadaten,
+Prüfsummen und Testbelege sowie alle drei QEMU-Profile bleiben erhalten.
+
 ## Gemischte Pakettransaktionen: 7fc2f44a
 
 Commit `7fc2f44a2e5f8fb4df6b91082ee9db825fd51de7` wurde ausschließlich auf
