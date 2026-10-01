@@ -60,3 +60,23 @@ hohe PCI-ECAM-Adresse und unvollständig berechnete VBMeta-Gesamtgröße. Beide
 sind korrigiert; der folgende Diagnosegast erreicht die Android-Paketinitialisierung
 und zeigt die AEGIS-Bootanimation in 720 × 1280. Das ist noch kein Bootabschluss
 und noch kein Nachweis der CE-Wiederanlaufkorrektur.
+
+## TCG-Startdiagnose
+
+Die ersten vollständigen ARM/TCG-Starts mit vier Gast-CPUs sind **nicht stabil**:
+Sowohl das ältere Vergleichsimage als auch `993f1e8` erreichen SystemServer,
+werden aber beim Erststart vom unveränderten Android-Watchdog beendet.
+Beim Vergleichsimage wartet die Hauptschleife auf ActivityManager, beim neuen
+Image auf den Berechtigungscache. Die gesicherten Watchdog-Daten zeigen starke
+CPU-Wartezeiten; beim Vergleich standen noch rund 3 GiB RAM zur Verfügung.
+Das ist keine nachgewiesene CE-Regression: Es waren noch keine persönlichen
+AEGIS-Benutzer angelegt. Die Ursache ist noch nicht abschließend geklärt.
+
+Die Rohbelege einschließlich Thread-Dumps liegen in
+`out/server-stability/{baseline/boot-3,fixed-993f1e8/boot-1}/`.
+Beide Android-Gäste wurden anschließend über `sys.powerctl shutdown` beendet;
+beide Hilfssysteme bestätigen `AEGIS_HELPER_SHUTDOWN_CLEAN`.
+Der folgende Lauf benutzt dasselbe neue Profil mit `--cpus 8`.
+Der Launcher erlaubt nun ausdrücklich 1–16 Gast-CPUs und mit `--memory-mib`
+2048–32768 MiB RAM; Standardwerte bleiben vier CPUs und 4096 MiB.
+Diese Zuteilung verändert keine Profilbindung, Passwörter oder Bootprüfung.
