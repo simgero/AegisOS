@@ -45,6 +45,14 @@ Desktop, Launcher, grafischer Login und eigene grafische Apps sind nicht Bestand
 
 ## 3. Entwicklungsumgebung
 
+**Aktualisierung durch Nutzeranweisung, 1. Oktober 2026:** Entwicklung, Builds
+und QEMU-Systemtests dürfen direkt auf dem Buildserver stattfinden; ARM64
+ist weiterhin das verwendete Ziel. Code regelmäßig lokal committen. Keine
+Build-Artefakte nach GitHub laden, außer für einen später ausdrücklich
+vorgesehenen Mac-Test. Der [aktuelle Serverablauf](../server-development.md)
+ersetzt für diese Arbeit die folgenden historischen Orts-/Transportvorgaben.
+Die Produkt- und Sicherheitsanforderungen bleiben bestehen.
+
 Für die Entwicklung gelten verbindlich folgende Regeln:
 
 1. Entwicklung lokal in diesem Projekt auf dem Mac.

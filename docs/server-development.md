@@ -1,5 +1,10 @@
 # Entwicklung direkt auf dem Buildserver
 
+Die [abgeschlossene Abnahme der fünf Terminal-Meilensteine](server-acceptance.md)
+fasst Ergebnis und Grenzen zusammen. [Terminalanleitung](terminal-quickstart.md)
+enthält den konkreten Startbefehl. Die folgenden Einträge dokumentieren den
+chronologischen Diagnose- und Reparaturverlauf einschließlich früherer Fehler.
+
 Ab 1. Oktober 2026 autorisiert der Nutzer Entwicklung und QEMU-Systemtests
 direkt auf `devserversg`. Die früheren Mac-/HTTP-Vorgaben gelten hierfür nicht.
 ARM64 bleibt zunächst das Produktziel: Quellen, Kernel und Runtimebasis liegen
@@ -341,3 +346,42 @@ der Helfer hängt seine bestehende UUID-Disk aus und meldet
 vollständige Abschluss ist in `paired-shutdown-1.json` gebunden. `boot-2`
 startet anschließend exakt dasselbe Profilpaar ohne Neuanlage; die erneute
 Passwort-/Datei-/Paketprüfung steht noch aus.
+
+
+### Vollständiger gepaarter Neustart und Abschluss bestätigt
+
+Der zweite Boot verwendet dasselbe Profil `f450ef38-db1a-47df-b34c-2e723473d0e8`
+mit unverändertem Manifest und denselben Disk-Inodes. Der Helfer lädt seinen
+bestehenden Secure-Deletion-Zustand; ADB authentifiziert sich ohne neue
+Schlüsselfreigabe. Die Boot-ID ändert sich, SystemServer bleibt während aller
+Prüfungen PID 1166. Vor Anmeldung sind beide bekannten GNU-Dateien und Betas
+private Paketmetadaten unlesbar, CE ist `[0]`.
+
+Beide jeweils ersten korrekten Anmeldungen funktionieren ohne vorherigen
+Aufwärmversuch. In echten GNU-Kontexten stimmen beide 1024-Byte-Dateien exakt
+mit ihren früheren SHA-256 überein. Alpha behält Home-Rechte, Symlink und
+Konfiguration und führt gemeinsames `ed` aus; Betas privates `hello` fehlt bei
+Alpha sowohl als Programm als auch in der Paketdatenbank. Beta verwendet das
+neue AOSP-Passwort, erhält identische private Paketmetadaten und führt `hello`
+und `ed` aus. UID 1000, leere effektive Capabilities, NoNewPrivs, Seccomp,
+SELinux-Domäne und schreibgeschützte Softwarebasis werden erneut bestätigt.
+`paired-reboot-proof.json` bindet diese Schritte.
+
+Auch nach diesem Neustart weist AOSP das alte Beta-Passwort ab, ohne CE zu
+entsperren. Eine abschließende korrekte Anmeldung und Abmeldung hinterlässt
+nur Benutzer 0 gestartet, CE `[0]`, keine Runtime-Kontexte und keine lesbaren
+persönlichen Testdateien oder Paketmetadaten. `final-state.json` hält diesen
+Zustand fest. Android und KeyMint-Helfer enden anschließend sauber; beide
+Launcher-Abschlüsse haben Exitcode 0. Der zweite Boot erreicht gut 30 Minuten
+Kernel-Laufzeit, die Bootanimation endet wiederum mit Status 0. Auch die
+finalen Logs enthalten keine beobachteten fatalen Signale, FORTIFY-, Watchdog-
+oder Runtime-Kontrollkanalfehler. Die eingeordneten Upstream-Einmalmeldungen
+werden weiterhin ausdrücklich nicht verschwiegen.
+
+Nach Scan aller sechs Gastlogs ohne vollständiges Testpasswort leert der
+Testtreiber seine Passwortpuffer und endet erfolgreich. Beide VMs bleiben
+heruntergefahren; das synthetische Profilpaar bleibt samt Nachweisen erhalten.
+`candidate-c526571/acceptance.json` bindet 25 Belegdateien mit SHA-256.
+[Abnahme und Grenzen](server-acceptance.md) sowie die
+[Anleitung für ein eigenes Profil](terminal-quickstart.md) sind der aktuelle
+Einstieg. Keine Builds wurden auf GitHub geladen.

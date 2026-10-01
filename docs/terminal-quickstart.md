@@ -18,7 +18,7 @@ Nach dem Start verbindet auf diesem Server beispielsweise:
 
 ```sh
 python3 scripts/connect-local-adb.py PFAD_ZUM_NEUEN_RUN --wait-boot 1800
-adb -s 127.0.0.1:15871 shell -t su 0 aegis
+adb -s 127.0.0.1:15871 shell -tt su 0 /system_ext/bin/aegis
 ```
 
 Port und Run an den konkreten Launcher-Aufruf anpassen. Nur bei der ersten

@@ -2,43 +2,33 @@
 
 ## Aktueller Entwicklungsstand
 
-Der zusammengeführte Stand und die noch offenen Fehler stehen in
-[Phase 1: Implementierungsstand](docs/phase-1-progress.md). AEGIS ist noch
-nicht vollständig abgenommen. Die folgenden Build-Anleitungen enthalten auch
-historische Einrichtungsstände; aktuelle Nachweise haben Vorrang.
+Die fünf beauftragten Terminal-Meilensteine sind direkt auf dem Buildserver
+im ARM64-QEMU-Prototyp nachgewiesen: [Abnahme und Grenzen](docs/server-acceptance.md).
+[Terminalzugang und konkreter Startbefehl](docs/terminal-quickstart.md) beschreiben
+die Benutzung. Builds bleiben lokal, Code wird regelmäßig lokal committet.
+Build-Artefakte werden erst für einen ausdrücklich vorgesehenen Mac-Test auf
+GitHub bereitgestellt. Ältere Implementierungsstände stehen im
+[Entwicklungsverlauf](docs/phase-1-progress.md).
 
 - [Architektur und verbindlicher Entwicklerauftrag](docs/architecture/README.md)
 - [Bedrohungsmodell](security/THREAT_MODEL.md)
 
-Security-/Privacy-first Betriebssystem auf AOSP-Basis. Der erste Meilenstein ist
-ein ARM64-AOSP-Build mit nachgewiesenem Start in QEMU auf dem Mac. Ein erfolgreicher
-Build und ein erfolgreicher Boot werden getrennt nachgewiesen.
+Security-/Privacy-first Betriebssystem auf AOSP-Basis. Der aktuelle Prototyp ist
+ein ARM64-AOSP-Build mit nachgewiesenem Start und Terminalbetrieb in QEMU.
+Build-, Boot- und Systemabnahme werden getrennt belegt.
 
-## Verbindlicher Arbeitsablauf
+## Aktueller Arbeitsablauf
 
-Aktueller Einrichtungsstand und Befehle: [Entwicklungsablauf](docs/development-workflow.md).
+Seit der Nutzeranweisung vom 1. Oktober 2026 laufen Entwicklung, AOSP-Build und
+QEMU-Systemtests direkt auf dem Buildserver. [Serverentwicklung](docs/server-development.md)
+beschreibt den lokalen Build aus einem unveränderlichen Git-Snapshot,
+Imageprüfung, gepaarte Profile und Nachweise. Ziel bleibt
+`aegis_qemu_arm64-bp2a-userdebug`; auf diesem Server ohne KVM wird TCG verwendet.
+Mac/HVF ist eine spätere gesonderte Plattformprüfung.
 
-1. Entwicklung lokal in diesem Projekt auf dem Mac.
-2. Boot- und Systemtests lokal in QEMU auf dem Mac.
-3. AOSP-Builds auf dem per SSH-Alias `aegis-build` erreichbaren Server.
-4. Synchronisation und Transport über GitHub: Quellcode über Git, Build-Artefakte
-   und zugehörige Prüfsummen über GitHub Releases.
-
-Der Ablauf ist: lokal entwickeln → auf GitHub pushen → auf `aegis-build` den
-festgelegten Commit beziehen und bauen → Ergebnisse auf GitHub bereitstellen →
-auf dem Mac herunterladen, prüfen und in QEMU testen. SSH dient zur Steuerung
-und Diagnose des Builders; Projektänderungen und Build-Artefakte werden über
-GitHub übertragen.
-
-Verbindliches Ziel ist **`aegis_qemu_arm64-userdebug`** für QEMU `virt` auf dem
-Mac, zunächst mit ADB und Entwicklungs-Shell. Eine erste Produktdefinition und
-Build-Anbindung sind vorhanden; der vollständige Build und Android-Boot sind
-noch nicht validiert. Der lokale QEMU/HVF-Maschinentest ist erfolgreich.
-
-Die Build-Konfiguration verwendet jetzt `aegis_qemu_arm64-bp2a-userdebug`.
-Die Android-Startdisk und die Anpassung der von Cuttlefish übernommenen
-Hostdienst-Abhängigkeiten sind noch offen. Der erste Vollbuild liefert die
-Artefakte für diese weitere Integration; ein erfolgreicher Build ist kein Bootnachweis.
+Die nachfolgenden Einrichtungs- und Transporttexte sowie der frühere
+[Mac-/SSH-Ablauf](docs/development-workflow.md) sind historische Referenzen;
+sie autorisieren keine automatischen GitHub-Build-Uploads.
 
 ## Dauerhafter Buildserver
 

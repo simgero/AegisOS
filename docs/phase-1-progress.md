@@ -1,5 +1,15 @@
 # Phase 1: Implementierungsstand
 
+## 2026-10-01: Serverabnahme der fünf Terminal-Meilensteine
+
+Die [aktuelle Abnahme](server-acceptance.md) bestätigt im Image `c526571`
+den Zwei-Benutzer-Ablauf mit gemeinsamer/privater Software, CE-Fehlerwiederanlauf,
+Isolation und vollständigem Android-/KeyMint-Neustart. Der unten beschriebene
+CE-Absturz ist darin korrigiert und gezielt erneut geprüft. Entwicklung und
+Tests erfolgen nach neuer Nutzeranweisung direkt auf dem Buildserver, mit
+lokalen Commits und ohne GitHub-Build-Upload. Die folgenden Abschnitte bleiben
+als historischer Diagnoseverlauf erhalten.
+
 ## 2026-10-01: Main-Zusammenführung und offener Fehler nach CE-Timeout
 
 Die Zusammenführung nach `main` ist ein Entwicklungsstand, keine vollständige

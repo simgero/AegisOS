@@ -1,8 +1,12 @@
 # Lokale Entwicklung, SSH-Build und QEMU
 
-Verbindlicher Ablauf: Entwicklung in diesem Projekt auf dem Mac, AOSP-Build auf
-`ssh aegis-build`, Quellcode und Artefakte über GitHub, Boot- und Systemtests in
-QEMU auf dem Mac. SSH ist Steuerungs- und Diagnosekanal, kein Dateitransport.
+Historischer Ablauf für die frühere Mac-Umgebung. Seit der Nutzeranweisung
+vom 1. Oktober 2026 erfolgen Entwicklung und QEMU-Tests direkt auf dem
+Buildserver; Code regelmäßig lokal committen, keine Build-Uploads nach GitHub.
+Aktuell gelten [Serverentwicklung](server-development.md),
+[Abnahme](server-acceptance.md) und [Terminalanleitung](terminal-quickstart.md).
+Ein späterer ausdrücklich vorgesehener Mac-Test kann den folgenden Transportweg
+wieder benötigen.
 
 ## Verifizierter Stand vom 27. September 2026
 
