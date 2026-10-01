@@ -113,6 +113,8 @@ def main():
     p.add_argument('output',type=Path)
     p.add_argument('--seconds',type=int,default=180,help='0 keeps the VMs running until the QEMU window is closed')
     p.add_argument('--display',choices=['none','cocoa','gtk'],default='none')
+    p.add_argument('--cpus',type=int,default=4,choices=range(1,17),help='Android virtual CPUs')
+    p.add_argument('--memory-mib',type=int,default=4096,help='Android guest memory; helper keeps its separate 1024 MiB')
     p.add_argument('--helper-timeout',type=int,default=180,
                    help='Bounded helper startup wait; software emulation needs longer than HVF')
     p.add_argument('--framebuffer-format',choices=['rgba','bgra'],
@@ -127,6 +129,7 @@ def main():
     p.add_argument('--create-profile',action='store_true',help='Explicitly provision a NEW profile')
     args=p.parse_args()
     if not 0<=args.seconds<=600: p.error('Duration must be 0–600 seconds')
+    if not 2048<=args.memory_mib<=32768: p.error('Android memory must be 2048–32768 MiB')
     if not 30<=args.helper_timeout<=600: p.error('Helper timeout must be 30–600 seconds')
     if args.adb_port and not 1024<=args.adb_port<=65535: p.error('ADB port must be 1024–65535')
     if args.create_profile and not args.profile: p.error('--create-profile requires --profile')
@@ -161,6 +164,7 @@ def run(args,manifest=None):
     (output/'bootconfig').write_text(args.bootconfig.read_text().rstrip()+'\n'+local_text)
     subprocess.run([sys.executable,str(Path(__file__).with_name('qemu-init.py')),
                     str(images),str(output/'android'),'--disk',str(args.disk.resolve()),
+                    '--cpus',str(args.cpus),'--memory-mib',str(args.memory_mib),
                     '--bootconfig',str(output/'bootconfig'),'--prepare-only'],check=True)
     android=shlex.split((output/'android/command.txt').read_text())
     if manifest:

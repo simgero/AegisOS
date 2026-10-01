@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded early Android boot diagnostic on the Apple Silicon Mac.
+"""Bounded early Android boot diagnostic on a local QEMU host.
 
 Uses original vendor and generic ramdisks. Optional test disk; no host services;
 this is a porting diagnostic, not a complete Android boot or an interactive VM.
@@ -50,6 +50,8 @@ def main():
     p.add_argument("images", type=Path)
     p.add_argument("output", type=Path, help="New directory for ramdisk, command and serial log")
     p.add_argument("--seconds", type=int, default=45)
+    p.add_argument("--cpus", type=int, default=4, choices=range(1, 17))
+    p.add_argument("--memory-mib", type=int, default=4096)
     p.add_argument("--disk", type=Path, help="Optional GPT test disk; used in snapshot mode")
     p.add_argument("--bootconfig", type=Path, help="Additional bootloader parameters computed from the images")
     p.add_argument("--prepare-only", action="store_true", help="Write ramdisk and command without starting QEMU")
@@ -60,6 +62,8 @@ def main():
     host = execution()
     if not 1 <= args.seconds <= 300:
         p.error("Diagnostic duration must be 1–300 seconds")
+    if not 2048 <= args.memory_mib <= 32768:
+        p.error("Android memory must be 2048–32768 MiB")
     images = args.images.resolve()
     ramdisk = vendor_ramdisk(images / "vendor_boot.img") + (images / "ramdisk.img").read_bytes()
     config = (images / "vendor-bootconfig.img").read_bytes().rstrip(b"\0") + b"\n"
@@ -70,7 +74,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     output = args.output.resolve()
     (output / "initrd.img").write_bytes(ramdisk)
-    command = ["qemu-system-aarch64", *host, "-smp", "4", "-m", "4096",
+    command = ["qemu-system-aarch64", *host, "-smp", str(args.cpus), "-m", str(args.memory_mib),
                "-nodefaults", "-display", "none", "-net", "none", "-no-reboot",
                "-serial", "stdio", "-monitor", "none", "-kernel", str(images / "kernel"),
                "-initrd", str(output / "initrd.img"), "-append",
