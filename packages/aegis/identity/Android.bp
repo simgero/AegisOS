@@ -137,7 +137,7 @@ cc_library_static {
     name: "libaegis-runtime-broker-owner",
     defaults: ["aegis-runtime-native-defaults"],
     srcs: ["runtime/broker_owner.cpp", "runtime/broker_package.cpp"],
-    static_libs: ["libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libaegis-package-planner", "libaegis-package-plan", "libbase", "libjsoncpp"],
+    static_libs: ["libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-package-store", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libaegis-package-planner", "libaegis-package-plan", "libbase", "libjsoncpp"],
     export_include_dirs: ["runtime"],
 }
 
@@ -176,7 +176,7 @@ cc_binary {
     static_libs: ["libaegis-runtime-broker-owner", "libaegis-runtime-broker-cgroup",
                   "libaegis-runtime-base", "libaegis-runtime-context",
                   "libaegis-runtime-namespace", "libaegis-runtime-child",
-                  "libaegis-runtime-broker-protocol", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libaegis-package-planner", "libaegis-package-plan", "libaegis-package-metadata", "libbase", "libjsoncpp"],
+                  "libaegis-runtime-broker-protocol", "libaegis-package-store", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libaegis-package-planner", "libaegis-package-plan", "libaegis-package-metadata", "libbase", "libjsoncpp"],
 }
 
 // Inert trusted probe for device tests; never a production setup helper.
