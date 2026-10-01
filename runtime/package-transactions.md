@@ -1,4 +1,34 @@
-## Aktuell: Plan aus signierter Quelle bis zur veröffentlichten Generation verbunden
+## Aktueller Stand: gemischte Transaktionen; gemeinsame/private Zusammenführung offen
+
+Die tatsächliche CLI im Vollimage `d0b866e1` hat frische AOSP-Adminfreigabe,
+private Installation sowie private Dateien/Pakete über Logout, gemeinsamen
+Android-/KeyMint-Neustart und Passwortwechsel nachgewiesen. Eine anschließende
+gemeinsame Installation zeigt jedoch die offene Zusammenführung: Der Benutzer
+mit alter privater Basis kann seine Runtime nicht mehr starten oder aktualisieren.
+Die bisherigen Images bleiben dabei unverändert erhalten. Details stehen in
+[den aktuellen Komponentennachweisen](../docs/component-tests.md).
+
+Als Voraussetzung erweitert `7fc2f44a` den vollständig freigegebenen Plan um
+kombinierte Installations- und Entfernungseffekte. Vorbereitung und Broker
+übertragen nur tatsächliche Archive, in Effektreihenfolge mit ausgelassenen
+Entfernungen. Das versionierte interne Protokoll verlangt für gemischte Vorgänge
+ein vollständiges Review. Der feste Offline-Aufruf ergänzt ausschließlich bei
+geprüften Entfernungen das APT-Suffix `-`; Simulation und abschließender Paketstatus
+müssen weiterhin sämtliche gebundenen Effekte treffen. Benutzer können daraus
+keine freien Optionen oder Befehle einschleusen. Der Resolver beschafft auch
+bei einer Entfernung Archive, wenn die aufgelösten Abhängigkeiten dies erfordern.
+
+**130 gezielte native QEMU-Prüfungen bestanden.** Der tatsächliche APT-Test
+entfernt eine App und aktualisiert ihre Bibliothek gemeinsam; die veröffentlichte
+Generation bewahrt Konfiguration und technische Dateieigentümer. Ein falsches
+Archiv lässt die bisherige Auswahl unverändert. Dieser Komponentenstand ist noch
+kein neues installiertes Produktimage. Private Absichten dauerhaft speichern,
+gegen gemeinsame Änderungen auflösen sowie ausstehende Aktivierung und echte
+Konflikte anzeigen bleiben die nächsten integrierten Anforderungen.
+
+Die folgenden Abschnitte dokumentieren frühere Stände und deren damalige Grenzen.
+
+## Früherer Stand: Plan aus signierter Quelle bis zur veröffentlichten Generation verbunden
 
 `b827ba82` besteht **46 gezielte und 340 aktivierte native Prüfungen**.
 Der Auftrag bindet die tatsächlich authentifizierten Repository-/Archivbelege

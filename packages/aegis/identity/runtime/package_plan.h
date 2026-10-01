@@ -38,7 +38,8 @@ struct PackageResolvedPlan {
     // from an existing empty file. Never synthesize from only changed packages.
     PackageStatePresence initial_apt_state_presence=PackageStatePresence::Unspecified;
     PackageInput initial_apt_state;
-    // Strictly sorted unique IDs/names. Archive FDs use the same change order.
+    // Strictly sorted unique IDs/names. Mechanical archive FDs follow this
+    // change order with removals omitted (the evidence adapter uses -1 slots).
     std::vector<PackageRepository> repositories;
     std::vector<PackageChange> changes;
 };
@@ -62,7 +63,7 @@ struct PackageBoundPlan {
 // exact expected effects and recheck expiry before fresh AOSP confirmation.
 // The worker independently checks exact effects; this binder alone does not
 // infer that APT will perform only the declared changes.
-// Mixed install/remove effects are presently EOPNOTSUPP, never silently dropped.
+// Mixed effects are bound in full; dense archive inputs omit removal slots.
 // A changed shared base is ESTALE: private rebase is an explicit later operation.
 int PackageBindResolvedPlan(const PackageResolvedPlan& plan,uint64_t now_unix,
                              PackageBoundPlan* output);

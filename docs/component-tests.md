@@ -1,3 +1,50 @@
+## Gemischte Pakettransaktionen: 7fc2f44a
+
+Commit `7fc2f44a2e5f8fb4df6b91082ee9db825fd51de7` wurde ausschließlich auf
+`aegis-build` kompiliert (Run `identity-20261001T030745Z-7fc2f44a-Cj4uyi`,
+Invocation `2cb85f3ef84843d8a0ba3484d6385d7c`). Die
+[Komponenten](https://github.com/simgero/AegisOS/releases/tag/components-20261001T030913Z-7fc2f44a-7fc2f44a-yNDT73)
+wurden über GitHub verifiziert auf den Mac übertragen.
+
+**130/130 native Prüfungen bestanden**, am **2026-10-01T03:12:14Z**, Laufzeit
+103,612 Sekunden. Testgast: Vollimage `d0b866e1`, Profil
+`ad828f99-7021-47b9-8645-b9aef2693651`, Boot
+`18880c8d-4132-48e9-a4de-9bb2823599a6`, Enforcing und authentifiziertes ADB.
+Die neun Suites umfassen 23 Planbindungen, 21 Archivbelege, 19 Ausführungswächter,
+zwei mechanische Planprüfungen, 28 Ausführungs-, 15 Vorbereitungs-, zwölf
+Transaktions- und zehn Generationsauswahltests.
+
+Die neue vollständige Transaktion installiert zuerst App/Bibliothek Version 1.
+Ein zweiter gebundener Vorgang entfernt die App und aktualisiert gleichzeitig
+die Bibliothek auf Version 2. Die Entfernung steht vor dem Archiv in der
+sortierten Effektliste, während nur ein Archiv-FD übertragen wird. Tatsächliches
+APT führt genau beide freigegebenen Effekte aus; die neue Generation lässt sich
+über den Store erneut öffnen. Konfigurationsdatei und technische Dateieigentümer
+bleiben erhalten, Programmdatei/Paketstatus und automatische Markierung passen
+zum Ergebnis. Ein falsches Archiv scheitert bei der Vorbereitung und lässt die
+vorherige Generation ausgewählt. Die Wächter verwerfen fehlende oder veränderte
+Entfernungseffekte, falsche Suchbegriffe, fehlende Reviews und eingeschleuste FDs.
+
+Benutzerregister, Benutzer-/Seriennummern, CE-/DE-Schlüsselkennungen, gestartete
+Benutzer und Runtime-Kontexte sind vor/nach allen Prüfungen bytegleich. Beide
+persönlichen Benutzer bleiben CE-gesperrt. Die vier deaktivierten nativen
+Real-CE-Fälle wurden nicht aktiviert. Java wurde nicht verändert; vorhandene
+Java-Nachweise werden nicht als neue Ausführung gezählt.
+
+Lokale Belege: `out/components-7fc2f44a/targeted-tests/result.json`, `before.json`,
+`after.json`, `native.log`. SHA-256 des Logs:
+`4c55ce32741cf7bcd9e4a881e1c3ec22486c18bf63589a8fa3054f57f64383af`.
+Vor-/Nachzustand: `7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+
+**Grenze:** Die neuen Fälle verwenden eigene synthetische Images und den
+Entwickler-Testeinstieg. Sie beweisen keine installierte produktive Ausführung
+dieses Commits, keine neue AOSP-Passwortfreigabe und noch keine automatische
+Zusammenführung gemeinsamer und privater Pakete. Die reproduzierte d0-Sperre
+unten besteht weiterhin. Dafür fehlen insbesondere dauerhaft gespeicherte
+private Paketentscheidungen, konsistente Auflösung gegen eine neue gemeinsame
+Basis, Aktivierungsstatus und Konflikterklärung. Der bisherige Schutz gegen
+eine veraltete private Basis bleibt wirksam.
+
 ## Private Pakete, Zwei-Benutzer-Neustart und gemeinsamer Bestand: d0b866e1
 
 Der [Vollbuild](https://github.com/simgero/AegisOS/releases/tag/aosp-20261001T014320Z-d0b866e1-5ffa8331)
