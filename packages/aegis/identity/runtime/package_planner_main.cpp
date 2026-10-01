@@ -1,5 +1,6 @@
 #include "package_program.h"
 #include "package_resolver.h"
+#include "package_private_choices.h"
 #include "package_planning_protocol.h"
 #include "sandbox.h"
 extern "C" {
@@ -70,6 +71,7 @@ int Setup(int* fds,bool internet) {
        ||(internet&&CopyFd(fds[5],policy.get(),"ca.pem",1048576)<0)
        ||Copy(fds[2],"var/lib/dpkg/status",input.get(),"status",64u<<20)<0)return -1;
     if(Copy(fds[2],"var/lib/apt/extended_states",input.get(),"extended_states",16u<<20)<0&&errno!=ENOENT)return -1;
+    if(Copy(fds[2],aegis::kPrivateChoicesPath,input.get(),"private-choices",AEGIS_PACKAGE_CHOICES_BYTES-1)<0&&errno!=ENOENT)return -1;
 #ifdef AEGIS_PLANNER_PROBE
     // Device-only deterministic repository; never linked into the product helper.
     if(mkdirat(tmp.get(),"aegis-repo",0755)<0)return -1;

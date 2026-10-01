@@ -34,6 +34,9 @@ struct PackageResolvedPlan {
     PackageInput source, shared;
     PackageGeneration previous;
     std::string planner_image_sha256, policy_sha256, initial_status_sha256;
+    // Exact root-owned manifest copied from the selected readonly generation.
+    // Absent only for a shared/factory source; an existing private source needs it.
+    std::string initial_private_choices;
     // Snapshot of APT extended_states in the selected source. Absence is distinct
     // from an existing empty file. Never synthesize from only changed packages.
     PackageStatePresence initial_apt_state_presence=PackageStatePresence::Unspecified;

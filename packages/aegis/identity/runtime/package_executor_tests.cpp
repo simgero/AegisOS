@@ -294,6 +294,30 @@ TEST_F(RuntimePackageExecutor, ReviewedInstallUpgradeRemovePreservesConffilesAnd
     EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),"usr/bin/aegis-exec-app"));
     EXPECT_EQ("local=preserved\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));
 }
+TEST_F(RuntimePackageExecutor, PrivateChoicesSurviveRealAptUpgradeRemovalAndImageRemount) {
+    const std::string empty="AEGIS-PRIVATE-CHOICES1\n",one=empty+"aegis-exec-app\tall\t1\n",two=empty+"aegis-exec-app\tall\t2\n";
+    Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());strcpy(plan.review.result_choices,one.c_str());
+    Completed();ASSERT_FALSE(HasFailure());Remount();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(one,ControlFile(candidate.get(),"var/lib/aegis/private-choices"));
+    ASSERT_EQ(0,WriteAt(candidate.get(),"etc/aegis-exec.conf","local=kept\n",O_TRUNC));
+    Archives(2);Review(1,2);ASSERT_FALSE(HasFatalFailure());
+    strcpy(plan.review.initial_choices,one.c_str());strcpy(plan.review.result_choices,two.c_str());
+    Completed();ASSERT_FALSE(HasFailure());Remount();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(two,ControlFile(candidate.get(),"var/lib/aegis/private-choices"));
+    EXPECT_EQ("local=kept\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));
+    plan.kind=AEGIS_PACKAGE_REMOVE;plan.items={"aegis-exec-app","aegis-exec-lib"};Review(2,0);ASSERT_FALSE(HasFatalFailure());
+    strcpy(plan.review.initial_choices,two.c_str());strcpy(plan.review.result_choices,empty.c_str());
+    Completed();ASSERT_FALSE(HasFailure());Remount();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(empty,ControlFile(candidate.get(),"var/lib/aegis/private-choices"));
+    EXPECT_EQ("local=kept\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));
+}
+TEST_F(RuntimePackageExecutor, PackageScriptCannotForgePrivateChoices) {
+    Archives(1,false,"mkdir -p /var/lib/aegis\nprintf 'AEGIS-PRIVATE-CHOICES1\\n' > /var/lib/aegis/private-choices\n");
+    Review(0,1);ASSERT_FALSE(HasFatalFailure());strcpy(plan.review.result_choices,"AEGIS-PRIVATE-CHOICES1\naegis-exec-app\tall\t1\n");
+    ASSERT_EQ(0,Start());PackageExecutionResult result;
+    ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+    EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(ESTALE,result.error);
+}
 TEST_F(RuntimePackageExecutor, ChangedInitialStatusRejectsBeforeAnyPackageScript) {
     Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());
     plan.review.initial_status[0]=plan.review.initial_status[0]=='a'?'b':'a';

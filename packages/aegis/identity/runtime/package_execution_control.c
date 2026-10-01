@@ -10,7 +10,7 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
-_Static_assert(sizeof(struct aegis_package_execution_request) < 65536, "bounded request ABI");
+_Static_assert(sizeof(struct aegis_package_execution_request) < 131072, "bounded request ABI");
 _Static_assert(sizeof(struct aegis_package_execution_reply) == 104, "reply ABI");
 struct transfer { uint32_t magic, version, user, serial; uint64_t job; };
 _Static_assert(sizeof(struct transfer) == 24, "transfer ABI");

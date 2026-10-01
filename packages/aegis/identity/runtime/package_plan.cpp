@@ -1,4 +1,5 @@
 #include "package_plan.h"
+#include "package_private_choices.h"
 #include "package_execution_protocol.h"
 #include <errno.h>
 #include <openssl/sha.h>
@@ -74,7 +75,7 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
     pub.requester=p.requester;pub.serial=p.serial;pub.personal=p.personal;pub.create=p.create_store;
     pub.has_previous=p.has_previous;pub.previous=p.previous;pub.derive_source_hash=true;
     pub.candidate.bytes=p.source.bytes;if(p.personal)pub.candidate.shared_base_sha256=p.shared.sha256;
-    Encoding e;e.Text("org.aegisos.package.resolved-plan");e.Number(2);
+    Encoding e;e.Text("org.aegisos.package.resolved-plan");e.Number(3);
     e.Number(p.requester);e.Number(p.serial);e.Number(p.personal);e.Number(p.create_store);e.Number(p.has_previous);
     e.Number(static_cast<uint32_t>(p.action));e.Text(p.requested_package);e.Text(p.requested_version);
     e.Input(p.source);e.Input(p.shared);e.Generation(p.previous);
@@ -122,6 +123,14 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
         expected.reason=static_cast<uint8_t>(c.reason);
     }
     if(!requested)return Fail(EINVAL);
+    if(p.personal && p.has_previous && p.initial_private_choices.empty())return Fail(ENODATA);
+    if((!p.personal || !p.has_previous) && !p.initial_private_choices.empty())return Fail(EINVAL);
+    std::string desired;
+    if(p.personal && PackagePrivateChoicesApply(p.initial_private_choices,p.action,p.requested_package,
+                                               p.requested_version,p.changes,&desired)<0)return -1;
+    e.Text(p.initial_private_choices);e.Text(desired);
+    memcpy(exec.review.initial_choices,p.initial_private_choices.c_str(),p.initial_private_choices.size()+1);
+    memcpy(exec.review.result_choices,desired.c_str(),desired.size()+1);
     exec.kind=prep.archives.empty()?AEGIS_PACKAGE_REMOVE
         :prep.archives.size()==exec.items.size()?AEGIS_PACKAGE_ARCHIVES:AEGIS_PACKAGE_MIXED;
     std::string digest=e.Digest();if(digest.empty())return Fail(EIO);

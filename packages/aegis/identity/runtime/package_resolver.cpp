@@ -1,5 +1,6 @@
 #include "package_program.h"
 #include "package_resolver.h"
+#include "package_private_choices.h"
 #include "sandbox.h"
 #include <android-base/unique_fd.h>
 #include <openssl/sha.h>
@@ -122,7 +123,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     if(getpid()!=1||getppid()||getuid()||getgid())return fail(EPERM);
     if(View("/",true,true)<0||View("/run/aegis-plan-policy",true,true)<0
        ||View("/run/aegis-plan-input",true,false)<0)return fail(errno);
-    std::string config,sources,key,status,automatic,ca;
+    std::string config,sources,key,status,automatic,ca,choices;
     if(Read("/run/aegis-plan-policy/config",16384,true,&config)<0
        ||Read("/run/aegis-plan-policy/sources.list",16384,true,&sources)<0
        ||Read("/run/aegis-plan-policy/key.asc",1048576,true,&key)<0
@@ -131,6 +132,10 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     if(config!=PackageResolverConfiguration(r.internet)||sources.empty()||key.empty())return fail(EPERM);
     bool present=Read("/run/aegis-plan-input/extended_states",16u<<20,true,&automatic)==0;
     if(!present&&errno!=ENOENT)return fail(errno);
+    bool chosen=Read("/run/aegis-plan-input/private-choices",AEGIS_PACKAGE_CHOICES_BYTES-1,true,&choices)==0;
+    if(!chosen&&errno!=ENOENT)return fail(errno);
+    PackagePrivateChoices parsed;
+    if(chosen && (choices.empty() || PackagePrivateChoicesDecode(choices,&parsed)<0))return fail(EBADMSG);
     if(mkdir("/tmp/aegis-planner",0755)<0)return fail(errno);
     for(const char* path:{"/tmp/aegis-planner/lists","/tmp/aegis-planner/lists/partial",
         "/tmp/aegis-planner/archives","/tmp/aegis-planner/archives/partial"})if(mkdir(path,0755)<0)return fail(errno);
@@ -200,6 +205,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     if(Write("/tmp/aegis-planner/receipt.json",Json::writeString(writer,receipt))<0)return fail(errno);
     auto& proof=result.evidence;
     proof.initial_status_sha256=Hash(status);
+    proof.initial_private_choices=choices;
     proof.initial_apt_state_presence=present?PackageStatePresence::Present:PackageStatePresence::Absent;
     if(present)proof.initial_apt_state={automatic.size(),Hash(automatic)};
     proof.policy_sha256=Hash("aegis-resolver-policy-v1:"+Hash(config)+Hash(sources)+Hash(key)+(r.internet?Hash(ca):""));

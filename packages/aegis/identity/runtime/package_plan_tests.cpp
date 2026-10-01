@@ -45,8 +45,8 @@ TEST(PackageResolvedPlan, BindsCanonicalEpochArchivesAndRequesterPrivateOwner) {
     EXPECT_EQ(268435456u,pub.candidate.bytes);EXPECT_EQ(2000u,b.valid_until_unix);
     EXPECT_EQ(prep.execution.plan_sha256,pub.plan_sha256);
 }
-TEST(PackageResolvedPlan, IndependentVersionTwoDigestVectorAndClockStableBinding) {
-    auto p=Plan();EXPECT_EQ("e2481eca1b14ae560b109c61f22eb9599f4ad8d909ddac6a626c832b69e59949",Digest(p));
+TEST(PackageResolvedPlan, IndependentVersionThreeDigestVectorAndClockStableBinding) {
+    auto p=Plan();EXPECT_EQ("d29d9a89a4f93a003ea5273079a33347ab0d73554efc7d238797914f4fceb358",Digest(p));
     PackageBoundPlan b;ASSERT_EQ(0,PackageBindResolvedPlan(p,1999,&b));
     EXPECT_EQ(Digest(p),b.preparation.execution.plan_sha256);
 }
@@ -54,7 +54,7 @@ TEST(PackageResolvedPlan, EverySecurityRelevantChangeInvalidatesTheBinding) {
     std::set<std::string> digests{Digest(Plan())};
     const std::vector<std::function<void(PackageResolvedPlan&)>> changes={
         [](auto& p){p.requester=11;},[](auto& p){p.serial=43;},[](auto& p){p.personal=false;},
-        [](auto& p){p.create_store=false;},[](auto& p){p.has_previous=true;p.create_store=false;p.previous={H('a'),H('a'),268435456};},
+        [](auto& p){p.create_store=false;},[](auto& p){p.has_previous=true;p.create_store=false;p.previous={H('a'),H('a'),268435456};p.initial_private_choices="AEGIS-PRIVATE-CHOICES1\n";},
         [](auto& p){p.source.sha256=p.shared.sha256=H('3');},
         [](auto& p){p.source.bytes=p.shared.bytes=536870912;},
         [](auto& p){p.requested_version.clear();},[](auto& p){p.requested_package="test-lib";p.requested_version.clear();},
@@ -75,7 +75,7 @@ TEST(PackageResolvedPlan, EverySecurityRelevantChangeInvalidatesTheBinding) {
 }
 TEST(PackageResolvedPlan, PrivatePreviousGenerationIsRetainedAndBoundToSharedBase) {
     auto p=Plan();p.create_store=false;p.has_previous=true;p.source.sha256=H('3');
-    p.previous={H('3'),H('a'),p.source.bytes};PackageBoundPlan b;
+    p.previous={H('3'),H('a'),p.source.bytes};p.initial_private_choices="AEGIS-PRIVATE-CHOICES1\n";PackageBoundPlan b;
     ASSERT_EQ(0,PackageBindResolvedPlan(p,1000,&b));
     EXPECT_EQ(H('3'),b.publication.previous.image_sha256);EXPECT_EQ(H('a'),b.publication.candidate.shared_base_sha256);
     p.shared.sha256=H('4');Reject(p,ESTALE);
@@ -229,4 +229,14 @@ TEST(PackageResolvedPlan, ReviewRetainsExactAutomaticMarksAndInitialState) {
         EXPECT_EQ(p.changes[1].archive.sha256,b.reviewed.changes[1].archive.sha256);
         EXPECT_EQ(b.preparation.execution.plan_sha256,Digest(b.reviewed));
     }
+}
+
+TEST(PackageResolvedPlan, PrivateChoicesAreBoundAndLegacyMissingManifestIsNotInferred) {
+    auto p=Plan();p.create_store=false;p.has_previous=true;p.previous={H('a'),H('a'),p.source.bytes};
+    Reject(p,ENODATA);p.initial_private_choices="AEGIS-PRIVATE-CHOICES1\n";
+    auto first=Digest(p);p.initial_private_choices+="another-app\tall\t1\n";
+    EXPECT_NE(first,Digest(p));PackageBoundPlan bound;ASSERT_EQ(0,PackageBindResolvedPlan(p,1000,&bound));
+    EXPECT_EQ(p.initial_private_choices,std::string(bound.preparation.execution.review.initial_choices));
+    EXPECT_EQ(p.initial_private_choices+"test-app\tarm64\t2:1.0~rc1-1\n",std::string(bound.preparation.execution.review.result_choices));
+    p.initial_private_choices="broken";Reject(p,EBADMSG);
 }

@@ -69,6 +69,10 @@ class PackageExecutionGuard : public ::testing::Test {
         aegis_package_guard_free(guard);
         if(root.ok()) {
             int removed=unlinkat(root.get(),"simulation.json",0);EXPECT_TRUE(removed==0||errno==ENOENT);
+            for(const char* p:{"var/lib/aegis/private-choices","var/lib/aegis/private-choices.new"}) {
+                int rc=unlinkat(root.get(),p,0);EXPECT_TRUE(rc==0||errno==ENOENT);
+            }
+            int dir=unlinkat(root.get(),"var/lib/aegis",AT_REMOVEDIR);EXPECT_TRUE(dir==0||errno==ENOENT);
             // Only the fixed files in this exclusively owned test directory.
             for(const char* p:{"var/lib/dpkg/status","var/lib/apt/extended_states"})EXPECT_EQ(0,unlinkat(root.get(),p,0));
             for(const char* p:{"var/lib/dpkg","var/lib/apt","var/lib","var"})EXPECT_EQ(0,unlinkat(root.get(),p,AT_REMOVEDIR));
@@ -179,6 +183,32 @@ TEST_F(PackageExecutionGuard, MixedProtocolRejectsMissingReviewWrongRemovalNameA
     bad=mixed;strcpy(bad.items[0],"base-one-");EXPECT_FALSE(aegis_package_execution_valid(&bad));
     bad=request;bad.kind=AEGIS_PACKAGE_MIXED;EXPECT_FALSE(aegis_package_execution_valid(&bad));
     bad=mixed;bad.kind=99;EXPECT_FALSE(aegis_package_execution_valid(&bad));
+}
+
+TEST_F(PackageExecutionGuard, CommitsOnlyTheReviewedInstalledChoiceAndReopensDurableBytes) {
+    const char* expected="AEGIS-PRIVATE-CHOICES1\ntest-app\tall\t2\n";
+    strcpy(request.review.result_choices,expected);Begin();ASSERT_FALSE(HasFatalFailure());
+    Finish(base+added,base_auto+app_auto,0);ASSERT_FALSE(HasFailure());
+    ASSERT_EQ(0,aegis_package_guard_commit(guard,root.get()))<<strerror(errno);
+    unique_fd fd(openat(root.get(),"var/lib/aegis/private-choices",O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(fd.ok());
+    char data[128]={};ASSERT_EQ(ssize_t(strlen(expected)),read(fd.get(),data,sizeof(data)));EXPECT_STREQ(expected,data);
+    struct stat st;ASSERT_EQ(0,fstat(fd.get(),&st));EXPECT_EQ(S_IFREG|0600,st.st_mode);EXPECT_EQ(0u,st.st_uid);EXPECT_EQ(1u,st.st_nlink);
+    EXPECT_EQ(-1,aegis_package_guard_commit(guard,root.get()));EXPECT_EQ(ESTALE,errno);
+}
+TEST_F(PackageExecutionGuard, ManifestCannotSelectAVersionOutsideTheCompleteFinalRegistry) {
+    strcpy(request.review.result_choices,"AEGIS-PRIVATE-CHOICES1\ntest-app\tall\t9\n");
+    EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(nullptr,guard);
+}
+TEST_F(PackageExecutionGuard, PackageScriptCannotInjectAChoiceBeforeFinalCommit) {
+    strcpy(request.review.result_choices,"AEGIS-PRIVATE-CHOICES1\ntest-app\tall\t2\n");Begin();ASSERT_FALSE(HasFatalFailure());
+    Finish(base+added,base_auto+app_auto,0);ASSERT_FALSE(HasFailure());
+    ASSERT_EQ(0,mkdirat(root.get(),"var/lib/aegis",0700));Write("var/lib/aegis/private-choices","AEGIS-PRIVATE-CHOICES1\nbase-one\tarm64\t1\n");
+    EXPECT_EQ(-1,aegis_package_guard_commit(guard,root.get()));EXPECT_EQ(ESTALE,errno);
+}
+TEST_F(PackageExecutionGuard, ManifestSymlinkCannotReadOutsideTheCandidate) {
+    ASSERT_EQ(0,mkdirat(root.get(),"var/lib/aegis",0700));
+    ASSERT_EQ(0,symlinkat("/system/build.prop",root.get(),"var/lib/aegis/private-choices"));
+    EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(ELOOP,errno);EXPECT_EQ(nullptr,guard);
 }
 
 }

@@ -545,6 +545,7 @@ int aegis_package_execute(uint32_t user, uint32_t serial, int permit_unbound_fix
     baseline_free(&baseline);
     if (!error && !result && aegis_package_validate(root)<0) error=errno;
     if(!error && !result && guard && aegis_package_guard_finish(guard,root)<0)error=errno;
+    if(!error && !result && guard && aegis_package_guard_commit(guard,root)<0)error=errno;
     aegis_package_guard_free(guard);
     if (syncfs(root) < 0 && !error) error = errno;
     close(root);

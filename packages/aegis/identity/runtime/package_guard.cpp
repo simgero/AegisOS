@@ -1,8 +1,10 @@
 #include "package_guard.h"
 #include "package_apt_plan.h"
+#include "package_private_choices.h"
 #include <openssl/sha.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <linux/openat2.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -46,6 +48,54 @@ int Read(int root,const char* path,size_t limit,std::string* out) {
     how.resolve=RESOLVE_BENEATH|RESOLVE_NO_SYMLINKS|RESOLVE_NO_MAGICLINKS|RESOLVE_NO_XDEV;
     int fd=syscall(SYS_openat2,root,path,&how,sizeof(how));if(fd<0)return -1;
     int result=ReadFd(fd,limit,out),saved=errno;close(fd);errno=saved;return result;
+}
+int CheckChoices(int root,const char* expected) {
+    std::string actual;int result=Read(root,aegis::kPrivateChoicesPath,AEGIS_PACKAGE_CHOICES_BYTES-1,&actual);
+    if(result<0 && errno!=ENOENT)return -1;
+    if((result==0)!=bool(*expected) || actual!=expected)return Fail(ESTALE);
+    return 0;
+}
+int MatchChoices(const char* text,const Installed& installed) {
+    aegis::PackagePrivateChoices choices;if(aegis::PackagePrivateChoicesDecode(text,&choices)<0)return -1;
+    for(const auto& [name,c]:choices) {
+        auto it=installed.find(name);
+        if(it==installed.end() || std::get<0>(it->second)!=c.version || std::get<1>(it->second)!=c.architecture)return Fail(ESTALE);
+    }
+    return 0;
+}
+int Directory(int parent,const char* name) {
+    open_how how={};how.flags=O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW;
+    how.resolve=RESOLVE_BENEATH|RESOLVE_NO_SYMLINKS|RESOLVE_NO_MAGICLINKS|RESOLVE_NO_XDEV;
+    return syscall(SYS_openat2,parent,name,&how,sizeof(how));
+}
+int StoreChoices(int root,const char* expected,const char* desired) {
+    if(CheckChoices(root,expected)<0)return -1;
+    if(!*desired)return 0; // A shared generation cannot gain private intent.
+    int lib=Directory(root,"var/lib");if(lib<0)return -1;
+    struct stat st;int error=0;
+    if(fstat(lib,&st)<0)error=errno;
+    else if(st.st_uid || st.st_gid || (st.st_mode&07022))error=EPERM;
+    if(!error && mkdirat(lib,"aegis",0700)<0 && errno!=EEXIST)error=errno;
+    int dir=error?-1:Directory(lib,"aegis");if(dir<0&&!error)error=errno;
+    if(!error && fstat(dir,&st)<0)error=errno;
+    if(!error && (st.st_uid || st.st_gid || st.st_mode!=(S_IFDIR|0700)))error=EPERM;
+    int fd=error?-1:openat(dir,"private-choices.new",O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC|O_WRONLY,0600);
+    if(fd<0&&!error)error=errno;
+    if(fd>=0) {
+        size_t size=strlen(desired);
+        for(size_t at=0;at<size&&!error;) {
+            ssize_t n=write(fd,desired+at,size-at);if(n<0&&errno==EINTR)continue;
+            if(n<=0)error=n<0?errno:EIO;else at+=n;
+        }
+        if(!error&&fsync(fd)<0)error=errno;
+        if(!error&&CheckChoices(root,expected)<0)error=errno;
+        if(!error&&renameat(dir,"private-choices.new",dir,"private-choices")<0)error=errno;
+        if(error)unlinkat(dir,"private-choices.new",0);
+        close(fd);
+    }
+    if(!error&&fsync(dir)<0)error=errno;
+    if(!error&&fsync(lib)<0)error=errno;
+    if(dir>=0)close(dir);close(lib);return error?Fail(error):0;
 }
 using Fields=std::map<std::string,std::string>;
 // Debian status/extended_states, not terminal text. Unknown folded fields are
@@ -121,8 +171,10 @@ extern "C" int aegis_package_guard_begin(int root,const aegis_package_execution_
         if(read_state<0)return -1;
         if(state.size()!=r->review.apt_state_bytes||Hash(state)!=r->review.initial_apt_state)return Fail(ESTALE);
     }
+    if(CheckChoices(root,r->review.initial_choices)<0)return -1;
     auto* p=new(std::nothrow) aegis_package_guard;if(!p)return Fail(ENOMEM);p->request=*r;
     if(Status(status,&p->expected)<0||Auto(state,&p->automatic)<0) { int e=errno;delete p;return Fail(e); }
+    if(MatchChoices(r->review.initial_choices,p->expected)<0) { int e=errno;delete p;return Fail(e); }
     for(auto it=p->automatic.begin();it!=p->automatic.end();) {
         if(!p->expected.count(*it))it=p->automatic.erase(it);else ++it;
     }
@@ -140,6 +192,7 @@ extern "C" int aegis_package_guard_begin(int root,const aegis_package_execution_
             if(e.reason==2)p->automatic.insert(e.name);else p->automatic.erase(e.name);
         }
     }
+    if(MatchChoices(r->review.result_choices,p->expected)<0) { int e=errno;delete p;return Fail(e); }
     *out=p;return 0;
 }
 extern "C" int aegis_package_guard_simulation(aegis_package_guard* p,int fd) {
@@ -171,6 +224,11 @@ extern "C" int aegis_package_guard_finish(aegis_package_guard* p,int root) {
     for(auto it=automatic.begin();it!=automatic.end();) {
         if(!actual.count(*it))it=automatic.erase(it);else ++it;
     }
-    return automatic==p->automatic?0:Fail(ESTALE);
+    if(automatic!=p->automatic)return Fail(ESTALE);
+    return CheckChoices(root,p->request.review.initial_choices);
+}
+extern "C" int aegis_package_guard_commit(aegis_package_guard* p,int root) {
+    if(aegis_package_guard_finish(p,root)<0)return -1;
+    return StoreChoices(root,p->request.review.initial_choices,p->request.review.result_choices);
 }
 extern "C" void aegis_package_guard_free(aegis_package_guard* p) { delete p; }

@@ -4,7 +4,8 @@
 #include <stddef.h>
 #include <string.h>
 #define AEGIS_PACKAGE_EXEC_MAGIC UINT32_C(0x41455045)
-#define AEGIS_PACKAGE_EXEC_VERSION 3u
+#define AEGIS_PACKAGE_EXEC_VERSION 4u
+#define AEGIS_PACKAGE_CHOICES_BYTES 17408u
 #define AEGIS_PACKAGE_EXEC_ITEMS 64u
 #define AEGIS_PACKAGE_EXEC_NAME 160u
 #define AEGIS_PACKAGE_EXEC_FDS 3u
@@ -22,6 +23,7 @@ struct aegis_package_execution_review {
     uint64_t apt_state_bytes;
     char initial_status[65], initial_apt_state[65];
     uint8_t reserved[6];
+    char initial_choices[AEGIS_PACKAGE_CHOICES_BYTES], result_choices[AEGIS_PACKAGE_CHOICES_BYTES];
     struct aegis_package_expected_effect effects[AEGIS_PACKAGE_EXEC_ITEMS];
 };
 struct aegis_package_execution_request {
@@ -74,11 +76,19 @@ static inline int aegis_package_fixed(const char *text,size_t size,int empty) {
     for(size_t i=0;i<n;++i)if((unsigned char)text[i]<33 || (unsigned char)text[i]>126)return 0;
     return 1;
 }
+static inline int aegis_package_choices_text(const char *text) {
+    size_t n=strnlen(text,AEGIS_PACKAGE_CHOICES_BYTES);
+    if(n==AEGIS_PACKAGE_CHOICES_BYTES || !aegis_package_zero(text+n,AEGIS_PACKAGE_CHOICES_BYTES-n))return 0;
+    for(size_t i=0;i<n;++i)if((text[i]<32 && text[i]!='\n' && text[i]!='\t') || (unsigned char)text[i]>126)return 0;
+    return 1;
+}
 static inline int aegis_package_review_valid(const struct aegis_package_execution_request *r) {
     const struct aegis_package_execution_review *v=&r->review;
     if(!v->present)return r->kind!=AEGIS_PACKAGE_MIXED && aegis_package_zero(v,sizeof(*v));
     if(v->present!=1 || !aegis_package_hash(v->initial_status)
        || !aegis_package_zero(v->reserved,sizeof(v->reserved)))return 0;
+    if(!aegis_package_choices_text(v->initial_choices) || !aegis_package_choices_text(v->result_choices)
+       || (*v->initial_choices && !*v->result_choices))return 0;
     if(v->apt_state_presence==1) {
         if(v->apt_state_bytes || !aegis_package_zero(v->initial_apt_state,65))return 0;
     } else if(v->apt_state_presence!=2 || v->apt_state_bytes>(UINT64_C(16)<<20)
