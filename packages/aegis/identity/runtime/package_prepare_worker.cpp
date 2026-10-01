@@ -199,7 +199,7 @@ int Prepare(const wire::Request& request) {
     unique_fd mount(Mount(image.get(),request.image.bytes));if(!mount.ok())return -1;
     unique_fd root(At(mount.get(),".",O_RDONLY|O_DIRECTORY));
     if(!root.ok() || aegis_package_candidate_labels(root.get(),0)<0)return -1;
-    if(request.execution.kind==AEGIS_PACKAGE_ARCHIVES) {
+    if(aegis_package_archive_count(&request.execution)) {
         unique_fd cache(At(mount.get(),"var",O_RDONLY|O_DIRECTORY));if(!cache.ok())return -1;
         for(const char* part:{"cache","apt","archives"}) {
             if(mkdirat(cache.get(),part,0755)<0 && errno!=EEXIST)return -1;
@@ -207,7 +207,9 @@ int Prepare(const wire::Request& request) {
             if(!next.ok() || !Plain(next.get(),S_IFDIR,0755))return -1;
             cache=std::move(next);
         }
-        for(unsigned i=0;i<request.execution.count;++i) {
+        unsigned archive=0;
+        for(unsigned i=0;i<request.execution.count;++i)if(aegis_package_has_archive(&request.execution,i)) {
+            const int input=wire::kArchive+archive++;
             // A previous complete generation may already contain this exact
             // archive. Verify BOTH pinned input and cached contents; never
             // truncate, follow a link, or silently reuse an unverified file.
@@ -215,9 +217,9 @@ int Prepare(const wire::Request& request) {
             if(!output.ok()) {
                 if(errno!=EEXIST)return -1;
                 unique_fd cached(At(cache.get(),request.execution.items[i],O_RDONLY));
-                if(!cached.ok() || Copy(wire::kArchive+i,-1,request.archives[i])<0
+                if(!cached.ok() || Copy(input,-1,request.archives[i])<0
                    || Copy(cached.get(),-1,request.archives[i])<0)return -1;
-            } else if(Copy(wire::kArchive+i,output.get(),request.archives[i])<0)return -1;
+            } else if(Copy(input,output.get(),request.archives[i])<0)return -1;
         }
         if(fsync(cache.get())<0)return -1;
     }
@@ -247,8 +249,8 @@ int main(int argc,char**) {
     // the queued detached mount is still owned by the registered parent socket.
     close(wire::kStage);close(wire::kSource);
     if(request.selection && request.has_personal)close(wire::kArchive);
-    if(request.execution.kind==AEGIS_PACKAGE_ARCHIVES)
-        for(unsigned i=0;i<request.execution.count;++i)close(wire::kArchive+i);
+    if(!request.selection)
+        for(unsigned i=0;i<aegis_package_archive_count(&request.execution);++i)close(wire::kArchive+i);
     reply.magic=wire::kMagic;reply.version=wire::kVersion;
     reply.user=request.execution.user;reply.serial=request.execution.serial;reply.job=request.execution.job;
     reply.error=error ? error : 0;memcpy(reply.plan,request.execution.plan,65);

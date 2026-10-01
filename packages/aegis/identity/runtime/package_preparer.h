@@ -7,7 +7,8 @@ struct PackageInput { uint64_t bytes=0; std::string sha256; };
 struct PackagePreparation {
     PackageExecution execution;
     PackageInput image;
-    // In execution.items order; empty for removal. FDs are trusted pinned
+    // Dense archive-only order, skipping removal effects in execution.items.
+    // FDs are trusted pinned
     // archive sources, never CLI-supplied. Hashes do not establish repo trust.
     std::vector<PackageInput> archives;
 };

@@ -313,10 +313,15 @@ static _Noreturn void apt(const struct aegis_package_execution_request *r, enum 
         args[n++]="--simulate";args[n++]="-o";
         args[n++]="AptCli::Hooks::Install::=/tmp/aegis-trusted/hook --apt-plan-hook";
     }
-    args[n++] = command==PACKAGE_CHECK ? "check" : r->kind == AEGIS_PACKAGE_ARCHIVES ? "install" : "remove";
+    args[n++] = command==PACKAGE_CHECK ? "check" : r->kind == AEGIS_PACKAGE_REMOVE ? "remove" : "install";
     for (unsigned i = 0; (command==PACKAGE_ACTION || command==PACKAGE_SIMULATE) && i < r->count; i++) {
-        if (r->kind == AEGIS_PACKAGE_ARCHIVES) {
+        if (aegis_package_has_archive(r,i)) {
             snprintf(paths[i], sizeof(paths[i]), "/var/cache/apt/archives/%s", r->items[i]);
+            args[n++] = paths[i];
+        } else if (r->kind == AEGIS_PACKAGE_MIXED) {
+            // Validated bare package name; only this trusted code adds APT's
+            // explicit removal suffix to an install operation.
+            snprintf(paths[i], sizeof(paths[i]), "%s-", r->items[i]);
             args[n++] = paths[i];
         } else args[n++] = (char *)r->items[i];
     }
@@ -489,7 +494,7 @@ int aegis_package_execute(uint32_t user, uint32_t serial, int permit_unbound_fix
             || chdir("/") < 0 || readback() < 0) return setup_failed(&request);
     int root = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (root < 0 || aegis_package_candidate_labels(root,1)<0) return setup_failed(&request);
-    if (request.kind == AEGIS_PACKAGE_ARCHIVES) for (unsigned i = 0; i < request.count; i++) {
+    for (unsigned i = 0; i < request.count; i++) if(aegis_package_has_archive(&request,i)) {
         char path[AEGIS_PACKAGE_EXEC_NAME + 32];
         snprintf(path, sizeof(path), "var/cache/apt/archives/%s", request.items[i]);
         int archive = regular_at(root, path, O_RDONLY, 0);

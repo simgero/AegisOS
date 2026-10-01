@@ -207,4 +207,17 @@ TEST_F(PackageAptArchives, RemovalBindingRetainsReasonButRejectsArchiveAuthority
     result[0].filename="pool/x.deb";
     EXPECT_EQ(-1,PackageBindAptArchives(context,result,{-1},1000,&bound));EXPECT_EQ(EINVAL,errno);
 }
+TEST_F(PackageAptArchives, MixedBindingVerifiesLaterArchiveAndRejectsRemovalFdSmuggling) {
+    effects={{"test-app","all","2","",false},{"test-lib","all","1","3",true}};
+    auto index=Index(Entry("test-lib","3","library"));std::vector<PackageAptArchive> result;
+    ASSERT_EQ(0,PackageMatchAptArchives(effects,{index},1000,&result));
+    auto context=Context({index});context.action=PackageAction::Remove;context.requested_version.clear();
+    int lib=File("library");PackageBoundPlan bound;
+    ASSERT_EQ(0,PackageBindAptArchives(context,result,{-1,lib},1000,&bound));
+    EXPECT_EQ(AEGIS_PACKAGE_MIXED,bound.preparation.execution.kind);ASSERT_EQ(1u,bound.preparation.archives.size());
+    EXPECT_EQ(Hash("library"),bound.preparation.archives[0].sha256);
+    EXPECT_EQ(-1,PackageBindAptArchives(context,result,{lib,-1},1000,&bound));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(-1,PackageBindAptArchives(context,result,{-1,File("tamper!")},1000,&bound));EXPECT_EQ(EBADMSG,errno);
+}
+
 }

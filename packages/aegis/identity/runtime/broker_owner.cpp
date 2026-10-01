@@ -1284,7 +1284,9 @@ static int prepare_planned_transaction(aegis_broker_owner* owner,uint32_t user,u
     const uid_t root=user*AEGIS_PER_USER_RANGE+aegis_uid_extents[0].app_id;
     if(!S_ISDIR(directory.st_mode)||directory.st_uid!=root||directory.st_gid!=root||fs.f_type!=TMPFS_MAGIC)return fail(EPERM);
     std::vector<unique_fd> pinned;std::vector<int> archives;
-    for(size_t i=0;i<bound.preparation.archives.size();++i) {
+    size_t archive=0;
+    const auto& execution=bound.preparation.execution;
+    for(size_t i=0;i<execution.items.size();++i)if(PackageExecutionHasArchive(execution,i)) {
         open_how how={};how.flags=O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_NOFOLLOW;
         how.resolve=RESOLVE_BENEATH|RESOLVE_NO_SYMLINKS|RESOLVE_NO_XDEV;
         std::string name="archives/"+bound.preparation.execution.items[i];
@@ -1292,7 +1294,7 @@ static int prepare_planned_transaction(aegis_broker_owner* owner,uint32_t user,u
         if(!fd.ok())return -1;struct stat st;if(fstat(fd.get(),&st)<0)return -1;
         if(!S_ISREG(st.st_mode)||st.st_nlink!=1||(st.st_mode&07022)||st.st_dev!=directory.st_dev
            ||((st.st_uid!=root||st.st_gid!=root)&&(st.st_uid||st.st_gid))
-           ||st.st_size<=0||uint64_t(st.st_size)!=bound.preparation.archives[i].bytes)return fail(EPERM);
+           ||st.st_size<=0||uint64_t(st.st_size)!=bound.preparation.archives[archive++].bytes)return fail(EPERM);
         if(fchown(fd.get(),0,0)<0||fchmod(fd.get(),0444)<0)return -1;
         archives.push_back(fd.get());pinned.push_back(std::move(fd));
     }

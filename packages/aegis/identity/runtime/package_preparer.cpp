@@ -60,16 +60,18 @@ bool Encode(const PackagePreparation& value,wire::Request* out) {
     if(PackageExecutionCheck(p)<0 || value.image.sha256.size()!=64)return false;
     auto& e=out->execution;e.magic=AEGIS_PACKAGE_EXEC_MAGIC;e.version=AEGIS_PACKAGE_EXEC_VERSION;
     e.user=p.requester;e.serial=p.serial;e.job=p.job;
-    e.kind=p.archives ? AEGIS_PACKAGE_ARCHIVES : AEGIS_PACKAGE_REMOVE;e.count=p.items.size();
+    e.kind=p.kind;e.count=p.items.size();
     e.review=p.review;
     memcpy(e.plan,p.plan_sha256.c_str(),65);
     for(size_t i=0;i<p.items.size();++i)memcpy(e.items[i],p.items[i].c_str(),p.items[i].size()+1);
     out->image.bytes=value.image.bytes;memcpy(out->image.hash,value.image.sha256.c_str(),65);
-    if(value.archives.size()!=(p.archives ? p.items.size() : 0))return false;
-    for(size_t i=0;i<value.archives.size();++i) {
-        if(value.archives[i].sha256.size()!=64)return false;
-        out->archives[i].bytes=value.archives[i].bytes;
-        memcpy(out->archives[i].hash,value.archives[i].sha256.c_str(),65);
+    if(value.archives.size()!=aegis_package_archive_count(&e))return false;
+    size_t archive=0;
+    for(size_t i=0;i<p.items.size();++i)if(aegis_package_has_archive(&e,i)) {
+        const auto& input=value.archives[archive++];
+        if(input.sha256.size()!=64)return false;
+        out->archives[i].bytes=input.bytes;
+        memcpy(out->archives[i].hash,input.sha256.c_str(),65);
     }
     return wire::Valid(*out);
 }
@@ -199,7 +201,7 @@ static int Start(int groups,int store,int source,int helper,const std::vector<in
     bool shared=message.selection && message.has_shared;
     bool personal=message.selection && message.has_personal;
     if(archives.size()!=(message.selection ? size_t(personal)
-        : message.execution.kind==AEGIS_PACKAGE_ARCHIVES ? message.execution.count : 0))return Fail(EINVAL);
+        : aegis_package_archive_count(&message.execution)))return Fail(EINVAL);
     if(!File(store,(!message.selection||shared)?S_IFDIR:S_IFREG,false)
        || !File(source,S_IFREG,false) || !File(helper,S_IFREG,true))return -1;
     struct stat st;if(fstat(store,&st)<0)return -1;

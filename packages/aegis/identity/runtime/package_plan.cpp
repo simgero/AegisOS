@@ -64,7 +64,7 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
     if(!p.personal && !Same(p.source,p.shared))return Fail(EINVAL);
     if(p.changes.empty())return Fail(EALREADY); // No job/approval for a no-op.
     PackageBoundPlan bound;auto& prep=bound.preparation;auto& exec=prep.execution;auto& pub=bound.publication;
-    exec.requester=p.requester;exec.serial=p.serial;exec.archives=p.action!=PackageAction::Remove;
+    exec.requester=p.requester;exec.serial=p.serial;
     prep.image=p.source;exec.review.present=1;
     exec.review.apt_state_presence=static_cast<uint32_t>(p.initial_apt_state_presence);
     exec.review.apt_state_bytes=p.initial_apt_state.bytes;
@@ -97,8 +97,7 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
            || c.before_version==c.after_version
            || (c.reason!=PackageInstallReason::Manual && c.reason!=PackageInstallReason::Automatic))return Fail(EINVAL);
         previous=c.name;
-        if(c.after_version.empty()!=!exec.archives)return Fail(EOPNOTSUPP);
-        if(exec.archives) {
+        if(!c.after_version.empty()) {
             if(!c.archive.bytes || c.archive.bytes>(uint64_t{2}<<30) || !Hash(c.archive.sha256))return Fail(EINVAL);
             archive_total+=c.archive.bytes;if(archive_total>(uint64_t{8}<<30))return Fail(EINVAL);
             if(!PackagePlanNameValid(c.repository) || !std::any_of(p.repositories.begin(),p.repositories.end(),
@@ -109,6 +108,7 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
             exec.items.push_back(c.name);
         }
         if(c.name==p.requested_package) {
+            if((p.action==PackageAction::Remove)!=c.after_version.empty())return Fail(EINVAL);
             if(!p.requested_version.empty() && c.after_version!=p.requested_version)return Fail(ESTALE);
             requested=true;
         }
@@ -122,6 +122,8 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
         expected.reason=static_cast<uint8_t>(c.reason);
     }
     if(!requested)return Fail(EINVAL);
+    exec.kind=prep.archives.empty()?AEGIS_PACKAGE_REMOVE
+        :prep.archives.size()==exec.items.size()?AEGIS_PACKAGE_ARCHIVES:AEGIS_PACKAGE_MIXED;
     std::string digest=e.Digest();if(digest.empty())return Fail(EIO);
     exec.plan_sha256=digest;pub.plan_sha256=digest;
     // Reuse the real protocol limits/validation, including total archive bytes,

@@ -153,4 +153,32 @@ TEST_F(PackageExecutionGuard, RemovalKeepsExactPackageSearchTerms) {
     p["params"]["search-terms"]=Json::Value(Json::arrayValue);CheckSimulation(p,ESTALE);
 }
 
+TEST_F(PackageExecutionGuard, MixedSimulationRetainsExplicitRemovalAndChecksBothEffects) {
+    request.kind=AEGIS_PACKAGE_MIXED;request.count=2;
+    request.review.effects[1]=request.review.effects[0];request.review.effects[0]={};
+    strcpy(request.items[1],request.items[0]);memset(request.items[0],0,sizeof(request.items[0]));strcpy(request.items[0],"base-one");
+    auto& e=request.review.effects[0];strcpy(e.name,"base-one");strcpy(e.architecture,"arm64");strcpy(e.before,"1");e.reason=2;
+    Begin();ASSERT_FALSE(HasFatalFailure());auto p=SimulationPlan();p["params"]["search-terms"].append("base-one-");
+    auto removed=p["params"]["packages"][0];removed["id"]=2;removed["name"]="base-one";removed["mode"]="deinstall";
+    auto version=removed["versions"]["install"];version["version"]="1";version["architecture"]="arm64";
+    removed["versions"]=Json::Value(Json::objectValue);removed["versions"]["current"]=version;
+    p["params"]["packages"].append(removed);CheckSimulation(p,0);
+    auto bad=p;bad["params"]["search-terms"][0]="base-one";CheckSimulation(bad,ESTALE);
+    bad=p;bad["params"]["packages"].resize(1);CheckSimulation(bad,ESTALE);
+    bad=p;bad["params"]["packages"][1]["name"]="other-base";CheckSimulation(bad,ESTALE);
+    Finish(added,app_auto,0);Finish(base+added,base_auto+app_auto,ESTALE);
+}
+TEST_F(PackageExecutionGuard, MixedProtocolRejectsMissingReviewWrongRemovalNameAndSingleKind) {
+    auto mixed=request;mixed.kind=AEGIS_PACKAGE_MIXED;mixed.count=2;
+    mixed.review.effects[1]=mixed.review.effects[0];mixed.review.effects[0]={};
+    strcpy(mixed.items[1],mixed.items[0]);memset(mixed.items[0],0,sizeof(mixed.items[0]));strcpy(mixed.items[0],"base-one");
+    auto& e=mixed.review.effects[0];strcpy(e.name,"base-one");strcpy(e.architecture,"arm64");strcpy(e.before,"1");e.reason=2;
+    ASSERT_TRUE(aegis_package_execution_valid(&mixed));EXPECT_EQ(1u,aegis_package_archive_count(&mixed));
+    auto bad=mixed;bad.review={};EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=mixed;strcpy(bad.items[0],"base-two");EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=mixed;strcpy(bad.items[0],"base-one-");EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=request;bad.kind=AEGIS_PACKAGE_MIXED;EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=mixed;bad.kind=99;EXPECT_FALSE(aegis_package_execution_valid(&bad));
+}
+
 }

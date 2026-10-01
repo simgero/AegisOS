@@ -158,7 +158,7 @@ class RuntimePackageExecutor : public ::testing::Test {
         helper.reset(open(executable.c_str(),O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(helper.ok());
     }
     void Archives(int version,bool waiting=false,const std::string& after="",bool documentation=false) {
-        plan.archives=true;plan.items.clear();
+        plan.kind=AEGIS_PACKAGE_ARCHIVES;plan.items.clear();
         for(const char* name:{"var/cache","var/cache/apt","var/cache/apt/archives"}) {
             int made=mkdirat(candidate.get(),name,0755);
             ASSERT_TRUE(made==0 || errno==EEXIST) << strerror(errno);
@@ -249,7 +249,7 @@ TEST(PackageExecutionPlan, RejectsOptionsPathsNulDuplicateAndUnboundedInputs) {
     }
     p.items={std::string("app.deb\0",8)};EXPECT_EQ(-1,PackageExecutionCheck(p));
     p.items={"app.deb","app.deb"};EXPECT_EQ(-1,PackageExecutionCheck(p));
-    p.items={"app"};p.archives=false;EXPECT_EQ(0,PackageExecutionCheck(p));
+    p.items={"app"};p.kind=AEGIS_PACKAGE_REMOVE;EXPECT_EQ(0,PackageExecutionCheck(p));
     for(const char* name:{"app+","app-"}) { p.items={name};EXPECT_EQ(-1,PackageExecutionCheck(p)); }
     p.items={"app"};
     p.job=0;EXPECT_EQ(-1,PackageExecutionCheck(p));p.job=1;p.requester=0;EXPECT_EQ(-1,PackageExecutionCheck(p));
@@ -268,7 +268,7 @@ TEST_F(RuntimePackageExecutor, ExecutesActualInstallUpgradeRemoveAndClosesOwnedR
     EXPECT_EQ("2\n",AptImageFixture::read(candidate.get(),"usr/share/aegis-exec-library"));
     EXPECT_EQ("#!/bin/sh\necho app-2\n",AptImageFixture::read(candidate.get(),"usr/bin/aegis-exec-app"));
     EXPECT_EQ("personal=kept\n",AptImageFixture::read(candidate.get(),"etc/aegis-exec.conf"));
-    Remount();ASSERT_FALSE(HasFatalFailure());plan.archives=false;plan.items={"aegis-exec-app","aegis-exec-lib"};
+    Remount();ASSERT_FALSE(HasFatalFailure());plan.kind=AEGIS_PACKAGE_REMOVE;plan.items={"aegis-exec-app","aegis-exec-lib"};
     Completed();ASSERT_FALSE(HasFailure());
     EXPECT_EQ(-1,fstatat(candidate.get(),"usr/bin/aegis-exec-app",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
     EXPECT_EQ(-1,fstatat(candidate.get(),"usr/share/aegis-exec-library",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
@@ -289,7 +289,7 @@ TEST_F(RuntimePackageExecutor, ReviewedInstallUpgradeRemovePreservesConffilesAnd
     automatic=ControlFile(candidate.get(),"var/lib/apt/extended_states");
     EXPECT_NE(std::string::npos,automatic.find("Package: aegis-exec-lib\n"));
     EXPECT_EQ(std::string::npos,automatic.find("Package: aegis-exec-app\n"));
-    Remount();ASSERT_FALSE(HasFatalFailure());plan.archives=false;plan.items={"aegis-exec-app","aegis-exec-lib"};
+    Remount();ASSERT_FALSE(HasFatalFailure());plan.kind=AEGIS_PACKAGE_REMOVE;plan.items={"aegis-exec-app","aegis-exec-lib"};
     Review(2,0);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
     EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),"usr/bin/aegis-exec-app"));
     EXPECT_EQ("local=preserved\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));
@@ -767,16 +767,19 @@ class RuntimePackageTransaction : public RuntimePackagePreparation {
         EXPECT_EQ(found.bytes,plan.image.bytes);EXPECT_EQ(found.shared_base_sha256,result.generation.shared_base_sha256);
         return image;
     }
-    void VerifyContents(const PackageExecutionResult& result,int version,bool removed=false,bool personal=false) {
+    void MountSelection(const PackageExecutionResult& result,bool personal=false) {
         unique_fd selected=Selection(result,personal);ASSERT_TRUE(selected.ok());
         NewStage();ASSERT_FALSE(HasFatalFailure());
-        auto check=plan;check.execution.job=100+next_stage;check.execution.archives=false;
+        auto check=plan;check.execution.job=100+next_stage;check.execution.kind=AEGIS_PACKAGE_REMOVE;
         check.execution.items={"aegis-exec-app"};check.execution.review={};check.archives.clear();
         check.image={result.generation.bytes,result.generation.image_sha256};
         ASSERT_EQ(0,PackagePreparerStart(parent.get(),stage.get(),selected.get(),prepare_helper.get(),{},check,&worker));
         PackagePreparationResult prepared;int fd=-1;
         ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,&prepared,&fd));mount.reset(fd);
         ASSERT_EQ(PackagePreparationOutcome::Prepared,prepared.outcome)<<prepared.error;
+    }
+    void VerifyContents(const PackageExecutionResult& result,int version,bool removed=false,bool personal=false) {
+        MountSelection(result,personal);ASSERT_FALSE(HasFatalFailure());
         EXPECT_EQ(removed?"<unavailable>":"#!/bin/sh\necho app-"+std::to_string(version)+"\n",
             AptImageFixture::read(mount.get(),"usr/bin/aegis-exec-app"));
         EXPECT_EQ("version="+std::to_string(version)+"\n",AptImageFixture::read(mount.get(),"etc/aegis-exec.conf"));
@@ -792,7 +795,7 @@ class RuntimePackageTransaction : public RuntimePackagePreparation {
         plan.image={previous.generation.bytes,previous.generation.image_sha256};
         target.create=false;target.has_previous=true;target.previous=previous.generation;
         NewStage();ASSERT_FALSE(HasFatalFailure());
-        archives.clear();plan.archives.clear();plan.execution.items.clear();plan.execution.archives=!remove;
+        archives.clear();plan.archives.clear();plan.execution.items.clear();plan.execution.kind=remove?AEGIS_PACKAGE_REMOVE:AEGIS_PACKAGE_ARCHIVES;
         if(remove) { plan.execution.items={"aegis-exec-app","aegis-exec-lib"};return; }
         for(const char* kind:{"lib","app"}) {
             std::string name="aegis-exec-"+std::string(kind)+"_"+std::to_string(version)+"_all.deb";
@@ -800,6 +803,27 @@ class RuntimePackageTransaction : public RuntimePackagePreparation {
             archives.emplace_back(openat(root.get(),name.c_str(),O_RDONLY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(archives.back().ok());
             plan.archives.push_back({contents.size(),InputHash(contents)});plan.execution.items.push_back(name);
         }
+    }
+    void MixedPlan(PackageExecutionResult* previous) {
+        Run(previous);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(PackageExecutionOutcome::Published,previous->outcome);
+        Next(*previous,2);ASSERT_FALSE(HasFatalFailure());
+        // Remove app and upgrade lib: removal sorts first, but there is just
+        // ONE archive FD. This catches item-index/FD-index confusion.
+        archives.pop_back();plan.archives.pop_back();plan.execution.items.pop_back();
+        plan.execution.job=1;Ready();ASSERT_FALSE(HasFatalFailure());plan.execution.job=0;
+        aegis_package_execution_review initial={};InitialReview(mount.get(),&initial);ASSERT_FALSE(HasFatalFailure());
+        mount.reset();NoLoop();ASSERT_FALSE(HasFailure());NewStage();ASSERT_FALSE(HasFatalFailure());
+        PackageResolvedPlan p;p.requester=10;p.serial=42;p.action=PackageAction::Remove;p.requested_package="aegis-exec-app";
+        p.has_previous=true;p.previous=previous->generation;p.source=p.shared=plan.image;p.planner_image_sha256=plan.image.sha256;
+        p.initial_status_sha256=initial.initial_status;p.initial_apt_state_presence=static_cast<PackageStatePresence>(initial.apt_state_presence);
+        if(initial.apt_state_presence==2)p.initial_apt_state={initial.apt_state_bytes,initial.initial_apt_state};
+        // Synthetic repository hashes: this proves execution, not repository authentication.
+        p.policy_sha256=std::string(64,'a');p.repositories={{"fixture",std::string(64,'c'),std::string(64,'d'),2000}};
+        p.changes={{"aegis-exec-app","all","1","","",{},PackageInstallReason::Manual},
+                   {"aegis-exec-lib","all","1","2","fixture",plan.archives[0],PackageInstallReason::Automatic}};
+        PackageBoundPlan bound;ASSERT_EQ(0,PackageBindResolvedPlan(p,1000,&bound))<<strerror(errno);
+        plan=bound.preparation;target=bound.publication;ASSERT_EQ(AEGIS_PACKAGE_MIXED,plan.execution.kind);
+        ASSERT_EQ(1u,Fds().size());ASSERT_EQ(2u,plan.execution.items.size());
     }
     void TearDown() override {
         if(broker) { EXPECT_EQ(0,aegis_broker_owner_stop_all(broker,Deadline()));EXPECT_EQ(0,aegis_broker_owner_release(&broker)); }
@@ -1225,13 +1249,13 @@ TEST_F(RuntimePackageTransaction, MissingPrivateCeConsumesOneBoundJobWithoutStor
 }
 
 TEST(PackagePreparationPlan, RequiresBoundedImageAndOneDigestPerExactArchive) {
-    PackagePreparation p;p.execution={10,42,1,std::string(64,'a'),true,{"a.deb"}};
+    PackagePreparation p;p.execution={10,42,1,std::string(64,'a'),AEGIS_PACKAGE_ARCHIVES,{"a.deb"}};
     p.image={4096,std::string(64,'b')};p.archives={{128,std::string(64,'c')}};
     ASSERT_EQ(0,PackagePreparationCheck(p));p.archives.clear();EXPECT_EQ(-1,PackagePreparationCheck(p));
     p.archives={{128,std::string(64,'c')}};p.image.bytes=4097;EXPECT_EQ(-1,PackagePreparationCheck(p));
     p.image.bytes=uint64_t{32}*1024*1024*1024+4096;EXPECT_EQ(-1,PackagePreparationCheck(p));
     p.image.bytes=4096;p.archives[0].sha256="invalid";EXPECT_EQ(-1,PackagePreparationCheck(p));
-    p.execution.archives=false;p.execution.items={"app"};EXPECT_EQ(-1,PackagePreparationCheck(p));
+    p.execution.kind=AEGIS_PACKAGE_REMOVE;p.execution.items={"app"};EXPECT_EQ(-1,PackagePreparationCheck(p));
     p.archives.clear();EXPECT_EQ(0,PackagePreparationCheck(p));
 }
 TEST_F(RuntimePackagePreparation, MissingAospCeConsumesPrivateJobWithoutFdsOrChild) {
@@ -1532,6 +1556,38 @@ TEST_F(RuntimeSelectionOwner, ConfiguredStartDoesNotTreatSymlinkOrWrongModeShare
 TEST_F(RuntimeSelectionOwner, BootstrapCannotChangeFactoryAfterWorkHasBeenRegistered) {
     ASSERT_EQ(0,RegisterSelection());EXPECT_EQ(-1,Configure());EXPECT_EQ(EALREADY,errno);
     ASSERT_EQ(0,Stop());EXPECT_EQ(-1,Configure());EXPECT_EQ(EALREADY,errno);
+}
+
+TEST_F(RuntimePackageTransaction, MixedRemovalBeforeUpgradePublishesCompleteGeneration) {
+    PackageExecutionResult previous;MixedPlan(&previous);ASSERT_FALSE(HasFatalFailure());
+    PackageExecutionResult result;Run(&result);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(PackageExecutionOutcome::Published,result.outcome)<<result.error;
+    ASSERT_NE(previous.generation.image_sha256,result.generation.image_sha256);
+    MountSelection(result);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ("<unavailable>",AptImageFixture::read(mount.get(),"usr/bin/aegis-exec-app"));
+    EXPECT_EQ("version=1\n",AptImageFixture::read(mount.get(),"etc/aegis-exec.conf"));
+    EXPECT_EQ("2\n",AptImageFixture::read(mount.get(),"usr/share/aegis-exec-library"));
+    auto status=ControlFile(mount.get(),"var/lib/dpkg/status");
+    EXPECT_NE(std::string::npos,status.find("Package: aegis-exec-app\nStatus: deinstall ok config-files\n"));
+    EXPECT_NE(std::string::npos,status.find("Package: aegis-exec-lib\nStatus: install ok installed\n"));
+    auto state=ControlFile(mount.get(),"var/lib/apt/extended_states");
+    EXPECT_NE(std::string::npos,state.find("Package: aegis-exec-lib\n"));
+    EXPECT_EQ(std::string::npos,state.find("Package: aegis-exec-app\n"));
+    struct stat account;ASSERT_EQ(0,fstatat(mount.get(),"var/lib/aegis-exec-owned",&account,AT_SYMLINK_NOFOLLOW));
+    EXPECT_EQ(42u,account.st_uid);EXPECT_EQ(42u,account.st_gid);
+    mount.reset();NoLoop();
+}
+TEST_F(RuntimePackageTransaction, MixedWrongArchiveLeavesPreviousGenerationSelected) {
+    PackageExecutionResult previous;MixedPlan(&previous);ASSERT_FALSE(HasFatalFailure());
+    archives[0].reset(openat(root.get(),"aegis-exec-lib_1_all.deb",O_RDONLY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(archives[0].ok());
+    ASSERT_EQ(0,Register());PublicationState state=PublicationState::Preparing;PackageExecutionResult result;
+    for(unsigned i=0;i<900 && state!=PublicationState::Complete;++i) {
+        ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
+        ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));
+        if(state!=PublicationState::Complete)usleep(10000);
+    }
+    ASSERT_EQ(PublicationState::Complete,state);EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);
+    EXPECT_NE(0,result.error);auto current=Selection(previous);EXPECT_TRUE(current.ok());
 }
 
 TEST_F(RuntimePackageTransaction, BoundPlanFeedsRealAptAndRejectsDifferentApprovalDigest) {

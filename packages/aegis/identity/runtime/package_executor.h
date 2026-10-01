@@ -14,19 +14,26 @@ struct PackageExecution {
     uint32_t requester = 0, serial = 0;
     uint64_t job = 0;
     std::string plan_sha256;
-    bool archives = true;
+    uint32_t kind = AEGIS_PACKAGE_ARCHIVES;
     // Archives: exact APT-canonical archive basenames in candidate's own cache.
     // The trusted planner resolves these from package/version/architecture:
     // --no-download requires the canonical cache entry even for absolute .deb
     // arguments. A hash-based renaming alone is insufficient for APT.
     // Each archive is separately pinned by preparation's content hash.
-    // Otherwise package names to remove. Updates/private fallbacks are resolved
+    // Remove items are package names. Mixed items follow review.effects: a
+    // nonempty after version selects an archive, an empty version a removal.
+    // Updates/private fallbacks are resolved
     // by the trusted planner into exact archives, never an implicit online run.
     std::vector<std::string> items;
     // Sealed expected effects/state; missing review is accepted by the device
     // probe only. The production entry requires a complete bound review.
     aegis_package_execution_review review = {};
 };
+// Call only after PackageExecutionCheck/PackagePreparationCheck succeeds.
+inline bool PackageExecutionHasArchive(const PackageExecution& p, size_t i) {
+    return i<p.items.size() && (p.kind==AEGIS_PACKAGE_ARCHIVES
+        || (p.kind==AEGIS_PACKAGE_MIXED && p.review.effects[i].after[0]));
+}
 enum class PackageExecutionOutcome { Unconfirmed, Failed, NeedsValidation, Published };
 struct PackageExecutionResult {
     PackageExecutionOutcome outcome = PackageExecutionOutcome::Unconfirmed;

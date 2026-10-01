@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <array>
+#include <algorithm>
 using android::base::unique_fd;
 namespace aegis {
 namespace {
@@ -151,7 +152,8 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
        ||PackageReadAptPlan(json,r.action,r.package,r.version,&result.effects)<0
        ||Write("/tmp/aegis-planner/simulation.json",json)<0)return fail(errno);
     if(unlink("/run/aegis-apt-plan.json")<0)return fail(errno);
-    if(!result.effects.empty()&&r.action!=PackageAction::Remove) {
+    if(std::any_of(result.effects.begin(),result.effects.end(),
+                   [](const auto& effect){return !effect.after_version.empty();})) {
         result.phase=PackageResolverResult::Phase::Download;
         args={"/usr/bin/apt-get","-q","--download-only","--yes",action};
         if(r.action!=PackageAction::Update)args.push_back(r.package+(r.version.empty()?"":"="+r.version));

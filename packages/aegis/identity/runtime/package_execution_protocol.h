@@ -4,12 +4,13 @@
 #include <stddef.h>
 #include <string.h>
 #define AEGIS_PACKAGE_EXEC_MAGIC UINT32_C(0x41455045)
-#define AEGIS_PACKAGE_EXEC_VERSION 2u
+#define AEGIS_PACKAGE_EXEC_VERSION 3u
 #define AEGIS_PACKAGE_EXEC_ITEMS 64u
 #define AEGIS_PACKAGE_EXEC_NAME 160u
 #define AEGIS_PACKAGE_EXEC_FDS 3u
 #define AEGIS_PACKAGE_ARCHIVES 1u
 #define AEGIS_PACKAGE_REMOVE 2u
+#define AEGIS_PACKAGE_MIXED 3u
 #define AEGIS_PACKAGE_EXEC_READY 1u
 #define AEGIS_PACKAGE_EXEC_DONE 2u
 struct aegis_package_expected_effect {
@@ -75,7 +76,7 @@ static inline int aegis_package_fixed(const char *text,size_t size,int empty) {
 }
 static inline int aegis_package_review_valid(const struct aegis_package_execution_request *r) {
     const struct aegis_package_execution_review *v=&r->review;
-    if(!v->present)return aegis_package_zero(v,sizeof(*v));
+    if(!v->present)return r->kind!=AEGIS_PACKAGE_MIXED && aegis_package_zero(v,sizeof(*v));
     if(v->present!=1 || !aegis_package_hash(v->initial_status)
        || !aegis_package_zero(v->reserved,sizeof(v->reserved)))return 0;
     if(v->apt_state_presence==1) {
@@ -92,23 +93,37 @@ static inline int aegis_package_review_valid(const struct aegis_package_executio
            || !aegis_package_fixed(e->after,sizeof(e->after),1)
            || !strcmp(e->before,e->after) || (e->reason!=1 && e->reason!=2)
            || (i && strcmp(v->effects[i-1].name,e->name)>=0)
-           || (r->kind==AEGIS_PACKAGE_REMOVE ? *e->after!=0 : *e->after==0))return 0;
+           || (r->kind==AEGIS_PACKAGE_REMOVE && *e->after)
+           || (r->kind==AEGIS_PACKAGE_ARCHIVES && !*e->after))return 0;
     }
     return 1;
+}
+// The caller validates framing/review before relying on the effect mapping.
+static inline int aegis_package_has_archive(const struct aegis_package_execution_request *r, unsigned i) {
+    return i<r->count && i<AEGIS_PACKAGE_EXEC_ITEMS && (r->kind==AEGIS_PACKAGE_ARCHIVES
+        || (r->kind==AEGIS_PACKAGE_MIXED && r->review.effects[i].after[0]));
+}
+static inline unsigned aegis_package_archive_count(const struct aegis_package_execution_request *r) {
+    unsigned count=0;
+    for(unsigned i=0;i<r->count && i<AEGIS_PACKAGE_EXEC_ITEMS;++i)count+=aegis_package_has_archive(r,i);
+    return count;
 }
 static inline int aegis_package_execution_valid(const struct aegis_package_execution_request *r) {
     if (r->magic != AEGIS_PACKAGE_EXEC_MAGIC || r->version != AEGIS_PACKAGE_EXEC_VERSION
             || r->user < 10 || r->user >= 21473 || r->serial > INT32_MAX
             || !r->job || r->job > INT64_MAX || !aegis_package_hash(r->plan)
             || !aegis_package_zero(r->reserved, sizeof(r->reserved))
-            || (r->kind != AEGIS_PACKAGE_ARCHIVES && r->kind != AEGIS_PACKAGE_REMOVE)
-            || !r->count || r->count > AEGIS_PACKAGE_EXEC_ITEMS) return 0;
+            || (r->kind != AEGIS_PACKAGE_ARCHIVES && r->kind != AEGIS_PACKAGE_REMOVE && r->kind != AEGIS_PACKAGE_MIXED)
+            || !r->count || r->count > AEGIS_PACKAGE_EXEC_ITEMS || !aegis_package_review_valid(r)) return 0;
     for (unsigned i = 0; i < AEGIS_PACKAGE_EXEC_ITEMS; i++) {
         if (i >= r->count) { if (!aegis_package_zero(r->items[i], sizeof(r->items[i]))) return 0;continue; }
-        if (!aegis_package_item(r->items[i], r->kind)) return 0;
+        int archive=aegis_package_has_archive(r,i);
+        if (!aegis_package_item(r->items[i], archive ? AEGIS_PACKAGE_ARCHIVES : AEGIS_PACKAGE_REMOVE)) return 0;
+        if (!archive && r->review.present && strcmp(r->items[i],r->review.effects[i].name)) return 0;
         for (unsigned j = 0; j < i; j++) if (!strcmp(r->items[i], r->items[j])) return 0;
     }
-    return aegis_package_review_valid(r);
+    unsigned archives=aegis_package_archive_count(r);
+    return r->kind!=AEGIS_PACKAGE_MIXED || (archives>0 && archives<r->count);
 }
 #ifdef __cplusplus
 extern "C" {

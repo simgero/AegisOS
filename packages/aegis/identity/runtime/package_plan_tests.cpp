@@ -139,7 +139,7 @@ TEST(PackageResolvedPlan, RejectsOptionsPathsControlCharactersAndVersionExpressi
 }
 TEST(PackageResolvedPlan, RemovalKeepsConffilesAndHasNoArchivesOrAdminOwner) {
     PackageBoundPlan b;ASSERT_EQ(0,PackageBindResolvedPlan(Removal(),1000,&b));
-    EXPECT_FALSE(b.preparation.execution.archives);EXPECT_TRUE(b.preparation.archives.empty());
+    EXPECT_EQ(AEGIS_PACKAGE_REMOVE,b.preparation.execution.kind);EXPECT_TRUE(b.preparation.archives.empty());
     EXPECT_EQ((std::vector<std::string>{"test-app","test-lib"}),b.preparation.execution.items);
     EXPECT_EQ(10u,b.publication.requester);EXPECT_TRUE(b.publication.personal);EXPECT_EQ(0u,b.valid_until_unix);
 }
@@ -148,10 +148,29 @@ TEST(PackageResolvedPlan, RemovalRejectsArchiveSmugglingAndAptActionOverrides) {
     p=Removal();p.changes[0].repository="debian-main";Reject(p);
     for(const char* name:{"test-app+","test-app-"}) { p=Removal();p.requested_package=name;p.changes[0].name=name;Reject(p); }
 }
-TEST(PackageResolvedPlan, MixedEffectsAreRejectedInsteadOfDroppingUnrepresentableActions) {
+TEST(PackageResolvedPlan, MixedInstallBindsRemovalAndOnlyItsOneArchive) {
     auto p=Plan();p.changes[1].before_version="1";p.changes[1].after_version.clear();
-    p.changes[1].repository.clear();p.changes[1].archive={};Reject(p,EOPNOTSUPP);
-    p=Removal();p.changes[1]=Plan().changes[1];Reject(p,EOPNOTSUPP);
+    p.changes[1].repository.clear();p.changes[1].archive={};
+    PackageBoundPlan b;ASSERT_EQ(0,PackageBindResolvedPlan(p,1000,&b));
+    EXPECT_EQ(AEGIS_PACKAGE_MIXED,b.preparation.execution.kind);
+    EXPECT_EQ((std::vector<std::string>{"test-app_2%3a1.0~rc1-1_arm64.deb","test-lib"}),b.preparation.execution.items);
+    ASSERT_EQ(1u,b.preparation.archives.size());EXPECT_EQ(H('1'),b.preparation.archives[0].sha256);
+    auto changed=p;changed.changes.pop_back();EXPECT_NE(Digest(p),Digest(changed));
+    changed=p;changed.changes[1].before_version="9";EXPECT_NE(Digest(p),Digest(changed));
+}
+TEST(PackageResolvedPlan, MixedRemovalMapsLaterArchiveAndRejectsUnreviewedOrWrongTargetEffects) {
+    auto p=Removal();p.repositories=Plan().repositories;p.changes[1]=Plan().changes[1];
+    PackageBoundPlan b;ASSERT_EQ(0,PackageBindResolvedPlan(p,1000,&b));
+    EXPECT_EQ(AEGIS_PACKAGE_MIXED,b.preparation.execution.kind);
+    EXPECT_EQ((std::vector<std::string>{"test-app","test-lib_1.2-1_all.deb"}),b.preparation.execution.items);
+    ASSERT_EQ(1u,b.preparation.archives.size());EXPECT_EQ(H('2'),b.preparation.archives[0].sha256);
+    auto prep=b.preparation;prep.execution.job=1;ASSERT_EQ(0,PackagePreparationCheck(prep));
+    prep.archives.insert(prep.archives.begin(),{1,H('0')});EXPECT_EQ(-1,PackagePreparationCheck(prep));
+    prep=b.preparation;prep.execution.job=1;prep.execution.review={};EXPECT_EQ(-1,PackagePreparationCheck(prep));
+    prep=b.preparation;prep.execution.job=1;prep.execution.items[0]="another-app";EXPECT_EQ(-1,PackagePreparationCheck(prep));
+    prep=b.preparation;prep.execution.job=1;prep.execution.kind=AEGIS_PACKAGE_ARCHIVES;EXPECT_EQ(-1,PackagePreparationCheck(prep));
+    p.requested_package="test-lib";Reject(p);
+    p=Removal();p.action=PackageAction::Install;Reject(p);
 }
 TEST(PackageResolvedPlan, EnforcesRealMechanicalImageArchiveAndCountLimits) {
     auto p=Plan();p.source.bytes=p.shared.bytes=4097;Reject(p);
