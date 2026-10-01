@@ -32,17 +32,22 @@ def main():
     # mksh's per-character redraw of long public-key/bridge commands can
     # exceed the bounded console deadline during first boot. Keep the shell
     # and completion checks, but disable its interactive line editing.
-    execute(console, 'set +o emacs; set +o vi')
-
     def guest(command):
         return execute(console,'su 0 sh -c '+shlex.quote('set -e; '+command))
 
     deadline=time.monotonic()+args.wait_boot
+    console_ready=False
     while True:
         try:
+            if not console_ready:
+                execute(console, 'set +o emacs; set +o vi')
+                console_ready=True
             guest('test "$(getprop sys.boot_completed)" = 1; test -d /data/misc/adb')
             break
-        except (RuntimeError, TimeoutError):
+        except (RuntimeError, TimeoutError, OSError):
+            # QEMU can have published the run paths before Android starts its
+            # console. A guest shutdown can also remove the socket mid-wait.
+            console_ready=False
             if time.monotonic()>=deadline:
                 raise SystemExit('Android boot is not ready for ADB. Inspect the guest logs or use --wait-boot.')
             time.sleep(2)
@@ -100,7 +105,7 @@ def main():
         if not result.returncode and result.stdout.strip()=='device':break
         if attempt+1<attempts:time.sleep(1)
     if result.returncode or result.stdout.strip()!='device':
-        raise SystemExit('ADB is not authorized yet. Approve this Mac in the guest dialog, then reconnect.')
+        raise SystemExit('ADB is not authorized yet. Approve this host in the guest dialog, then reconnect.')
     state=subprocess.check_output(['adb','-s',address,'shell','getprop','ro.adb.secure'],
                                   text=True,timeout=15).strip()
     if state!='1':raise SystemExit('ADB authentication was not confirmed')
