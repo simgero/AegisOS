@@ -1,3 +1,54 @@
+## Veröffentlichung des privaten Abgleichs mit Konkurrenzschutz: c844b9b4
+
+Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T064152Z-c844b9b4-c844b9b4-UPExwr) von
+`c844b9b43f46aa38c08260d6b8680575fb6ea781` besteht am
+**2026-10-01T06:47:06Z alle 347 ausgewählten nativen Tests** aus 30 Suiten
+im lokalen Mac-QEMU (264.465 ms), ohne übersprungene Tests. Entwicklung lokal,
+Build auf `aegis-build` (55 Sekunden), Transport und Prüfsummen über GitHub.
+Der Java-54-Nachweis wurde anhand des byte-identischen APK und aller ursprünglichen
+Nachweishashes erneut geprüft.
+
+Der interne Reconciliation-Binder verlangt jetzt die exakte aktuelle gemeinsame
+Generation auch für die Veröffentlichung. Der separate Publisher prüft deren
+vollständiges Abbild und hält die gemeinsame Store-Sperre bis zur dauerhaften
+privaten Auswahl. Die feste Reihenfolge ist gemeinsam vor privat; veraltete,
+fehlende oder gesperrte gemeinsame Zustände werden abgelehnt. Hashen und Kopieren
+laufen weiterhin ausschließlich im abbrechbaren Arbeiter. Der Ressourcenbesitzer
+hält den zusätzlichen gemeinsamen Deskriptor über alle Transaktionsphasen und
+schließt ihn auch bei STOP. Das private Publish-Protokoll ist Version 3.
+
+Vier neue verbundene Transaktionstests durchlaufen Bindung, vollständige private
+Kopie, tatsächliche Offline-APT-Ausführung, unabhängige Validierung,
+Veröffentlichung und erneutes Öffnen. Sie bestätigen Konfigurationserhalt,
+technische Eigentümer 42:42, unveränderte explizite private Auswahl, erhaltene
+alte Image-Referenzen, Basiswechsel ohne Paketänderungen und Ablehnung einer
+nach Vorbereitung geänderten gemeinsamen Auswahl. Vor Freigabe abgebrochene
+Transaktionen schließen den gemeinsamen Deskriptor; die Sperre lässt sich nicht
+aus einem Reconciliation-Ziel entfernen.
+
+Fünf neue Publisher-Tests prüfen den eigenen Deskriptorbesitz, veraltete und
+gesperrte gemeinsame Stores, fehlende oder widersprüchliche Belege und die
+bestätigte Fortschreibung der Basis bei identischen Image-Bytes ohne Austausch
+der Image-Inode. Der vorhandene Abbruchtest friert einen tatsächlich beobachteten
+512-MiB-Kopiervorgang ein: Ein konkurrierender gemeinsamer Schreiber ist bis zur
+beendeten Kindprozess-/cgroup-Räumung ausgeschlossen; danach ist die Sperre frei.
+
+Belege: `out/components-c844b9b4/targeted-tests/`, `java-proof-reuse.json`.
+Native Log-SHA256: `9594c64482417ec111ceff072ae8fe9959c8a972de1b4061f5cd21b7e77f224c`.
+Vorher/Nachher identisch: `7e613ad413f79888442b5ee6fa97976c33c2b9f188901a29451bb06ca60231a5`.
+Alpha/Beta bleiben gestoppt und CE-gesperrt; Boot, Schlüssel, Broker und Enforcing
+sind unverändert. Vier reale CE-Fixtures bleiben deaktiviert.
+
+**Grenzen:** Die neuen verbundenen Tests verwenden synthetische Paketquellen und
+eigene vollständige Testabbilder. Sie verbinden den gebundenen Plan mit der
+mechanischen Broker-Transaktion; der signierte APT-Planer ist weiterhin separat
+geprüft. Noch offen sind die produktive Dreifachauswahl mit durchgehender
+CE-Admission, Autorisierung abgeleiteter Änderungen, Übergabe aus dem konfigurierten
+Planer, erneute Auswahl/Aktivierung beim Runtime-Start und Abnahme mit zwei echten
+AOSP-Benutzern. Das installierte Vollimage bleibt `d0b866e1` und behauptet keine
+funktionierende private Zusammenführung. Die neue Publikationssperre wird noch
+nicht auf alle gewöhnlichen privaten Paketaktionen angewandt.
+
 ## Gebundene Zusammenführung und vollständige Ausführungsprüfung: a63c1214
 
 Der [Komponentenrelease](https://github.com/simgero/AegisOS/releases/tag/components-20261001T061853Z-a63c1214-a63c1214-tn1zG7)

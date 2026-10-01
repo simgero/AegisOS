@@ -1,4 +1,32 @@
-## Aktueller Stand: gebundene Ausführung geprüft; Produktintegration offen
+## Aktueller Stand: privater Abgleich bis zur Veröffentlichung geprüft
+
+`c844b9b4` besteht **347 native Prüfungen**; **54 Java-Tests** sind über das
+byte-identische APK und die Originalbelege bestätigt.
+[Belege und Grenzen](../docs/component-tests.md).
+
+Der separate Reconciliation-Binder verbindet den vollständigen Plan jetzt mit
+einer Veröffentlichung, die den geprüften aktuellen gemeinsamen Store sperrt.
+Der Publisher verifiziert die gemeinsame Generation vor dem privaten Storezugriff
+und hält ihre Sperre bis zur dauerhaften privaten Auswahl. Der Ressourcenbesitzer
+behält und schließt sämtliche gemeinsamen/privaten Referenzen auch bei STOP.
+Eine konkurrierende Änderung führt zur Ablehnung; sie wird nicht als erfolgreicher
+Abgleich ausgegeben. Ein bestätigtes privates Abbild bleibt beim nächsten Start
+erneut gegen den dann aktuellen gemeinsamen Stand zu prüfen.
+
+Verbundene Tests prüfen echte APT-Ausführung, Konfiguration, technische Kennungen,
+unveränderte private Vorgaben, Veröffentlichung, erneutes Öffnen und reine
+Basisfortschreibung ohne Paketänderungen. Ein eigener Publisher-Test bestätigt
+identische Image-Bytes mit geändertem Basisdatensatz ohne Inode-Austausch.
+Diese Prüfungen verwenden ausschließlich eigene synthetische Abbilder.
+
+Die Produktintegration bleibt offen: Dreifachauswahl und Planer-Übergabe unter
+CE-Admission, abgeleitete Autorisierung, Auswahl nach Veröffentlichung und
+Aktivierung beim Runtime-Start müssen verbunden und im installierten Produkt
+mit echten AOSP-Zugangsdaten geprüft werden. Gewöhnliche private Paketaktionen
+verwenden die neue gemeinsame Publikationssperre noch nicht. Das Vollimage
+`d0b866e1` und seine bestehenden Benutzer wurden nicht ersetzt.
+
+## Vorheriger Stand: gebundene Ausführung geprüft; Produktintegration offen
 
 `a63c1214` besteht **338 native Prüfungen**, einschließlich tatsächlicher
 APT-Auflösung und separater Ausführung mit Konfigurationserhalt, passenden
