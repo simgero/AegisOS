@@ -65,7 +65,7 @@ int Setup(int* fds,bool internet,bool reconciliation) {
     unique_fd tmp(open("/mnt/tmp",O_RDONLY|O_DIRECTORY|O_CLOEXEC));
     if(!policy.ok()||!input.ok()||!tmp.ok()||mkdirat(policy.get(),"empty",0755)<0
        ||Text(policy.get(),"empty.conf","")<0
-       ||Text(policy.get(),"config",aegis::PackageResolverConfiguration(internet))<0
+       ||Text(policy.get(),"config",aegis::PackageResolverConfiguration(internet,reconciliation))<0
        ||CopyFd(fds[3],policy.get(),"sources.list",16384)<0
        ||CopyFd(fds[4],policy.get(),"key.asc",1048576)<0
        ||(internet&&CopyFd(fds[5],policy.get(),"ca.pem",1048576)<0)

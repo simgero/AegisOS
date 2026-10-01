@@ -110,11 +110,18 @@ bool Same(const std::vector<PackageAptEffect>& a,const std::vector<PackageAptEff
     return true;
 }
 }
-const char* PackageResolverConfiguration(bool internet) {
+const char* PackageResolverConfiguration(bool internet,bool reconciliation) {
     static const std::string online=std::string(policy)+
         "Acquire::http::Proxy \"socks5h://127.0.0.1:1080\";\n"
         "Acquire::https::Proxy \"socks5h://127.0.0.1:1080\";\n"
         "Acquire::https::CaInfo \"/run/aegis-plan-policy/ca.pem\";\n";
+    // The complete root set is exact. Let APT consider non-candidate dependency
+    // versions so an explicitly selected older root can keep matching libraries.
+    // Trust, signatures and all root/hold postconditions stay unchanged.
+    static const std::string solver="APT::Solver \"3.0\";\nAPT::Solver::Strict-Pinning \"false\";\n";
+    static const std::string reconcile_offline=std::string(policy)+solver;
+    static const std::string reconcile_online=online+solver;
+    if(reconciliation)return internet?reconcile_online.c_str():reconcile_offline.c_str();
     return internet?online.c_str():policy;
 }
 PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequest& r) {
@@ -130,7 +137,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
        ||Read("/run/aegis-plan-policy/key.asc",1048576,true,&key)<0
        ||Read("/run/aegis-plan-input/status",64u<<20,true,&status)<0)return fail(errno);
     if(r.internet&&Read("/run/aegis-plan-policy/ca.pem",1048576,true,&ca)<0)return fail(errno);
-    if(config!=PackageResolverConfiguration(r.internet)||sources.empty()||key.empty())return fail(EPERM);
+    if(config!=PackageResolverConfiguration(r.internet,r.reconciliation)||sources.empty()||key.empty())return fail(EPERM);
     bool present=Read("/run/aegis-plan-input/extended_states",16u<<20,true,&automatic)==0;
     if(!present&&errno!=ENOENT)return fail(errno);
     bool chosen=Read("/run/aegis-plan-input/private-choices",AEGIS_PACKAGE_CHOICES_BYTES-1,true,&choices)==0;
