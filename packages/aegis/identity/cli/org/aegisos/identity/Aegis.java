@@ -155,6 +155,9 @@ public final class Aegis {
                     System.out.println(session.logout());
                     return 0;
                 case "linux":
+                    if (args.length >= 2 && "package".equals(args[1])) {
+                        return packageCommand(PackageCommand.fromLinux(args));
+                    }
                     exact(args, 2);
                     switch (args[1]) {
                         case "start": System.out.println(session.linuxStart()); return 0;
@@ -162,7 +165,7 @@ public final class Aegis {
                         case "stop": System.out.println(session.linuxStop()); return 0;
                         case "shell": return linuxShell();
                         default:
-                            System.err.println("Verfügbar: linux start, status, stop oder shell.");
+                            System.err.println("Verfügbar: linux start, status, stop, shell oder package.");
                             return 2;
                     }
                 default:
@@ -483,10 +486,11 @@ public final class Aegis {
                 + "  linux shell           persönliche GNU/Linux-Shell; exit beendet nur die Shell\n"
                 + "  logout                Android-Benutzer stoppen und CE-Sperre bestätigen\n"
                 + "  exit                  nur den Terminalkanal schließen\n"
-                + "  package install --user|--all NAME [VERSION]  Plan prüfen und freigeben\n"
-                + "  package update --user|--all                 Pakete aktualisieren\n"
-                + "  package remove --user|--all NAME            Paket entfernen\n"
-                + "  package status|approve|cancel               Auftrag dieses Terminals\n"
+                + "  linux package install NAME[=VERSION] --scope user|all  Plan prüfen und freigeben\n"
+                + "  linux package update --scope user|all                 Pakete aktualisieren\n"
+                + "  linux package remove NAME --scope user|all            Paket entfernen\n"
+                + "  linux package status|approve|cancel                   Auftrag dieses Terminals\n"
+                + "  Die Kurzform package … --user|--all bleibt verfügbar.\n"
                 + "Ein getrennt gestartetes aegis erbt keine persönliche Anmeldung.");
     }
 }

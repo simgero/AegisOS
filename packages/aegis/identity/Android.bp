@@ -53,7 +53,7 @@ cc_library_shared {
 android_test {
     name: "AegisIdentityTests",
     manifest: "tests/AndroidManifest.xml",
-    srcs: ["tests/src/**/*.java"],
+    srcs: ["tests/src/**/*.java", "cli/org/aegisos/identity/PackageCommand.java"],
     // Use the actually integrated platform implementation for allocator tests.
     // services.core already contains our storage bridge, so do not also link
     // a second copy of the platform sources into this APK.

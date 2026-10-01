@@ -30,8 +30,27 @@ wertet die letzte passende Regel aus. Die vollständige Vorher-/Nachher-Prüfung
 bleibt bestehen. Zwei neue Ausführungsfälle prüfen das wirkliche Installieren
 von Dokumentation/Übersetzungen trotz geerbter Filter sowie das weiterhin
 abgewiesene Entfernen einer neuen Dokumentationsdatei durch ein Paketskript.
-Diese Korrektur und ihre Tests sind hier erst vorbereitet; Build, lokale
-Komponententests und erneuter vollständiger CLI-Test stehen noch aus.
+Commit `d0b866e113e4d40a403c7182aa68732b85221fcb` wurde auf `aegis-build`
+kompiliert und über den Release
+`components-20261001T013517Z-d0b866e1-d0b866e1-SrpQDF` transportiert.
+Am **2026-10-01T01:36:28Z** sind im unveränderten lokalen 8168-Gast alle
+**28 Fälle von `RuntimePackageExecutor`** bestanden, einschließlich beider
+neuer Fälle. Die Prüfung dauerte 33,932 Sekunden; Nutzer, Schlüsselkennungen,
+CE-Zustand und Runtime-Kontexte stimmen davor/danach überein.
+Beleg: `out/components-d0b866e1/targeted-tests/result.json` und `native.log`.
+Das sind synthetische SU-Ausführungsfälle; der produktive CLI-Test steht aus.
+Die vier deaktivierten CE-Fälle bleiben deaktiviert. Java wurde nicht verändert;
+die frühere 152-Test-Evidenz wurde nicht als neuer Lauf ausgegeben.
+
+Die im Phase-1-Auftrag verlangte Schreibweise
+`linux package install NAME[=VERSION] --scope user|all` wird anschließend
+über denselben bestehenden Paket-/AOSP-Freigabeweg ergänzt. Auch `update`,
+`remove` und die Auftragssteuerung werden dort angeboten. Fehlende, doppelte,
+widersprüchliche oder unbekannte Bereiche sowie zusätzliche Eigentümeroptionen
+werden vor dem Dienstaufruf abgewiesen. Acht neue Java-Parserfälle sind
+vorbereitet, aber noch nicht auf dem Builder kompiliert oder im Gast ausgeführt.
+Diese CLI-Ergänzung behebt nicht die weiterhin offene gemeinsame/private
+Zusammenführung oder den vollständigen Zwei-Benutzer-Neustartnachweis.
 
 ## Produktiver dpkg-Start: Vollimage adee7ad7
 
