@@ -15,6 +15,12 @@ struct PackagePublication {
     // and private shared-base identity are pinned BEFORE action approval. The
     // separate trusted worker derives the digest, then copy-verifies it.
     bool derive_source_hash = false;
+    // Reconciliation must publish against the exact common generation used by
+    // its verified plan. The worker owns the common store lock until the private
+    // selection is durable; it rejects changed/absent/locked common state.
+    bool fence_shared_current = false;
+    PackageGeneration expected_shared;
+
 };
 struct PackagePublicationResult {
     PackagePublish publication = PackagePublish::Unconfirmed;
@@ -34,12 +40,14 @@ int PackagePublisherCancel(PackagePublisher* publisher);
 // approval and (for private scope) CE/serial. Use a separate private memory-
 // enabled cgroup parent, not the ordinary runtime contexts parent. One active
 // publisher per requester/serial in that parent. No hash/copy in this call.
+// shared_store is mandatory only for fence_shared_current, independently owned
+// until Finish confirms teardown. The worker locks common before private.
 // Requires the existing pinned, single-threaded host-root broker namespace.
 // *output begins null and retains ALL partial ownership on failure. It must
 // be registered with requester quiescence before admission is released, even
 // when Start fails. The caller closes its original CE/source FDs separately.
 int PackagePublisherStart(int groups, int store, int source, int helper,
-                          const PackagePublication& request, PackagePublisher** output);
+                          const PackagePublication& request, PackagePublisher** output, int shared_store = -1);
 
 // Wait for actual pidfd reaping, empty/removed cgroup and closure of every owned
 // store/source FD. cancel first seals/kills the owned tree; no numeric PID.

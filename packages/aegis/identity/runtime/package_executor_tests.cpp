@@ -6,6 +6,7 @@
 #include <sys/xattr.h>
 #include "package_plan.h"
 #include "package_reconciliation.h"
+#include "package_private_choices.h"
 #include "package_execution_protocol.h"
 #include "package_apt_fixture.h"
 #include "broker_owner_package.h"
@@ -807,7 +808,10 @@ class RuntimePackagePreparation : public ::testing::Test {
 // no fresh AOSP credentials, production SELinux transition or live CE mutation.
 class RuntimePackageTransaction : public RuntimePackagePreparation {
  protected:
-    unique_fd store,publish_helper;
+    unique_fd store,publish_helper,shared_store;
+    PackageExecutionResult common_before,common_after;
+    PackageGeneration private_before;
+    std::string private_choices;
     PackagePublication target;
     unsigned next_stage=0;
     void SetUp() override {
@@ -821,7 +825,7 @@ class RuntimePackageTransaction : public RuntimePackagePreparation {
     }
     int Register() {
         job=0;return BrokerPrepareTransaction(broker,plan,target,parent.get(),stage.get(),store.get(),source.get(),
-            prepare_helper.get(),execute_helper.get(),publish_helper.get(),Fds(),Deadline(),&job);
+            prepare_helper.get(),execute_helper.get(),publish_helper.get(),Fds(),Deadline(),&job,shared_store.get());
     }
     void Complete(PackageExecutionResult* result) {
         PublicationState state=PublicationState::Running;bool publishing=false;
@@ -931,8 +935,97 @@ class RuntimePackageTransaction : public RuntimePackagePreparation {
         plan=bound.preparation;target=bound.publication;ASSERT_EQ(AEGIS_PACKAGE_MIXED,plan.execution.kind);
         ASSERT_EQ(1u,Fds().size());ASSERT_EQ(2u,plan.execution.items.size());
     }
+    void ReconciledPlan(bool unchanged=false) {
+        Run(&common_before);ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(PackageExecutionOutcome::Published,common_before.outcome)<<common_before.error;
+        Next(common_before,2);ASSERT_FALSE(HasFatalFailure());Run(&common_after);ASSERT_FALSE(HasFatalFailure());
+        ASSERT_EQ(PackageExecutionOutcome::Published,common_after.outcome)<<common_after.error;
+        MountSelection(common_after);ASSERT_FALSE(HasFatalFailure());
+        const auto current_status=ControlFile(mount.get(),"var/lib/dpkg/status");
+        auto current_auto=ControlFile(mount.get(),"var/lib/apt/extended_states");if(current_auto=="<unavailable>")current_auto.clear();
+        mount.reset();NoLoop();ASSERT_FALSE(HasFailure());
+        // Real old/new shared generations; the private source is a complete copy
+        // of the old one with independent conffile and explicit version choices.
+        shared_store=std::move(store);ASSERT_EQ(0,renameat(root.get(),"store",root.get(),"common"));
+        ASSERT_EQ(0,mkdirat(root.get(),"store",0700));store.reset(openat(root.get(),"store",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(store.ok());
+        {
+            std::unique_ptr<PackageStore> shared(PackageStore::Open(shared_store.get(),{false,0,0},false));ASSERT_TRUE(shared);
+            PackageGeneration old;source.reset(shared->RetainedShared(common_before.generation.image_sha256,&old));ASSERT_TRUE(source.ok());
+        }
+        plan.image={common_before.generation.bytes,common_before.generation.image_sha256};NewStage();ASSERT_FALSE(HasFatalFailure());
+        archives.clear();plan.archives.clear();plan.execution.items={"aegis-exec-app"};plan.execution.kind=AEGIS_PACKAGE_REMOVE;
+        plan.execution.review={};plan.execution.job=1;Ready();ASSERT_FALSE(HasFatalFailure());
+        const auto initial_status=ControlFile(mount.get(),"var/lib/dpkg/status");
+        auto initial_auto=ControlFile(mount.get(),"var/lib/apt/extended_states");if(initial_auto=="<unavailable>")initial_auto.clear();
+        PackageInstalledRegistry registry;ASSERT_EQ(0,PackageReadInstalledRegistry(initial_status,&registry));
+        const std::string chosen=unchanged?"aegis-exec-app":"bash";ASSERT_EQ(1u,registry.count(chosen));
+        const auto& installed=registry.at(chosen);PackagePrivateChoices choices{{chosen,{std::get<1>(installed),std::get<0>(installed)}}};
+        ASSERT_EQ(0,PackagePrivateChoicesEncode(choices,&private_choices));
+        int made=mkdirat(mount.get(),"var/lib/aegis",0700);ASSERT_TRUE(made==0||errno==EEXIST);
+        ASSERT_EQ(0,WriteAt(mount.get(),kPrivateChoicesPath,private_choices,O_CREAT|O_TRUNC));
+        unique_fd choices_fd(openat(mount.get(),kPrivateChoicesPath,O_RDONLY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(choices_fd.ok());
+        ASSERT_EQ(0,fchmod(choices_fd.get(),0600));choices_fd.reset();
+        ASSERT_EQ(0,WriteAt(mount.get(),"etc/aegis-exec.conf","personal=keep\n",O_TRUNC));
+        aegis_package_execution_review initial={};InitialReview(mount.get(),&initial);ASSERT_FALSE(HasFatalFailure());
+        ReusePreparedImage();ASSERT_FALSE(HasFatalFailure());
+        private_before={plan.image.sha256,common_before.generation.image_sha256,plan.image.bytes};
+        {
+            std::unique_ptr<PackageStore> own(PackageStore::Open(store.get(),{true,10,42},true));ASSERT_TRUE(own);
+            const std::atomic_bool proceed{false};ASSERT_EQ(PackagePublish::Confirmed,own->Publish(nullptr,source.get(),private_before,proceed));
+        }
+        PackageResolvedPlan resolved;resolved.requester=10;resolved.serial=42;resolved.personal=true;resolved.has_previous=true;
+        resolved.reconciliation=true;resolved.action=PackageAction::Update;resolved.source=plan.image;resolved.previous=private_before;
+        resolved.shared={common_after.generation.bytes,common_after.generation.image_sha256};
+        resolved.previous_shared={common_before.generation.bytes,common_before.generation.image_sha256};
+        resolved.planner_image_sha256=common_before.generation.image_sha256;resolved.policy_sha256=std::string(64,'a');
+        resolved.initial_status_sha256=initial.initial_status;resolved.initial_apt_state_presence=static_cast<PackageStatePresence>(initial.apt_state_presence);
+        if(initial.apt_state_presence==2)resolved.initial_apt_state={initial.apt_state_bytes,initial.initial_apt_state};
+        resolved.initial_private_choices=private_choices;
+        // Synthetic repository provenance here. Signed resolver planning is
+        // covered separately; this checks the connected bound execution chain.
+        std::vector<PackageAptEffect> effects;
+        if(!unchanged) {
+            resolved.repositories={{"fixture",std::string(64,'c'),std::string(64,'d'),2000}};
+            for(const char* kind:{"app","lib"}) {
+                const auto name="aegis-exec-"+std::string(kind);const auto file=name+"_2_all.deb",data=Deb(kind,2);
+                ASSERT_EQ(0,WriteAt(root.get(),file.c_str(),data,O_CREAT|O_TRUNC));
+                if(std::find(archive_names.begin(),archive_names.end(),file)==archive_names.end())archive_names.push_back(file);
+                archives.emplace_back(openat(root.get(),file.c_str(),O_RDONLY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(archives.back().ok());
+                const auto reason=name=="aegis-exec-app"?PackageInstallReason::Manual:PackageInstallReason::Automatic;
+                resolved.changes.push_back({name,"all","1","2","fixture",{data.size(),InputHash(data)},reason});
+                effects.push_back({name,"all","1","2",reason==PackageInstallReason::Automatic});
+            }
+        }
+        auto& re=resolved.reconciliation_evidence;
+        for(const auto& [name,value]:registry)if(unchanged||name!="aegis-exec-lib")re.roots+=name+"\n";
+        re.previous_status_sha256=InputHash(initial_status);re.previous_automatic_sha256=InputHash(initial_auto);
+        re.current_status_sha256=InputHash(current_status);re.current_automatic_sha256=InputHash(current_auto);re.solver_automatic_sha256=InputHash(initial_auto);
+        PackageInstalledRegistry expected;std::set<std::string> marks;
+        ASSERT_EQ(0,PackageReconciliationProject(registry,effects,re.roots,&expected,&marks));
+        re.result_registry_sha256=InputHash(PackageCanonicalInstalled(expected));re.result_automatic_sha256=InputHash(PackageCanonicalAutomatic(marks));
+        PackageBoundPlan bound;ASSERT_EQ(0,PackageBindReconciliationPlan(resolved,1000,&bound))<<strerror(errno);
+        plan=bound.preparation;target=bound.publication;ASSERT_TRUE(target.fence_shared_current);
+    }
+    void CheckReconciled(const PackageExecutionResult& result,bool unchanged=false) {
+        ASSERT_EQ(PackageExecutionOutcome::Published,result.outcome)<<result.error;
+        EXPECT_EQ(common_after.generation.image_sha256,result.generation.shared_base_sha256);
+        MountSelection(result,true);ASSERT_FALSE(HasFatalFailure());
+        EXPECT_EQ("personal=keep\n",ControlFile(mount.get(),"etc/aegis-exec.conf"));
+        EXPECT_EQ(private_choices,ControlFile(mount.get(),kPrivateChoicesPath));
+        EXPECT_EQ(unchanged?"#!/bin/sh\necho app-1\n":"#!/bin/sh\necho app-2\n",ControlFile(mount.get(),"usr/bin/aegis-exec-app"));
+        struct stat owned;ASSERT_EQ(0,fstatat(mount.get(),"var/lib/aegis-exec-owned",&owned,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(42u,owned.st_uid);EXPECT_EQ(42u,owned.st_gid);
+        mount.reset();NoLoop();
+        std::unique_ptr<PackageStore> common(PackageStore::Open(shared_store.get(),{false,0,0},false));ASSERT_TRUE(common);
+        PackageGeneration actual;unique_fd image(common->Current(&actual));ASSERT_TRUE(image.ok());EXPECT_EQ(common_after.generation.image_sha256,actual.image_sha256);
+    }
     void TearDown() override {
         if(broker) { EXPECT_EQ(0,aegis_broker_owner_stop_all(broker,Deadline()));EXPECT_EQ(0,aegis_broker_owner_release(&broker)); }
+        if(!HasFailure() && shared_store.ok()) {
+            unique_fd scan(openat(shared_store.get(),".",O_RDONLY|O_DIRECTORY|O_CLOEXEC));DIR* entries=fdopendir(scan.release());ASSERT_NE(nullptr,entries);
+            while(auto* e=readdir(entries))if(strcmp(e->d_name,".")&&strcmp(e->d_name,"..")) {
+                struct stat st;ASSERT_EQ(0,fstatat(shared_store.get(),e->d_name,&st,AT_SYMLINK_NOFOLLOW));ASSERT_TRUE(S_ISREG(st.st_mode));EXPECT_EQ(0,unlinkat(shared_store.get(),e->d_name,0));
+            }
+            closedir(entries);shared_store.reset();EXPECT_EQ(0,unlinkat(root.get(),"common",AT_REMOVEDIR));
+        }
         if(!HasFailure() && store.ok()) {
             unique_fd scan(openat(store.get(),".",O_RDONLY|O_DIRECTORY|O_CLOEXEC));
             DIR* entries=fdopendir(scan.release());ASSERT_NE(nullptr,entries);
@@ -1362,6 +1455,37 @@ TEST_F(RuntimePackageSelection, InvalidIdentityReceiptOrDescriptorsNeverSpawn) {
     EXPECT_EQ(-1,SelectStart(factory.get(),-1));EXPECT_EQ(EPERM,errno);EXPECT_EQ(nullptr,worker);EXPECT_EQ(fds,CountFDs());
 }
 
+TEST_F(RuntimePackageTransaction, BoundReconciliationPublishesFullPrivateImageAndReopensWithConfigurationAndIntent) {
+    ReconciledPlan();ASSERT_FALSE(HasFatalFailure());PackageExecutionResult before;before.generation=private_before;
+    unique_fd pinned=Selection(before,true);ASSERT_TRUE(pinned.ok());struct stat old;ASSERT_EQ(0,fstat(pinned.get(),&old));
+    PackageExecutionResult result;Run(&result);ASSERT_FALSE(HasFatalFailure());CheckReconciled(result);ASSERT_FALSE(HasFailure());
+    struct stat still;ASSERT_EQ(0,fstat(pinned.get(),&still));EXPECT_EQ(old.st_ino,still.st_ino);EXPECT_EQ(old.st_size,still.st_size);
+    unique_fd retained(openat(store.get(),(private_before.image_sha256+".image").c_str(),O_RDONLY|O_NOFOLLOW|O_CLOEXEC));ASSERT_TRUE(retained.ok());
+    ASSERT_EQ(0,fstat(retained.get(),&still));EXPECT_EQ(old.st_ino,still.st_ino);
+}
+TEST_F(RuntimePackageTransaction, BoundReconciliationWithoutPackageChangesStillPublishesNewBase) {
+    ReconciledPlan(true);ASSERT_FALSE(HasFatalFailure());EXPECT_TRUE(plan.execution.items.empty());
+    PackageExecutionResult result;Run(&result);ASSERT_FALSE(HasFatalFailure());CheckReconciled(result,true);
+}
+TEST_F(RuntimePackageTransaction, CommonUpdateAfterPreparationRejectsPrivatePublicationAndPreservesPreviousSelection) {
+    ReconciledPlan();ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,Register());AwaitPrepared();ASSERT_FALSE(HasFatalFailure());
+    {
+        std::unique_ptr<PackageStore> common(PackageStore::Open(shared_store.get(),{false,0,0},false));ASSERT_TRUE(common);
+        PackageGeneration old;unique_fd image(common->RetainedShared(common_before.generation.image_sha256,&old));ASSERT_TRUE(image.ok());
+        const std::atomic_bool proceed{false};ASSERT_EQ(PackagePublish::Confirmed,common->Publish(&common_after.generation,image.get(),old,proceed));
+    }
+    ASSERT_EQ(0,BrokerStartExecution(broker,10,42,job,plan.execution.plan_sha256,Deadline()));
+    PackageExecutionResult result;Complete(&result);ASSERT_FALSE(HasFatalFailure());EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);EXPECT_EQ(ESTALE,result.error);
+    PackageExecutionResult old;old.generation=private_before;unique_fd unchanged=Selection(old,true);EXPECT_TRUE(unchanged.ok());
+}
+TEST_F(RuntimePackageTransaction, ReconciliationCannotDropFenceAndStopReleasesCommonReferenceBeforeApproval) {
+    ReconciledPlan();ASSERT_FALSE(HasFatalFailure());const auto saved=target;
+    target.fence_shared_current=false;target.expected_shared={};EXPECT_EQ(-1,Register());EXPECT_EQ(EINVAL,errno);EXPECT_EQ(0u,job);
+    target=saved;struct stat common;ASSERT_EQ(0,fstat(shared_store.get(),&common));const int before=ReferencesTo(common);
+    ASSERT_EQ(0,Register());AwaitPrepared();ASSERT_FALSE(HasFatalFailure());EXPECT_GT(ReferencesTo(common),before);
+    ASSERT_EQ(0,Stop());EXPECT_EQ(before,ReferencesTo(common));
+    PackageExecutionResult old;old.generation=private_before;unique_fd unchanged=Selection(old,true);EXPECT_TRUE(unchanged.ok());
+}
 TEST_F(RuntimePackageTransaction, OneOwnedJobPublishesRealInstallUpgradeAndRemoveWithOldImagesRetained) {
     int descriptors=CountFDs();auto original=plan.image;
     PackageExecutionResult installed;Run(&installed);ASSERT_FALSE(HasFatalFailure());

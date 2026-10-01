@@ -27,7 +27,7 @@ namespace aegis {
 namespace wire = publication;
 struct PackagePublisher {
     pid_t process = 0;
-    unique_fd store, source, channel;
+    unique_fd store, source, channel, shared_store;
     aegis_memory_group* group = nullptr;
     aegis_child* child = nullptr;
     uint64_t job = 0;
@@ -60,8 +60,10 @@ bool Encode(const PackagePublication& value,wire::Request* out) {
     *out={};out->magic=wire::kMagic;out->version=wire::kVersion;
     out->user=value.requester;out->serial=value.serial;out->job=value.job;
     out->flags=(value.personal?wire::kPersonal:0)|(value.create?wire::kCreate:0)
-              |(value.has_previous?wire::kPrevious:0)|(value.derive_source_hash?wire::kDerive:0);
+              |(value.has_previous?wire::kPrevious:0)|(value.derive_source_hash?wire::kDerive:0)
+              |(value.fence_shared_current?wire::kFenceShared:0);
     return String(value.plan_sha256,out->plan) && Image(value.candidate,&out->candidate)
+        && Image(value.expected_shared,&out->expected_shared)
         && (value.has_previous ? Image(value.previous,&out->previous)
              : value.previous.image_sha256.empty() && value.previous.shared_base_sha256.empty()
                && value.previous.bytes==0) && wire::Valid(*out);
@@ -92,11 +94,14 @@ bool File(int fd,mode_t type,bool executable) {
 [[noreturn]] void Failed() { syscall(SYS_exit_group,122);__builtin_unreachable(); }
 // Only raw syscalls between clone3 and exec: Bionic's cached PID/thread state
 // still belongs to the parent until exec. No C++/libc allocation in this path.
-[[noreturn]] void Exec(const int inputs[5],int parent) {
+[[noreturn]] void Exec(const int inputs[6],int parent) {
     for(int i=0;i<5;++i)
         if(syscall(SYS_dup3,inputs[i],3+i,i==4?O_CLOEXEC:0)<0)Failed();
+    if(inputs[5]>=0) {
+        if(syscall(SYS_dup3,inputs[5],wire::kSharedStore,0)<0)Failed();
+    } else syscall(SYS_close,wire::kSharedStore);
     if(syscall(SYS_close_range,0u,2u,0u)<0
-       || syscall(SYS_close_range,8u,UINT_MAX,0u)<0)Failed();
+       || syscall(SYS_close_range,9u,UINT_MAX,0u)<0)Failed();
     struct { uint64_t handler,flags,restorer,mask; } action={};uint64_t empty=0;
     for(int number=1;number<=64;++number) {
         if(number==SIGKILL||number==SIGSTOP)continue;
@@ -178,11 +183,13 @@ int PackagePublisherCancel(PackagePublisher* p) {
 }
 
 int PackagePublisherStart(int groups,int store,int source,int helper,
-                          const PackagePublication& request,PackagePublisher** output) {
+                          const PackagePublication& request,PackagePublisher** output,int shared_store) {
     if(!output || *output)return Fail(EINVAL);
     if(aegis_namespace_check_broker()<0)return -1;
     wire::Request message={};
     if(!Encode(request,&message))return Fail(EINVAL);
+    if(request.fence_shared_current!=(shared_store>=0))return Fail(EINVAL);
+    if(request.fence_shared_current && !File(shared_store,S_IFDIR,false))return -1;
     if(!File(store,S_IFDIR,false) || !File(source,S_IFREG,false) || !File(helper,S_IFREG,true))return -1;
     auto* p=new(std::nothrow) PackagePublisher;
     if(!p)return Fail(ENOMEM);
@@ -191,6 +198,10 @@ int PackagePublisherStart(int groups,int store,int source,int helper,
     *output=p; // From here onward the caller retains partial ownership on failure.
     p->store.reset(fcntl(store,F_DUPFD_CLOEXEC,10));
     p->source.reset(fcntl(source,F_DUPFD_CLOEXEC,10));
+    if(request.fence_shared_current) {
+        p->shared_store.reset(fcntl(shared_store,F_DUPFD_CLOEXEC,10));
+        if(!p->shared_store.ok())return -1;
+    }
     unique_fd executable(fcntl(helper,F_DUPFD_CLOEXEC,10));
     unique_fd config(syscall(SYS_memfd_create,"aegis-package-publication",MFD_CLOEXEC|MFD_ALLOW_SEALING));
     if(!p->store.ok() || !p->source.ok() || !executable.ok() || !config.ok())return -1;
@@ -205,7 +216,7 @@ int PackagePublisherStart(int groups,int store,int source,int helper,
     p->child=static_cast<aegis_child*>(calloc(1,sizeof(aegis_child)));
     if(!p->child)return -1;
     p->child->owner=p->process;p->child->pidfd=-1;
-    int inputs[]={p->store.get(),p->source.get(),endpoint.get(),input.get(),executable.get()};
+    int inputs[]={p->store.get(),p->source.get(),endpoint.get(),input.get(),executable.get(),p->shared_store.get()};
     clone_args clone={};clone.flags=CLONE_PIDFD|CLONE_INTO_CGROUP;
     clone.pidfd=reinterpret_cast<uintptr_t>(&p->child->pidfd);clone.cgroup=target;clone.exit_signal=SIGCHLD;
     pid_t child=syscall(SYS_clone3,&clone,sizeof(clone));

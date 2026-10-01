@@ -58,7 +58,7 @@ struct execution_slot {
     PackagePublisher* publisher = nullptr;
     bool has_target = false;
     PackagePublication target;
-    std::array<unique_fd,3> target_inputs; // groups, store, publisher helper
+    std::array<unique_fd,4> target_inputs; // groups, store, publisher helper, common fence
     void close_target() { for(auto& fd:target_inputs)fd.reset(); }
     PackageExecutor* executor = nullptr;
     PackagePreparer* preparer = nullptr;
@@ -67,7 +67,7 @@ struct execution_slot {
     void close_inputs() { for(auto& fd:inputs)fd.reset(); }
     bool resources() const {
         return owned_stage.parent>=0 || owned_stage.directory>=0 || state==PublicationState::Prepared || preparer || executor || publisher || validation_stage.ok()
-            || target_inputs[0].ok() || target_inputs[1].ok() || target_inputs[2].ok();
+            || target_inputs[0].ok() || target_inputs[1].ok() || target_inputs[2].ok() || target_inputs[3].ok();
     }
 };
 struct planning_slot {
@@ -294,7 +294,7 @@ static int publish_execution(execution_slot& slot) {
         || st.st_size<=0 || static_cast<uint64_t>(st.st_size)!=slot.target.candidate.bytes))error=EPERM;
     slot.state=PublicationState::Publishing;
     if(!error && PackagePublisherStart(slot.target_inputs[0].get(),slot.target_inputs[1].get(),
-            image.get(),slot.target_inputs[2].get(),slot.target,&slot.publisher)<0)error=errno;
+            image.get(),slot.target_inputs[2].get(),slot.target,&slot.publisher,slot.target_inputs[3].get())<0)error=errno;
     // The child owner now holds the source and store or retains partial
     // ownership. No returned FD escapes the original registered transaction.
     image.reset();slot.validation_stage.reset();slot.close_target();
@@ -1173,8 +1173,10 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
                               int groups,int stage,int source,int prepare_helper,int execute_helper,
                               const std::vector<int>& archives,uint64_t deadline,uint64_t* job,bool personal_ce,
                               const PackagePublication* target=nullptr,int store=-1,int publish_helper=-1,planning_slot* transferring=nullptr,
-                              const PackagePreparationResult* configured_source=nullptr) {
+                              const PackagePreparationResult* configured_source=nullptr,int shared_store=-1) {
     if(!job || *job || request.execution.job)return fail(EINVAL);
+    if(target && target->fence_shared_current && !configured_source && shared_store<0)return fail(EINVAL);
+    if((!target || !target->fence_shared_current) && shared_store>=0)return fail(EINVAL);
     const auto& identity=request.execution;
     if(admission(owner,identity.requester,identity.serial,deadline)<0 || capacity(owner,identity.requester,nullptr,transferring)<0)return -1;
     if(!transferring && owner->next_publication==INT64_MAX)return fail(EOVERFLOW);
@@ -1190,6 +1192,10 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
         prepared->target_inputs[0].reset(fcntl(groups,F_DUPFD_CLOEXEC,3));
         if(!personal_ce&&!configured_source)prepared->target_inputs[1].reset(fcntl(store,F_DUPFD_CLOEXEC,3));
         prepared->target_inputs[2].reset(fcntl(publish_helper,F_DUPFD_CLOEXEC,3));
+        if(target->fence_shared_current && !configured_source) {
+            prepared->target_inputs[3].reset(fcntl(shared_store,F_DUPFD_CLOEXEC,3));
+            if(!prepared->target_inputs[3].ok())return -1;
+        }
         if(!prepared->target_inputs[0].ok() || (!personal_ce && !configured_source && !prepared->target_inputs[1].ok())
            || !prepared->target_inputs[2].ok())return -1;
     }
@@ -1230,6 +1236,12 @@ static int prepare_candidate(aegis_broker_owner* owner,const PackagePreparation&
         }
     }
     unique_fd fixed_source;
+    if(configured_source&&!error && target && target->fence_shared_current) {
+        int fd=-1;
+        if(optional_shared_store(owner->selection_directory.get(),&fd)<0)error=errno;
+        slot.target_inputs[3].reset(fd);
+        if(!error && fd<0)error=ESTALE;
+    }
     if(configured_source&&!error) {
         if(!personal_ce && configured_shared_target(owner->selection_directory.get(),slot.target.create,
              identity.requester,identity.serial,*job,&slot.target_inputs[1],&slot.inputs[1],&slot.owned_stage)<0)error=errno;
@@ -1259,15 +1271,18 @@ static int transaction_target(const PackagePreparation& preparation,const Packag
        || (target.has_previous && (target.previous.image_sha256!=preparation.image.sha256
                                   || target.previous.bytes!=preparation.image.bytes))
        || (target.personal && !target.has_previous && target.candidate.shared_base_sha256!=preparation.image.sha256))return fail(EINVAL);
+    if(p.kind==AEGIS_PACKAGE_RECONCILE && (!target.personal || !target.has_previous
+       || target.create || !target.fence_shared_current
+       || target.previous.shared_base_sha256==target.expected_shared.image_sha256))return fail(EINVAL);
     auto checked=target;checked.job=1;return PackagePublicationCheck(checked);
 }
 int BrokerPrepareTransaction(aegis_broker_owner* owner,const PackagePreparation& plan,
                               const PackagePublication& target,int groups,int stage,int store,int source,
                               int prepare_helper,int execute_helper,int publish_helper,
-                              const std::vector<int>& archives,uint64_t deadline,uint64_t* job) {
+                              const std::vector<int>& archives,uint64_t deadline,uint64_t* job,int shared_store) {
     if(transaction_target(plan,target)<0)return -1;
     return prepare_candidate(owner,plan,groups,stage,source,prepare_helper,execute_helper,
-                             archives,deadline,job,false,&target,store,publish_helper);
+                             archives,deadline,job,false,&target,store,publish_helper,nullptr,nullptr,shared_store);
 }
 static int prepare_planned_transaction(aegis_broker_owner* owner,uint32_t user,uint32_t serial,
     uint64_t job,const std::string& digest,int groups,int stage,int store,int source,

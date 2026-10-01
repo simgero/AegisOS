@@ -1,6 +1,7 @@
 // Only trusted validation/copy/publication runs here. Never execute package
 // contents or maintainer scripts. Production installation/policy is not wired.
 #include "package_publish_protocol.h"
+#include <android-base/unique_fd.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/prctl.h>
@@ -71,11 +72,28 @@ int main(int argc, char**) {
         PackageOwner owner{bool(request.flags&wire::kPersonal),0,0};
         if (owner.personal) { owner.user_id=request.user;owner.serial=request.serial; }
         auto candidate=wire::Generation(request.candidate);
-        std::unique_ptr<PackageStore> store;
+        std::unique_ptr<PackageStore> shared,store;
         if((request.flags&wire::kDerive) && DigestSource(wire::kSource,&candidate)<0)reply.error=errno;
         else {
-            store.reset(PackageStore::Open(wire::kStore,owner,request.flags&wire::kCreate));
-            if(!store)reply.error=errno;
+            // Always common before private: a concurrent common publisher can
+            // neither change the reviewed generation nor deadlock on our private
+            // store. All hashing and lock acquisition stay in this owned worker.
+            if(request.flags&wire::kFenceShared) {
+                shared.reset(PackageStore::Open(wire::kSharedStore,{false,0,0},false));
+                if(!shared)reply.error=errno;
+                else {
+                    PackageGeneration actual;
+                    android::base::unique_fd image(shared->Current(&actual));
+                    if(!image.ok())reply.error=errno;
+                    else if(actual.image_sha256!=request.expected_shared.sha256
+                         || actual.bytes!=request.expected_shared.bytes
+                         || !actual.shared_base_sha256.empty())reply.error=ESTALE;
+                }
+            }
+            if(!reply.error) {
+                store.reset(PackageStore::Open(wire::kStore,owner,request.flags&wire::kCreate));
+                if(!store)reply.error=errno;
+            }
         }
         if (store) {
             auto previous=wire::Generation(request.previous);
@@ -91,7 +109,7 @@ int main(int argc, char**) {
             }
         }
     } // Release store lock and ALL store/image refs before publishing a response.
-    close(wire::kSource); close(wire::kStore);
+    close(wire::kSource); close(wire::kStore); close(wire::kSharedStore);
     ssize_t sent;
     do { sent=send(wire::kReply,&reply,sizeof(reply),MSG_NOSIGNAL); } while(sent<0&&errno==EINTR);
     close(wire::kReply);

@@ -109,6 +109,8 @@ TEST(PackageReconciliationBinding, BindsPrivateSourceAndNewBaseWithoutChangingPr
     auto p=ReconciliationPlan();PackageBoundPlan b;ASSERT_EQ(0,PackageBindReconciliationPlan(p,1000,&b))<<strerror(errno);
     EXPECT_EQ(p.source.sha256,b.preparation.image.sha256);EXPECT_EQ(p.previous.image_sha256,b.publication.previous.image_sha256);
     EXPECT_EQ(p.shared.sha256,b.publication.candidate.shared_base_sha256);EXPECT_TRUE(b.publication.personal);
+    EXPECT_TRUE(b.publication.fence_shared_current);EXPECT_EQ(p.shared.sha256,b.publication.expected_shared.image_sha256);
+    EXPECT_EQ(p.shared.bytes,b.publication.expected_shared.bytes);EXPECT_TRUE(b.publication.expected_shared.shared_base_sha256.empty());
     EXPECT_FALSE(b.publication.create);EXPECT_EQ(AEGIS_PACKAGE_RECONCILE,b.preparation.execution.kind);
     EXPECT_EQ(Header,std::string(b.preparation.execution.review.initial_choices));
     EXPECT_EQ(Header,std::string(b.preparation.execution.review.result_choices));

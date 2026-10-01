@@ -49,7 +49,8 @@ int Descriptors() {
 }
 class RuntimePackagePublisher : public ::testing::Test {
  protected:
-    unique_fd cgroups,parent,directory,store,source,helper;
+    unique_fd cgroups,parent,directory,store,source,helper,shared_store;
+    PackageGeneration common;
     PackagePublisher* jobs[2]={nullptr,nullptr};
     std::string group_name,path;
     PackagePublication request;
@@ -92,7 +93,7 @@ class RuntimePackagePublisher : public ::testing::Test {
         if(request.personal)request.candidate.shared_base_sha256=std::string(64,'b');
     }
     int Start(unsigned slot=0) {
-        return PackagePublisherStart(parent.get(),store.get(),source.get(),helper.get(),request,&jobs[slot]);
+        return PackagePublisherStart(parent.get(),store.get(),source.get(),helper.get(),request,&jobs[slot],shared_store.get());
     }
     int Finish(unsigned slot,PackagePublicationResult* result,bool cancel=false,int wait=5000) {
         return PackagePublisherFinish(&jobs[slot],cancel,wait,result);
@@ -107,12 +108,38 @@ class RuntimePackagePublisher : public ::testing::Test {
         EXPECT_EQ(expected,std::string(bytes,n));
         EXPECT_EQ(request.candidate.image_sha256,generation.image_sha256);
     }
+    void Common(const std::string& text) {
+        const bool create=!shared_store.ok();
+        if(create) {
+            ASSERT_EQ(0,mkdirat(directory.get(),"common",0700));
+            shared_store.reset(openat(directory.get(),"common",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(shared_store.ok());
+        }
+        unique_fd input(openat(directory.get(),"common-source",O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC,0600));ASSERT_TRUE(input.ok());
+        ASSERT_EQ(ssize_t(text.size()),write(input.get(),text.data(),text.size()));ASSERT_EQ(0,fsync(input.get()));
+        std::unique_ptr<PackageStore> shared(PackageStore::Open(shared_store.get(),{false,0,0},create));ASSERT_TRUE(shared);
+        PackageGeneration next{Digest(text.data(),text.size()),"",text.size()};const std::atomic_bool proceed{false};
+        ASSERT_EQ(PackagePublish::Confirmed,shared->Publish(create?nullptr:&common,input.get(),next,proceed));common=next;
+    }
+    void Fenced() {
+        Common("reviewed common generation");ASSERT_FALSE(HasFatalFailure());
+        request.personal=true;request.fence_shared_current=true;request.expected_shared=common;
+        request.candidate.shared_base_sha256=common.image_sha256;
+    }
     void TearDown() override {
         for(auto*& job:jobs)if(job) {
             PackagePublicationResult result;
             EXPECT_EQ(0,PackagePublisherFinish(&job,true,5000,&result)) << strerror(errno);
         }
         if(parent.ok())EXPECT_EQ("populated 0\nfrozen 0\n",Get(parent.get(),"cgroup.events"));
+        if(!HasFailure() && shared_store.ok()) {
+            unique_fd scan(openat(shared_store.get(),".",O_RDONLY|O_DIRECTORY|O_CLOEXEC));DIR* entries=fdopendir(scan.release());ASSERT_NE(nullptr,entries);
+            while(auto* e=readdir(entries))if(strcmp(e->d_name,".")&&strcmp(e->d_name,"..")) {
+                struct stat st;ASSERT_EQ(0,fstatat(shared_store.get(),e->d_name,&st,AT_SYMLINK_NOFOLLOW));ASSERT_TRUE(S_ISREG(st.st_mode));
+                EXPECT_EQ(0,unlinkat(shared_store.get(),e->d_name,0));
+            }
+            closedir(entries);shared_store.reset();EXPECT_EQ(0,unlinkat(directory.get(),"common",AT_REMOVEDIR));
+            EXPECT_EQ(0,unlinkat(directory.get(),"common-source",0));
+        }
         parent.reset();
         if(created)EXPECT_EQ(0,unlinkat(cgroups.get(),group_name.c_str(),AT_REMOVEDIR)) << strerror(errno);
         // Keep failure evidence. On success remove ONLY this fixture's ordinary
@@ -140,6 +167,48 @@ TEST_F(RuntimePackagePublisher, PublishesWithActualChildAndClosesOwnedDescriptor
     PackagePublicationResult result;ASSERT_EQ(0,Finish(0,&result)) << strerror(errno);
     EXPECT_EQ(nullptr,jobs[0]);EXPECT_EQ(PackagePublish::Confirmed,result.publication);
     EXPECT_EQ(0,result.error);EXPECT_EQ(before,Descriptors());Selection("complete generation");
+}
+TEST_F(RuntimePackagePublisher, SharedFenceSurvivesCallerDescriptorCloseAndReleasesAfterCompletion) {
+    Fenced();ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,Start())<<strerror(errno);shared_store.reset();
+    PackagePublicationResult result;ASSERT_EQ(0,Finish(0,&result));ASSERT_EQ(PackagePublish::Confirmed,result.publication)<<result.error;
+    EXPECT_EQ(common.image_sha256,result.generation.shared_base_sha256);Selection("complete generation",true);
+    shared_store.reset(openat(directory.get(),"common",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(shared_store.ok());
+    std::unique_ptr<PackageStore> common_again(PackageStore::Open(shared_store.get(),{false,0,0},false));ASSERT_TRUE(common_again);
+}
+TEST_F(RuntimePackagePublisher, ChangedCommonSelectionRejectsBeforeOpeningPrivateStore) {
+    Fenced();Common("newer concurrent common generation");ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,Start());PackagePublicationResult result;ASSERT_EQ(0,Finish(0,&result));
+    EXPECT_EQ(PackagePublish::Rejected,result.publication);EXPECT_EQ(ESTALE,result.error);
+    struct stat st;EXPECT_EQ(-1,fstatat(store.get(),"owner",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+}
+TEST_F(RuntimePackagePublisher, LockedCommonStoreRejectsWithoutPrivateMutation) {
+    Fenced();ASSERT_FALSE(HasFatalFailure());std::unique_ptr<PackageStore> lock(PackageStore::Open(shared_store.get(),{false,0,0},false));ASSERT_TRUE(lock);
+    ASSERT_EQ(0,Start());PackagePublicationResult result;ASSERT_EQ(0,Finish(0,&result));
+    EXPECT_EQ(PackagePublish::Rejected,result.publication);EXPECT_EQ(EWOULDBLOCK,result.error);
+    struct stat st;EXPECT_EQ(-1,fstatat(store.get(),"owner",&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+}
+TEST_F(RuntimePackagePublisher, SharedFenceRejectsMissingDescriptorAndInconsistentEvidenceBeforeSpawn) {
+    Fenced();ASSERT_FALSE(HasFatalFailure());const auto valid=request;int before=Descriptors();
+    EXPECT_EQ(-1,PackagePublisherStart(parent.get(),store.get(),source.get(),helper.get(),request,&jobs[0]));EXPECT_EQ(EINVAL,errno);EXPECT_EQ(nullptr,jobs[0]);
+    for(int which=0;which<4;which++) {
+        request=valid;
+        switch(which) { case 0:request.personal=false;break;case 1:request.expected_shared.image_sha256=std::string(64,'f');break;
+          case 2:request.expected_shared.shared_base_sha256=std::string(64,'c');break;case 3:request.fence_shared_current=false;break; }
+        EXPECT_EQ(-1,Start());EXPECT_EQ(EINVAL,errno);EXPECT_EQ(nullptr,jobs[0]);
+    }
+    request=valid;EXPECT_EQ(before,Descriptors());
+}
+TEST_F(RuntimePackagePublisher, IdenticalImageWithChangedBasePublishesAndReopensWithoutReplacingImageInode) {
+    Fenced();ASSERT_FALSE(HasFatalFailure());ASSERT_EQ(0,Start());PackagePublicationResult result;ASSERT_EQ(0,Finish(0,&result));ASSERT_EQ(PackagePublish::Confirmed,result.publication);
+    const auto previous=result.generation;const auto name=previous.image_sha256+".image";struct stat before,after;
+    ASSERT_EQ(0,fstatat(store.get(),name.c_str(),&before,AT_SYMLINK_NOFOLLOW));
+    Common("next common generation");ASSERT_FALSE(HasFatalFailure());request.job++;request.create=false;request.has_previous=true;request.previous=previous;
+    request.expected_shared=common;request.candidate.shared_base_sha256=common.image_sha256;
+    ASSERT_EQ(0,Start());ASSERT_EQ(0,Finish(0,&result));ASSERT_EQ(PackagePublish::Confirmed,result.publication)<<result.error;
+    EXPECT_EQ(previous.image_sha256,result.generation.image_sha256);EXPECT_EQ(common.image_sha256,result.generation.shared_base_sha256);
+    ASSERT_EQ(0,fstatat(store.get(),name.c_str(),&after,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(before.st_ino,after.st_ino);
+    std::unique_ptr<PackageStore> reopened(PackageStore::Open(store.get(),{true,10,42},false));ASSERT_TRUE(reopened);
+    PackageGeneration actual;unique_fd image(reopened->Current(&actual));ASSERT_TRUE(image.ok());EXPECT_EQ(common.image_sha256,actual.shared_base_sha256);
 }
 TEST_F(RuntimePackagePublisher, SystemHelperGroupAllowedButDataAndOtherGroupsRejected) {
     // Mutate only a newly owned copy, never the shared staged executable.
@@ -222,6 +291,7 @@ TEST_F(RuntimePackagePublisher, BorrowedHandleInAnotherProcessCannotFinishOwners
     PackagePublicationResult result;ASSERT_EQ(0,Finish(0,&result));EXPECT_EQ(PackagePublish::Confirmed,result.publication);
 }
 TEST_F(RuntimePackagePublisher, CancelDuringObservedCopyReapsChildAndRetainsOldSelection) {
+    Fenced();ASSERT_FALSE(HasFatalFailure());
     ASSERT_EQ(0,Start());PackagePublicationResult first;ASSERT_EQ(0,Finish(0,&first));
     ASSERT_EQ(PackagePublish::Confirmed,first.publication);
     auto previous=request.candidate;request.create=false;request.has_previous=true;request.previous=previous;request.job=2;
@@ -233,7 +303,7 @@ TEST_F(RuntimePackagePublisher, CancelDuringObservedCopyReapsChildAndRetainsOldS
     for(size_t i=0;i<total;i+=zeros.size())SHA256_Update(&sha,zeros.data(),zeros.size());
     unsigned char bytes[32];SHA256_Final(bytes,&sha);char digest[65];
     for(unsigned i=0;i<32;++i)snprintf(digest+2*i,3,"%02x",bytes[i]);
-    request.candidate={digest,"",total};
+    request.candidate={digest,common.image_sha256,total};
     unique_fd notify(inotify_init1(IN_CLOEXEC|IN_NONBLOCK));ASSERT_TRUE(notify.ok());
     ASSERT_GE(inotify_add_watch(notify.get(),(path+"/store").c_str(),IN_MODIFY),0);
     ASSERT_EQ(0,Start()) << strerror(errno);
@@ -248,6 +318,8 @@ TEST_F(RuntimePackagePublisher, CancelDuringObservedCopyReapsChildAndRetainsOldS
         usleep(1000);
     }
     ASSERT_TRUE(frozen);
+    std::unique_ptr<PackageStore> contender(PackageStore::Open(shared_store.get(),{false,0,0},false));
+    EXPECT_EQ(nullptr,contender);EXPECT_EQ(EWOULDBLOCK,errno);
     unique_fd scan(openat(store.get(),".",O_RDONLY|O_DIRECTORY|O_CLOEXEC));
     DIR* entries=fdopendir(scan.release());ASSERT_NE(nullptr,entries);bool partial=false;
     while(auto* item=readdir(entries))if(!strncmp(item->d_name,".pending-",9)) {
@@ -261,7 +333,8 @@ TEST_F(RuntimePackagePublisher, CancelDuringObservedCopyReapsChildAndRetainsOldS
     EXPECT_EQ(77,result.error);EXPECT_NE(std::string::npos,Get(group.get(),"cgroup.events").find("populated 1\n"));
     ASSERT_EQ(0,Finish(0,&result,true)) << strerror(errno);
     EXPECT_EQ(PackagePublish::Unconfirmed,result.publication);EXPECT_EQ(nullptr,jobs[0]);
-    request.candidate=previous;Selection("complete generation");
+    request.candidate=previous;Selection("complete generation",true);
+    std::unique_ptr<PackageStore> released(PackageStore::Open(shared_store.get(),{false,0,0},false));EXPECT_NE(nullptr,released);
     // The child and all owned references are gone. Incomplete pending bytes are
     // not activated. This is process cancellation, not a physical power failure.
 }

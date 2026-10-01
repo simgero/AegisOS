@@ -154,10 +154,12 @@ int BrokerCancelPublication(aegis_broker_owner* owner,uint32_t user,uint32_t ser
 // Cancellation/STOP also cover publishing; a lost reply never claims rollback.
 // Generic internal variant requires trusted anchored stage/store FDs. Production
 // personal scope must use the CE variant below, with no caller path or store FD.
+// Internal reconciliation tests additionally provide the trusted common store;
+// its FD is retained through publication/STOP. Configured use opens the fixed store.
 int BrokerPrepareTransaction(aegis_broker_owner* owner,const PackagePreparation& plan,
                               const PackagePublication& target,int groups,int stage,int store,int source,
                               int prepare_helper,int execute_helper,int publish_helper,
-                              const std::vector<int>& archives,uint64_t deadline,uint64_t* job);
+                              const std::vector<int>& archives,uint64_t deadline,uint64_t* job,int shared_store=-1);
 int BrokerPreparePersonalTransaction(aegis_broker_owner* owner,const PackagePreparation& plan,
                                       const PackagePublication& target,int groups,int source,
                                       int prepare_helper,int execute_helper,int publish_helper,
