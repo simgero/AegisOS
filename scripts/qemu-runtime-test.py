@@ -1036,6 +1036,8 @@ try:
             else: print('Unknown control command', flush=True)
         except Exception as exc:
             # Avoid exception repr/output that might include credentials.
+            record('driver-failure', {'control':cmd.split(' ',1)[0],
+                                      'exception_type':type(exc).__name__})
             print('FAILED '+cmd+': '+type(exc).__name__, flush=True)
 finally:
     close()
