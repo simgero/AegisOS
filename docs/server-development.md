@@ -245,3 +245,23 @@ GNU geschrieben, geprüft und mit Hash festgehalten; Beleg
 `candidate-c526571/first-login-proof.json`. Alpha besteht außerdem tatsächliche
 Terminalgrößenwechsel und Strg+C. Paketabbruch, adversariale Isolation und
 gepaarter Neustart sind in diesem neuen Lauf weiterhin ausstehend.
+
+### Paketabbruch im korrigierten Image bestätigt
+
+Im `c526571`-Gast sind jetzt **beide tatsächlichen Negativfreigaben bestanden**:
+falsches Alpha-Passwort und korrektes Beta-Passwort ohne Adminrolle.
+Die CLI bestätigt jeweils den fehlgeschlagenen Auftrag ohne Veröffentlichung;
+anschließend meldet `linux status` weiterhin `runtime=ready packages=current`.
+Alle drei Auswahlsnapshots bleiben `NO_SHARED_SELECTION`. Die Originalprozesse
+Alpha PID 6317/Start 146366 und Beta PID 8236/Start 204322 schreiben nach beiden
+Ablehnungen weiter; SystemServer bleibt PID 1373. Kein Kontrollkanalfehler wird
+protokolliert. Ein weiterer Paketplan lässt sich starten.
+Beleg: `candidate-c526571/package-negative-proof.json` und die beiden darin
+gebundenen Prozessbeobachtungen. Der frühere Fehler reproduziert sich damit
+nach der Cleanup-Budgetkorrektur nicht; die genaue damalige Transportursache
+bleibt mangels damaliger Diagnoseausgabe eine begründete Zuordnung.
+Positive Paketveröffentlichung und gepaarter Neustart folgen gesondert.
+
+Authentifiziertes ADB besteht zusätzlich einen bytegenauen binären
+262144-Byte-Rundlauf (`adb-binary-proof.json`); `ro.adb.secure=1` bleibt gesetzt.
+Die aktuelle Bedienungsanleitung steht in [Terminalzugang](terminal-quickstart.md).
