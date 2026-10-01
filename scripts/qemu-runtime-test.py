@@ -121,10 +121,13 @@ def until(marker, timeout=180):
 def close():
     global client, master, shell_active, package_prompt
     if client and client.poll() is None:
-        os.write(master, b'exit\n')
-        try: client.wait(timeout=10)
+        # A failed assertion may leave the remote terminal at a password
+        # prompt. Never send a shell command as an unintended credential.
+        # Explicit graceful exit has its separate exit-receipt control.
+        client.terminate()
+        try: client.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            client.terminate(); client.wait(timeout=5)
+            client.kill(); client.wait(timeout=5)
     if master is not None: os.close(master)
     client = master = None
     pending.clear()
