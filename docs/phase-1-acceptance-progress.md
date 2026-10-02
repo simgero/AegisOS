@@ -635,3 +635,32 @@ als normalen Benutzer angelegt. Alphas erster korrekter Login gelingt ohne
 Fehlversuch davor; echte GNU-Ausführung, private Datei und Konfiguration sind
 nachgewiesen. Beta bleibt zunächst gesperrt. Die gemeinsame jq-Planung hat
 begonnen; noch keine Installation oder T16-Aktivierung wird daraus behauptet.
+
+## Gemeinsame jq-Installation auf 3155115 tatsächlich aktiviert
+
+Die echte CLI veröffentlicht mit frischer Alpha-Adminfreigabe die gemeinsame
+Generation `0c064ea4…`: `jq` und `libjq1` jeweils `1.7.1-6+deb13u3`,
+`libonig5` `6.9.9-1+b1`. Der ursprüngliche Alpha-Kontext PID 5932,
+Startzeit 178981, bleibt zunächst unverändert ohne jq; `linux status` meldet
+`activation-pending`. Die ursprüngliche 1024-Byte-Datei und Konfiguration
+werden aus der GNU-Shell bytegleich gelesen.
+
+Nach eigenem `linux stop`/`linux start` ist der alte Prozess entfernt. Der
+neue Kontext PID 6727, Startzeit 247431, verwendet nachweislich die veröffentlichte
+Imagegeneration als Root. Der Status meldet `packages=current`; CE bleibt
+`[0,10]`, Beta ist noch gesperrt und SystemServer bleibt 1293.
+
+Ein echter GNU-Prozess bestätigt beide u3-Versionen, führt jq mit Ergebnis 10
+aus und prüft die Bibliothek gegen SHA-256
+`58a6c82e3cc0b55f2e11e85ffa487bd2381c4cd30068874504c639c76a3e59d6`.
+Alphas ursprüngliche Datei behält SHA-256
+`9735fb49aa4c255d32cfb4797f849045cce21eb59080865d7a80b2b350dca85b`;
+Konfiguration und Test-Secret bleiben ebenfalls erhalten. Alte persönliche
+`/tmp`- und `/run`-Proben fehlen erwartungsgemäß nach Kontextneustart.
+
+Beleg: `out/phase1-dod/3155115/shared-u3-activation-proof.json`, SHA-256
+`685f6de2f565ac6134603e024e66ae2f9f9f0ac5bfef9f1dbccfb3fc4ac22682`,
+mit eingefrorenem Ereignispräfix und gehashten Beobachtungen vor/nach Aktivierung.
+Dies ist die erste gemeinsame Installation bei einem Benutzer, **noch kein
+T16-Nachweis für ein gemeinsames Update mit vorhandener privater Version**.
+Der anschließende private u4-Plan ist in Arbeit; sein Erfolg wird separat geprüft.
