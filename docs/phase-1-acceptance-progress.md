@@ -1271,3 +1271,35 @@ Der Planner-Transport weist den neuen Entfernungsmodus vorerst ausdrücklich ab.
 Resolver, Brokerauftrag, frische Adminfreigabe und CLI-Vorschau müssen noch
 durchgängig angebunden werden. Ein neuer Vollimage-Build und die T15-/T16-Abläufe
 bleiben erforderlich; dieser Lauf schließt weder T15 noch Phase 1 ab.
+
+## T15: Auftrag, Resolver und CLI-Vorschau verbunden
+
+`209278def7d5bc5612eeb397bdd8ee20ccb16d86` verbindet die ausdrückliche persönliche
+Entfernung mit dem getrennten Auswahlmodus, Planner-Protokoll 9, der signierten
+APT-Zielableitung, dem eigenen Binder und der vorhandenen frischen
+Adminfreigabe. Der ursprüngliche Remove-Auftrag bleibt im selben Besitzerauftrag;
+er wird nicht in einen internen Basisabgleich umgedeutet. Die Vorschau unterscheidet
+gemeinsame Variante, verbleibende Abhängigkeit und tatsächliche Entfernung,
+einschließlich des Falls ohne Paketversionsänderung.
+
+Native Komponenten, Java-Service, CLI und Gerätetest-APK wurden gemeinsam im
+Lauf `/srv/aegis/runs/native-209278de-h7ZKvB` erfolgreich gebaut (104 Sekunden).
+**76 von 76 ausgewählten kleinen nativen Tests bestehen**, einschließlich der
+Modus-/Transportprüfungen. Boot-ID, SystemServer PID und Startzeit sowie SELinux
+und CE-Zustand bleiben identisch zum vorherigen Komponentenlauf.
+
+Ergebnis:
+`out/phase1-dod/20d7d6d/native-private-removal-connected-tests/result.json`, SHA-256
+`304262e92e9452cd858b234466280d43cb38dc7b9442f4c0bce948ee65241b74`.
+Rohprotokoll-SHA-256:
+`4c2f13c9be60dd8afca6a7b591eb0186e7f54f7b70647f81c69bd86db4f061f8`.
+Buildherkunft:
+`out/phase1-dod/20d7d6d/native-private-removal-connected-build-receipt.json`, SHA-256
+`c60ae4f429de7e975fa2287c1b0c482cc8210f728339470af364fc4c27bea34a`.
+
+Die sieben neuen APT-/Brokerübergabetests und sechs neuen Java-Tests sind bislang
+nur mitgebaut. Ebenso offen bleiben die zuvor ergänzten Image-Ausführungstests,
+die Veröffentlichungstests und die realen T15-/T16-CLI-Abläufe. Die lokale Sicherung
+der alten Testimages läuft weiter; bislang wurde nichts daraus gelöscht.
+Ein lokaler Vollimage-Build aus diesem Stand wurde gestartet. Das ist noch kein
+Boot- oder Systemnachweis und schließt kein vollständiges DoD-Kriterium ab.

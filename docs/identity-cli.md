@@ -46,6 +46,15 @@ Für jeden Auftrag wird ein AOSP-Administrator samt Passwort frisch geprüft;
 sein CE-Speicher wird dafür nicht durch den normalen Anmeldepfad entsperrt.
 Passwörter werden ausschließlich verdeckt am Terminal abgefragt und verworfen.
 
+`package remove --user NAME` hebt im aktuellen Quellstand genau die eigene
+ausdrückliche Versionswahl auf. Die Vorschau nennt, ob danach die gemeinsame
+Version verwendet wird, das Paket als benötigte Abhängigkeit erhalten bleibt
+oder entfernt wird. Andere private Versionswahlen bleiben bestehen; Konflikte
+werden abgewiesen. Auch wenn keine Paketversion geändert werden muss, ist eine
+frische Adminfreigabe erforderlich. Ohne eigene Auswahl oder bei veraltetem
+gemeinsamem Basisbezug wird dieser Auftrag abgelehnt. Dieser neue Ablauf ist
+implementiert; sein vollständiger Vollimage-/CLI-Nachweis steht noch aus.
+
 Der Dienst gibt ein prozessgebundenes `IAegisPackage` für genau einen Auftrag
 zurück. Der Client kann weder Benutzer-ID, Seriennummer, Auftragskennung,
 Plan-Digest, Pfad noch Dateideskriptor nachreichen. Benutzerwechsel, Bildschirmsperre,
