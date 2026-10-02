@@ -1008,3 +1008,45 @@ enthält 48 eingefrorene CLI-Ereignisse und die beobachtete Root-Image-Zuordnung
 Dies belegt die erste gemeinsame Installation und Aktivierung mit erhaltenen
 persönlichen Dateien, noch kein gemeinsames Update bei bestehenden privaten
 Versionen und keinen VM-Neustart. T15, T16 und die Gesamtfreigabe bleiben offen.
+
+## Unterschiedliche jq-Versionen und Betas erster Login auf 20d7d6d
+
+Alpha installiert mit frischer AOSP-Adminfreigabe jq und die dazugehörige
+libjq1 `1.7.1-6+deb13u4` im persönlichen Bereich. Die gemeinsame Generation
+bleibt unverändert auf u3. Nach ausgewiesener ausstehender Aktivierung und
+regulärem Kontextneustart führt Alpha u4 tatsächlich aus. `dpkg-query`
+bestätigt beide u4-Pakete, jq berechnet die erwartete Summe; die libjq-Datei
+besitzt SHA-256
+`92012c8c198ed5f8e44042a124c3271e89a0a2867fc3344642d9ed391ef75f50`.
+Alphas ursprüngliche persönliche Datei bleibt bytegleich. Sein Root-Image
+liegt in seinem CE-Speicher und gehört zur privaten Generation
+`5ac6d6af78838946cd1af65840e001da2a26cdbdc8d6eb392aded2bcac9f7b44`.
+
+Beta 11/11 meldet sich erstmals erfolgreich an, ohne vorangegangenen
+Fehlversuch. Vor Passworteingabe ist seine CE weiterhin gesperrt und seine
+Runtime fehlt. Verzögerte Statusprüfung und echte GNU-Ausführung bestätigen
+die gültige Sitzung. Beta führt die gemeinsame jq-/libjq1-Version u3 mit
+deren bereits dokumentierter Bibliotheksprüfsumme aus; sein Root-Image ist
+weiterhin die gemeinsame Generation. Beide Varianten verwenden libonig5
+`6.9.9-1+b1`. Die UID/GID-Abbildungen unterscheiden sich: interne UID/GID
+1000 wird bei Alpha auf 1007500 und bei Beta auf 1107500 abgebildet.
+
+Alphas nach dem eigenen Runtime-Neustart neu angelegte Hintergrundprobe
+behält beim Wechsel zu Beta PID 8372 und Startzeit 405185; der Zähler steigt
+auch bei Vordergrundbenutzer 11 weiter. Dieser Nachweis ersetzt nicht die
+frühere, ausdrücklich gestoppte Probe. Beta erzeugt seine eigene ursprüngliche
+1024-Byte-Datei, SHA-256
+`25fc4776250a104217a27a61bdc69561f47079a964544c3e670803088c2d97cf`,
+und getrennte persönliche und flüchtige Konfigurationsproben, SHA-256
+`154a5e94f4e1179e5312a3b8cda87d29f8de5f92f9407a339fa0de2f36cd94d2`.
+Seine normalen GNU-Grundprüfungen bestehen ebenfalls.
+
+Der lokale Beleg
+`out/phase1-dod/20d7d6d/distinct-jq-versions-and-beta-first-login-proof.json`,
+SHA-256 `e615244284c5a78486cdb7867386dd283147bbbd392708531bc69e1e151d8c97`,
+bindet 88 Ereignisse, beide Root-Images und die unveränderte SystemServer-
+Identität an dasselbe Image und Profil. CE ist am Ende `[0,10,11]`.
+Damit ist die tatsächliche Ausführung unterschiedlicher Versionen desselben
+Pakets belegt. Gegenseitige Isolation, VM-Neustart, private Entfernung und
+gemeinsames Update bei privaten Versionen sind für diesen Stand weiterhin
+gesondert nachzuweisen; T15 und T16 sind nicht vollständig bestanden.
