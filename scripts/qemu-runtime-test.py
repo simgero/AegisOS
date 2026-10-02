@@ -247,7 +247,8 @@ def start_shell():
     assert not shell_active
     os.write(master, b'linux shell\n')
     # Read the actual initial Bash prompt; returning to aegis> is a failure.
-    deadline = time.monotonic()+40
+    # linux shell can start the same bounded reconciliation as linux start.
+    deadline = time.monotonic()+960
     while not re.search(rb'(?:\$ |# |aegis> )$', pending):
         assert time.monotonic()<deadline, 'No shell prompt observed'
         ready, _, _ = select.select([master], [], [], 1)
@@ -1074,7 +1075,7 @@ try:
                 assert 'terminal=unauthenticated' not in events[-1]['output']
                 assert re.search(r'(?m)^user='+str(users[key][0])+r' serial='+str(users[key][1])+r' ',events[-1]['output'])
                 assert 'foreground=true running=true ce=unlocked' in events[-1]['output']
-                action('linux-start','linux start')
+                action('linux-start','linux start', timeout=960)
                 assert 'runtime=ready ce=unlocked' in events[-1]['output']
                 start_shell()
                 time.sleep(3)
