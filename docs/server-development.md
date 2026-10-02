@@ -33,6 +33,17 @@ erstellt `scripts/make-qemu-disk.py DIR` die unveränderliche GPT-Basisdisk.
 Der bestehende gepaarte Launcher verwaltet weiterhin Android-Overlay,
 KeyMint-Zustand, Eingabeprüfsummen und exklusive Profilsperre gemeinsam.
 
+`scripts/prepare-server-build.py BUILD_RUN NEUES_VERZEICHNIS --commit COMMIT
+--avbtool /srv/aegis/work/aosp/external/avb/avbtool.py` fasst diese lokale
+Vorbereitung zusammen. Das Werkzeug verlangt `LOCAL_BUILD_VERIFIED` und den
+exakten Image-Commit, kopiert alle 20 Factory-Images samt Buildbelegen, prüft ihre
+Prüfsummen, den ausgewählten Kernel und die enthaltene Runtimebasis und führt
+anschließend AVB-Prüfung und GPT-Erstellung aus. Bestehende Ziele werden
+zurückgewiesen. Auf dem Builddatenträger kann `aegis-build` es mit Zugriff auf
+den abgeschlossenen Build ausführen; der spätere QEMU-Aufrufer benötigt Zugriff
+auf das neu angelegte Verzeichnis. Das Werkzeug startet keinen Gast und
+verändert keine vorhandenen Profile.
+
 Linux verwendet QEMU `virt-10.2`, Apple Silicon weiterhin `virt-11.1`/HVF.
 Beide vollständigen Aufrufe werden pro Lauf gespeichert. Bestehende Profile
 werden nicht automatisch migriert. Der Linux-Standard ist bildschirmlos;
