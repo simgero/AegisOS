@@ -60,6 +60,16 @@ uint64_t Deadline() {
     timespec t;EXPECT_EQ(0,clock_gettime(CLOCK_MONOTONIC,&t));
     return uint64_t(t.tv_sec)*1000000000+t.tv_nsec+UINT64_C(9000000000);
 }
+template<class Poll> int ObserveJob(Poll poll,int pending=EAGAIN) {
+    // Observe the same owned asynchronous job on slow TCG guests. This does
+    // not restart a worker or change production admission/cleanup deadlines.
+    const auto end=std::chrono::steady_clock::now()+std::chrono::seconds(180);
+    for(;;) {
+        const int rc=poll();if(rc==0 || errno!=pending)return rc;
+        if(std::chrono::steady_clock::now()>=end) { errno=ETIMEDOUT;return -1; }
+        usleep(50000);
+    }
+}
 int WriteAt(int root,const char* name,const std::string& data,int flags=O_CREAT|O_EXCL) {
     unique_fd fd(openat(root,name,O_WRONLY|O_NOFOLLOW|O_CLOEXEC|flags,0644));
     if(!fd.ok())return -1;
@@ -781,7 +791,7 @@ class RuntimePackagePreparation : public ::testing::Test {
     int Start() { return PackagePreparerStart(parent.get(),stage.get(),source.get(),prepare_helper.get(),Fds(),plan,&worker); }
     void Ready() {
         ASSERT_EQ(0,Start())<<strerror(errno);PackagePreparationResult result;int fd=-1;
-        ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,&result,&fd))<<strerror(errno);mount.reset(fd);
+        ASSERT_EQ(0,ObserveJob([&] { return PackagePreparerFinish(&worker,false,1000,&result,&fd); },ETIMEDOUT))<<strerror(errno);mount.reset(fd);
         ASSERT_EQ(PackagePreparationOutcome::Prepared,result.outcome)<<result.error;ASSERT_TRUE(mount.ok());
     }
     void Broker() {
@@ -793,11 +803,11 @@ class RuntimePackagePreparation : public ::testing::Test {
     }
     void AwaitPrepared() {
         PublicationState state=PublicationState::Preparing;PackageExecutionResult result;
-        for(unsigned i=0;i<900 && state==PublicationState::Preparing;++i) {
-            ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
-            ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result));
-            if(state==PublicationState::Preparing)usleep(10000);
-        }
+        ASSERT_EQ(0,ObserveJob([&] {
+            if(aegis_broker_owner_reap_publications(broker)<0 ||
+               BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,&result)<0)return -1;
+            if(state==PublicationState::Preparing) { errno=EAGAIN;return -1; }return 0;
+        }))<<strerror(errno);
         ASSERT_EQ(PublicationState::Prepared,state)<<result.error;
     }
     void ReusePreparedImage() {
@@ -889,12 +899,12 @@ class RuntimePackageTransaction : public RuntimePackagePreparation {
     }
     void Complete(PackageExecutionResult* result) {
         PublicationState state=PublicationState::Running;bool publishing=false;
-        for(unsigned i=0;i<900 && state!=PublicationState::Complete;i++) {
-            ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
-            ASSERT_EQ(0,BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,result));
+        ASSERT_EQ(0,ObserveJob([&] {
+            if(aegis_broker_owner_reap_publications(broker)<0 ||
+               BrokerPollExecution(broker,10,42,job,plan.execution.plan_sha256,&state,result)<0)return -1;
             publishing|=state==PublicationState::Publishing;
-            if(state!=PublicationState::Complete)usleep(10000);
-        }
+            if(state!=PublicationState::Complete) { errno=EAGAIN;return -1; }return 0;
+        }))<<strerror(errno);
         ASSERT_EQ(PublicationState::Complete,state);RecordProperty("observed_publishing",publishing);
     }
     void Run(PackageExecutionResult* result) {
@@ -945,7 +955,7 @@ class RuntimePackageTransaction : public RuntimePackagePreparation {
         check.image={result.generation.bytes,result.generation.image_sha256};
         ASSERT_EQ(0,PackagePreparerStart(parent.get(),stage.get(),selected.get(),prepare_helper.get(),{},check,&worker));
         PackagePreparationResult prepared;int fd=-1;
-        ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,&prepared,&fd));mount.reset(fd);
+        ASSERT_EQ(0,ObserveJob([&] { return PackagePreparerFinish(&worker,false,1000,&prepared,&fd); },ETIMEDOUT))<<strerror(errno);mount.reset(fd);
         ASSERT_EQ(PackagePreparationOutcome::Prepared,prepared.outcome)<<prepared.error;
     }
     void VerifyContents(const PackageExecutionResult& result,int version,bool removed=false,bool personal=false) {
@@ -1116,7 +1126,7 @@ class RuntimePackageSelection : public RuntimePackageTransaction {
     }
     void Selected(int shared,int personal,PackagePreparationResult* result) {
         ASSERT_EQ(0,SelectStart(shared,personal))<<strerror(errno);int fd=-1;
-        ASSERT_EQ(0,PackagePreparerFinish(&worker,false,9000,result,&fd))<<strerror(errno);mount.reset(fd);
+        ASSERT_EQ(0,ObserveJob([&] { return PackagePreparerFinish(&worker,false,1000,result,&fd); },ETIMEDOUT))<<strerror(errno);mount.reset(fd);
     }
     void Readonly() {
         ASSERT_TRUE(mount.ok());struct statvfs flags;ASSERT_EQ(0,fstatvfs(mount.get(),&flags));
@@ -1158,11 +1168,11 @@ class RuntimePackageReconciliation : public RuntimePackageSelection {
     }
     void AwaitOwnedInputs() {
         RuntimeSelectionState state=RuntimeSelectionState::Selecting;PackagePreparationResult result;
-        for(unsigned i=0;i<900 && state==RuntimeSelectionState::Selecting;++i) {
-            ASSERT_EQ(0,aegis_broker_owner_reap_publications(broker));
-            ASSERT_EQ(0,BrokerPollRuntimeSelection(broker,10,42,owned_job,&state,&result));
-            if(state==RuntimeSelectionState::Selecting)usleep(10000);
-        }
+        ASSERT_EQ(0,ObserveJob([&] {
+            if(aegis_broker_owner_reap_publications(broker)<0 ||
+               BrokerPollRuntimeSelection(broker,10,42,owned_job,&state,&result)<0)return -1;
+            if(state==RuntimeSelectionState::Selecting) { errno=EAGAIN;return -1; }return 0;
+        }))<<strerror(errno);
         ASSERT_EQ(RuntimeSelectionState::ReconciliationInputs,state)<<result.error;
         EXPECT_EQ(own.image_sha256,result.generation.image_sha256);
         EXPECT_EQ(own.shared_base_sha256,result.previous_shared.sha256);
@@ -1177,8 +1187,15 @@ class RuntimePackageReconciliation : public RuntimePackageSelection {
     }
     void Finish(PackagePreparationResult* result,bool cancel=false) {
         int fds[3]={-1,-1,-1};
-        ASSERT_EQ(0,removal_selection?PackagePrivateRemovalSelectionFinish(&worker,cancel,9000,result,fds)
-                                     :PackageReconciliationSelectionFinish(&worker,cancel,9000,result,fds))<<strerror(errno);
+        if(cancel) {
+            ASSERT_EQ(0,removal_selection?PackagePrivateRemovalSelectionFinish(&worker,true,9000,result,fds)
+                                         :PackageReconciliationSelectionFinish(&worker,true,9000,result,fds))<<strerror(errno);
+        } else {
+            ASSERT_EQ(0,ObserveJob([&] {
+                return removal_selection?PackagePrivateRemovalSelectionFinish(&worker,false,1000,result,fds)
+                                        :PackageReconciliationSelectionFinish(&worker,false,1000,result,fds);
+            },ETIMEDOUT))<<strerror(errno);
+        }
         for(unsigned i=0;i<3;++i)views[i].reset(fds[i]);
     }
     void Unchanged() {
