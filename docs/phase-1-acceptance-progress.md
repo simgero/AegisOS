@@ -1461,3 +1461,27 @@ Quell-/Zustandsinferenz. Die Signal-Exits von odsign, hwservicemanager, idmap2d
 und adbd passen zu den protokollierten Stop-/Restart-Vorgängen. Es wurden keine
 Dienste umkonfiguriert oder Diagnoseabstürze ausgelöst. Der Nachweis gilt für
 den erfassten Zeitraum und ersetzt keine spätere Lebenszyklusprüfung.
+
+## Sechs native Auswahltests mit korrigierter Beobachtung bestanden
+
+Die Wiederholung mit Testbuild `6946970adc5158ffafa0d8771b22afbee12fd5a5`
+besteht mit **6 von 6 Fällen** auf dem unveränderten Vollimage `209278d`.
+Der Lauf dauert rund 1423 Sekunden. Geprüft sind private/alte/aktuelle Ansichten,
+bereits aktuelle private Basis, Auswahl für ausdrückliche private Entfernung,
+Ablehnung einer veralteten Basis, Nutzung der aktuellen Werksbasis ohne
+gemeinsamen Paketstore und Abbruch mit unverändertem Bestand und geschlossenen
+Ansichten. Der frühere fehlgeschlagene Lauf bleibt als eigener Beleg erhalten.
+
+Der Treiber hat vor dem Start die vollständigen Quellinventare verglichen:
+nur `runtime/package_executor_tests.cpp` unterscheidet sich. Alle zehn Helper
+und das Java-Test-APK sind bytegleich. Boot-ID, ursprünglicher SystemServer,
+SELinux Enforcing und CE `[0]` bleiben vor und nach dem Lauf identisch.
+
+Ergebnis:
+`out/phase1-dod/209278de/native-selection-observed-components/result.json`, SHA-256
+`7ddd2fbb32643a50bd37963cab37d44f1aa3ec6dd7cfb602a293cc265533aaed`.
+Log-SHA-256:
+`e77161d7d8a690e85ac25f089c84ec1d6a6310bd13bfbb288ab8a1ff965fa110`.
+Die Paket-Ausführungsgruppe ist anschließend gestartet; Veröffentlichung und
+reale CLI-Nachweise bleiben noch offen. Diese sechs Fälle schließen weder T15
+noch T16 vollständig ab.
