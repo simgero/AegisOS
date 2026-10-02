@@ -386,3 +386,52 @@ späterer Datenwiederzugriff nach dem Ressourcenstopp bleibt gesondert zu prüfe
 Beleg: `third-user-and-background-stop-proof.json`, SHA-256
 `8ee5be06db6393949ea9192144d34b787e5da3e66d9d2082300816466e0831d7`.
 Der separat dokumentierte Bootanimation-Absturz hält D1 weiter offen.
+
+## Wiederanmeldung nach AOSP-Ressourcenstopp und private Aktivierung
+
+Beta meldet sich nach dem oben belegten automatischen AOSP-Hintergrundstopp
+mit dem geänderten Passwort erneut an. Vor der Passwortprüfung ist sein CE
+weiter gesperrt und kein Kontext vorhanden; danach bleibt die Sitzung gültig.
+Der neue Kontext meldet `packages=current`. Seine tatsächlich aktive Root-Mount
+verweist auf Betas zuvor veröffentlichte private Generation `f13b9e50…`; die
+private und gemeinsame Auswahl sind unverändert. Der SystemServer bleibt
+PID 1146, die Boot-ID unverändert, nur Betas persönliches CE ist entsperrt.
+
+Aus der echten GNU-Shell liest Beta die ursprüngliche 1024-Byte-Datei sowie
+Konfiguration und synthetisches Secret bytegleich. Die alten `/tmp`-/`/run`-Proben
+fehlen. Private `jq` und `libjq1` in Version `1.7.1-6+deb13u3` sind ausführbar;
+die erwartete Bibliotheksprüfsumme und das Rechenergebnis 10 werden geprüft.
+Damit ist auch der zuvor offene Wiederzugriff nach dem Ressourcenstopp belegt.
+Die Erhaltung dieser privaten Auswahl bei einem gemeinsamen Update steht noch aus.
+
+Beleg: `out/phase1-dod/d149766/beta-resource-stop-recovery-proof.json`, SHA-256
+`1cc824fd4ffc03a5e84a7f214b7ffcb4648b37c698c5cf0386f0a215130a9d98`.
+
+## Abgewiesene Versionsanforderung erhält den laufenden Bestand
+
+Die tatsächliche CLI-Anforderung `linux package install jq=0.aegis-unavailable
+--scope user` endet ohne Adminabfrage mit einem sichtbaren Planungsfehler.
+Auch `linux package status` zeigt den Fehler. Gemeinsame und private Auswahl,
+aktive Root-Mount und ursprünglicher Runtime-Initprozess bleiben identisch;
+`linux status` meldet weiterhin `packages=current`. Die anschließende GNU-Shell
+führt das bisherige `jq` samt passender Bibliothek in Version `u3` erfolgreich aus.
+
+Beleg: `out/phase1-dod/d149766/unavailable-version-preservation-proof.json`,
+SHA-256 `d0d6d193db9028f7e9bb611e44028d67ea86dec5328f8f49dcbde915a7ce9632`.
+**Grenze:** Die CLI nennt nur einen allgemeinen Planungsfehler. Dieser Lauf
+beweist Ablehnung und Erhalt des Bestands, aber allein nicht die genaue
+APT-Fehlerursache. T15 ist damit noch nicht vollständig abgenommen.
+
+## Ergänzende Bootanimation-Diagnose ohne Reproduktion
+
+Sechs kurze und ein vollständiger eigenständiger Animationslauf beenden sich
+mit Exitcode 0 ohne erneute FORTIFY-Meldung. Der vollständige Lauf spielt den
+ersten Abschnitt ab und beendet sich anschließend über die normale
+Exit-Eigenschaft. Diese Diagnose lief im Entwicklungs-root-Kontext, nicht als
+Init-Dienst; sie ersetzt keinen Boot-Regressionsnachweis. Der zusätzliche
+Diagnosecode verändert keine Schutzprüfung. Der beim zweiten Boot tatsächlich
+beobachtete Absturz bleibt ungeklärt, D1 bleibt offen.
+
+Lokaler Abschlussbeleg: `out/phase1-dod/bootanimation-diagnostic/full-animation-1.json`;
+zugehöriger Logcat-SHA-256
+`8f43cb0e538b67d94ebba83ade9616a4bcdf06222ce54bb99ea4ee562b6e5393`.
