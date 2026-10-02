@@ -66,6 +66,29 @@ class PackageExecutionGuard : public ::testing::Test {
         strcpy(request.review.result_automatic,Hash(aegis::PackageCanonicalAutomatic(empty?std::set<std::string>{}:std::set<std::string>{"test-app"})).c_str());
         ASSERT_TRUE(aegis_package_execution_valid(&request));
     }
+    void PrivateRemoval(bool fallback=false) {
+        request.kind=AEGIS_PACKAGE_PRIVATE_REMOVE;request.count=fallback?1:0;
+        memset(request.items,0,sizeof(request.items));memset(request.review.effects,0,sizeof(request.review.effects));
+        Write("var/lib/dpkg/status",base+added);Write("var/lib/apt/extended_states","");
+        strcpy(request.review.initial_status,Hash(base+added).c_str());
+        request.review.apt_state_bytes=0;strcpy(request.review.initial_apt_state,Hash("").c_str());
+        ASSERT_EQ(0,mkdirat(root.get(),"var/lib/aegis",0700));
+        const char* before="AEGIS-PRIVATE-CHOICES1\nbase-one\tarm64\t1\ntest-app\tall\t2\n";
+        Write("var/lib/aegis/private-choices",before);strcpy(request.review.initial_choices,before);
+        strcpy(request.review.result_choices,"AEGIS-PRIVATE-CHOICES1\nbase-one\tarm64\t1\n");
+        strcpy(request.review.removed_choice,"test-app");
+        strcpy(request.review.reconciliation_roots,fallback?"base-one\ntest-app\n":"base-one\n");
+        auto after=added;
+        if(fallback) {
+            after.replace(after.find("Version: 2"),10,"Version: 1");
+            strcpy(request.items[0],"test-app_1_all.deb");auto& e=request.review.effects[0];
+            strcpy(e.name,"test-app");strcpy(e.architecture,"all");strcpy(e.before,"2");strcpy(e.after,"1");e.reason=1;
+        }
+        aegis::PackageInstalledRegistry expected;ASSERT_EQ(0,aegis::PackageReadInstalledRegistry(base+after,&expected));
+        strcpy(request.review.result_registry,Hash(aegis::PackageCanonicalInstalled(expected)).c_str());
+        strcpy(request.review.result_automatic,Hash(aegis::PackageCanonicalAutomatic(fallback?std::set<std::string>{}:std::set<std::string>{"test-app"})).c_str());
+        ASSERT_TRUE(aegis_package_execution_valid(&request));
+    }
     void Begin() { ASSERT_EQ(0,aegis_package_guard_begin(root.get(),&request,&guard))<<strerror(errno);ASSERT_NE(nullptr,guard); }
     void Finish(const std::string& status,const std::string& state,int expected) {
         Write("var/lib/dpkg/status",status);Write("var/lib/apt/extended_states",state);ASSERT_FALSE(HasFatalFailure());
@@ -249,6 +272,46 @@ TEST_F(PackageExecutionGuard, ManifestSymlinkCannotReadOutsideTheCandidate) {
     EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(ELOOP,errno);EXPECT_EQ(nullptr,guard);
 }
 
+TEST_F(PackageExecutionGuard, PrivateRemovalChangesOnlySelectedIntentAndRetainsDependencyWithAutomaticMark) {
+    PrivateRemoval();ASSERT_FALSE(HasFatalFailure());Begin();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(-1,aegis_package_guard_finish(guard,root.get()));EXPECT_EQ(ESTALE,errno);
+    ASSERT_EQ(0,aegis_package_guard_reconcile_marks(guard,root.get()))<<strerror(errno);
+    ASSERT_EQ(0,aegis_package_guard_commit(guard,root.get()))<<strerror(errno);
+    unique_fd fd(openat(root.get(),"var/lib/aegis/private-choices",O_RDONLY|O_CLOEXEC|O_NOFOLLOW));ASSERT_TRUE(fd.ok());
+    char bytes[256]={};ASSERT_EQ(ssize_t(strlen(request.review.result_choices)),read(fd.get(),bytes,sizeof(bytes)));
+    EXPECT_STREQ(request.review.result_choices,bytes);
+    EXPECT_EQ(-1,aegis_package_guard_commit(guard,root.get()));EXPECT_EQ(ESTALE,errno);
+}
+TEST_F(PackageExecutionGuard, PrivateRemovalFallbackRequiresExactCompleteVersionAndMarksBeforeCommit) {
+    PrivateRemoval(true);ASSERT_FALSE(HasFatalFailure());Begin();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(-1,aegis_package_guard_reconcile_marks(guard,root.get()));EXPECT_EQ(ESTALE,errno);
+    auto fallback=added;fallback.replace(fallback.find("Version: 2"),10,"Version: 1");
+    Write("var/lib/dpkg/status",base+fallback);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,aegis_package_guard_reconcile_marks(guard,root.get()))<<strerror(errno);
+    ASSERT_EQ(0,aegis_package_guard_commit(guard,root.get()))<<strerror(errno);
+}
+TEST_F(PackageExecutionGuard, PrivateRemovalRejectsChangesToAnyOtherChoiceBeforeExecution) {
+    PrivateRemoval();ASSERT_FALSE(HasFatalFailure());
+    memset(request.review.result_choices,0,sizeof(request.review.result_choices));
+    strcpy(request.review.result_choices,"AEGIS-PRIVATE-CHOICES1\n");
+    EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(nullptr,guard);
+}
+TEST_F(PackageExecutionGuard, PrivateRemovalRejectsUnselectedTargetAndAutomaticPrivateRoot) {
+    PrivateRemoval();ASSERT_FALSE(HasFatalFailure());strcpy(request.review.removed_choice,"test-zzz");
+    EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(ENOENT,errno);EXPECT_EQ(nullptr,guard);
+    strcpy(request.review.removed_choice,"test-app");Write("var/lib/apt/extended_states",app_auto);
+    request.review.apt_state_bytes=app_auto.size();strcpy(request.review.initial_apt_state,Hash(app_auto).c_str());
+    EXPECT_EQ(-1,aegis_package_guard_begin(root.get(),&request,&guard));EXPECT_EQ(ESTALE,errno);EXPECT_EQ(nullptr,guard);
+}
+TEST_F(PackageExecutionGuard, PrivateRemovalProtocolCannotBeReinterpretedAsReconciliationOrOrdinaryAction) {
+    PrivateRemoval();ASSERT_FALSE(HasFatalFailure());
+    for(uint32_t kind:{AEGIS_PACKAGE_RECONCILE,AEGIS_PACKAGE_REMOVE,AEGIS_PACKAGE_SELECTION,AEGIS_PACKAGE_ARCHIVES}) {
+        auto bad=request;bad.kind=kind;EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    }
+    auto bad=request;bad.review={};EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=request;memset(bad.review.removed_choice,0,sizeof(bad.review.removed_choice));EXPECT_FALSE(aegis_package_execution_valid(&bad));
+    bad=request;strcpy(bad.review.result_choices,bad.review.initial_choices);EXPECT_FALSE(aegis_package_execution_valid(&bad));
+}
 TEST_F(PackageExecutionGuard, ReconciliationAppliesAllMarksIncludingUnchangedRootAndRetainsPrivateIntent) {
     Reconciliation();ASSERT_FALSE(HasFatalFailure());Begin();ASSERT_FALSE(HasFatalFailure());
     Finish(base+added,base_auto+app_auto,ESTALE);

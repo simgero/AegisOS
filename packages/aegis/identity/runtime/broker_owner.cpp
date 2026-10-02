@@ -1391,6 +1391,9 @@ static int transaction_target(const PackagePreparation& preparation,const Packag
     if(p.kind==AEGIS_PACKAGE_RECONCILE && (!target.personal || !target.has_previous
        || target.create || !target.fence_shared_current
        || target.previous.shared_base_sha256==target.expected_shared.image_sha256))return fail(EINVAL);
+    if(p.kind==AEGIS_PACKAGE_PRIVATE_REMOVE && (!target.personal || !target.has_previous
+       || target.create || !target.fence_shared_current
+       || target.previous.shared_base_sha256!=target.expected_shared.image_sha256))return fail(EINVAL);
     auto checked=target;checked.job=1;return PackagePublicationCheck(checked);
 }
 int BrokerPrepareTransaction(aegis_broker_owner* owner,const PackagePreparation& plan,

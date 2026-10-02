@@ -471,10 +471,21 @@ privaten und gemeinsamen Images; eine veraltete Basis wird zurückgewiesen.
 Er erteilt keine Freigabe, führt keine Paketänderung aus und aktiviert keinen
 Kontext. Der bisherige automatische Abgleich bleibt ein anderer Modus.
 
+Die separate Planbindung und Ausführungsart für die private Entfernung verlangen
+denselben gemeinsamen Basisbezug vor und nach der Operation. Sie binden den
+Antragsteller, die entfernte Auswahl, alle Paketwirkungen und den vollständigen
+erwarteten Bestand samt Installationsmarkierungen. Die Ausführung prüft unabhängig,
+dass genau diese Auswahl verschwindet und alle übrigen Auswahlen erhalten bleiben.
+Auch eine Entfernung ohne Versionsänderung benötigt diese Prüfung; sie führt
+keine Installationsskripte aus. Der interne Basisabgleich darf weiterhin überhaupt
+keine private Auswahl ändern. Das Ausführungsprotokoll hat dafür Version 7.
+
 Diese Komponenten sind noch nicht an den normalen CLI-Entfernungsauftrag
 angeschlossen. Offen sind dessen durchgängige Eigentümer-/Adminbindung,
-Resolver- und Planmetadaten, transparente Vorschau, Ausführung/Veröffentlichung
+Resolver- und Planmetadaten, transparente Vorschau, integrierte Ausführung/Veröffentlichung
 und der Systemnachweis. T15 ist damit ausdrücklich noch nicht erfüllt.
+Der bisherige Planner-Transport weist den neuen Modus bis zu seiner Erweiterung
+ausdrücklich zurück, damit dessen Bedeutung nicht beim Übertragen verloren geht.
 
 ## Nachweisgrenze
 

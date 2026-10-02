@@ -210,6 +210,14 @@ class RuntimePackageExecutor : public ::testing::Test {
         strcpy(plan.review.result_automatic,InputHash(PackageCanonicalAutomatic(marks)).c_str());
         ASSERT_EQ(0,PackageExecutionCheck(plan))<<strerror(errno);
     }
+    void PrivateRemovalReview(int before,int after) {
+        ReconciliationReview(before,after);ASSERT_FALSE(HasFatalFailure());
+        plan.kind=AEGIS_PACKAGE_PRIVATE_REMOVE;
+        const std::string choices="AEGIS-PRIVATE-CHOICES1\naegis-exec-app\tall\t"+std::to_string(before)+"\n";
+        ASSERT_EQ(0,WriteAt(candidate.get(),"var/lib/aegis/private-choices",choices,O_TRUNC));
+        strcpy(plan.review.initial_choices,choices.c_str());strcpy(plan.review.removed_choice,"aegis-exec-app");
+        ASSERT_EQ(0,PackageExecutionCheck(plan))<<strerror(errno);
+    }
     void RejectedBeforeScripts(int expected) {
         ASSERT_EQ(0,Start())<<strerror(errno);PackageExecutionResult result;
         ASSERT_EQ(0,Finish(&result));
@@ -417,6 +425,27 @@ TEST_F(RuntimePackageExecutor, ReconciliationWithNoEffectsChangesOnlyFullMarksWi
     Completed();ASSERT_FALSE(HasFailure());Remount();ASSERT_FALSE(HasFatalFailure());
     EXPECT_EQ(status,ControlFile(candidate.get(),"var/lib/dpkg/status"));EXPECT_EQ(scripts,ControlFile(candidate.get(),"var/log/aegis-exec-script"));
     EXPECT_EQ("",ControlFile(candidate.get(),"var/lib/apt/extended_states"));
+    EXPECT_EQ("AEGIS-PRIVATE-CHOICES1\n",ControlFile(candidate.get(),"var/lib/aegis/private-choices"));
+    EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),("var/log/aegis-package-"+job+".log").c_str()));
+}
+TEST_F(RuntimePackageExecutor, PrivateRemovalFallbackDowngradesMatchingDependencyAndPreservesConfiguration) {
+    Archives(2);Review(0,2);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
+    ASSERT_EQ(0,WriteAt(candidate.get(),"etc/aegis-exec.conf","private-setting=kept\n",O_TRUNC));
+    Remount();Archives(1);PrivateRemovalReview(2,1);ASSERT_FALSE(HasFatalFailure());
+    Completed();ASSERT_FALSE(HasFailure());Remount();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ("#!/bin/sh\necho app-1\n",ControlFile(candidate.get(),"usr/bin/aegis-exec-app"));
+    EXPECT_EQ("1\n",ControlFile(candidate.get(),"usr/share/aegis-exec-library"));
+    EXPECT_EQ("private-setting=kept\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));
+    EXPECT_EQ("AEGIS-PRIVATE-CHOICES1\n",ControlFile(candidate.get(),"var/lib/aegis/private-choices"));
+}
+TEST_F(RuntimePackageExecutor, PrivateRemovalSameVersionChangesManifestWithoutRunningPackageScripts) {
+    Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
+    const auto scripts=ControlFile(candidate.get(),"var/log/aegis-exec-script");
+    const auto status=ControlFile(candidate.get(),"var/lib/dpkg/status");
+    Remount();PrivateRemovalReview(1,1);ASSERT_FALSE(HasFatalFailure());const auto job=std::to_string(plan.job);
+    Completed();ASSERT_FALSE(HasFailure());Remount();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(status,ControlFile(candidate.get(),"var/lib/dpkg/status"));
+    EXPECT_EQ(scripts,ControlFile(candidate.get(),"var/log/aegis-exec-script"));
     EXPECT_EQ("AEGIS-PRIVATE-CHOICES1\n",ControlFile(candidate.get(),"var/lib/aegis/private-choices"));
     EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),("var/log/aegis-package-"+job+".log").c_str()));
 }

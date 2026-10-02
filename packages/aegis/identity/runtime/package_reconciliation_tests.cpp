@@ -209,6 +209,89 @@ PackageResolvedPlan ReconciliationPlan() {
                {"lib","all","1","2","source",{1024,std::string(64,'1')},PackageInstallReason::Automatic}};
     return p;
 }
+PackageResolvedPlan PrivateRemovalPlan() {
+    auto p=ReconciliationPlan();p.reconciliation=false;p.private_removal=true;
+    p.action=PackageAction::Remove;p.requested_package="app";
+    p.previous_shared=p.shared;p.previous.shared_base_sha256=p.shared.sha256;
+    p.reconciliation_evidence.previous_status_sha256=p.reconciliation_evidence.current_status_sha256;
+    p.reconciliation_evidence.previous_automatic_sha256=p.reconciliation_evidence.current_automatic_sha256;
+    p.initial_private_choices=Header+"app\tall\t1\nother\tall\t9\n";
+    p.reconciliation_evidence.roots+="other\n";
+    return p;
+}
+TEST(PackagePrivateRemovalBinding, BindsFallbackAndDependenciesWithoutChangingOtherChoicesOrBase) {
+    auto p=PrivateRemovalPlan();PackageBoundPlan b;
+    ASSERT_EQ(0,PackageBindPrivateRemovalPlan(p,1000,&b))<<strerror(errno);
+    EXPECT_EQ(AEGIS_PACKAGE_PRIVATE_REMOVE,b.preparation.execution.kind);
+    EXPECT_STREQ("app",b.preparation.execution.review.removed_choice);
+    EXPECT_EQ(Header+"other\tall\t9\n",std::string(b.preparation.execution.review.result_choices));
+    EXPECT_EQ(p.initial_private_choices,std::string(b.preparation.execution.review.initial_choices));
+    EXPECT_EQ(2u,b.preparation.archives.size());EXPECT_EQ(p.requester,b.publication.requester);
+    EXPECT_EQ(p.serial,b.publication.serial);EXPECT_TRUE(b.publication.fence_shared_current);
+    EXPECT_EQ(p.shared.sha256,b.publication.expected_shared.image_sha256);
+    EXPECT_EQ(b.publication.previous.shared_base_sha256,b.publication.candidate.shared_base_sha256);
+    EXPECT_EQ(b.preparation.execution.plan_sha256,b.publication.plan_sha256);
+}
+TEST(PackagePrivateRemovalBinding, SameVersionUnpinAndRetainedDependencyCanHaveNoPackageEffects) {
+    auto p=PrivateRemovalPlan();p.changes.clear();p.repositories.clear();PackageBoundPlan b;
+    ASSERT_EQ(0,PackageBindPrivateRemovalPlan(p,1000,&b))<<strerror(errno);
+    EXPECT_TRUE(b.preparation.execution.items.empty());EXPECT_EQ(0u,b.valid_until_unix);
+    auto first=b.publication.plan_sha256;p.reconciliation_evidence.roots="core\nother\n";
+    ASSERT_EQ(0,PackageBindPrivateRemovalPlan(p,1000,&b))<<strerror(errno);
+    EXPECT_NE(first,b.publication.plan_sha256); // same bytes may become a dependency
+}
+TEST(PackagePrivateRemovalBinding, RejectsMissingChoiceStaleBaseWrongActionAndWrongEndpoint) {
+    for(unsigned mode=0;mode<11;++mode) {
+        auto p=PrivateRemovalPlan();PackageBoundPlan b;b.publication.plan_sha256="unchanged";
+        if(mode==0)p.initial_private_choices=Header+"other\tall\t9\n";
+        if(mode==1)p.previous_shared.sha256=std::string(64,'a');
+        if(mode==2)p.previous_shared.bytes*=2;
+        if(mode==3)p.reconciliation_evidence.previous_status_sha256=std::string(64,'a');
+        if(mode==4)p.reconciliation_evidence.previous_automatic_sha256=std::string(64,'a');
+        if(mode==5)p.action=PackageAction::Update;
+        if(mode==6)p.personal=false;if(mode==7)p.create_store=true;
+        if(mode==8)p.has_previous=false;if(mode==9)p.reconciliation=true;
+        if(mode==10)p.initial_private_choices.clear();
+        EXPECT_EQ(-1,PackageBindPrivateRemovalPlan(p,1000,&b))<<mode;
+        EXPECT_EQ("unchanged",b.publication.plan_sha256);
+    }
+    auto p=PrivateRemovalPlan();PackageBoundPlan b;
+    EXPECT_EQ(-1,PackageBindResolvedPlan(p,1000,&b));EXPECT_EQ(EOPNOTSUPP,errno);
+    EXPECT_EQ(-1,PackageBindReconciliationPlan(p,1000,&b));EXPECT_EQ(EOPNOTSUPP,errno);
+    aegis_planning_evidence wire={};EXPECT_EQ(-1,planning_wire::Encode(p,&wire));EXPECT_EQ(EOPNOTSUPP,errno);
+}
+TEST(PackagePrivateRemovalBinding, RejectsChangedRemainingChoiceMissingRootAndWrongInitialVersion) {
+    for(unsigned mode=0;mode<4;++mode) {
+        auto p=PrivateRemovalPlan();PackageBoundPlan b;
+        if(mode==0)p.reconciliation_evidence.roots="app\ncore\n";
+        if(mode==1)p.changes[0].before_version="8";
+        if(mode==2)p.changes[0].reason=PackageInstallReason::Automatic;
+        if(mode==3)p.changes.push_back({"other","all","9","","",{},PackageInstallReason::Manual});
+        EXPECT_EQ(-1,PackageBindPrivateRemovalPlan(p,1000,&b));EXPECT_EQ(ESTALE,errno)<<mode;
+    }
+}
+TEST(PackagePrivateRemovalBinding, ApprovalDigestBindsOwnerIntentAllEffectsAndFullResult) {
+    auto p=PrivateRemovalPlan();p.changes.clear();p.repositories.clear();PackageBoundPlan first;
+    ASSERT_EQ(0,PackageBindPrivateRemovalPlan(p,1000,&first));
+    for(unsigned mode=0;mode<6;++mode) {
+        auto changed=p;PackageBoundPlan b;
+        if(mode==0)changed.requester=11;if(mode==1)changed.serial=43;
+        if(mode==2)changed.requested_package="other";
+        if(mode==3)changed.reconciliation_evidence.result_registry_sha256=std::string(64,'a');
+        if(mode==4)changed.reconciliation_evidence.result_automatic_sha256=std::string(64,'a');
+        if(mode==5)changed=PrivateRemovalPlan();
+        ASSERT_EQ(0,PackageBindPrivateRemovalPlan(changed,1000,&b))<<mode<<": "<<strerror(errno);
+        EXPECT_NE(first.publication.plan_sha256,b.publication.plan_sha256);
+    }
+}
+TEST(PackagePrivateRemovalBinding, ExplicitRemovalWithoutCommonCounterpartBindsRemovalEffects) {
+    auto p=PrivateRemovalPlan();p.repositories.clear();p.reconciliation_evidence.roots="core\nother\n";
+    p.changes={{"app","all","1","","",{},PackageInstallReason::Manual},
+               {"lib","all","1","","",{},PackageInstallReason::Automatic}};
+    PackageBoundPlan b;ASSERT_EQ(0,PackageBindPrivateRemovalPlan(p,1000,&b))<<strerror(errno);
+    EXPECT_TRUE(b.preparation.archives.empty());EXPECT_EQ(2u,b.preparation.execution.items.size());
+    EXPECT_EQ(AEGIS_PACKAGE_PRIVATE_REMOVE,b.preparation.execution.kind);
+}
 TEST(PackageReconciliationBinding, BindsPrivateSourceAndNewBaseWithoutChangingPrivateIntent) {
     auto p=ReconciliationPlan();PackageBoundPlan b;ASSERT_EQ(0,PackageBindReconciliationPlan(p,1000,&b))<<strerror(errno);
     EXPECT_EQ(p.source.sha256,b.preparation.image.sha256);EXPECT_EQ(p.previous.image_sha256,b.publication.previous.image_sha256);

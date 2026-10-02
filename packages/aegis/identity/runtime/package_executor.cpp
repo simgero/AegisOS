@@ -46,7 +46,7 @@ bool Encode(const PackageExecution& plan, aegis_package_execution_request* r) {
     r->user = plan.requester;r->serial = plan.serial;r->job = plan.job;
     r->kind = plan.kind;
     r->review=plan.review;
-    if (plan.plan_sha256.size() != 64 || (plan.items.empty() && plan.kind!=AEGIS_PACKAGE_RECONCILE) || plan.items.size() > AEGIS_PACKAGE_EXEC_ITEMS) return false;
+    if (plan.plan_sha256.size() != 64 || (plan.items.empty() && !aegis_package_projects_registry(plan.kind)) || plan.items.size() > AEGIS_PACKAGE_EXEC_ITEMS) return false;
     memcpy(r->plan, plan.plan_sha256.data(), 64);r->count = plan.items.size();
     for (size_t i = 0; i < plan.items.size(); i++) {
         if (plan.items[i].size() >= AEGIS_PACKAGE_EXEC_NAME || plan.items[i].find('\0') != std::string::npos) return false;

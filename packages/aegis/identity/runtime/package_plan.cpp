@@ -44,14 +44,18 @@ struct Encoding {
     }
 };
 }
-static int Bind(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* output,bool reconciliation) {
-    if(p.reconciliation!=reconciliation)return Fail(EOPNOTSUPP);
+static int Bind(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* output,bool reconciliation,bool private_removal=false) {
+    if(p.reconciliation!=reconciliation || p.private_removal!=private_removal)return Fail(EOPNOTSUPP);
+    const bool projected=reconciliation || private_removal;
     const auto& re=p.reconciliation_evidence;
     std::set<std::string> roots;
-    if(reconciliation) {
-        if(!p.personal||!p.has_previous||p.create_store||p.action!=PackageAction::Update
+    if(projected) {
+        if(!p.personal||!p.has_previous||p.create_store||p.action!=(private_removal?PackageAction::Remove:PackageAction::Update)
            ||!Image(p.previous_shared)||p.previous_shared.sha256!=p.previous.shared_base_sha256)return Fail(EINVAL);
-        if(p.previous_shared.sha256==p.shared.sha256)return Fail(EALREADY);
+        if(reconciliation && p.previous_shared.sha256==p.shared.sha256)return Fail(EALREADY);
+        if(private_removal && (!Same(p.previous_shared,p.shared)
+           || re.previous_status_sha256!=re.current_status_sha256
+           || re.previous_automatic_sha256!=re.current_automatic_sha256))return Fail(ESTALE);
         for(const auto* h:{&re.previous_status_sha256,&re.previous_automatic_sha256,
               &re.current_status_sha256,&re.current_automatic_sha256,&re.solver_automatic_sha256,
               &re.result_registry_sha256,&re.result_automatic_sha256})if(!Hash(*h))return Fail(EINVAL);
@@ -79,8 +83,8 @@ static int Bind(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* outp
         if(p.personal && !reconciliation && p.previous.shared_base_sha256!=p.shared.sha256)return Fail(ESTALE);
     } else if(!Empty(p.previous) || !Same(p.source,p.shared))return Fail(EINVAL);
     if(!p.personal && !Same(p.source,p.shared))return Fail(EINVAL);
-    if(p.changes.empty() && !reconciliation)return Fail(EALREADY); // No job/approval for a no-op.
-    const bool selection=!reconciliation && p.changes.size()==1 && !p.changes[0].before_version.empty()
+    if(p.changes.empty() && !projected)return Fail(EALREADY); // No job/approval for a no-op.
+    const bool selection=!projected && p.changes.size()==1 && !p.changes[0].before_version.empty()
         && p.changes[0].before_version==p.changes[0].after_version;
     if(selection && (p.action!=PackageAction::Install
        || p.changes[0].name!=p.requested_package || p.changes[0].reason!=PackageInstallReason::Manual))return Fail(EINVAL);
@@ -101,11 +105,11 @@ static int Bind(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* outp
         pub.allow_factory_shared=!reconciliation && p.shared.sha256==p.planner_image_sha256;
         pub.expected_shared={p.shared.sha256,"",p.shared.bytes};
     }
-    Encoding e;e.Text("org.aegisos.package.resolved-plan");e.Number(reconciliation?5:6);
+    Encoding e;e.Text("org.aegisos.package.resolved-plan");e.Number(private_removal?7:reconciliation?5:6);
     e.Number(p.requester);e.Number(p.serial);e.Number(p.personal);e.Number(p.create_store);e.Number(p.has_previous);
     e.Number(static_cast<uint32_t>(p.action));e.Text(p.requested_package);e.Text(p.requested_version);
     e.Input(p.source);e.Input(p.shared);e.Generation(p.previous);
-    if(reconciliation) {
+    if(projected) {
         e.Number(1);e.Input(p.previous_shared);
         e.Text(re.roots);e.Text(re.previous_status_sha256);e.Text(re.previous_automatic_sha256);
         e.Text(re.current_status_sha256);e.Text(re.current_automatic_sha256);e.Text(re.solver_automatic_sha256);
@@ -125,7 +129,7 @@ static int Bind(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* outp
         if(!bound.valid_until_unix || repo.valid_until_unix<bound.valid_until_unix)bound.valid_until_unix=repo.valid_until_unix;
         e.Text(repo.id);e.Text(repo.release_sha256);e.Text(repo.index_sha256);e.Number(repo.valid_until_unix);
     }
-    e.Number(p.changes.size());previous.clear();uint64_t archive_total=0;bool requested=p.action==PackageAction::Update;
+    e.Number(p.changes.size());previous.clear();uint64_t archive_total=0;bool requested=p.action==PackageAction::Update || private_removal;
     for(const auto& c:p.changes) {
         if(!PackagePlanNameValid(c.name) || (!previous.empty() && previous>=c.name) || (c.architecture!="arm64"&&c.architecture!="all")
            || (!c.before_version.empty() && !PackagePlanVersionValid(c.before_version))
@@ -133,7 +137,7 @@ static int Bind(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* outp
            || (!selection && c.before_version==c.after_version)
            || (c.reason!=PackageInstallReason::Manual && c.reason!=PackageInstallReason::Automatic))return Fail(EINVAL);
         previous=c.name;
-        if(reconciliation && !c.after_version.empty() && c.reason!=(roots.count(c.name)
+        if(projected && !c.after_version.empty() && c.reason!=(roots.count(c.name)
            ? PackageInstallReason::Manual : PackageInstallReason::Automatic))return Fail(ESTALE);
         if(!selection && !c.after_version.empty()) {
             if(!c.archive.bytes || c.archive.bytes>(uint64_t{2}<<30) || !Hash(c.archive.sha256))return Fail(EINVAL);
@@ -146,7 +150,7 @@ static int Bind(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* outp
             exec.items.push_back(c.name);
         }
         if(c.name==p.requested_package) {
-            if((p.action==PackageAction::Remove)!=c.after_version.empty())return Fail(EINVAL);
+            if(!private_removal && (p.action==PackageAction::Remove)!=c.after_version.empty())return Fail(EINVAL);
             if(!p.requested_version.empty() && c.after_version!=p.requested_version)return Fail(ESTALE);
             requested=true;
         }
@@ -163,18 +167,31 @@ static int Bind(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* outp
     if(p.personal && p.has_previous && p.initial_private_choices.empty())return Fail(ENODATA);
     if((!p.personal || !p.has_previous) && !p.initial_private_choices.empty())return Fail(EINVAL);
     std::string desired;
+    if(private_removal) {
+        if(PackagePrivateChoicesRemove(p.initial_private_choices,p.requested_package,&desired)<0)return -1;
+        PackagePrivateChoices choices;if(PackagePrivateChoicesDecode(p.initial_private_choices,&choices)<0)return -1;
+        for(const auto& c:p.changes) {
+            auto found=choices.find(c.name);
+            if(found!=choices.end() && (found->second.version!=c.before_version
+               || found->second.architecture!=c.architecture
+               || (c.name!=p.requested_package && c.after_version!=found->second.version)))return Fail(ESTALE);
+        }
+        choices.erase(p.requested_package);
+        for(const auto& [name,value]:choices)if(!roots.count(name))return Fail(ESTALE);
+        memcpy(exec.review.removed_choice,p.requested_package.c_str(),p.requested_package.size()+1);
+    }
     if(reconciliation) {
         PackagePrivateChoices choices;if(PackagePrivateChoicesDecode(p.initial_private_choices,&choices)<0)return -1;
         for(const auto& [name,value]:choices)if(!roots.count(name))return Fail(ESTALE);
         desired=p.initial_private_choices;
     }
-    if(p.personal && !reconciliation && PackagePrivateChoicesApply(p.initial_private_choices,p.action,p.requested_package,
+    if(p.personal && !projected && PackagePrivateChoicesApply(p.initial_private_choices,p.action,p.requested_package,
                                                p.requested_version,p.changes,&desired)<0)return -1;
     if(selection && desired==p.initial_private_choices)return Fail(EALREADY);
     e.Text(p.initial_private_choices);e.Text(desired);
     memcpy(exec.review.initial_choices,p.initial_private_choices.c_str(),p.initial_private_choices.size()+1);
     memcpy(exec.review.result_choices,desired.c_str(),desired.size()+1);
-    exec.kind=reconciliation?AEGIS_PACKAGE_RECONCILE:selection?AEGIS_PACKAGE_SELECTION:prep.archives.empty()?AEGIS_PACKAGE_REMOVE
+    exec.kind=private_removal?AEGIS_PACKAGE_PRIVATE_REMOVE:reconciliation?AEGIS_PACKAGE_RECONCILE:selection?AEGIS_PACKAGE_SELECTION:prep.archives.empty()?AEGIS_PACKAGE_REMOVE
         :prep.archives.size()==exec.items.size()?AEGIS_PACKAGE_ARCHIVES:AEGIS_PACKAGE_MIXED;
     std::string digest=e.Digest();if(digest.empty())return Fail(EIO);
     exec.plan_sha256=digest;pub.plan_sha256=digest;
@@ -189,5 +206,8 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& p,uint64_t now,PackageBou
 }
 int PackageBindReconciliationPlan(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* out) {
     return Bind(p,now,out,true);
+}
+int PackageBindPrivateRemovalPlan(const PackageResolvedPlan& p,uint64_t now,PackageBoundPlan* out) {
+    return Bind(p,now,out,false,true);
 }
 } // namespace aegis

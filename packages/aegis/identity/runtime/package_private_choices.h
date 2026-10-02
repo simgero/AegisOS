@@ -13,6 +13,9 @@ constexpr const char* kPrivateChoicesPath="var/lib/aegis/private-choices";
 // a present empty selection has a version header. No caller path or authority.
 int PackagePrivateChoicesDecode(const std::string& text,PackagePrivateChoices* output);
 int PackagePrivateChoicesEncode(const PackagePrivateChoices& choices,std::string* output);
+// Remove exactly one existing explicit choice, retaining every other entry.
+// This changes intent only; the resolver separately proves a consistent result.
+int PackagePrivateChoicesRemove(const std::string& before,const std::string& requested,std::string* after);
 // Apply an explicitly approved intent to already validated complete effects.
 // Unchanged explicit installs use canonical frozen installed version evidence;
 // never infer ownership from a file diff.

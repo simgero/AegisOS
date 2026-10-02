@@ -49,6 +49,9 @@ template<size_t N> inline bool Text(char (&to)[N],const std::string& from) {
     memcpy(to,from.data(),from.size());return true;
 }
 inline int Encode(const PackageResolvedPlan& p,aegis_planning_evidence* output) {
+    // Private removal has its own binder/execution mode. Its planner transport
+    // is not connected yet; never silently discard that distinction.
+    if(p.private_removal)return errno=EOPNOTSUPP,-1;
     aegis_planning_evidence e={};
     if(p.repositories.size()>16 || p.changes.size()>AEGIS_PACKAGE_EXEC_ITEMS) { errno=E2BIG;return -1; }
     e.reconciliation=p.reconciliation;e.repositories=p.repositories.size();e.changes=p.changes.size();

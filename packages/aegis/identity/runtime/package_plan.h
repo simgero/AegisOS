@@ -39,6 +39,9 @@ struct PackageResolvedPlan {
     // Reconciliation evidence cannot enter the ordinary transaction binder.
     // A separate binder binds all three generations; activation remains owner-controlled.
     bool reconciliation=false;
+    // Explicit personal Remove, with fresh approval, on the current common base.
+    // Mutually exclusive with internal base reconciliation.
+    bool private_removal=false;
     PackageAction action=PackageAction::Install;
     std::string requested_package, requested_version;
     PackageInput source, shared, previous_shared;
@@ -85,5 +88,6 @@ int PackageBindResolvedPlan(const PackageResolvedPlan& plan,uint64_t now_unix,
 // provenance and complete resolver evidence. It grants no authorization and
 // does not register runtime admission or shared-current publication fencing.
 int PackageBindReconciliationPlan(const PackageResolvedPlan&,uint64_t now_unix,PackageBoundPlan*);
+int PackageBindPrivateRemovalPlan(const PackageResolvedPlan&,uint64_t now_unix,PackageBoundPlan*);
 } // namespace aegis
 #endif

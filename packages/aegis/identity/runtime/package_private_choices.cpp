@@ -39,6 +39,13 @@ int PackagePrivateChoicesDecode(const std::string& text,PackagePrivateChoices* o
     }
     *output=std::move(data);return 0;
 }
+int PackagePrivateChoicesRemove(const std::string& before,const std::string& requested,std::string* after) {
+    if(!after || !PackagePlanNameValid(requested))return Fail(EINVAL);
+    if(before.empty())return Fail(ENODATA);
+    PackagePrivateChoices choices;if(PackagePrivateChoicesDecode(before,&choices)<0)return -1;
+    if(!choices.erase(requested))return Fail(ENOENT);
+    return PackagePrivateChoicesEncode(choices,after);
+}
 int PackageSameVersionSelection(const std::string& status,const std::string& automatic,
     const std::string& requested,const std::string& version,PackageChange* output) {
     if(!output || !PackagePlanNameValid(requested) || (!version.empty()&&!PackagePlanVersionValid(version)))return Fail(EINVAL);

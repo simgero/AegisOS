@@ -120,7 +120,17 @@ extern "C" int aegis_package_guard_begin(int root,const aegis_package_execution_
     for(auto it=p->automatic.begin();it!=p->automatic.end();) {
         if(!p->expected.count(*it))it=p->automatic.erase(it);else ++it;
     }
-    if(r->kind==AEGIS_PACKAGE_RECONCILE) {
+    if(r->kind==AEGIS_PACKAGE_PRIVATE_REMOVE) {
+        std::string desired;
+        if(aegis::PackagePrivateChoicesRemove(r->review.initial_choices,r->review.removed_choice,&desired)<0) {
+            int e=errno;delete p;return Fail(e);
+        }
+        if(desired!=r->review.result_choices) { delete p;return Fail(ESTALE); }
+        aegis::PackagePrivateChoices choices;
+        if(aegis::PackagePrivateChoicesDecode(r->review.initial_choices,&choices)<0) { int e=errno;delete p;return Fail(e); }
+        for(const auto& [name,value]:choices)if(p->automatic.count(name)) { delete p;return Fail(ESTALE); }
+    }
+    if(aegis_package_projects_registry(r->kind)) {
         std::vector<aegis::PackageAptEffect> effects;
         for(unsigned i=0;i<r->count;++i) {
             const auto& e=r->review.effects[i];effects.push_back({e.name,e.architecture,e.before,e.after,e.reason==2});
@@ -133,7 +143,7 @@ extern "C" int aegis_package_guard_begin(int root,const aegis_package_execution_
            ||Hash(aegis::PackageCanonicalAutomatic(automatic))!=r->review.result_automatic) { delete p;return Fail(ESTALE); }
         p->expected=std::move(expected);p->automatic=std::move(automatic);
     }
-    for(unsigned i=0;r->kind!=AEGIS_PACKAGE_RECONCILE && i<r->count;++i) {
+    for(unsigned i=0;!aegis_package_projects_registry(r->kind) && i<r->count;++i) {
         const auto& e=r->review.effects[i];auto current=p->expected.find(e.name);
         if(!aegis::PackagePlanNameValid(e.name)||(*e.before&&!aegis::PackagePlanVersionValid(e.before))
            ||(*e.after&&!aegis::PackagePlanVersionValid(e.after))
@@ -148,6 +158,11 @@ extern "C" int aegis_package_guard_begin(int root,const aegis_package_execution_
         }
     }
     if(MatchChoices(r->review.result_choices,p->expected)<0) { int e=errno;delete p;return Fail(e); }
+    if(r->kind==AEGIS_PACKAGE_PRIVATE_REMOVE) {
+        aegis::PackagePrivateChoices choices;
+        if(aegis::PackagePrivateChoicesDecode(r->review.result_choices,&choices)<0) { int e=errno;delete p;return Fail(e); }
+        for(const auto& [name,value]:choices)if(p->automatic.count(name)) { delete p;return Fail(ESTALE); }
+    }
     *out=p;return 0;
 }
 extern "C" int aegis_package_guard_simulation(aegis_package_guard* p,int fd) {
@@ -158,7 +173,7 @@ extern "C" int aegis_package_guard_simulation(aegis_package_guard* p,int fd) {
     // archive argv, only removal terms remain: bare names for remove, explicit
     // name- terms for mixed install. Every effect is compared to the review.
     for(unsigned i=0;i<r.count;++i)if(!aegis_package_has_archive(&r,i))
-        args.push_back(std::string(r.items[i])+((r.kind==AEGIS_PACKAGE_MIXED||r.kind==AEGIS_PACKAGE_RECONCILE)?"-":""));
+        args.push_back(std::string(r.items[i])+((r.kind==AEGIS_PACKAGE_MIXED||aegis_package_projects_registry(r.kind))?"-":""));
     std::vector<aegis::PackageAptEffect> actual;
     if(aegis::PackageReadAptOperation(json,r.kind==AEGIS_PACKAGE_REMOVE?"remove":"install",args,&actual)<0)return -1;
     if(actual.size()!=r.count)return Fail(ESTALE);
@@ -183,7 +198,7 @@ extern "C" int aegis_package_guard_finish(aegis_package_guard* p,int root) {
     return CheckChoices(root,p->request.review.initial_choices);
 }
 extern "C" int aegis_package_guard_reconcile_marks(aegis_package_guard* p,int root) {
-    if(!p||p->request.kind!=AEGIS_PACKAGE_RECONCILE)return Fail(EINVAL);
+    if(!p||!aegis_package_projects_registry(p->request.kind))return Fail(EINVAL);
     std::string status,old;Installed actual;std::set<std::string> old_marks;
     if(Read(root,"var/lib/dpkg/status",64u<<20,&status)<0
        ||aegis::PackageReadInstalledRegistry(status,&actual)<0)return -1;

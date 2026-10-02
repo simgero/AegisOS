@@ -34,7 +34,7 @@ struct PackageExecution {
 // Call only after PackageExecutionCheck/PackagePreparationCheck succeeds.
 inline bool PackageExecutionHasArchive(const PackageExecution& p, size_t i) {
     return i<p.items.size() && (p.kind==AEGIS_PACKAGE_ARCHIVES
-        || ((p.kind==AEGIS_PACKAGE_MIXED || p.kind==AEGIS_PACKAGE_RECONCILE) && p.review.effects[i].after[0]));
+        || ((p.kind==AEGIS_PACKAGE_MIXED || aegis_package_projects_registry(p.kind)) && p.review.effects[i].after[0]));
 }
 enum class PackageExecutionOutcome { Unconfirmed, Failed, NeedsValidation, Published };
 struct PackageExecutionResult {
