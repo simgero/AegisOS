@@ -210,3 +210,28 @@ Konfiguration wurden anschließend bytegleich gelesen, die alte `/tmp`-Probe
 war verschwunden. Neue Proben für Konfiguration, Test-Secret, `/tmp` und `/run`
 sind von beiden Benutzern in GNU erzeugt. Beide Hintergrundjobs sind auf zwei
 Stunden begrenzt; gegenseitige Datei-/Prozess-/IPC-Prüfungen laufen.
+
+
+## Gegenseitige Isolation und Runtime-Stopp im Versionslauf
+
+Beide Benutzer bestehen die GNU-Lese-/Signalversuche mit lebendem fremdem
+Prozess vor und nach der Aktion sowie getrennten Host-IDs und sechs getrennten
+Namespaces. Zusätzliche Lese-/Schreibversuche auf Konfiguration, Test-Secrets,
+`/tmp` und `/run` sind beidseitig abgewiesen; die tatsächlich vorhandenen fremden
+Bytes bleiben gleich. Beide POSIX-Mqueue-Prüfungen bestehen. Beta kann auch
+Alphas vorhandene private Paketauswahl nicht lesen/verändern. Beta besitzt an
+diesem Punkt keine eigene private Paketauswahl; deren Fehlen zählt ausdrücklich
+nicht als bestandener Metadaten-Isolationstest in Gegenrichtung.
+
+Ein echter Login über eine zweite CLI widerruft Betas offene GNU-PTY und die
+alte Terminalberechtigung. Betas ursprünglicher Hintergrundprozess bleibt mit
+seiner eigenen Identität aktiv. Alphas anschließender `linux stop` entfernt
+nur dessen ursprünglichen Prozess und Kontext; Sitzung, CE-Liste und Betas
+ursprünglicher Prozess bleiben erhalten. Nach erneutem Start sind Alphas
+persistente Proben bytegleich, alte temporäre Dateien und Message Queues weg.
+Erst danach wird eine neue begrenzte Alpha-Hintergrundprobe angelegt; der
+ursprüngliche Prozess wird nicht nachträglich als überlebend ausgegeben.
+
+Beleg: `isolation-and-runtime-stop-before-reboot.json`, SHA-256
+`80698c455ddf255bb297667c33756071cc9eaea56b33645d856a60a62ed8c42b`.
+Bildschirmsperre, vollständiger Logout und gepaarter Neustart folgen gesondert.
