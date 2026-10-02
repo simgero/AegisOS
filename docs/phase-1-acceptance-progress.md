@@ -313,3 +313,21 @@ Dieser Lauf schließt die beschriebenen Persistenz-/Passwortvarianten. D1–D7
 und T01–T17 bleiben bis zur vollständigen ergänzenden Matrix insgesamt offen.
 Insbesondere Updates, Entfernung/Rückkehr, Parallelität, Löschung/ID-Reuse
 und der nachträglich angelegte Benutzer sind noch zu ergänzen.
+
+
+## Private Auswahl eines normalen Benutzers mit gesperrtem Administrator
+
+Beta hält nach dem Reboot über die echte CLI `jq=1.7.1-6+deb13u3` ausdrücklich
+privat fest. Der Plan zeigt die unveränderte Version und die private Auswahl
+vor der Freigabe. Alphas frische AOSP-Adminbestätigung veröffentlicht die
+private Generation `f13b9e50578621cd37b36b2f3112ef181a97694aadc99ca24b22bdb085b97285`
+für **Beta 11/11**, nicht für den bestätigenden Administrator. Gemeinsame
+Generation und ursprünglicher Beta-Hintergrundprozess bleiben erhalten.
+
+AOSP meldet vor und nach der Bestätigung ausschließlich CE `[0, 11]`;
+Alphas bekannte private Paketauswahl bleibt unlesbar. Die Laufzeitaktivierung
+dieser Auswahl und ihre Erhaltung beim gemeinsamen Update stehen noch aus.
+Beleg `beta-private-owner-approval-proof.json`, SHA-256
+`e40ba57a592de1125bc2fedc61aa1cd02a686b46000a8425491349adc157c108`.
+Die Beobachtung erteilt dem bestätigenden Administrator kein zusätzliches
+persönliches Leserecht. Die gesamte Autorisierungsmatrix bleibt offen.
