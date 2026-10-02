@@ -2,10 +2,14 @@
 
 Beginn: 1. Oktober 2026. Ziel ist die vollständige
 [DoD](architecture/phase-1-dod.md), einschließlich aller Varianten T01–T17.
-**Status: aktiv, keine vollständige Abnahme.** Aktueller integrierter Prüfstand:
-Image `31551159cd11d66b0fa18442b5f62106edf4bfb5`, Profil
-`1c53b76e-bb1d-4ed6-a0df-7bbc21f2cfee`. Erster normaler Boot, Bedienung,
-ADB und 27 gezielte Java-Tests sind bestanden. Der gepaarte Wiederholungsstart
+**Status: aktiv, keine vollständige Abnahme.** Aktueller Prüfstand:
+Image `20d7d6d33fb3243cd87d0eb90fa2fd09bd2cc178`, Profil
+`06adfa48-f55f-46b7-a962-82bef7af5e83`. Normaler Boot und vier gezielte native
+Pakettests sind bestanden; der neue persönliche CLI-Ablauf steht noch aus.
+Die folgenden früheren integrierten Belege gehören zu Image
+`31551159cd11d66b0fa18442b5f62106edf4bfb5`, Profil
+`1c53b76e-bb1d-4ed6-a0df-7bbc21f2cfee`: normaler Boot, Bedienung,
+ADB und 27 gezielte Java-Tests. Der dortige gepaarte Wiederholungsstart
 mit bytegleichen persönlichen Daten und getrennten jq-Versionen ist ebenfalls
 belegt. Das anschließende gemeinsame Update scheitert beim nativen Paketstart
 an der Steuerkanalfrist; die ausgewählten Paketgenerationen bleiben unverändert,
@@ -908,3 +912,39 @@ Beleg `native-corrected-build-receipt.json`, SHA-256
 Das neue Profilpaar `06adfa48-f55f-46b7-a962-82bef7af5e83` startet regulär mit
 Image `20d7d6d`. Die korrigierten Tests und der echte CLI-Updateablauf sind an
 diesem Prüfpunkt noch nicht bestanden. T16 und die vollständige DoD bleiben offen.
+
+
+## Vier korrigierte Pakettests und normaler Boot auf 20d7d6d bestanden
+
+Alle vier ausgewählten `RuntimePackageExecutor`-Fälle bestehen im neuen
+Vollimage mit Teststand `30125695024ab851a146eb756adf48a1fa839a57`:
+ungültige Root-Kennzeichnung, ungültige Kennzeichnung einer verschachtelten
+Datei, geprüfte Installation/Aktualisierung/Entfernung mit erhaltenen
+Konfigurationsbytes und Abhängigkeitsmarkierungen sowie eine private Auswahl
+derselben Version ohne erneute Installation, auch nach erneutem Mounten.
+Die beiden Kennzeichnungsfälle bestätigen die Ablehnung nach erfolgreicher
+Einrichtung, aber vor Debian-Programmen und Paketskripten. Der zuvor beobachtete
+`EBUSY`-Fixturefehler tritt nach Schließen des Schreibdeskriptors nicht mehr auf.
+
+Die vier Fälle benötigen zusammen rund 337 Sekunden einschließlich
+Hostbeobachtung; Exitcode 0, keine übersprungenen Fälle. Vorher und nachher
+gelten Boot-ID `34a66c93-f598-471b-9ef0-f4db218dbbe6`, SystemServer-PID 1349,
+SELinux Enforcing und CE `[0]`. Beleg:
+`out/phase1-dod/20d7d6d/native-selected-corrected/result.json`, SHA-256
+`1bc20cc773f6c379845115a761528a4344297f6778ed2ca941e27c7ce9c52d9f`.
+Der frühere fehlgeschlagene/unvollständige Lauf bleibt separat erhalten.
+
+Der normale Erstboot bestätigt authentifiziertes ADB, FBE, `managed-v1` und den
+erwarteten AVB-Digest. Die Bootanimation endet mit Status 0. Ein tatsächlicher
+QMP-Bildschirm zeigt die normale Android-Sperransicht in 720 × 1280. Der
+eingefrorene Boot-/Testabschnitt enthält keine Fatal-Signal-, FORTIFY-,
+Watchdog-Kill-, Java-Fatal- oder ANR-Meldungen. Andere Init-Rückgabecodes und
+beendete Dienste sind im Beleg ausdrücklich erhalten; dies ist keine vollständige
+D1-Abnahme. Beleg `boot-observation/result.json` unter demselben Verzeichnis,
+SHA-256 `e052a80ce81dcf33fa7212ded6a2a7ef59a5090c81dab2efd06fdc1b2025dbfe`.
+
+Die Pakettests benutzen eigene inaktive ext4-Kopien und synthetische Pakete.
+Sie ersetzen weder AOSP-Adminfreigabe noch den tatsächlichen gemeinsamen
+CLI-Updateablauf mit zwei privaten Versionen. T16 und der vollständige
+Referenzablauf müssen auf diesem Stand noch ausgeführt werden; T15 enthält
+weiterhin die offene private Entfernung mit Rückkehr zur gemeinsamen Variante.
