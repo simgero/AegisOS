@@ -53,6 +53,9 @@ int PackageExecutionCheck(const PackageExecution& plan);
 // Copies all caller FDs, retains every partial resource in *output on failure.
 // Register *output before releasing AOSP admission; close originals separately.
 // One common absolute CLOCK_MONOTONIC ns deadline, at most10s from now.
+// Success acknowledges confinement and ownership, not candidate validation.
+// Full-tree label checks run asynchronously, before any Debian process; their
+// result is collected by Finish along with all other execution checks.
 int PackageExecutorStart(int groups, int stage, int candidate, int helper,
                          const PackageExecution& plan, uint64_t deadline,
                          PackageExecutor** output);

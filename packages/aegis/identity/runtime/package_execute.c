@@ -494,7 +494,7 @@ int aegis_package_execute(uint32_t user, uint32_t serial, int permit_unbound_fix
             || syscall(SYS_pivot_root, ".", ".") < 0 || umount2(".", MNT_DETACH) < 0
             || chdir("/") < 0 || readback() < 0) return setup_failed(&request);
     int root = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (root < 0 || aegis_package_candidate_labels(root,1)<0) return setup_failed(&request);
+    if (root < 0) return setup_failed(&request);
     for (unsigned i = 0; i < request.count; i++) if(aegis_package_has_archive(&request,i)) {
         char path[AEGIS_PACKAGE_EXEC_NAME + 32];
         snprintf(path, sizeof(path), "var/cache/apt/archives/%s", request.items[i]);
@@ -511,7 +511,14 @@ int aegis_package_execute(uint32_t user, uint32_t serial, int permit_unbound_fix
     struct verification_baseline baseline={0};
     struct aegis_package_guard *guard=NULL;
     uint32_t error=0;
-    if(request.review.present && aegis_package_guard_begin(root,&request,&guard)<0)error=errno;
+    // READY acknowledges the confined, lifecycle-owned worker, not a checked
+    // candidate. Walking the complete filesystem is proportional to its size
+    // and must not hold the short broker admission/control-channel deadline.
+    // Keep the full label check before the guard and before ANY Debian process.
+    // It needs only reads allowed by the already installed worker sandbox.
+    // Failure is returned through DONE; the candidate is never published.
+    if(aegis_package_candidate_labels(root,1)<0)error=errno;
+    if(!error && request.review.present && aegis_package_guard_begin(root,&request,&guard)<0)error=errno;
     if(!error)error=run_command(&request,PACKAGE_VERIFY_BASELINE,&result);
     if (!error) {
         if (verify_output(root,request.job,result,&baseline,1)<0) error=errno;

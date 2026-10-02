@@ -303,6 +303,23 @@ TEST_F(RuntimePackageExecutor, ExecutesActualInstallUpgradeRemoveAndClosesOwnedR
     EXPECT_EQ("personal=kept\n",AptImageFixture::read(candidate.get(),"etc/aegis-exec.conf"));
     EXPECT_NE(std::string::npos,AptImageFixture::read(candidate.get(),"var/log/aegis-exec-script").find("prerm\n"));
 }
+TEST_F(RuntimePackageExecutor, WrongRootLabelFailsAfterAdmissionBeforeDebianPrograms) {
+    Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());
+    unique_fd root(openat(candidate.get(),".",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(root.ok());
+    const char foreign[]="u:object_r:shell_data_file:s0";
+    ASSERT_EQ(0,fsetxattr(root.get(),"security.selinux",foreign,sizeof(foreign),0));
+    RejectedBeforeScripts(EPERM);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),"var/log/aegis-package-1-verify-before.log"));
+}
+TEST_F(RuntimePackageExecutor, WrongNestedLabelFailsAfterAdmissionBeforeDebianPrograms) {
+    Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());
+    // A plain file in the exclusive fixture, never a selected generation.
+    unique_fd file(openat(candidate.get(),"usr/share/aegis-label-fixture",O_CREAT|O_EXCL|O_WRONLY|O_CLOEXEC,0600));
+    ASSERT_TRUE(file.ok());const char foreign[]="u:object_r:shell_data_file:s0";
+    ASSERT_EQ(0,fsetxattr(file.get(),"security.selinux",foreign,sizeof(foreign),0));
+    RejectedBeforeScripts(EPERM);ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),"var/log/aegis-package-1-verify-before.log"));
+}
 TEST_F(RuntimePackageExecutor, ReviewedInstallUpgradeRemovePreservesConffilesAndDependencyMarks) {
     Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());Completed();ASSERT_FALSE(HasFailure());
     auto automatic=ControlFile(candidate.get(),"var/lib/apt/extended_states");
