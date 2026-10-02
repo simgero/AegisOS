@@ -558,3 +558,33 @@ im Treiber gehaltenen synthetischen Passwörter sind damit nicht mehr verfügbar
 Profile und bisherige Belege bleiben erhalten. Neue Anmeldetests beginnen mit
 einem frischen Profil; ein solcher Lauf zählt nicht als Fortsetzung der früheren
 Passwort- oder Bytepersistenznachweise.
+
+## Korrigiertes Vollimage 3155115 gebaut; regulärer Gastlauf begonnen
+
+Der lokale Run
+`/srv/aegis/runs/local-20261002T120452Z-31551159-qqHuxm` endet mit
+`LOCAL_BUILD_VERIFIED` und Exitcode 0. Quellstand ist
+`31551159cd11d66b0fa18442b5f62106edf4bfb5`, einschließlich EGL-Lebensdauer-
+und Startwartezeitkorrektur. Alle 20 Image-Prüfsummen stimmen; die integrierte
+Debian-Basis wurde in der ausgelieferten Partition geprüft. Kernel- und
+Runtime-Eingaben sind gegenüber `d149766` bytegleich gebunden.
+
+Die dazugehörige `AegisIdentityTests.apk` ist erfolgreich kompiliert;
+Quellinventar und Image stimmen überein. APK-SHA-256:
+`ce0cb926dfbf6ba624ca749cc070884290bd7513af16018ec00e59e8e1b4e0dd`.
+Die elf `RuntimeStartWaiterTest`- und 16 `RuntimeAdmissionTest`-Fälle sind
+für die nächste Gastausführung ausgewählt, **noch nicht ausgeführt**.
+
+Der reguläre Erststart verwendet das neue Profilpaar
+`1c53b76e-bb1d-4ed6-a0df-7bbc21f2cfee` unter
+`out/phase1-dod/3155115/profile`. Die AEGIS-Bootgrafik ist in 720 × 1280
+sichtbar; Android registriert noch die Systempakete. Der ADB-Beobachter wartet
+auf `sys.boot_completed=1`. Das ist noch keine Boot-/Bedienungsabnahme und
+kein Nachweis erfolgreicher Paketaktivierung. D1 und T16 bleiben offen.
+Der gezielte Absturz-Diagnosepfad wird nicht wieder aufgenommen.
+
+Lokaler Buildindex: `out/phase1-dod/3155115/build-validation.json`, SHA-256
+`656c045241fd797d5a8809902951537756726c2e469d4981b6a361b80c6d81eb`.
+Er bindet Manifest, Quellbelege, Partitionsprüfung, AVB-/Diskbelege und
+Test-App-Build. Images und Profile bleiben auf dem Server; es wurde kein
+Build-Release oder Artefaktupload erzeugt.
