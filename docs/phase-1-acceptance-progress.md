@@ -1146,3 +1146,41 @@ zugleich passende ältere Abhängigkeiten expliziter privater Versionen erhalten
 Ein bloßes Erzwingen sämtlicher gemeinsamer Bibliotheksversionen würde den
 privaten jq-u3/libjq-u3-Fall verletzen. T16 bleibt fehlgeschlagen; neue
 Regressionstests, korrigierter Build und erneuter Systemnachweis stehen aus.
+
+## T16: Abhängigkeitsregression eingegrenzt, Solverkorrektur noch in Prüfung
+
+Die Testergänzung `bb3c2f3` reproduziert den fehlenden Bibliothekswechsel mit
+unverändertem gemeinsamen Hauptpaket und einer privaten Auswahl. Der Kontrollfall
+mit einer neueren, aber noch nicht gemeinsam veröffentlichten Repository-Version
+bleibt unverändert. Lokaler Baseline-Beleg:
+`out/phase1-dod/20d7d6d/native-dependency-baseline/result.json`, SHA-256
+`2a1f70bf825dfc24eee78ec4cc345d1c50a56141ef7767297f107e8f2b70f760`.
+
+Der erste Korrekturstand `0d28883` verwendet einen Upgrade-Schritt mit begrenzten
+Versionen. Sein abgeschlossener nativer Lauf besteht 25 Tests und verfehlt zwei:
+Eine ältere private Programmversion samt Bibliothek wird beim gemeinsamen Update
+oder Entfernen nicht beibehalten. Der native Ergebnisvergleich weist die falschen
+Pläne zurück. Log:
+`out/phase1-dod/20d7d6d/native-dependency-fixed-tests/tests.log`, SHA-256
+`50e8a78d65573cd7fce615719d98e8ad89826c3e2e7a1d757f45222ba2bcf543`.
+
+`173a547` korrigiert die allgemeine APT-Präferenzsyntax, bevorzugt exakte
+Hauptpakete und ergänzt den umgekehrten privaten Versionsfall bei gemeinsamem
+Downgrade. Die laufende Prüfung zeigt jedoch bereits Fehler für ältere und
+neuere private Hauptpakete: Höhere Präferenzen allein erzwingen sie bei einem
+nichtstrikten Solver nicht. Dieser Stand ist ebenfalls nicht abgenommen.
+
+Der [APT-3.0.3-Quellcode](https://sources.debian.org/src/apt/3.0.3/apt-pkg/solver3.cc/)
+zeigt, dass striktes Pinning neben Kandidaten auch bereits installierte Versionen
+zulässt. `1ebaa7a` verwendet deshalb im internen Abgleich striktes Pinning mit
+den abgeleiteten Präferenzen. Explizite Installationen behalten ihren bisherigen
+Solverpfad für weitere passende Abhängigkeitsversionen. Die unabhängige Prüfung
+der exakten Ziele und der veröffentlichten Versionen bleibt erhalten.
+
+Der native Build aus `1ebaa7a` ist erfolgreich; Herkunftsbeleg
+`out/phase1-dod/20d7d6d/native-strict-reconciliation-build-receipt.json`, SHA-256
+`d92e5de6634815cff2773f04c9c885e3c484f930acbfddee6c52c35760580da7`.
+Die Ausführung dieses Standes steht noch aus. Alle bisherigen Vergleiche nutzen
+isolierte Testdaten im weiterhin älteren Image `20d7d6d`; sie beweisen weder
+einen neuen Vollimage-Build noch die korrigierte reale CLI-Aktivierung. T16 und
+die vollständige Phase-1-Abnahme bleiben offen.
