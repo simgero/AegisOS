@@ -331,3 +331,29 @@ Beleg `beta-private-owner-approval-proof.json`, SHA-256
 `e40ba57a592de1125bc2fedc61aa1cd02a686b46000a8425491349adc157c108`.
 Die Beobachtung erteilt dem bestätigenden Administrator kein zusätzliches
 persönliches Leserecht. Die gesamte Autorisierungsmatrix bleibt offen.
+
+
+## D1 erneut offen: Bootanimation-FORTIFY beim zweiten Boot
+
+Die vollständige spätere Logprüfung findet im zweiten `d149766`-Boot einen
+relevanten Absturz, der im Init-Exitcode nicht sichtbar ist. PID 983 beendet
+seinen eigentlichen Renderthread 1052 und protokolliert den Objektabbau im
+Hauptthread um 07:02:53 UTC. Um 07:02:57 UTC meldet ein anderer Thread 1997
+`pthread_mutex_lock called on a destroyed mutex` und SIGABRT. Init protokolliert
+trotzdem Exitcode 0 und beendet anschließend die Prozessgruppe. Bei der
+späteren Prüfung ist kein Tombstone vorhanden.
+
+Beleg: `out/phase1-dod/d149766/bootanimation-shutdown-failure.json` mit
+`bootanimation-shutdown-failure.log`, Ausschnitt-SHA-256
+`742162429c4f87da326f22ef63a33a87d6cebb5bd27d473c33f204c3342dd757`.
+Die vorherige `boot->join()`-Ergänzung ist in diesem Image enthalten und reicht
+für diesen Fall nachweislich nicht aus. Der Besitzer des zerstörten Mutex und
+der genaue Bibliothekspfad sind noch nicht geklärt; eine reine Vermutung über
+TLS-/Grafik-/Binder-Abbau ist noch keine Ursachenanalyse oder Korrektur.
+
+**D1 ist nicht bestanden.** Exitcode 0 ist kein Ersatz für die vollständige
+Fatal-/FORTIFY-Prüfung. Die erfolgreichen persönlichen Daten-, Passwort- und
+Paketabläufe bleiben Teilbelege; sie ergeben keine stabile Gesamtabnahme.
+Eine Korrektur, gezielte Wiederholung und erneute Prüfung der betroffenen
+Boot-/Bedienungsfälle sind erforderlich. Der SystemServer blieb während des
+beobachteten zweiten Ablaufs PID 1146.

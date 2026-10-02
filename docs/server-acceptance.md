@@ -56,6 +56,10 @@ ist. Falsches Passwort bleibt negativ, richtiges Passwort liefert dieselbe
 GNU-Datei. SystemServer übersteht die gesamte Fehlerfolge unverändert.
 Beleg: `ce-fault-recovery.json`.
 
+Die folgenden Aussagen beziehen sich auf die damaligen beiden Abnahme-Boots.
+Ein späterer `d149766`-Boot zeigt erneut einen FORTIFY-Absturz trotz Exitcode 0;
+siehe [aktuelle vollständige Abnahme](phase-1-acceptance-progress.md).
+
 Die Bootanimation wartet jetzt auf ihren Renderthread und beendet sich in
 beiden Boots mit Status 0. QEMU verwendet den gepinnten AOSP-Hardwarezeitfaktor
 für nichtnative Emulation; der Watchdog bleibt aktiv. Der CLI-Zustandswechsel
