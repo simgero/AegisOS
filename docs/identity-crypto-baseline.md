@@ -1,7 +1,7 @@
 # Passwort- und Verschlüsselungsgrundlage
 
 Stand: 2. Oktober 2026. Der aktuelle Serverlauf verwendet das Image
-`d1497661b70e301aec6c92190f2bb5ec58401caf`, AOSP `android-16.0.0_r1` und den
+`31551159cd11d66b0fa18442b5f62106edf4bfb5`, AOSP `android-16.0.0_r1` und den
 gepinnten Android-16-Kernel 6.12.18 mit dokumentierten AEGIS-Anpassungen.
 Die AEGIS-Anbindung delegiert Authentifizierung und Schlüsselverwaltung an
 AOSP. Sie implementiert keine eigene KDF, Passwortdatenbank oder CE-Schlüsselablage.
@@ -20,7 +20,7 @@ vollständigen Neustart.
 
 ## Im lokalen Gast festgestellt
 
-Im aktuellen Lauf `out/phase1-dod/d149766/boot-1` meldet Android
+Im aktuellen Wiederholungsstart `out/phase1-dod/3155115/boot-2` meldet Android
 `ro.crypto.type=file`, `ro.crypto.state=encrypted` und
 `ro.crypto.metadata.enabled=true`. Die aus dem installierten Image gelesene
 `fstab.cf.f2fs.hctr2` enthält:
@@ -34,15 +34,22 @@ Damit sind für die Dateiverschlüsselung AES-256-XTS für Inhalte und
 AES-256-HCTR2 für Dateinamen konfiguriert. Der
 [verwendete fscrypt-Kernelcode](https://android.googlesource.com/kernel/common/+/50eb8d5d443b43f38d6e72f005f1b8601ac88a05/fs/crypto/keysetup.c)
 verwendet 64 Byte XTS-Schlüsselmaterial (zwei 256-Bit-Schlüssel) und 32 Byte für
-HCTR2. Der aktuelle Bootlog bestätigt die Verwendung von AES-256-HCTR2 und
-AES-256-XTS sowie den Metadatenverschlüsselungspfad beim Mounten von `/data`.
+HCTR2. Der zweite Start bestätigt dieselben beiden fscrypt-Modi; die oben genannten
+Properties bestätigen weiterhin FBE und aktivierte Metadatenverschlüsselung.
 Das dokumentiert Konfiguration und konkrete Kernelbeobachtung; es ist keine
 Einzelprüfung sämtlicher Inode-Policies oder aller Metadatenschutzpfade.
 
-Der Beleg `out/phase1-dod/d149766/crypto-current-observation.json` enthält
-Image-, Profil- und Bootbindung, Kernelzeilen, den Hash der gelesenen fstab und
-Hashes der vier unten beschriebenen AOSP-Quelldateien. Die fstab hat SHA-256
+Der Beleg `out/phase1-dod/3155115/crypto-current-observation.json`, SHA-256
+`eca6d359a1d92882fbecfc75960718dbed9ae0c9b10c04b7abaa0307f64787d7`, enthält
+Image-, Profil- und Bootbindung, Kernelzeilen und den Hash der gelesenen fstab.
+Die fstab bleibt bytegleich mit SHA-256
 `50ff9f6fa265b68b4e392e892e98f4eafe3574e656f92ecd8856b74c83a71677`.
+Der darin gebundene Beleg `crypto-source-continuity.json` bestätigt die
+unveränderten Prüfsummen der vier unten beschriebenen AOSP-Quelldateien.
+`boot2-before-login.json`, SHA-256
+`4158d4313255f54b2fd09bb69e705110dd6f8d58a3eac1998f6440a68e6ab854`,
+bindet die genannten Properties an denselben Boot. Vor der persönlichen
+Anmeldung ist ausschließlich CE des Systembenutzers 0 entsperrt.
 
 Die bisherigen Gastprotokolle melden beim Anlegen der Testpasswörter ausdrücklich,
 dass kein Weaver-Dienst vorhanden ist. Der verwendete LSKF-Pfad läuft über Gatekeeper und
