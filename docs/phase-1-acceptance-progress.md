@@ -1416,3 +1416,48 @@ Dies belegt die APT-Zielableitung und den Brokerauftrag. Die vollständige
 Ausführung und Veröffentlichung sowie frische CLI-Adminfreigabe bleiben
 separate Nachweise. Die Wiederholung der sechs Auswahltests mit `6946970`
 ist gestartet; sie ist zum Zeitpunkt dieses Eintrags noch nicht abgeschlossen.
+
+## Bedienung, ADB und Kryptographiekonfiguration auf 209278d
+
+Die normale Bedienfolge besteht auf dem neuen Image: Von der bestätigten
+Settings-Hauptseite öffnen einmaliges QMP-TAB/RET die Netzwerkeinstellungen.
+Ein QMP-Mausklick auf „Navigate up“ bei der tatsächlich beobachteten Position
+`(57.165,106.163)` führt zurück. Screenshots und UI-XML bestätigen beide
+Übergänge. Erste XML-Abfragen während des Seitenwechsels lieferten keinen
+Root-Knoten; die erneute Beobachtung wiederholt keine Tastatur- oder Mauseingabe.
+
+Der binäre ADB-Rundlauf überträgt alle 256 Bytewerte, jeweils 1024-mal, und liest
+262144 identische Bytes zurück. Der eindeutige temporäre Gast-Probeeintrag wird
+nach dem Vergleich entfernt. ADB-Authentifizierung ist weiterhin aktiviert.
+Boot-ID, SystemServer PID/Startzeit, SELinux Enforcing und CE `[0]` bleiben
+unverändert zum Ausgangszustand.
+
+Lokale Nachweise unter `out/phase1-dod/209278de/`:
+
+- `qmp-ui-proof.json`: SHA-256
+  `9f1851ce0aa0891f646692d986386fe2634654dc4d1471e799a8295f728975ee`.
+- `adb-binary-proof.json`: SHA-256
+  `fe10580c61b365251bfac95c0f90317b29e5e66c01aead03a1efcdd4e04e995a`.
+- `crypto-current-observation.json`: SHA-256
+  `4e35d69d8b48a5376766c80b12a3b408ef65203be12d66121ef356e3021b1479`.
+
+Der letzte Beleg bestätigt aktuelle FBE-/Metadaten-Properties, die unveränderte
+installierte fstab und die Kernelbeobachtung von AES-256-XTS/HCTR2. Vier
+dokumentierte AOSP-Kryptoquellen sind bytegleich; siehe
+[Kryptographiegrundlage](identity-crypto-baseline.md). Dies ersetzt keine
+persönliche Anmeldung, keinen CE-Entzug und keinen gepaarten Neustart. D1 und
+die vollständige Phase-1-Abnahme bleiben offen.
+
+Die begrenzte Bootbeobachtung ist zusätzlich lokal eingefroren:
+`out/phase1-dod/209278de/init-exit-classification.json`, SHA-256
+`69f85c407c7e21cae1dd3cbdd90fdb134759748a04090ae0fdc2251bc49396cf`.
+Die darin gehashten Log-Snapshots enthalten genau einen SystemServer-Start und
+keine Java-Fatal-, Fatal-Signal-, FORTIFY-, Watchdog-Abbruch- oder ANR-Einträge.
+Die frühen einmaligen Rückgaben sind mit aktuellen Quellen und Gastzustand
+abgeglichen: übersprungener System-Mainline-Initializer bei erfolgreichem aktivem
+Initializer, `misctrl` mit erfolgreicher boolescher Property-Setzung im Exitcode
+und Recovery-Refresh bei leerem pstore. Letzteres bleibt ausdrücklich eine
+Quell-/Zustandsinferenz. Die Signal-Exits von odsign, hwservicemanager, idmap2d
+und adbd passen zu den protokollierten Stop-/Restart-Vorgängen. Es wurden keine
+Dienste umkonfiguriert oder Diagnoseabstürze ausgelöst. Der Nachweis gilt für
+den erfassten Zeitraum und ersetzt keine spätere Lebenszyklusprüfung.

@@ -1,7 +1,7 @@
 # Passwort- und Verschlüsselungsgrundlage
 
 Stand: 2. Oktober 2026. Der aktuelle Serverlauf verwendet das Image
-`31551159cd11d66b0fa18442b5f62106edf4bfb5`, AOSP `android-16.0.0_r1` und den
+`209278def7d5bc5612eeb397bdd8ee20ccb16d86`, AOSP `android-16.0.0_r1` und den
 gepinnten Android-16-Kernel 6.12.18 mit dokumentierten AEGIS-Anpassungen.
 Die AEGIS-Anbindung delegiert Authentifizierung und Schlüsselverwaltung an
 AOSP. Sie implementiert keine eigene KDF, Passwortdatenbank oder CE-Schlüsselablage.
@@ -18,9 +18,27 @@ den neuen AEGIS-Adapter nicht. Ein separater [Persistenztest](persistent-qemu.md
 bestätigt inzwischen den Erhalt passwortgeschützter Daten nach einem geordneten
 vollständigen Neustart.
 
-## Im lokalen Gast festgestellt
+## Aktuelle Konfiguration auf 209278d
 
-Im aktuellen Wiederholungsstart `out/phase1-dod/3155115/boot-2` meldet Android
+Der erste Boot des neuen Profils `2366ca04-d587-4170-8c56-a63c8a8e1774`
+mit Boot-ID `44dbff5f-3a76-4e97-9334-beb437fcd461` bestätigt FBE, den Zustand
+`encrypted` und aktivierte Metadatenverschlüsselung. Die installierte fstab
+ist bytegleich zum unten dokumentierten Stand. Der Kernel protokolliert
+AES-256-HCTR2 und AES-256-XTS; SELinux ist Enforcing. Vor der Anlage persönlicher
+Benutzer ist nur CE `[0]` entsperrt. Die vier unten genannten AOSP-Quelldateien
+wurden erneut gehasht und sind unverändert.
+
+Aktueller Beleg: `out/phase1-dod/209278de/crypto-current-observation.json`, SHA-256
+`4e35d69d8b48a5376766c80b12a3b408ef65203be12d66121ef356e3021b1479`.
+Der darin gebundene Quellvergleich `crypto-source-continuity.json` hat SHA-256
+`4ff1e1ab6c675492ead7589964c0a175385fc8619dba27e648188c3ee53e88af`.
+Dies bestätigt Konfiguration und Quellkontinuität; die persönliche Anmeldung,
+einzelne CE-Policies und gepaarte Neustarts des neuen Profils sind damit noch
+nicht abgenommen.
+
+## Vorheriger Wiederholungsstart auf 3155115
+
+Im früheren Wiederholungsstart `out/phase1-dod/3155115/boot-2` meldet Android
 `ro.crypto.type=file`, `ro.crypto.state=encrypted` und
 `ro.crypto.metadata.enabled=true`. Die aus dem installierten Image gelesene
 `fstab.cf.f2fs.hctr2` enthält:
