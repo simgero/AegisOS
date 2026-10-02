@@ -287,3 +287,41 @@ Veröffentlichung, Peer-Fortbestand und CE-/Kontextzustände bleiben separat zu
 prüfen. Ein Benutzerwechsel kann den ersten Kanal widerrufen. Der Treiber
 behauptet deshalb aus dem zweiten CLI-Erfolg allein keine erfolgreiche
 Parallelitätsprüfung.
+
+## Paketkomponenten vor dem Referenzablauf
+
+`scripts/qemu-package-component-tests.py` führt die ausgewählten Java- und
+nativen Paketprüfungen auf einem bereits gebooteten frischen QEMU-Profil aus.
+Es verlangt authentifiziertes ADB, SELinux Enforcing, ausschließlich Benutzer 0,
+leere Runtime-Kontexte und mindestens 3 GiB freien Gastplatz. Komponentenbeleg
+und Vollimage müssen denselben vollständigen Source-Commit nennen. Das Werkzeug
+legt keine persönlichen Benutzer an und ersetzt keine CLI-Adminfreigabe.
+
+```sh
+python3 scripts/qemu-package-component-tests.py \
+  --run QEMU_RUN --prepared GEPRUEFTES_IMAGE \
+  --components NATIVES_KOMPONENTENVERZEICHNIS \
+  --receipt KOMPONENTEN_BUILD_BELEG.json \
+  --baseline GAST_AUSGANGSZUSTAND.json \
+  --group java --apk AegisIdentityTests.apk \
+  --output NEUES_ERGEBNISVERZEICHNIS
+```
+
+Der Komponentenbeleg enthält `source_commit`, die elf Dateiprüfsummen in
+`files` und `java_tests_apk_sha256`. Der aufgezeichnete Ausgangszustand enthält
+`boot_id`, `system_server` (PID als Zeichenfolge), `system_server_starttime`,
+`selinux` und `ce` (`CE unlocked users: [0]`). Dieser Zustand muss vor jedem
+Lauf unverändert sein; ein Neustart wird dadurch nicht verdeckt.
+
+Die Gruppen sind `java` (38 Tests), `selection` (6), `planner` (7),
+`execution` (5) und `publication` (2). Vor den übrigen nativen Gruppen muss
+`selection` einmal das geprüfte Bundle in ein neues Gastverzeichnis übertragen.
+Jeder Lauf braucht ein neues Ergebnisverzeichnis. Erst sein Ergebnis prüfen,
+dann die nächste Gruppe starten. Ein Host-Lock verhindert gleichzeitige Läufe
+über dasselbe QEMU-Run-Verzeichnis. Bei Fehlern bleiben Logs und Testimages
+erhalten; das Werkzeug löscht keine Dateien zur Wiederholung.
+
+`result.json` bindet Ergebnis, erwartete Einzelfälle, Image, Profil, vorherigen
+und nachfolgenden Systemzustand sowie Prüfsummen von Beleg, Testtreiber und Log.
+Fehlende oder übersprungene Fälle ergeben keinen Erfolg. Diese Komponentenläufe
+ersetzen weder den vollständigen Referenzablauf noch die realen T15-/T16-Aktionen.

@@ -1326,3 +1326,41 @@ das bisherige Profil aus `20d7d6d` wird dafür weder ersetzt noch migriert.
 Diese Vorbereitung ist noch kein bestandener Boot, kein T15-/T16-Systemnachweis
 und keine vollständige Phase-1-Abnahme. Images, Profile und Rohbelege bleiben
 auf dem Buildserver.
+
+## Erster Boot des neuen Paketimages
+
+Das Vollimage `209278def7d5bc5612eeb397bdd8ee20ccb16d86` hat im neuen Profil
+`2366ca04-d587-4170-8c56-a63c8a8e1774` den ersten Boot abgeschlossen.
+Authentifiziertes ADB ist über den lokalen Port 15873 bestätigt. Die Boot-ID
+lautet `44dbff5f-3a76-4e97-9334-beb437fcd461`; SystemServer hat PID 1368 und
+Startzeit 37230. Der aufgezeichnete Ausgangszustand enthält ausschließlich
+Benutzer 0, CE `[0]`, leere Runtime-Kontexte, SELinux Enforcing und `managed-v1`.
+Android meldet 720 × 1280 Pixel bei 320 dpi und 7.4 GiB freien Gastplatz.
+Bootanimation und anschließende Bildausgabe wurden lokal betrachtet;
+die vollständige Eingabeprüfung und Dienstabnahme bleiben offen.
+
+Der lokale Beleg `out/phase1-dod/209278de/boot-baseline.json` hat SHA-256
+`19eb1f8ed1ce946c7b9b0ecebaf50bdab17f72c54db681788f29756f7ac2f7eb`.
+Dieser erste Boot schließt weder D1 noch die Paket- oder Benutzerabnahme ab.
+Die Komponentenprüfungen werden vor der Anlage persönlicher Benutzer
+ausgeführt; die realen CLI-Abläufe und gepaarten Neustarts folgen getrennt.
+
+## Java-Paketprüfungen auf dem neuen Vollimage
+
+Die beiden Klassen `PackageBrokerProtocolTest` und `PackageTransactionTest`
+bestehen mit **38 von 38 Tests** auf dem neuen Image, einschließlich der sechs
+zuletzt ergänzten Fälle zur privaten Entfernung. Der Lauf verwendet das
+geprüfte Test-APK aus dem Komponentenbuild desselben Source-Commits und das
+versionierte Werkzeug `scripts/qemu-package-component-tests.py`. Boot-ID,
+SystemServer PID/Startzeit, SELinux Enforcing und CE `[0]` bleiben unverändert.
+
+Ergebnis: `out/phase1-dod/209278de/java-package-components/result.json`, SHA-256
+`699b55c347adaf7c8b31d039dd5d08955de902c2e6a372797cfd0592be99dd02`.
+Log-SHA-256:
+`94fa7a38992689b2f1a8e171c1422941a32b487b4fd7acb3030ec48f4eb1d7f9`.
+Testtreiber-SHA-256:
+`b5a938ee646a6164a776d5547f66eaa0492ba5235e10fc82829c0a4d54ca1c8d`.
+
+Diese Tests prüfen Metadaten und Transaktionszustände. Sie belegen keine echte
+AOSP-Anmeldung, Adminfreigabe oder Paketinstallation. Die nativen Imageprüfungen
+und die durchgängigen CLI-Nachweise bleiben offen.
