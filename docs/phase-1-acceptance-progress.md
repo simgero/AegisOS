@@ -111,3 +111,24 @@ Zusätzliche Gerätetests prüfen einen Downgrade von bereits vorhandener Versio
 2 samt Bibliothek auf Version 1 sowie die Ablehnung einer nicht verfügbaren
 Version ohne stillen Ersatz. Die Korrektur ist vor dem Folgelauf noch nicht
 als bestanden oder als neuer Image-Abnahmestand auszugeben.
+
+
+## Verifizierter Versionsfix und neues Image
+
+Am 2. Oktober 2026 bestehen alle vier nativen Versionsfälle auf Quellstand
+`d1497661b70e301aec6c92190f2bb5ec58401caf`: Vergleichsfall, explizite ältere
+Version mit passender Abhängigkeit, Downgrade beider bereits vorhandenen
+Pakete sowie Ablehnung der nicht verfügbaren Version ohne stillen Ersatz.
+Der Lauf dauert 160 Sekunden; SystemServer bleibt PID 1358.
+`out/phase1-dod/c526571/version-regression-fixed.json` bindet das Ergebnis
+an Profil, Boot-ID und Log-SHA-256
+`c98d0556b0eea41b68653f5174e0895ac2fbb7fa30a2cbb17d1dde9e2b42313b`.
+Es sind aktualisierte Komponenten im vorherigen Image, keine vollständige
+Image-Abnahme. Der fehlgeschlagene Vorlauf bleibt als Regressionsevidenz erhalten.
+
+Die Hostprüfung desselben Quellstands ergibt 276 bestandene Tests und vier
+plattformbedingte macOS-Auslassungen. Der vollständige lokale Build
+`/srv/aegis/runs/local-20261001T235735Z-d1497661-oQgZGF` endet mit
+`LOCAL_BUILD_VERIFIED`; alle 20 Image-Prüfsummen stimmen. Images und
+Prüfbelege bleiben lokal. Die echte CLI-Installation beider jq-Versionen und
+der vollständige Referenzablauf auf diesem neuen Image stehen noch aus.
