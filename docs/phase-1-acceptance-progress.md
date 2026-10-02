@@ -1236,3 +1236,38 @@ Der native Build ist erfolgreich. Sieben neue Tests zur Zielableitung und
 Die Auswahltests mit echten Images sind vorbereitet, aber noch nicht ausgeführt.
 Die durchgängige Anbindung an CLI, Adminfreigabe, Planbindung und Veröffentlichung
 steht ebenfalls aus; T15 bleibt offen.
+
+## T15: Getrennte Planbindung und Ausführungsprüfung
+
+`0e4fbe605c7fd9599f7978c6628a29277f61590b` ergänzt einen eigenen Binder und
+Ausführungsmodus für die ausdrückliche private Entfernung. Die Bindung umfasst
+Antragsteller, ursprüngliche Auswahl, unveränderte gemeinsame Basis, genau eine
+entfernte private Auswahl, sämtliche Paketwirkungen und den vollständigen
+erwarteten Paketbestand samt Installationsmarkierungen. Ein anderer privater
+Eintrag darf dabei nicht verändert werden. Der interne Basisabgleich behält
+seine bisherige Forderung nach unveränderten privaten Auswahlen.
+
+Der ARM64-Komponentenbuild `/srv/aegis/runs/native-0e4fbe60-yNQxqd` ist nach
+74 Sekunden erfolgreich. Im bestehenden QEMU bestehen **71 von 71 ausgewählten
+Tests**, darunter sechs neue Bindungstests und fünf neue Ausführungsprüfungen
+mit kleinen synthetischen Kontrolldateien. Die übrigen Fälle prüfen die bisherigen
+Planbindungen und Zielableitungen. Unverändert bleiben Boot-ID
+`34a66c93-f598-471b-9ef0-f4db218dbbe6`, SystemServer PID 1349 mit Startzeit 36616,
+SELinux Enforcing und CE `[0, 10, 11]`.
+
+Lokaler Ergebnisbeleg:
+`out/phase1-dod/20d7d6d/native-private-removal-bound-tests/result.json`, SHA-256
+`e4a73ef1e75f9e4b4318ebf3131e7483759b36e6310cf82db0e8cf78b57f5bb4`.
+Rohprotokoll-SHA-256:
+`a1f4cd3b76a6d39b82484ecd1a49b59986b97be8672bcc79672ec480b8cd617f`.
+Buildherkunft:
+`out/phase1-dod/20d7d6d/native-private-removal-bound-build-receipt.json`, SHA-256
+`b17be55fba2f887114a46931b46a834e41d1e711c73133b88676e9a83f890701`.
+
+Zwei neue Tests für echte Paketimages sind mitgebaut, aber wegen des weiterhin
+knappen Gastplatzes noch nicht ausgeführt. Die laufende Sicherung früherer
+Testimages ist noch nicht abgeschlossen; es wurde keines dieser Images gelöscht.
+Der Planner-Transport weist den neuen Entfernungsmodus vorerst ausdrücklich ab.
+Resolver, Brokerauftrag, frische Adminfreigabe und CLI-Vorschau müssen noch
+durchgängig angebunden werden. Ein neuer Vollimage-Build und die T15-/T16-Abläufe
+bleiben erforderlich; dieser Lauf schließt weder T15 noch Phase 1 ab.
