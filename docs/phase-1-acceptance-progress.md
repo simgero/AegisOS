@@ -3,6 +3,19 @@
 Beginn: 1. Oktober 2026. Ziel ist die vollständige
 [DoD](architecture/phase-1-dod.md), einschließlich aller Varianten T01–T17.
 **Status: aktiv, keine vollständige Abnahme.** Aktueller Prüfstand:
+Image `209278def7d5bc5612eeb397bdd8ee20ccb16d86`, Profil
+`2366ca04-d587-4170-8c56-a63c8a8e1774`, Boot-ID
+`44dbff5f-3a76-4e97-9334-beb437fcd461`.
+Vollbuild und Imageprüfung, Bedienung per Tastatur/Maus, authentifizierter
+binärer ADB-Rundlauf und die begrenzte Boot-/Kryptographiekontrolle sind
+belegt. Auf diesem Image bestehen 38 Java-Pakettests, sieben native Plantests,
+sechs Auswahltests und fünf Ausführungstests. Die beiden Veröffentlichungstests
+sind noch nicht abgenommen. Persönliche Benutzer und der vollständige
+CLI-/Neustartablauf sind auf diesem Profil noch nicht angelegt beziehungsweise
+ausgeführt. Die einzelnen Belege und ihre Grenzen stehen weiter unten.
+
+## Frühere integrierte Prüfstände
+
 Image `20d7d6d33fb3243cd87d0eb90fa2fd09bd2cc178`, Profil
 `06adfa48-f55f-46b7-a962-82bef7af5e83`. Normaler Boot und vier gezielte native
 Pakettests sind bestanden. Im neuen persönlichen CLI-Ablauf sind beide Benutzer
@@ -34,7 +47,9 @@ werden auf diesem Stand erneut erhoben.
 
 ## Anforderung und noch benötigter Nachweis
 
-Diese Tabelle ist eine Arbeitsliste, kein PASS-Manifest. „Teilbeleg“ bedeutet
+Diese Tabelle ist eine Arbeitsliste, kein PASS-Manifest. Die integrierten
+Teilbelege stammen überwiegend aus den oben genannten früheren Prüfständen;
+sie ersetzen den noch offenen Ablauf auf `209278d` nicht. „Teilbeleg“ bedeutet
 nicht, dass die ganze Zeile der DoD bereits geschlossen ist.
 
 | ID | Vorhandene Grundlage | Für die vollständige Abnahme zu ergänzen/zuordnen |
