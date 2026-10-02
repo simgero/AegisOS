@@ -1050,3 +1050,29 @@ Damit ist die tatsächliche Ausführung unterschiedlicher Versionen desselben
 Pakets belegt. Gegenseitige Isolation, VM-Neustart, private Entfernung und
 gemeinsames Update bei privaten Versionen sind für diesen Stand weiterhin
 gesondert nachzuweisen; T15 und T16 sind nicht vollständig bestanden.
+
+## Beide privaten Versionen als Ausgangsstand für das gemeinsame Update
+
+Beta beantragt über seine eigene CLI, jq `1.7.1-6+deb13u3` privat festzuhalten.
+Der Plan weist die unveränderte Version ausdrücklich aus. Alpha erteilt eine
+frische AOSP-Adminfreigabe; veröffentlicht wird eine persönliche Generation
+für Beta 11/11, nicht für den freigebenden Admin. Die gemeinsame Generation
+und Alphas private Generation bleiben unverändert. Betas bisheriger
+Hintergrundprozess überlebt die Veröffentlichung bis zum ausdrücklichen
+Kontextstopp mit derselben PID/Startzeit und fortschreitendem Zähler.
+
+Nach eigenem Kontextneustart führt Beta u3 mit passender libjq-Datei aus.
+Seine ursprüngliche Datei und Konfiguration bleiben bytegleich; die alten
+flüchtigen Proben sind verschwunden. Seine neue private Generation lautet
+`1b37c5522a6183cbc5f419dcb006ee8164efa6899ea0d63c47b02aaffebbcb7b`.
+Die tatsächlich eingebundenen persönlichen Images enthalten jetzt die
+expliziten jq-Auswahlen u4 für Alpha und u3 für Beta. Beide verweisen noch auf
+die gemeinsame Generation `f03dffa8923f4147875d8e6d1b300071c05fda2de1ae9ddf9629ff82d66871ba`.
+
+Vorher-Beleg `out/phase1-dod/20d7d6d/shared-update-before.json`, SHA-256
+`e0f7d6c696e988e0a9ccbe0b15ff4057a2f86de817d3a4fdbbdf6b24d663ee61`,
+bindet 112 CLI-Ereignisse, private Absichten, ausgewählte und eingebundene
+Images sowie Hintergrundprozesse Alpha 8372/405185 und Beta 12994/555841 an
+denselben Boot. Der gemeinsame Updateplan läuft an diesem Prüfpunkt erst;
+eine Veröffentlichung oder erfolgreiche anschließende Aktivierung wird noch
+nicht behauptet.
