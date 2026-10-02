@@ -5,8 +5,10 @@ Beginn: 1. Oktober 2026. Ziel ist die vollständige
 **Status: aktiv, keine vollständige Abnahme.** Aktueller integrierter Prüfstand:
 Image `31551159cd11d66b0fa18442b5f62106edf4bfb5`, Profil
 `1c53b76e-bb1d-4ed6-a0df-7bbc21f2cfee`. Erster normaler Boot, Bedienung,
-ADB und 27 gezielte Java-Tests sind bestanden. Gepaarter Wiederholungsstart,
-Paketaktivierung und die vollständige Testmatrix bleiben offen.
+ADB und 27 gezielte Java-Tests sind bestanden. Der gepaarte Wiederholungsstart
+mit bytegleichen persönlichen Daten und getrennten jq-Versionen ist ebenfalls
+belegt. Gemeinsames Update mit privatem Abgleich und die vollständige Testmatrix
+bleiben offen.
 Der frühere Bootanimation-Absturz auf `d149766` bleibt als Regressionsevidenz erhalten.
 
 Ausgangspunkt ist das geprüfte Image `c52657113becde42d735669d4d64405c7740cc74`.
@@ -742,3 +744,51 @@ Der Treiber findet in vier lokalen Bootlogs kein vollständiges generiertes
 Passwort; der umfassendere T01-Datei-/History-Nachweis bleibt offen.
 Neustart und anschließende bytegleiche GNU-Reads werden separat geprüft;
 T08/T10 sind wegen weiterer Pflichtvarianten noch nicht vollständig abgenommen.
+
+
+## Gepaarter Neustart erhält ursprüngliche Daten und getrennte Versionen
+
+Android bestätigt `Power down`, der Helfer `AEGIS_HELPER_SHUTDOWN_CLEAN`.
+Beide VM-Prozesse enden regulär. Anschließend startet dasselbe Profilpaar
+`1c53b76e-bb1d-4ed6-a0df-7bbc21f2cfee` ohne Neuanlage; das Profilmanifest bleibt
+bytegleich. Der neue Boot `21332e3e-c1c0-444a-aed1-b7b78a2e9f78` erreicht den
+Bootabschluss mit unverändertem AVB-Digest, SELinux Enforcing, FBE und
+aktivierter Metadatenverschlüsselung. ADB authentifiziert die bestehende
+Hostidentität nach dem vorgesehenen Wiederverbindungsversuch; kein neuer
+Schlüssel wird aufgenommen.
+
+Vor jeder persönlichen Anmeldung ist nur Systembenutzer 0 gestartet und
+entsperrt, die Runtime-Kontextgruppe leer. Beide ursprünglichen GNU-Testdateien
+liefern keine Bytes. Danach gelingen die ersten korrekten Anmeldungen von Alpha
+und Beta jeweils ohne vorgeschalteten Fehlversuch. Alphas Anmeldung entsperrt
+zunächst nur CE `[0,10]`; Beta bleibt bis zur eigenen Passwortprüfung gesperrt.
+
+Beide Benutzer lesen aus ihren echten GNU-Shells die ursprünglichen 1024 Bytes
+und Konfigurations-/Test-Secret-Dateien bytegleich. Es werden keine Ersatzdateien
+erzeugt. Alte persönliche `/tmp`- und `/run`-Proben sind verschwunden. Alpha
+führt seine private jq-/libjq1-Version `1.7.1-6+deb13u4` aus, Beta die gemeinsame
+`1.7.1-6+deb13u3`. Beide jq-Ausführungen ergeben 10 und bestätigen jeweils die
+ursprüngliche Bibliotheksprüfsumme. Neue begrenzte Hintergrundproben werden
+explizit von den vor dem Neustart beendeten Prozessidentitäten unterschieden.
+
+Beleg: `out/phase1-dod/3155115/paired-reboot-user-proof.json`, SHA-256
+`8528af31846cdc46a304b38dd05305cd215b7f7beed7f101e851bbc795e9ef0e`.
+Der Beleg enthält den vollständigen Ereignisstand bis 13:56:04 UTC am
+2. Oktober sowie gehashte Shutdown-, Voranmelde-, Kryptographie- und
+Protokollnachweise. Die vier früheren Treiberassertionen nach dem Bildschirmzyklus
+bleiben sichtbar; nach dem Neustart treten bis zu diesem Beleg keine neuen auf.
+
+Auch die zweite Bootanimation endet regulär mit Status 0. Der eingefrorene
+Protokollabschnitt enthält keine Fatal-Signal-, FORTIFY-, Watchdog-, Java-Fatal-
+oder ANR-Meldungen. Ein zusätzlicher früher Init-Rückgabecode 1 stammt von der
+AOSP-Aufräumaktion für das temporäre VirtualizationService-Verzeichnis.
+Quelltext, ursprüngliche Aufrufer-ID und spätere Verzeichnismodi sind gesichert;
+der Rückgabecode ist mit fehlendem Schreibrecht des Aufrufers im Elternverzeichnis
+vereinbar. Das bleibt eine Quell-/Zustandsinferenz: Die fehlgeschlagene Systemoperation
+und ihr stderr wurden nicht erfasst, die Aufräumaktion wird nicht wiederholt.
+Es ist damit keine vollständige D1-Abnahme behauptet.
+
+T07/T12 haben hier einen weiteren integrierten Persistenzbeleg. Passwortwechsel,
+Benutzerlöschung/ID-Wiederverwendung, gegenseitige Isolation im neuen Image,
+nachträgliche Benutzeranlage, T16-Abgleich und die übrigen Matrixvarianten
+bleiben vollständig erforderlich. Dieser Ablauf ersetzt ihre Abnahme nicht.
