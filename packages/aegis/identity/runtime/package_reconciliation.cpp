@@ -35,15 +35,24 @@ int PackageReconciliationDerive(const PackageReconciliationInput& in,PackageReco
     for(const auto& [name,c]:goals.roots)goals.arguments.push_back(name+"="+c.version);
     for(const auto& [name,value]:own)if(!goals.roots.count(name))
         goals.solver_automatic+="Package: "+name+"\nArchitecture: "+std::get<1>(value)+"\nAuto-Installed: 1\n\n";
-    goals.solver_preferences="Package: *\nPin: version *\nPin-Priority: -1\n\n";
+    goals.solver_preferences="Package: *\nPin: release *\nPin-Priority: -1\n\n";
     auto preference=[&](const std::string& name,const std::string& version,int priority) {
         goals.solver_preferences+="Package: "+name+"\nPin: version "+version+
             "\nPin-Priority: "+std::to_string(priority)+"\n\n";
     };
-    for(const auto& [name,value]:current)preference(name,std::get<0>(value),1001);
+    // upgrade processes explicit install arguments before its general upgrade
+    // pass. Keep exact roots as the preferred candidates throughout both steps.
+    for(const auto& [name,c]:goals.roots)preference(name,c.version,2001);
+    auto exact_root=[&](const std::string& name,const std::string& version) {
+        auto it=goals.roots.find(name);
+        return it!=goals.roots.end()&&it->second.version==version;
+    };
+    for(const auto& [name,value]:current)
+        if(!exact_root(name,std::get<0>(value)))preference(name,std::get<0>(value),1001);
     for(const auto& [name,value]:own) {
         auto it=current.find(name);
-        if(it==current.end()||std::get<0>(it->second)!=std::get<0>(value))
+        if(!exact_root(name,std::get<0>(value))
+           &&(it==current.end()||std::get<0>(it->second)!=std::get<0>(value)))
             preference(name,std::get<0>(value),100);
     }
     if(goals.solver_preferences.size()>(4u<<20))return Fail(E2BIG);

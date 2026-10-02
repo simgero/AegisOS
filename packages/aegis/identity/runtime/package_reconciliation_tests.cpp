@@ -32,11 +32,11 @@ TEST(PackageReconciliationGoals, SharedUpdateAndRemovalAlterOnlyTheSolverProject
 TEST(PackageReconciliationGoals, PreferencesPreferPublishedVersionsAndKeepExistingPrivateAlternatives) {
     auto i=Inputs();i.private_choices+="app\tall\t1\n";PackageReconciliationGoals g;
     ASSERT_EQ(0,PackageReconciliationDerive(i,&g));
-    EXPECT_EQ("Package: *\nPin: version *\nPin-Priority: -1\n\n"
+    EXPECT_EQ("Package: *\nPin: release *\nPin-Priority: -1\n\n"
+        "Package: app\nPin: version 1\nPin-Priority: 2001\n\n"
+        "Package: core\nPin: version 1\nPin-Priority: 2001\n\n"
         "Package: app\nPin: version 2\nPin-Priority: 1001\n\n"
-        "Package: core\nPin: version 1\nPin-Priority: 1001\n\n"
         "Package: lib\nPin: version 2\nPin-Priority: 1001\n\n"
-        "Package: app\nPin: version 1\nPin-Priority: 100\n\n"
         "Package: lib\nPin: version 1\nPin-Priority: 100\n\n",g.solver_preferences);
     EXPECT_EQ(0,PackageReconciliationCheckEffects(i,g,{}));
     auto changed=g;changed.solver_preferences.clear();

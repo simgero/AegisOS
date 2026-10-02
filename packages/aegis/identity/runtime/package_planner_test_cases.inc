@@ -1302,6 +1302,7 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
         }
         ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)<<result.error<<" "<<result.status<<" "<<result.diagnostic;
         ASSERT_TRUE(collected.ok());ASSERT_TRUE(result.evidence.reconciliation);
+        EXPECT_EQ(std::string::npos,Read(fd,"simulate.log").find("Did not understand pin type"));
         EXPECT_EQ(effects,result.evidence.changes.size());EXPECT_EQ(choices,result.evidence.initial_private_choices);
         if(library_version) {
             auto library=std::find_if(result.evidence.changes.begin(),result.evidence.changes.end(),
@@ -1433,6 +1434,10 @@ TEST_F(RuntimeReconciliationPlanning, NewerRepositoryLibraryWithoutSharedPublica
 }
 TEST_F(RuntimeReconciliationPlanning, PrivateAppKeepsItsOldDependencyInsteadOfTheNewSharedVersion) {
     Configure("AEGIS-PRIVATE-CHOICES1\naegis-probe-app\tall\t1\n");ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,StartThree())<<strerror(errno);Finish(true,0);
+}
+TEST_F(RuntimeReconciliationPlanning, PrivateNewerAppKeepsItsDependencyOnSharedDowngrade) {
+    Configure("AEGIS-PRIVATE-CHOICES1\naegis-probe-app\tall\t2\n",false,false,true);ASSERT_FALSE(HasFatalFailure());
     ASSERT_EQ(0,StartThree())<<strerror(errno);Finish(true,0);
 }
 TEST_F(RuntimeReconciliationPlanning, IncompatibleSharedRootAndPrivateLibraryReturnExplainedConflict) {

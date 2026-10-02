@@ -421,6 +421,36 @@ separaten, nicht installierten Probe-Binärdateien. Build, Policy-Kompilierung u
 Laufzeitnachweis dieser Änderung stehen noch aus. Positive SU-Fixtures ersetzen
 weiterhin keinen Nachweis der tatsächlichen SELinux-Domänenwechsel im Produkt.
 
+## Gemeinsame Abhängigkeitsupdates bei privaten Versionen
+
+Ein Abgleich darf einen neuen gemeinsamen Stand nicht allein durch erneutes
+`install` der manuellen Hauptpakete aktivieren: Bleibt deren Version gleich,
+können bereits ausreichende automatische Bibliotheken unverändert bleiben.
+Der Resolver plant deshalb für Reconciliation `upgrade --with-new-pkgs`
+mit den exakten gemeinsamen Hauptpaketen und privaten Auswahlen sowie
+`--auto-remove`. Gewöhnliche explizite Installationen behalten ihren bisherigen
+Planungspfad. Die Ausführung installiert weiterhin ausschließlich die zuvor
+gebundenen Archive und prüft sämtliche tatsächlichen Effekte.
+
+Dieser interne Abgleich ist keine Freigabe beliebiger neuer Repository-Versionen.
+Deterministische APT-Präferenzen lassen nur Versionen aus dem veröffentlichten
+gemeinsamen oder bereits ausgewählten persönlichen Register zu. Gemeinsame
+Versionen werden bevorzugt; exakte Hauptpaketversionen einschließlich privater
+Auswahlen haben dabei Vorrang auch im allgemeinen Upgrade-Schritt. Vorhandene
+ältere Versionen bleiben als passende
+Abhängigkeiten einer ausdrücklich festgehaltenen privaten Version verfügbar.
+Die anschließende native Effektprüfung weist jede neue Version oder Architektur
+außerhalb dieser beiden Register unabhängig von APT zurück. Exakte Hauptpakete,
+private Absichten und bestehende Holds werden weiterhin geprüft.
+
+Die Präferenzen liegen nur im Planner-Arbeitsverzeichnis, werden aus den
+verifizierten Eingaberegistern abgeleitet und nach Simulation/Download auf
+unveränderte Bytes geprüft. Ihr Hash steht im Resolverbeleg; Quellregister,
+Konfiguration und vollständiger Ergebnisbestand bleiben an den Plan gebunden.
+Signatur-, Archiv-, Admin- und Veröffentlichungsprüfungen werden nicht verändert.
+Die Systemabnahme dieser Korrektur verlangt einen neuen Vollbuild und die
+Wiederholung des realen gemeinsamen Updates mit zwei privaten Versionen.
+
 ## Nachweisgrenze
 
 Die Implementierung wird als Komponentensatz im lokalen QEMU geprüft.
