@@ -156,6 +156,22 @@ Der Host wartet auf Paketplanung und Abschluss jeweils höchstens zehn Minuten,
 weil ARM unter TCG mehrere Minuten benötigen kann. Diese Wartezeit verändert
 weder die Gast-Autorisierung noch deren Fristen.
 
+Für Prüfungen während einer Ausführung gibt `package-approve-start` nach der
+ersten CLI-Meldung „Paketänderung läuft“ die Hoststeuerung zurück. Bis
+`package-wait` den tatsächlichen Abschluss beobachtet, sind neue Befehle im
+ersten Terminal gesperrt. `second-a none logout` kann währenddessen über eine
+zweite, frisch authentifizierte CLI die Abmeldung anfordern. Auch `second-*`
+Paketaktionen sowie `close`, `peek` und `scan` bleiben möglich. Meldet die CLI
+bereits einen Endzustand, wird `pending=false` protokolliert; dieser Versuch
+belegt dann keine Überlappung. Ein Timeout hält den Kanal gesperrt, bis der
+Abschluss beobachtet oder der Kanal ausdrücklich geschlossen wird.
+
+Die laufende Meldung allein belegt keinen noch lebenden Worker. Vor dem
+konkurrierenden Eingriff müssen dessen tatsächliche Prozessidentität und
+Transaktionsphase beobachtet werden; danach Paketgenerationen, Prozesse,
+Ressourcen und CE-Zustand. Diese Steuerung benötigt einen neu gestarteten
+Treiber und wird nicht nachträglich in bestehende Testprozesse geladen.
+
 `cli BEFEHL` ist für gezielte CLI-Prüfungen ohne weitere interaktive Rückfrage
 vorgesehen, beispielsweise die Ablehnung einer nicht verfügbaren Version.
 Die aufgezeichnete Antwort allein ist kein Erfolgssignal. Paketgenerationen,

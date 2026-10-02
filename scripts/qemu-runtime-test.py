@@ -87,6 +87,7 @@ pending = bytearray()
 shell_active = False
 held_login = None
 package_prompt = False
+package_running = False
 ce_holders = {}
 mq_prefix = 'aegis_' + secrets.token_hex(8)
 mq_created = set()
@@ -124,7 +125,7 @@ def until(marker, timeout=180):
     return result
 
 def close():
-    global client, master, shell_active, package_prompt
+    global client, master, shell_active, package_prompt, package_running
     if client and client.poll() is None:
         # A failed assertion may leave the remote terminal at a password
         # prompt. Never send a shell command as an unintended credential.
@@ -138,6 +139,7 @@ def close():
     pending.clear()
     shell_active=False
     package_prompt=False
+    package_running=False
 
 def open_client():
     global master, client
@@ -466,7 +468,7 @@ def until_any(markers, timeout=600):
 
 def package_begin(action_name,scope,package="hello"):
     global package_prompt
-    assert not shell_active and not package_prompt and held_login is None
+    assert not shell_active and not package_prompt and not package_running and held_login is None
     assert client and client.poll() is None
     assert action_name in ('install','remove','update') and scope in ('user','all')
     assert re.fullmatch(r'[a-z0-9][a-z0-9+.-]{0,62}(=(?:[0-9]+:)?[0-9][a-zA-Z0-9.+~-]{0,100})?',package)
@@ -482,15 +484,34 @@ def package_begin(action_name,scope,package="hello"):
             or action_name=='update'
             or package_name+': privat festhalten, Version ' in clean(data))
 
-def package_approve(key, administrator="alpha"):
-    global package_prompt
+def package_approve(key, administrator="alpha", observe_start=False):
+    global package_prompt, package_running
     assert package_prompt and client and client.poll() is None
     os.write(master,names[administrator].encode()+b'\n')
     data=until('Admin-Passwort für diesen Plan: ',30)
     os.write(master,credentials[key]+b'\n')
-    data.extend(until('aegis> ',600))
     package_prompt=False
+    # Protect the interactive stream even if observation times out. A password
+    # submission is neither a publication nor proof that the worker stopped.
+    package_running=True
+    if observe_start:
+        which,observed=until_any(['Paketänderung läuft; Veröffentlichung wird geprüft.', 'aegis> '])
+        data.extend(observed)
+        package_running=which==0
+        record('package-approval-start-'+key,data)
+        record('package-completion-pending',{'pending':package_running,
+               'scope':'CLI state only; actual live worker and later outcome require independent observation'})
+        return
+    data.extend(until('aegis> ',600))
+    package_running=False
     record('package-approve-'+key,data)
+
+def package_wait():
+    global package_running
+    assert package_running and client and client.poll() is None
+    data=until('aegis> ',600)
+    package_running=False
+    record('package-wait',data)
 
 def package_cancel():
     global package_prompt
@@ -1023,7 +1044,9 @@ try:
     for line in sys.stdin:
         cmd = line.strip()
         try:
-            if package_prompt and not cmd.startswith('second-') and cmd not in ('quit','close','peek','scan','package-approve','package-wrong','package-nonadmin','package-cancel-plan'):
+            if package_running and not cmd.startswith('second-') and cmd not in ('quit','close','peek','scan','package-wait'):
+                raise RuntimeError('Observe pending package completion before sending another main-terminal command')
+            if package_prompt and not cmd.startswith('second-') and cmd not in ('quit','close','peek','scan','package-approve','package-approve-start','package-wrong','package-nonadmin','package-cancel-plan'):
                 raise RuntimeError('Finish or cancel the pending package review before other controls')
             if cmd == 'quit': break
             if cmd == 'open': open_client()
@@ -1113,6 +1136,9 @@ try:
                 package_begin(operation,scope,words[1] if len(words)==2 else 'hello')
             elif cmd in ('package-approve','package-wrong'):
                 package_approve(current_credentials['alpha'] if cmd=='package-approve' else 'wrong')
+            elif cmd == 'package-approve-start':
+                package_approve(current_credentials['alpha'],observe_start=True)
+            elif cmd == 'package-wait': package_wait()
             elif cmd == 'package-nonadmin': package_approve(current_credentials['beta'],'beta')
             elif re.fullmatch(r'second-[abc] (none|approve|wrong|nonadmin|cancel) .+',cmd):
                 control,approval,command=cmd.split(' ',2)
