@@ -535,3 +535,26 @@ vier Sekunden verspäteten Zugriff auf den zerstörten Cache-Mutex, ebenfalls
 bei Exitcode 0. Eine Korrektur der Singleton-Lebensdauer ist jetzt integriert;
 Gastvergleich und vollständige Bootregression stehen aus.
 [Ursache, Beleg, Korrektur und Wiederholung](egl-cache-lifetime.md).
+
+## Startwartezeit nach langsamer Paketplanung
+
+Der Start wartet künftig insgesamt höchstens 15 Minuten auf denselben Auftrag.
+Die ARM64-TCG-Beobachtung mit vier bis fünf Minuten Planung überschreitet die
+bisherigen zwei Minuten bereits vor Installation und abschließender Prüfung.
+Einzelne native Aufrufe behalten die kürzere CE-Zugangsfrist. Vor jeder
+Fortsetzung prüft der Dienst die ursprüngliche Anmeldung und ihre Freigabe;
+eine spätere Anmeldung darf einen widerrufenen Start nicht übernehmen.
+
+Drei ergänzende Komponententests mit synthetischer Uhr prüfen lange Planung
+und Installation im selben Auftrag, die unverlängerbare Gesamtfrist sowie
+Abmeldung während der Wartephase. Der Hosttreiber wartet beim Start bis zu
+16 Minuten auf die abschließende Antwort. Syntaxprüfung und Quellprüfung sind
+erfolgt; Android-Kompilierung, Testausführung und echte Paketaktivierung im
+korrigierten Vollimage stehen noch aus. T16 bleibt offen.
+
+Die vorherigen Treiber-/VM-Handles sind bei der Fortsetzung nicht mehr vorhanden;
+auch die Prozessliste und ADB bestätigen keinen laufenden Gast. Die ausschließlich
+im Treiber gehaltenen synthetischen Passwörter sind damit nicht mehr verfügbar.
+Profile und bisherige Belege bleiben erhalten. Neue Anmeldetests beginnen mit
+einem frischen Profil; ein solcher Lauf zählt nicht als Fortsetzung der früheren
+Passwort- oder Bytepersistenznachweise.

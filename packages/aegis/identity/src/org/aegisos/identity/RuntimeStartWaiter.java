@@ -15,12 +15,17 @@ final class RuntimeStartWaiter {
         RuntimeBrokerProtocol.StartReply step(long job, long deadline) throws RemoteException;
     }
     interface Pause { void sleep(long nanos) throws InterruptedException; }
-    private static final long MAX_WAIT = TimeUnit.MINUTES.toNanos(2);
+    // START can include signed package planning, installation, verification and
+    // a second selection. ARM64 TCG planning alone takes four to five minutes.
+    // This bounds the whole original job, not one Binder/admission operation;
+    // each probe still rechecks the original session and its short CE admission.
+    private static final long MAX_WAIT = TimeUnit.MINUTES.toNanos(15);
     private static final long INTERVAL = TimeUnit.MILLISECONDS.toNanos(200);
     private final LongSupplier clock;
     private final Pause pause;
     private final long limit;
-    RuntimeStartWaiter() { this(System::nanoTime, TimeUnit.NANOSECONDS::sleep, MAX_WAIT); }
+    RuntimeStartWaiter() { this(System::nanoTime, TimeUnit.NANOSECONDS::sleep); }
+    RuntimeStartWaiter(LongSupplier clock, Pause pause) { this(clock, pause, MAX_WAIT); }
     RuntimeStartWaiter(LongSupplier clock, Pause pause, long limit) {
         this.clock = Objects.requireNonNull(clock); this.pause = Objects.requireNonNull(pause);
         if (limit <= 0 || limit > MAX_WAIT) throw new IllegalArgumentException("Invalid start wait bound");

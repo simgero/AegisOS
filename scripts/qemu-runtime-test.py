@@ -184,7 +184,7 @@ def check_prepared(key,before):
         'scope':'No password sent yet. Foreground target is selected; no new CE access and GNU context unchanged. Pending eviction may finish locking CE. Completed switch is enforced by service, not inferred from foreground alone.'})
 
 
-def action(label, command, prompts=()):
+def action(label, command, prompts=(), timeout=180):
     if not client or client.poll() is not None: raise RuntimeError('Open the CLI first')
     auth_labels = {'login-a':'alpha', 'wrong-a':'alpha', 'switch-b':'beta',
                    'wrong-b':'beta', 'old-b':'beta', 'login-b-new':'beta', 'login-c':'gamma'}
@@ -198,7 +198,7 @@ def action(label, command, prompts=()):
         if before is not None: check_prepared(auth_key,before)
         # The Java Console owns the guest no-echo terminal; no shell password argument.
         os.write(master, credentials[key]+b'\n')
-    response.extend(until('aegis> '))
+    response.extend(until('aegis> ', timeout))
     record(label, response)
     for line in clean(response).splitlines():
         match = re.match(r'user=(\d+) serial=(\d+) name=(.*?) admin=', line)
@@ -892,7 +892,8 @@ def second_cli(key, approval, command):
         assert re.search(r'(?m)^user='+str(users[key][0])+r' serial='+str(users[key][1])+r' ',clean(response))
         assert 'foreground=true running=true ce=unlocked' in clean(response)
         os.write(second_master,command.encode()+b'\n')
-        state,response=receive(['Admin-Benutzer für diesen Plan (leer bricht ab): ','aegis> '])
+        state,response=receive(['Admin-Benutzer für diesen Plan (leer bricht ab): ','aegis> '],
+                               timeout=960 if command.strip() == 'linux start' else 600)
         record('parallel-command-'+key,{'command':command,'approval':approval,'response':clean(response)})
         if state==0:
             assert approval!='none', 'Unexpected approval prompt; this control expected immediate result'
@@ -1234,7 +1235,7 @@ try:
             elif cmd.startswith('gnu-checked '): checked_gnu('gnu-checked',cmd[len('gnu-checked '):])
             elif cmd.startswith('gnu '): gnu('gnu-command',cmd[4:])
             elif cmd in ('linux-start', 'linux-status', 'linux-stop'):
-                action(cmd, cmd.replace('-', ' '))
+                action(cmd, cmd.replace('-', ' '), timeout=960 if cmd == 'linux-start' else 180)
             elif cmd in ('status', 'logout', 'list'):
                 action(cmd, 'user list' if cmd == 'list' else cmd)
             elif re.fullmatch(r'(write|read|locked)-[ab]', cmd):

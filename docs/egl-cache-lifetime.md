@@ -52,20 +52,15 @@ ein Backtrace beziehungsweise eine gespeicherte Bibliothekszuordnung. Die
 gezielte EGL-Reproduktion ist belastbar; sie ersetzt nicht die noch nötige
 Prüfung des korrigierten vollständigen Bootablaufs. D1 bleibt offen.
 
-## Wiederholung auf dem Buildserver
+## Weiterer Prüfweg
 
-```sh
-sudo -n /srv/aegis/work/aosp/prebuilts/clang/host/linux-x86/clang-r547379/bin/clang \
-  --target=aarch64-linux-android35 -fPIC -shared -nostdlib -fuse-ld=lld \
-  -Wall -Wextra -Werror tests/fixtures/egl_cache_exit_probe.c \
-  -o out/libegl_cache_exit_probe.so
-python3 scripts/qemu-egl-cache-test.py \
-  --probe out/libegl_cache_exit_probe.so \
-  --output out/egl-cache-original --expect destroyed-mutex
-```
+Der gezielte Absturztest wird auf Wunsch des Nutzers nicht fortgesetzt. Die
+vorhandenen Testquellen und Rohbelege bleiben als historische Diagnose erhalten.
+Weitere Validierung erfolgt durch Quellprüfung, reguläre Builds und normale
+Boot-/Bedienungsabläufe des vollständigen korrigierten Images.
 
-Die Probe verwendet die internen exportierten Symbole des gepinnten AOSP-Stands.
-Für den Komponentenvergleich kann `--library PATH_TO_FIXED_LIBEGL_SO` zusammen
-mit einem neuen Ausgabeverzeichnis und `--expect clean` verwendet werden.
-Nur der eigene Prüfprozess lädt diese Bibliothek; das installierte Systemimage
-wird dabei nicht ersetzt. Binärdateien und Gastbelege bleiben lokal.
+Der erste Komponentenvergleich ist **nicht aussagekräftig für die Korrektur**:
+Sein Backtrace zeigt weiterhin die ursprüngliche Systembibliothek. Er beweist
+weder Erfolg noch Scheitern der korrigierten Bibliothek. Der lokale Komponentenbuild
+von `624545f` hat einschließlich ABI-Prüfung bestanden; ein bestandener Build
+ersetzt keine Bootabnahme.

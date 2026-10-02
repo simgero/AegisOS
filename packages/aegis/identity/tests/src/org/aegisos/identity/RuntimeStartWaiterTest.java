@@ -5,6 +5,7 @@ import android.os.RemoteException;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.Test;
@@ -44,6 +45,53 @@ public final class RuntimeStartWaiterTest {
             }
         });
         assertTrue(result.ready); assertEquals(List.of(0L, 17L, 17L), jobs); assertEquals(2, sleeps.get());
+    }
+    @Test public void defaultBoundAllowsPlanningAndInstallationWithoutReplacingTheJob() throws Exception {
+        AtomicLong clock = new AtomicLong(100);
+        List<Long> jobs = new ArrayList<>();
+        RuntimeStartWaiter waiter = new RuntimeStartWaiter(clock::get, clock::addAndGet);
+        RuntimeBrokerProtocol.StartReply result = waiter.await((job, deadline) -> {
+            assertEquals(100 + TimeUnit.MINUTES.toNanos(15), deadline);
+            jobs.add(job);
+            // Two slow phases on the same startup, exceeding the old two-minute bound.
+            if (jobs.size() < 3) clock.addAndGet(TimeUnit.MINUTES.toNanos(4));
+            return new RuntimeBrokerProtocol.StartReply(17, jobs.size() == 3);
+        });
+        assertTrue(result.ready);
+        assertEquals(List.of(0L, 17L, 17L), jobs);
+    }
+    @Test public void defaultBoundStillRejectsLateReadyAndOversizedWaits() throws Exception {
+        AtomicLong clock = new AtomicLong(100);
+        AtomicInteger calls = new AtomicInteger();
+        RuntimeStartWaiter waiter = new RuntimeStartWaiter(clock::get, clock::addAndGet);
+        fails(IllegalStateException.class, () -> waiter.await((job, deadline) -> {
+            calls.incrementAndGet();
+            assertEquals(100 + TimeUnit.MINUTES.toNanos(15), deadline);
+            clock.set(deadline);
+            return new RuntimeBrokerProtocol.StartReply(17, true);
+        }));
+        assertEquals(1, calls.get());
+        fails(IllegalArgumentException.class, () ->
+                new RuntimeStartWaiter(clock::get, clock::addAndGet, TimeUnit.MINUTES.toNanos(16)));
+    }
+    @Test public void logoutAfterSlowPlanningCannotReviveTheOriginalAdmission() throws Exception {
+        RuntimeAdmission gate = new RuntimeAdmission((user, deadline) -> {});
+        RuntimeAdmission.Binding binding = fakeLogin(gate);
+        AtomicLong clock = new AtomicLong(100);
+        AtomicInteger nativeCalls = new AtomicInteger();
+        RuntimeStartWaiter waiter = new RuntimeStartWaiter(clock::get, nanos -> {
+            try (RuntimeAdmission.Storage storage = gate.storage(10, true)) { }
+            fakeLogin(gate);
+            clock.addAndGet(nanos);
+        });
+        fails(SecurityException.class, () -> waiter.await((job, deadline) -> {
+            try (RuntimeAdmission.Access access = gate.existing(binding)) {
+                nativeCalls.incrementAndGet();
+                clock.addAndGet(TimeUnit.MINUTES.toNanos(4));
+                return new RuntimeBrokerProtocol.StartReply(17, false);
+            }
+        }));
+        assertEquals(1, nativeCalls.get());
     }
     @Test public void logoutDuringWaitSealsTheOriginalBindingBeforeAnotherNativeRequest() throws Exception {
         AtomicInteger stopped = new AtomicInteger();
