@@ -5,7 +5,9 @@ Beginn: 1. Oktober 2026. Ziel ist die vollständige
 **Status: aktiv, keine vollständige Abnahme.** Aktueller Prüfstand:
 Image `20d7d6d33fb3243cd87d0eb90fa2fd09bd2cc178`, Profil
 `06adfa48-f55f-46b7-a962-82bef7af5e83`. Normaler Boot und vier gezielte native
-Pakettests sind bestanden; der neue persönliche CLI-Ablauf steht noch aus.
+Pakettests sind bestanden. Im neuen persönlichen CLI-Ablauf sind beide Benutzer
+angelegt; Alphas erster Zugang und GNU-Grundprüfung bestehen. Betas erster
+Zugang und der vollständige Paket-/Persistenzablauf stehen noch aus.
 Die folgenden früheren integrierten Belege gehören zu Image
 `31551159cd11d66b0fa18442b5f62106edf4bfb5`, Profil
 `1c53b76e-bb1d-4ed6-a0df-7bbc21f2cfee`: normaler Boot, Bedienung,
@@ -948,3 +950,33 @@ Sie ersetzen weder AOSP-Adminfreigabe noch den tatsächlichen gemeinsamen
 CLI-Updateablauf mit zwei privaten Versionen. T16 und der vollständige
 Referenzablauf müssen auf diesem Stand noch ausgeführt werden; T15 enthält
 weiterhin die offene private Entfernung mit Rückkehr zur gemeinsamen Variante.
+
+
+## Persönlicher CLI-Ablauf auf 20d7d6d begonnen
+
+Die echte AEGIS-CLI legt Alpha 10/10 als ersten AOSP-Administrator an. CE bleibt
+danach `[0]`. Auch die anschließende Vorbereitung des ersten Logins wechselt
+nur das Vordergrundziel; Alphas CE ist vor Passworteingabe gesperrt und seine
+Runtime fehlt. Der erste korrekte Login gelingt ohne Aufwärmversuch. Eine
+verzögerte Statusprüfung und tatsächlich ausgeführte GNU-Befehle bestätigen die
+fortbestehende Sitzung, interne UID/GID 1000 und HOME `/home/user`.
+
+Zehn persönliche Grundverzeichnisse besitzen jeweils 1000:1000 und Modus 0700.
+Bash, apt, dpkg und GNU-Werkzeuge laufen mit glibc 2.41; die Basis ist
+schreibgeschützt, der Programmprozess trägt keine Capabilities und meldet
+NoNewPrivs sowie Seccomp. Das ist eine Einzelbenutzerprüfung, noch kein
+gegenseitiger Isolationsnachweis. Alpha erzeugt seine ursprüngliche 1024-Byte-Datei,
+SHA-256 `ab868c1520a320bf6b6e206731fbee6d71dbbd4e4318160a8f4bc38fac5b397d`,
+sowie getrennte Konfigurations- und flüchtige Proben aus seiner GNU-Shell.
+Der begrenzte Hintergrundprozess wird als PID 6491/Startzeit 206114 und
+Host-UID 1007500 mit fortschreitendem Zähler beobachtet.
+
+Nach regulärem Shell-Ende legt die CLI mit frischer Alpha-Adminprüfung Beta
+11/11 als normalen Benutzer an; dessen CE bleibt gesperrt. Beleg:
+`out/phase1-dod/20d7d6d/alpha-first-gnu-and-two-users-proof.json`, SHA-256
+`f391c851879b21ddcceb6b236bc94513f83585437d57a0eb093814d8eb91538c`.
+Die 30 eingefrorenen Ereignisse reichen bis zur Beta-Anlage. Die erste gemeinsame
+jq-u3-Planung läuft danach; eine Paketveröffentlichung ist an diesem Prüfpunkt
+noch nicht belegt. Der Live-Treiber hält die neuen Passwörter ausschließlich
+im Speicher. Vorherige Profile und deren ursprüngliche Nachweise werden nicht
+zurückgesetzt oder ersetzt.
