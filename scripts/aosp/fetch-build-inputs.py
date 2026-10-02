@@ -20,6 +20,7 @@ REQUIRED = {
     "scripts/aosp/setup-sandbox.sh", "scripts/aosp/link-product.py",
     "scripts/aosp/register-identity.py",
     "scripts/aosp/register-qemu-graphics.py",
+    "scripts/aosp/register-egl-cache.py",
     "scripts/aosp/check-memory.py",
     "scripts/aosp/check-audio.py",
     "scripts/aosp/register-runtime-storage.py", "runtime/aosp-storage-hooks.json",

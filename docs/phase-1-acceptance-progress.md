@@ -503,3 +503,35 @@ mit gehashtem `credential-structure-observer.json`.
 **Offen:** Eine punktuelle Argument-/Kontenprüfung und Quellprüfung ersetzen
 keinen vollständigen History-/Umgebungs-/Dateiscan über die Anmeldeabläufe.
 T01 bleibt bis zur vollständigen Zuordnung und Prüfung offen.
+
+## Gemeinsames Update veröffentlicht; T16-Aktivierung noch fehlgeschlagen
+
+Der regulär mit Alphas AOSP-Passwort freigegebene gemeinsame Updateplan wird
+veröffentlicht: neue gemeinsame Generation `ce7bc27b…`. Betas laufender Kontext
+bleibt auf seiner unveränderten privaten Generation; seine bisherige `u3`-Version
+wird nach der Veröffentlichung erfolgreich ausgeführt. Der Status zeigt korrekt
+`activation-pending`, nur Betas persönliches CE ist entsperrt.
+
+Nach `linux stop` beginnt ein frisch authentifizierter zweiter CLI-Kanal den
+Start samt privatem Abgleich. Der Aufruf bestätigt nach genau zwei Minuten
+keinen Erfolg. Derselbe Planungsprozess ist danach noch aktiv; später ist er
+beendet, ohne dass ein Runtime-Kontext entstanden oder die private Auswahl
+veröffentlicht worden wäre. Der Status bleibt `sealed`, `packages=not-active`.
+Der Quelltext von `RuntimeStartWaiter` begrenzt den gesamten Start auf zwei
+Minuten; schon die tatsächliche Paketplanung braucht hier etwa vier bis fünf
+Minuten. Ein erneuter Start wird während des laufenden Auftrags nicht erzeugt.
+
+Beleg: `out/phase1-dod/d149766/common-update-activation-timeout.json`, SHA-256
+`b2d5638a3900224d77b01caca2a4d4d191e0cb65795abde1f84f58647ee7d15e`.
+Gemeinsame Veröffentlichung und unveränderter laufender Kontext sind Teilbelege.
+**Die Aktivierung ist nicht bestanden.** Das ist kein erklärter Versionskonflikt
+und wird nicht als zulässiger Ersatz für T16 gewertet. Der Start-/Fortsetzungsweg
+muss korrigiert und im passenden Image erneut geprüft werden.
+
+## EGL-Cache-Lebenszyklus reproduziert
+
+Die gezielte Prüfung der unveränderten Gastbibliothek reproduziert einen
+vier Sekunden verspäteten Zugriff auf den zerstörten Cache-Mutex, ebenfalls
+bei Exitcode 0. Eine Korrektur der Singleton-Lebensdauer ist jetzt integriert;
+Gastvergleich und vollständige Bootregression stehen aus.
+[Ursache, Beleg, Korrektur und Wiederholung](egl-cache-lifetime.md).
