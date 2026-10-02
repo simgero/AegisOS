@@ -9,8 +9,8 @@ Image `209278def7d5bc5612eeb397bdd8ee20ccb16d86`, Profil
 Vollbuild und Imageprüfung, Bedienung per Tastatur/Maus, authentifizierter
 binärer ADB-Rundlauf und die begrenzte Boot-/Kryptographiekontrolle sind
 belegt. Auf diesem Image bestehen 38 Java-Pakettests, sieben native Plantests,
-sechs Auswahltests und fünf Ausführungstests. Die beiden Veröffentlichungstests
-sind noch nicht abgenommen. Persönliche Benutzer und der vollständige
+sechs Auswahltests, fünf Ausführungstests und beide Veröffentlichungstests.
+Persönliche Benutzer und der vollständige
 CLI-/Neustartablauf sind auf diesem Profil noch nicht angelegt beziehungsweise
 ausgeführt. Die einzelnen Belege und ihre Grenzen stehen weiter unten.
 
@@ -1521,3 +1521,38 @@ Log-SHA-256:
 Die zwei Veröffentlichungstests und der vollständige CLI-Ablauf bleiben offen.
 Diese Komponententests bedeuten keine vollständige Abnahme von T15/T16 oder
 Phase 1. Es wurden keine gezielten Diagnoseabstürze wieder aufgenommen.
+
+## Passworttransport: Quellenbindung für 209278d
+
+Der frühere Transportnachweis ist mit dem gehashten Quellinventar des aktuellen
+Vollbuilds abgeglichen. In den zehn betrachteten Identitätsquellen unterscheidet
+sich nur die Paketplananzeige der CLI: Sie beschreibt nun private Entfernung
+und erlaubt deren ausdrücklich ausgewiesene wirkungslose Versionsaufhebung.
+Passworteingabe, Terminalcode, sensible AIDLs, LockSettings-Transport,
+AOSP-Backend und Paket-Adminprüfung sind in dieser Auswahl unverändert.
+
+Die drei früheren `CredentialTransportTest`-Fälle sind über Originalergebnis,
+Loghash und identische Transport-/Testquellen weiterhin als ergänzende
+Komponentenbelege zuordenbar. Es wird keine neue Ausführung behauptet.
+Lokaler Beleg: `out/phase1-dod/209278de/credential-source-continuity.json`,
+SHA-256 `8d4eaac1455f840ecfefb05e093b8be619b700c429818c69f02112bc869bf1cf`.
+Persönliche Anmeldungen sowie History-, Umgebungs- und relevante Dateiprüfungen
+auf dem aktuellen Image bleiben offen; T01 ist damit nicht abgenommen.
+
+## Beide nativen Veröffentlichungstests bestanden
+
+Beide Fälle aus `RuntimeReconciliationPlanning` bestehen auf Image `209278d`
+mit dem quellgebundenen Testbuild `6946970`. Der erste führt den signierten
+Drei-Ansichten-Plan aus, veröffentlicht ihn und prüft nach erneutem Öffnen
+Programm, Bibliothek, private Konfiguration und technischen Dateieigentümer.
+Der zweite veröffentlicht die neue gemeinsame Basisbindung bei unveränderter
+ausdrücklich gewählter privater Version ohne Paketänderungen.
+
+Der Lauf dauert rund 740 Sekunden. Vorher und nachher stimmen Boot-ID,
+SystemServer PID/Startzeit, SELinux Enforcing und CE `[0]` überein.
+Ergebnis: `out/phase1-dod/209278de/native-publication-components/result.json`,
+SHA-256 `c954cb02547c5c572980972f6239948cb15115891a93d673cbc5a829238e6c28`.
+Log-SHA-256:
+`e1e2a2be6cbf77b5bb48842d2f4ceb1bffe766234283c92f2e6b29744329b2ff`.
+Dies sind Komponentenbelege; frische AOSP-Adminfreigaben und die tatsächliche
+Aktivierung im persönlichen CLI-Ablauf bleiben gesondert nachzuweisen.
