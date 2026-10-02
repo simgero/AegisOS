@@ -980,3 +980,31 @@ jq-u3-Planung läuft danach; eine Paketveröffentlichung ist an diesem Prüfpunk
 noch nicht belegt. Der Live-Treiber hält die neuen Passwörter ausschließlich
 im Speicher. Vorherige Profile und deren ursprüngliche Nachweise werden nicht
 zurückgesetzt oder ersetzt.
+
+## Gemeinsame jq-Installation und Aktivierung auf 20d7d6d nachgewiesen
+
+Die echte CLI veröffentlicht nach frischer Alpha-AOSP-Adminfreigabe jq und
+libjq1 `1.7.1-6+deb13u3` sowie libonig5 `6.9.9-1+b1` im gemeinsamen Bereich.
+Alphas bisheriger Kontext meldet ausstehende Aktivierung und sein ursprünglicher
+Hintergrundprozess läuft bis zum ausdrücklich angeforderten Runtime-Stopp weiter.
+Nach `linux stop` und `linux start` meldet der Kontext `packages=current`.
+Sein tatsächlich eingebundenes, schreibgeschütztes Root-Image gehört zur
+veröffentlichten Generation
+`f03dffa8923f4147875d8e6d1b300071c05fda2de1ae9ddf9629ff82d66871ba`.
+
+Aus Alphas authentifizierter GNU-Shell bestätigen `dpkg-query` die drei
+Paketversionen und jq die Summe 10 aus `[1,2,3,4]`. Die ausgeführte libjq-Datei
+besitzt SHA-256
+`58a6c82e3cc0b55f2e11e85ffa487bd2381c4cd30068874504c639c76a3e59d6`.
+Die ursprüngliche persönliche 1024-Byte-Datei und beide Konfigurationsproben
+bleiben bytegleich; die ursprünglichen flüchtigen Proben unter `/tmp` und
+`/run/user/1000` sind verschwunden. Keine Probe wurde dafür neu geschrieben.
+
+Boot-ID und SystemServer-PID/Startzeit bleiben unverändert; CE ist `[0,10]`,
+Beta war noch nicht angemeldet. Der lokale Beleg
+`out/phase1-dod/20d7d6d/shared-u3-activation-proof.json`, SHA-256
+`cd9004d3c453a81c8ee5dbd124ac6c02498ec41d8fee6a2383f35c318fffa2de`,
+enthält 48 eingefrorene CLI-Ereignisse und die beobachtete Root-Image-Zuordnung.
+Dies belegt die erste gemeinsame Installation und Aktivierung mit erhaltenen
+persönlichen Dateien, noch kein gemeinsames Update bei bestehenden privaten
+Versionen und keinen VM-Neustart. T15, T16 und die Gesamtfreigabe bleiben offen.
