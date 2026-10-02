@@ -459,3 +459,47 @@ Falsche/Nicht-Adminfreigabe, erfolgreiche Aktualisierung und Abbruch während
 der Installation bleiben separate offene Fälle. Ein anschließender Scan
 findet keine vollständigen Testpasswörter in den sieben vorhandenen Bootlogs;
 dies ersetzt nicht die noch offene umfassende Transport-/Dateiprüfung T01.
+
+## Gemeinsames Update: falsches Passwort und Nicht-Admin abgewiesen
+
+Zwei weitere vollständige `update --scope all`-Pläne zeigen die gleichen fünf
+Aktualisierungen. Alphas falsches Passwort wird ausdrücklich von AOSP abgewiesen.
+Betas korrektes Passwort erteilt als Nicht-Admin ebenfalls keine Freigabe.
+Gemeinsame/private Auswahl, aktive Root-Mount und ursprünglicher Initprozess
+bleiben nach jedem Versuch unverändert. Nur Betas persönliches CE ist entsperrt.
+Seine Sitzung ist anschließend weiterhin nutzbar; seine bisherige private
+`jq`-/`libjq1`-Version `u3` führt die geprüfte Berechnung erfolgreich aus.
+
+Die allgemeine CLI-Fehlermeldung beim Nicht-Admin-Versuch empfiehlt eine erneute
+Anmeldung. Der tatsächlich folgende Status und GNU-Zugriff belegen aber keine
+Abmeldung; die Dokumentation behauptet hier keinen Sitzungsentzug.
+
+Beleg: `out/phase1-dod/d149766/update-all-denied-approvals-proof.json`, SHA-256
+`c42bd2e1506ada3f3aebfd1e4a8539797e456b4288fdd1df28c97ce62b09ea84`.
+Zusammen mit dem vorherigen Abbruch sind für `update/all` die Varianten fehlende,
+falsche und Nicht-Adminfreigabe belegt. Die positive Aktualisierung und die
+anderen Aktion-/Bereichskombinationen sind dadurch nicht abgenommen.
+
+## T01: Quellprüfung und tatsächliche technische Konten
+
+Die zum Image `d149766` identischen CLI-/Terminalquellen lesen Passwörter über
+eine eigene Eingabe ohne Terminal-Echo und bereinigen ihre temporären Puffer.
+Die Session-/Paket-AIDLs sind als sensibel markiert; der lokale LockSettings-
+Transport serialisiert die Credential-Objekte und setzt `FLAG_CLEAR_BUF`.
+Drei tatsächlich bestandene frühere `CredentialTransportTest`-Fälle werden
+mit identischem Transport-/Testquelltext und geprüftem Original-Loghash gebunden.
+Das ist keine erneute Java-Testausführung.
+
+Eine lesende Gastbeobachtung bestätigt die drei festen CLI-Startargumente ohne
+Benutzerargumente. Im tatsächlich aktiven Beta-Root sind sämtliche Passwortfelder
+der 19 technischen Benutzer und 39 Gruppen gesperrt; UID/GID 1000 gehört dem
+generischen Eintrag `runtime`. Der Beleg enthält keine Shadow-Inhalte oder
+Passwortwerte. Die Erzeugungsquellen prüfen gesperrte technische Konten und
+lokale NSS-Dateien; persönliche Passwortprüfung bleibt bei AOSP.
+
+Beleg: `out/phase1-dod/d149766/credential-source-review.json`, SHA-256
+`7c8920dee33cac0e9ee8cb36df7c6b35a21f1306f05359d06e5fb4161c517626`,
+mit gehashtem `credential-structure-observer.json`.
+**Offen:** Eine punktuelle Argument-/Kontenprüfung und Quellprüfung ersetzen
+keinen vollständigen History-/Umgebungs-/Dateiscan über die Anmeldeabläufe.
+T01 bleibt bis zur vollständigen Zuordnung und Prüfung offen.
