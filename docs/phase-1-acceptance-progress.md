@@ -664,3 +664,44 @@ mit eingefrorenem Ereignispräfix und gehashten Beobachtungen vor/nach Aktivieru
 Dies ist die erste gemeinsame Installation bei einem Benutzer, **noch kein
 T16-Nachweis für ein gemeinsames Update mit vorhandener privater Version**.
 Der anschließende private u4-Plan ist in Arbeit; sein Erfolg wird separat geprüft.
+
+
+## Zwei Benutzer führen getrennte jq-Versionen auf 3155115 aus
+
+Alpha veröffentlicht mit eigener frischer AOSP-Adminfreigabe eine private
+Generation `d8d15a97…` mit `jq` und `libjq1` `1.7.1-6+deb13u4`.
+Die gemeinsame u3-Generation bleibt unverändert. Der laufende Alpha-Kontext
+verwendet bis zum eigenen Kontextneustart weiterhin u3; der Status meldet
+`activation-pending`. Danach läuft PID 6947, Startzeit 313901, mit der privaten
+CE-Generation als Root. Tatsächliche GNU-Ausführung bestätigt u4, jq-Ergebnis
+10 und die Bibliotheksprüfsumme
+`92012c8c198ed5f8e44042a124c3271e89a0a2867fc3344642d9ed391ef75f50`.
+Alphas ursprüngliche Datei und Konfiguration bleiben bytegleich; alte flüchtige
+Dateien fehlen nach dem Kontextneustart.
+
+Betas erster korrekter Login gelingt ohne vorherigen Fehlversuch. Vor Eingabe
+des Passworts bleibt Beta gesperrt und ohne Runtime. Nach erfolgreicher Anmeldung
+verwendet sein Kontext PID 7848, Startzeit 344923, die gemeinsame Generation
+`0c064ea4…`. Beta führt jq tatsächlich in u3 aus, mit passendem `libjq1`,
+Bibliotheksprüfsumme und Ergebnis 10. Beide Kontexte existieren gleichzeitig.
+Alphas Hintergrundprozess behält beim Benutzerwechsel PID 6976, Startzeit
+321693, Host-UID und Namespaces; sein Fortschrittszähler steigt weiter.
+
+Beta erzeugt seine eigene ursprüngliche 1024-Byte-Datei, SHA-256
+`2a70df68a2b078f38052836b6beb588db2370f164fff323124aa5913922cb027`,
+sowie eigene Konfiguration. Das ist ein Nachweis getrennter normaler Nutzung;
+die gegenseitigen Zugriffsprüfungen werden dadurch nicht ersetzt.
+
+Lokale Teilnachweise unter `out/phase1-dod/3155115/`:
+
+- `alpha-private-u4-activation-proof.json`:
+  `d3cda13235e37a6d656ab24d34b8e43c0ef803e045127abde9c911eaab6c3179`
+- `two-version-execution-proof.json`:
+  `c52a0a0cef6aef998b33c556d17149a42b30cfd47b357589f72572019d67f90e`
+
+Der zweite Beleg friert die Ereignisse bis 13:22:06 UTC am 2. Oktober ein und
+bindet die Beobachtung beider Root-Generationen. T15 bleibt wegen noch offener
+Entfernungs-/Konfliktvarianten offen. Gemeinsames Update mit privatem Abgleich
+(T16), gegenseitige Isolation und gepaarter Neustart dieses Profils sind damit
+noch nicht nachgewiesen. Der stillgelegte gezielte Absturztest wurde nicht
+wieder aufgenommen.
