@@ -132,3 +132,22 @@ plattformbedingte macOS-Auslassungen. Der vollständige lokale Build
 `LOCAL_BUILD_VERIFIED`; alle 20 Image-Prüfsummen stimmen. Images und
 Prüfbelege bleiben lokal. Die echte CLI-Installation beider jq-Versionen und
 der vollständige Referenzablauf auf diesem neuen Image stehen noch aus.
+
+
+Auch die acht Fälle `RuntimePackageResolver.*` bestehen mit den neuen
+Komponenten (277 Sekunden): unveränderliche Planerbasis, unsigniertes und
+abgelaufenes Repository, veränderter authentifizierter Index, verändertes
+Archiv, manipulierte Planerkonfiguration, abhängige Entfernung und Update.
+Log-SHA-256: `d019fdb6ed86e6d7a6e24232b2dfa4103f9b7a089962c11f7ea83e46821c2e87`.
+Der Beobachter bestätigt denselben Boot und SystemServer. Ein vorheriger
+Kopierversuch in das bereits belegte ADB-Ziel scheiterte vor Testbeginn; der
+erfolgreiche Lauf verwendet ein separates neues Komponentenverzeichnis.
+Das diagnostische Android-/KeyMint-Paar wurde anschließend sauber gestoppt.
+
+Das neue Vollimage wird separat unter `out/phase1-dod/d149766/` vorbereitet:
+AVB-Digest `b4ff48eb9f5e51cc043e11b7e1dacd19727111eada494ee4eeded0e1a7753450`,
+Disk-SHA-256 `30fcbd8b9fe74e5c7571b371599f52ff1c61565e8fb3b7c4ae041085f0b85719`.
+Der erste Boot mit neuem Profil ist gestartet, die integrierte Abnahme bleibt
+offen. Neue Treibersteuerungen für beidseitige Konfiguration/Secrets,
+flüchtige Dateien und Runtime-Stopp haben eine Syntaxprüfung; sie gelten
+erst nach tatsächlicher Ausführung als Gastnachweis.

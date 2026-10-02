@@ -96,6 +96,32 @@ aus und verlangt einen eindeutigen tatsächlich ausgegebenen Exitcode 0.
 `gnu BEFEHL` ist nur eine Diagnose ohne diese Erfolgsbehauptung. Eingaben und
 synthetische Dateiproben werden protokolliert; keine fremden Secrets verwenden.
 
+## Konfiguration, Test-Secrets und flüchtige Dateien
+
+`private-state-write-a/b` erzeugt pro Benutzer unterschiedliche synthetische
+Bytes in einer Konfigurationsdatei, einer persönlichen Test-Secret-Datei,
+`/tmp` und `/run/user/1000`. Die Erzeugung erfolgt in der echten GNU-Shell;
+bereits vorhandene Proben werden nicht überschrieben. `private-state-read-a/b`
+prüft später die ursprünglichen persistenten Bytes. Nach einem Kontext- oder
+VM-Neustart verlangt `private-state-ephemeral-empty-a/b` zusätzlich, dass beide
+alten flüchtigen Dateien verschwunden sind.
+
+Sind beide Proben und Hintergrundjobs angelegt, prüft
+`private-state-isolation-a/b` verweigerte Lese- und Schreibzugriffe aus GNU auf
+den anderen Kontext. Der Beobachter bestätigt vor und nach dem Versuch die
+ursprünglichen fremden Bytes und denselben fortschreitenden Hintergrundprozess.
+Eine vorhandene private Paket-Auswahldatei wird zusätzlich einbezogen; ein
+fehlender privater Paketbestand wird ausdrücklich nicht als dessen
+Isolationsnachweis ausgegeben. Diese Steuerungen sind zunächst implementierte
+Prüfwerkzeuge; erst ein protokollierter erfolgreicher Gastlauf ist ein Beleg.
+
+`stop-own-runtime-a/b` verlangt zwei lebende GNU-Hintergrundjobs und ruft
+`linux stop` für den aktuellen Benutzer auf. Es prüft dessen ursprünglichen
+Prozess und Kontext auf Abbau, fortbestehende AOSP-Sitzung und unveränderte
+CE-Liste sowie den Fortschritt des ursprünglichen anderen Jobs. Danach sind
+`linux-start`, `shell`, Persistenz-/Ephemeral-Prüfungen und gegebenenfalls
+`gnu-bg-renew-a/b` gesondert auszuführen. Das ist kein Logout-Nachweis.
+
 ## Nachträglich angelegter dritter Benutzer
 
 `add-c` legt als angemeldeter Alpha-Admin den zusätzlichen Benutzer Gamma über

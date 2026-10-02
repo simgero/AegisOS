@@ -75,6 +75,8 @@ probes = {name: secrets.token_bytes(4096) for name in names}
 gnu_probes = {name: secrets.token_hex(512) for name in names}
 gnu_files = {name: 'proof-'+secrets.token_hex(12) for name in names}
 gnu_written = set()
+private_state_written = set()
+private_state_tokens = {name: secrets.token_hex(32) for name in names}
 background_tokens = {name: 'AEGIS_BG_'+secrets.token_hex(12) for name in names}
 backgrounds = {}
 users = {}
@@ -663,6 +665,117 @@ def check_peer_isolation(key):
            'peer_host_pid':other['host_pid'],
            'scope':'Actual GNU denied reads and SIGSTOP, with live peer before/after; not package or exhaustive syscall coverage'})
 
+def stop_own_runtime(key):
+    """Check linux stop independently of logout, while the peer keeps running."""
+    assert not shell_active and held_login is None and not package_prompt
+    peer='beta' if key=='alpha' else 'alpha'
+    observe_background(key);observe_background(peer)
+    before=auth_state(key)
+    assert before['target_unlocked'] and before['foreground']==str(users[key][0])
+    action('runtime-stop-session-before-'+key,'status')
+    assert 'terminal=unauthenticated' not in events[-1]['output']
+    assert 'foreground=true running=true ce=unlocked' in events[-1]['output']
+    action('runtime-stop-own-'+key,'linux stop')
+    after=auth_state(key)
+    assert after['target_unlocked'] and after['context']=='absent'
+    assert after['foreground']==before['foreground'] and after['ce']==before['ce']
+    job=backgrounds[key]
+    assert checked_output(ADB+['shell','cat','/proc/sys/kernel/random/boot_id'],text=True,timeout=20).strip()==job['boot_id']
+    path='/proc/'+str(job['host_pid'])+'/stat'
+    value=checked_output(ADB+['shell','su 0 sh -c '+shlex.quote(
+        'if test -r '+path+'; then cat '+path+'; fi')],text=True,timeout=20).strip()
+    assert not value or value.rsplit(') ',1)[1].split()[19]!=job['starttime']
+    action('runtime-stop-session-after-'+key,'status')
+    assert 'terminal=unauthenticated' not in events[-1]['output']
+    assert re.search(r'(?m)^user='+str(users[key][0])+r' serial='+str(users[key][1])+r' ',events[-1]['output'])
+    assert 'foreground=true running=true ce=unlocked' in events[-1]['output']
+    observe_background(peer)
+    record('runtime-stop-without-logout-'+key,{'before':before,'after':after,
+           'original_host_pid':job['host_pid'],'original_starttime':job['starttime'],
+           'scope':'Actual CLI stop; own original process/context gone, session and CE retained, original peer progresses. Later start and ephemeral checks remain separate.'})
+
+
+def private_state_paths(key):
+    suffix=private_state_tokens[key][:16]
+    return ['/home/user/.config/aegis-private-'+suffix,
+            '/home/user/.local/aegis-secret-'+suffix,
+            '/tmp/aegis-private-'+suffix,
+            '/run/user/1000/aegis-private-'+suffix]
+
+
+def private_state(operation,key):
+    """GNU-created synthetic configuration, secret and ephemeral byte probes."""
+    assert shell_active and key in users
+    assert checked_output(ADB+['shell','am','get-current-user'],text=True,timeout=20).strip()==str(users[key][0])
+    paths=private_state_paths(key)
+    value=private_state_tokens[key]
+    command='umask 077; '
+    if operation=='write':
+        assert key not in private_state_written
+        for path in paths:
+            command+='test ! -e '+shlex.quote(path)+'; printf %s '+shlex.quote(value)+' > '+shlex.quote(path)+'; '
+    else:
+        assert key in private_state_written
+    if operation=='ephemeral-empty':
+        for path in paths[2:]: command+='test ! -e '+shlex.quote(path)+'; '
+    elif operation not in ('write','read'):
+        raise ValueError('Unknown private-state operation')
+    for path in (paths if operation=='write' else paths[:2]):
+        command+='test "$(cat '+shlex.quote(path)+')" = '+shlex.quote(value)+'; sha256sum '+shlex.quote(path)+'; '
+    checked_gnu('private-state-'+operation+'-'+key,command)
+    if operation=='write': private_state_written.add(key)
+    record('private-state-'+operation+'-proof-'+key,{'user':users[key],
+           'sha256':hashlib.sha256(value.encode()).hexdigest(),
+           'scope':'Ordinary GNU processes; synthetic configuration/secret bytes. Empty check also requires original persistent bytes.'})
+
+
+def private_state_isolation(key):
+    """Peer existence and before/after bytes are required for each GNU denial."""
+    assert shell_active and private_state_written=={'alpha','beta'}
+    peer='beta' if key=='alpha' else 'alpha'
+    private_state('read',key)
+    observe_background(key);observe_background(peer)
+    other=backgrounds[peer]
+    root_path='/proc/'+str(other['host_pid'])+'/root'
+    paths=private_state_paths(peer)
+    expected=private_state_tokens[peer].encode()
+    def read(path):
+        return checked_output(ADB+['shell','su','0','cat',path],timeout=20)
+    checks=[]
+    for path in paths:
+        host=root_path+path
+        assert read(host)==expected, 'Peer probe must exist with its original bytes'
+        checks.append((host,expected))
+    # The host CE route is distinct from reaching a peer through /proc.
+    for path in paths[:2]:
+        host='/data/misc_ce/'+str(users[peer][0])+'/aegis/home'+path[len('/home/user'):]
+        assert read(host)==expected
+        checks.append((host,expected))
+    # A private package publication is included only if it really exists.
+    package='/data/misc_ce/'+str(users[peer][0])+'/aegis/packages/store/current'
+    result=run_control(ADB+['shell','su','0','cat',package],capture_output=True,timeout=20)
+    if result.returncode==0:
+        assert result.stdout
+        checks.append((package,result.stdout))
+    else:
+        assert b'No such file or directory' in result.stderr
+    command='umask 077; '
+    for path,_ in checks:
+        command+='if cat '+shlex.quote(path)+' > /tmp/aegis-state-denied 2>/tmp/aegis-state-error; then exit 91; fi; '
+        command+='test ! -s /tmp/aegis-state-denied; '
+        command+='if (printf unwanted >> '+shlex.quote(path)+') 2>/tmp/aegis-state-error; then exit 92; fi; '
+    for path in paths:
+        command+='test ! -e '+shlex.quote(path)+'; '
+    command+='rm /tmp/aegis-state-denied /tmp/aegis-state-error'
+    checked_gnu('private-state-peer-denials-'+key,command)
+    for path,before in checks: assert read(path)==before, 'Peer state changed during denied write'
+    observe_background(peer)
+    record('private-state-isolation-'+key,{'requester':users[key],'peer':users[peer],
+           'paths':[{'path':path,'sha256':hashlib.sha256(data).hexdigest()} for path,data in checks],
+           'private_package_present':result.returncode==0,
+           'scope':'GNU reads and writes denied; actual peer bytes unchanged and original process still progressing. Absent package stores do not count as package isolation.'})
+
+
 def switch_from_second_console(key):
     """Authenticate through another real CLI while the first GNU PTY is active."""
     global shell_active
@@ -1042,6 +1155,12 @@ try:
                 observe_background('alpha' if cmd.endswith('-a') else 'beta', '-gone-' in cmd)
             elif re.fullmatch(r'isolation-from-[ab]',cmd):
                 check_peer_isolation('alpha' if cmd.endswith('-a') else 'beta')
+            elif re.fullmatch(r'private-state-(write|read|ephemeral-empty)-[ab]',cmd):
+                private_state(cmd[len('private-state-'):-2],'alpha' if cmd.endswith('-a') else 'beta')
+            elif re.fullmatch(r'private-state-isolation-[ab]',cmd):
+                private_state_isolation('alpha' if cmd.endswith('-a') else 'beta')
+            elif re.fullmatch(r'stop-own-runtime-[ab]',cmd):
+                stop_own_runtime('alpha' if cmd.endswith('-a') else 'beta')
             elif re.fullmatch(r'second-switch-[ab]',cmd):
                 switch_from_second_console('alpha' if cmd.endswith('-a') else 'beta')
             elif cmd == 'gnu-smoke':
