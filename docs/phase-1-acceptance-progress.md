@@ -1393,3 +1393,26 @@ Der neue Buildbeleg
 `ffb57deaf0ab87bf2d91201f387028eb786e3964bcb8e8f414ef2e58fe643633`.
 Die Wiederholung mit korrigierter Beobachtung steht noch aus. Der längere
 Beobachtungszeitraum allein ist kein bestandener Test und kein Produktnachweis.
+
+## Sieben Plantests für private Entfernung bestanden
+
+Die sieben Fälle aus `RuntimePrivateRemovalPlanning` bestehen auf dem neuen
+Vollimage mit unveränderten Komponenten aus `209278d`. Der Lauf dauert rund
+805 Sekunden einschließlich Nachbeobachtung. Geprüft sind die Rückkehr zu
+neuerer und älterer gemeinsamer Version samt passender Bibliothek, Entfernung
+einer privaten Festlegung ohne Paketwirkung, Entfernung nicht mehr benötigter
+privater Pakete, Erhalt einer weiterhin benötigten Abhängigkeit, Ablehnung eines
+verbleibenden Versionskonflikts und die durchgängige Broker-Zuordnung zu
+Antragsteller, ursprünglichem Remove-Auftrag und aktueller gemeinsamer Basis.
+
+Boot-ID `44dbff5f-3a76-4e97-9334-beb437fcd461`, SystemServer PID 1368/Startzeit
+37230, SELinux Enforcing und CE `[0]` bleiben unverändert.
+Ergebnis: `out/phase1-dod/209278de/native-planner-components/result.json`, SHA-256
+`44133a596587d837ef72e4613e09d58c524733965ac3df7c5db4cc14391d753e`.
+Log-SHA-256:
+`da97d6499ab8baf6bfa6f4926ddb8c8c8a7f1bdc150889b520b2213c61385fca`.
+
+Dies belegt die APT-Zielableitung und den Brokerauftrag. Die vollständige
+Ausführung und Veröffentlichung sowie frische CLI-Adminfreigabe bleiben
+separate Nachweise. Die Wiederholung der sechs Auswahltests mit `6946970`
+ist gestartet; sie ist zum Zeitpunkt dieses Eintrags noch nicht abgeschlossen.
