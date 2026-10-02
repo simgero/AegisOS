@@ -705,3 +705,40 @@ Entfernungs-/Konfliktvarianten offen. Gemeinsames Update mit privatem Abgleich
 (T16), gegenseitige Isolation und gepaarter Neustart dieses Profils sind damit
 noch nicht nachgewiesen. Der stillgelegte gezielte Absturztest wurde nicht
 wieder aufgenommen.
+
+
+## Bildschirmzyklus und reguläre Abmeldung beider Benutzer auf 3155115
+
+Bei `mWakefulness=Asleep` schreiten beide ursprünglichen GNU-Hintergrundprozesse
+mit gleicher PID und Startzeit weiter; persönliches CE bleibt `[0,10,11]`.
+Nach dem Aufwecken ist der Terminalkanal widerrufen. Der zunächst ohne frische
+Anmeldung gesendete Shell-Aufruf wird korrekt abgewiesen. Dadurch schlagen vier
+Treiberassertionen fehl (Shell-Zugang und drei davon abhängige Steuerungen);
+sie bleiben im Rohbeleg erhalten und zählen nicht als bestandene Prüfungen.
+Nach expliziter erneuter Beta-Anmeldung gelingen die ursprünglichen Datei- und
+Konfigurationsreads. Ein aktiver Shell-Kanal während der Sperre wurde in diesem
+Zyklus nicht gesondert geprüft.
+
+Betas anschließender CLI-Logout beendet seinen ursprünglichen Prozess
+8373/353517 und entfernt den persönlichen Kontext. AOSP bestätigt CE `[0,10]`;
+Betas bekannte, zuvor gelesene GNU-Datei liefert keine Bytes. Alphas ursprünglicher
+Prozess 6976/321693 schreitet dabei weiter. Nach erneuter Alpha-Anmeldung sind
+Alphas ursprüngliche Datei und Konfiguration unverändert lesbar; seine private
+jq-u4-Version wird weiterhin ausgeführt.
+
+Auch Alpha wird über die CLI abgemeldet, ohne vorgeschalteten Runtime-Stopp.
+Der originale Prozess ist beendet, der Kontext entfernt und CE enthält nur `[0]`.
+Beide bekannten Testdateien liefern ohne Anmeldung keine Bytes. Der
+Neustart-Checkpoint bestätigt ausschließlich Systembenutzer 0 als gestartet und
+eine leere Runtime-Kontextgruppe. SystemServer bleibt bis dahin der ursprüngliche
+Prozess 1293/36603, SELinux bleibt Enforcing. Im gesicherten Logcat vor dem
+Neustart finden sich keine Fatal-Signal-, FORTIFY-, Watchdog-, Java-Fatal- oder
+ANR-Meldungen; dies ist eine begrenzte Protokollbeobachtung.
+
+Beleg: `out/phase1-dod/3155115/screen-logout-before-reboot-proof.json`, SHA-256
+`81b4e4ed52b65742c370554c1ec493ec362ca5701ed06d2b3cbab271c0eab8b9`.
+Er bindet den vollständigen Ereignisstand, Checkpoint und SystemServer-Beobachtung.
+Der Treiber findet in vier lokalen Bootlogs kein vollständiges generiertes
+Passwort; der umfassendere T01-Datei-/History-Nachweis bleibt offen.
+Neustart und anschließende bytegleiche GNU-Reads werden separat geprüft;
+T08/T10 sind wegen weiterer Pflichtvarianten noch nicht vollständig abgenommen.
