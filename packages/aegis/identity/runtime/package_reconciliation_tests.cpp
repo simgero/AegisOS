@@ -29,6 +29,30 @@ TEST(PackageReconciliationGoals, SharedUpdateAndRemovalAlterOnlyTheSolverProject
     ASSERT_EQ(0,PackageReconciliationDerive(i,&g));EXPECT_EQ((std::vector<std::string>{"core=1"}),g.arguments);
     EXPECT_EQ(A("app")+A("lib"),g.solver_automatic);EXPECT_EQ(original,i.personal_automatic);
 }
+TEST(PackageReconciliationGoals, PreferencesPreferPublishedVersionsAndKeepExistingPrivateAlternatives) {
+    auto i=Inputs();i.private_choices+="app\tall\t1\n";PackageReconciliationGoals g;
+    ASSERT_EQ(0,PackageReconciliationDerive(i,&g));
+    EXPECT_EQ("Package: *\nPin: version *\nPin-Priority: -1\n\n"
+        "Package: app\nPin: version 2\nPin-Priority: 1001\n\n"
+        "Package: core\nPin: version 1\nPin-Priority: 1001\n\n"
+        "Package: lib\nPin: version 2\nPin-Priority: 1001\n\n"
+        "Package: app\nPin: version 1\nPin-Priority: 100\n\n"
+        "Package: lib\nPin: version 1\nPin-Priority: 100\n\n",g.solver_preferences);
+    EXPECT_EQ(0,PackageReconciliationCheckEffects(i,g,{}));
+    auto changed=g;changed.solver_preferences.clear();
+    EXPECT_EQ(-1,PackageReconciliationCheckEffects(i,changed,{}));EXPECT_EQ(ESTALE,errno);
+}
+TEST(PackageReconciliationGoals, RejectsVersionsOutsidePublishedCommonAndExistingPersonalRegistries) {
+    auto i=Inputs();PackageReconciliationGoals g;ASSERT_EQ(0,PackageReconciliationDerive(i,&g));
+    const std::vector<PackageAptEffect> valid={{"app","all","1","2",false},{"lib","all","1","2",true}};
+    EXPECT_EQ(0,PackageReconciliationCheckEffects(i,g,valid));
+    auto newer=valid;newer[1].after_version="3";
+    EXPECT_EQ(-1,PackageReconciliationCheckEffects(i,g,newer));EXPECT_EQ(EPERM,errno);
+    auto unknown=valid;unknown.push_back({"new-library","all","","1",true});
+    EXPECT_EQ(-1,PackageReconciliationCheckEffects(i,g,unknown));EXPECT_EQ(EPERM,errno);
+    auto changed_arch=valid;changed_arch[1].architecture="arm64";
+    EXPECT_EQ(-1,PackageReconciliationCheckEffects(i,g,changed_arch));EXPECT_EQ(ESTALE,errno);
+}
 TEST(PackageReconciliationGoals, MissingManifestAndUnrecordedPersonalRootNeverGuessIntent) {
     auto i=Inputs();PackageReconciliationGoals g;g.arguments={"unchanged"};i.private_choices.clear();
     EXPECT_EQ(-1,PackageReconciliationDerive(i,&g));EXPECT_EQ(ENODATA,errno);

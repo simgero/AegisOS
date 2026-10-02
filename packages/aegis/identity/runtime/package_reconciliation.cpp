@@ -35,6 +35,18 @@ int PackageReconciliationDerive(const PackageReconciliationInput& in,PackageReco
     for(const auto& [name,c]:goals.roots)goals.arguments.push_back(name+"="+c.version);
     for(const auto& [name,value]:own)if(!goals.roots.count(name))
         goals.solver_automatic+="Package: "+name+"\nArchitecture: "+std::get<1>(value)+"\nAuto-Installed: 1\n\n";
+    goals.solver_preferences="Package: *\nPin: version *\nPin-Priority: -1\n\n";
+    auto preference=[&](const std::string& name,const std::string& version,int priority) {
+        goals.solver_preferences+="Package: "+name+"\nPin: version "+version+
+            "\nPin-Priority: "+std::to_string(priority)+"\n\n";
+    };
+    for(const auto& [name,value]:current)preference(name,std::get<0>(value),1001);
+    for(const auto& [name,value]:own) {
+        auto it=current.find(name);
+        if(it==current.end()||std::get<0>(it->second)!=std::get<0>(value))
+            preference(name,std::get<0>(value),100);
+    }
+    if(goals.solver_preferences.size()>(4u<<20))return Fail(E2BIG);
     *output=std::move(goals);return 0;
 }
 int PackageReconciliationCheckEffects(const PackageReconciliationInput& in,
@@ -42,8 +54,11 @@ int PackageReconciliationCheckEffects(const PackageReconciliationInput& in,
     PackageReconciliationGoals expected;
     if(PackageReconciliationDerive(in,&expected)<0)return -1;
     if(goals.roots!=expected.roots||goals.arguments!=expected.arguments
-       ||goals.solver_automatic!=expected.solver_automatic)return Fail(ESTALE);
+       ||goals.solver_automatic!=expected.solver_automatic
+       ||goals.solver_preferences!=expected.solver_preferences)return Fail(ESTALE);
     PackageInstalledRegistry installed;if(PackageReadInstalledRegistry(in.personal_status,&installed)<0)return -1;
+    const auto original=installed;PackageInstalledRegistry current;
+    if(PackageReadInstalledRegistry(in.current_status,&current)<0)return -1;
     if(effects.size()>AEGIS_PACKAGE_EXEC_ITEMS)return Fail(E2BIG);
     std::string previous;
     for(const auto& e:effects) {
@@ -55,6 +70,16 @@ int PackageReconciliationCheckEffects(const PackageReconciliationInput& in,
         if(e.before_version.empty() ? it!=installed.end()
            : it==installed.end()||std::get<0>(it->second)!=e.before_version||std::get<1>(it->second)!=e.architecture)return Fail(ESTALE);
         if(it!=installed.end()&&std::get<2>(it->second)=="hold")return Fail(EDEADLK);
+        if(!e.after_version.empty()) {
+            auto allowed=[&](const PackageInstalledRegistry& registry) {
+                auto v=registry.find(e.name);
+                return v!=registry.end()&&std::get<0>(v->second)==e.after_version
+                    &&std::get<1>(v->second)==e.architecture;
+            };
+            // The repository may have advanced since the admin published the
+            // common image. A rebase cannot authorize those additional versions.
+            if(!allowed(original)&&!allowed(current))return Fail(EPERM);
+        }
         if(e.after_version.empty())installed.erase(e.name);
         else installed[e.name]={e.after_version,e.architecture,"install"};
     }

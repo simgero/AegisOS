@@ -119,9 +119,15 @@ const char* PackageResolverConfiguration(bool internet,bool reconciliation,bool 
     // need non-candidate dependency versions to keep matching libraries.
     // Trust, signatures and all root/hold postconditions stay unchanged.
     static const std::string solver="APT::Solver \"3.0\";\nAPT::Solver::Strict-Pinning \"false\";\n";
-    static const std::string reconcile_offline=std::string(policy)+solver;
-    static const std::string reconcile_online=online+solver;
-    if(reconciliation||exact_version)return internet?reconcile_online.c_str():reconcile_offline.c_str();
+    static const std::string exact_offline=std::string(policy)+solver;
+    static const std::string exact_online=online+solver;
+    static const std::string preferences=
+        "Dir::Etc::preferences \"/tmp/aegis-planner/preferences\";\n"
+        "Dir::Etc::preferencesparts \"/run/aegis-plan-policy/empty\";\n";
+    static const std::string reconcile_offline=exact_offline+preferences;
+    static const std::string reconcile_online=exact_online+preferences;
+    if(reconciliation)return internet?reconcile_online.c_str():reconcile_offline.c_str();
+    if(exact_version)return internet?exact_online.c_str():exact_offline.c_str();
     return internet?online.c_str():policy;
 }
 PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequest& r) {
@@ -156,6 +162,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
         if(Read("/run/aegis-plan-input/previous-automatic",16u<<20,true,&reconciliation.previous_automatic)<0&&errno!=ENOENT)return fail(errno);
         if(Read("/run/aegis-plan-input/current-automatic",16u<<20,true,&reconciliation.current_automatic)<0&&errno!=ENOENT)return fail(errno);
         if(PackageReconciliationDerive(reconciliation,&goals)<0)return fail(errno);
+        if(Write("/tmp/aegis-planner/preferences",goals.solver_preferences)<0)return fail(errno);
     }
     const bool solver_present=r.reconciliation||present;
     const std::string& solver_automatic=r.reconciliation?goals.solver_automatic:automatic;
@@ -167,14 +174,17 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     };
     result.phase=PackageResolverResult::Phase::Update;
     if(!command({"/usr/bin/apt-get","-q","update"},"/tmp/aegis-planner/update.log"))return result;
-    const std::string action=r.reconciliation||r.action==PackageAction::Install?"install":r.action==PackageAction::Remove?"remove":"upgrade";
+    const std::string action=r.reconciliation?"upgrade":r.action==PackageAction::Install?"install":r.action==PackageAction::Remove?"remove":"upgrade";
     std::vector<std::string> terms;
     if(r.reconciliation)terms=goals.arguments;
     else if(r.action!=PackageAction::Update)terms.push_back(r.package+(r.version.empty()?"":"="+r.version));
     auto invocation=[&](bool download) {
         std::vector<std::string> args={"/usr/bin/apt-get","-q",download?"--download-only":"--simulate"};
         if(download)args.push_back("--yes");
-        if(r.reconciliation)args.push_back("--auto-remove");
+        if(r.reconciliation) {
+            args.push_back("--auto-remove");
+            args.push_back("--with-new-pkgs");
+        }
         // Download-only with --yes also requires explicit downgrade consent.
         // The requested version and every dependency change remain reviewed
         // before any installation; unversioned ordinary actions keep defaults.
@@ -184,7 +194,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     };
     auto effects=[&](const std::string& bytes,std::vector<PackageAptEffect>* out) {
         if(!r.reconciliation)return PackageReadAptPlan(bytes,r.action,r.package,r.version,out);
-        if(PackageReadAptOperation(bytes,"install",terms,out)<0)return -1;
+        if(PackageReadAptOperation(bytes,action,terms,out)<0)return -1;
         return PackageReconciliationCheckEffects(reconciliation,goals,*out);
     };
     auto args=invocation(false);
@@ -220,6 +230,10 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     bool have=Read("/tmp/aegis-planner/extended_states",16u<<20,false,&after)==0;
     if(!have&&errno!=ENOENT)return fail(errno);
     if(have!=solver_present||(solver_present&&after!=solver_automatic))return fail(ESTALE);
+    if(r.reconciliation) {
+        if(Read("/tmp/aegis-planner/preferences",4u<<20,false,&after)<0)return fail(errno);
+        if(after!=goals.solver_preferences)return fail(ESTALE);
+    }
     // Frozen evidence always describes the actual initial state, never the
     // resolver-only automatic-mark projection used to solve the new roots.
     have=Read("/run/aegis-plan-input/extended_states",16u<<20,true,&after)==0;
@@ -235,6 +249,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
         receipt["previous_status_sha256"]=Hash(reconciliation.previous_status);
         receipt["current_status_sha256"]=Hash(reconciliation.current_status);
         receipt["solver_automatic_sha256"]=Hash(solver_automatic);
+        receipt["solver_preferences_sha256"]=Hash(goals.solver_preferences);
         receipt["roots"]=Json::Value(Json::arrayValue);
         for(const auto& [name,c]:goals.roots) {
             Json::Value root;root["name"]=name;root["architecture"]=c.architecture;root["version"]=c.version;

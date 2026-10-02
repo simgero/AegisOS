@@ -16,6 +16,10 @@ struct PackageReconciliationGoals {
     // may remove obsolete roots only when no retained root still needs them.
     // Never overwrite the initial-state evidence or the selected generation.
     std::string solver_automatic;
+    // Only published common versions and already selected personal versions
+    // may participate. Prefer the current common version without forbidding
+    // an older dependency required by an exact private root.
+    std::string solver_preferences;
 };
 // Input must come from three verified readonly generations. Only deliberate
 // private choices override current shared manual roots. Automatic dependencies
