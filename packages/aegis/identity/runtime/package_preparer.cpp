@@ -34,6 +34,7 @@ struct PackagePreparer {
     unique_fd store, source, channel;
     std::vector<unique_fd> archives;
     bool cancelled=false,selection=false,reconciliation=false,has_shared=false,has_personal=false;
+    bool private_removal=false;
     PackageInput factory;
     uint32_t user=0,serial=0;
     aegis_memory_group* group = nullptr;
@@ -167,13 +168,14 @@ PackagePreparationResult Response(PackagePreparer* p,const aegis_child_exit& exi
         if(reply.scope==3 ? !aegis_package_hash(reply.shared_base) : !aegis_package_zero(reply.shared_base,65))return result;
         if(reply.scope==1 && (reply.selected.bytes!=p->factory.bytes || reply.selected.hash!=p->factory.sha256))return result;
         if(!wire::InputValid(reply.shared,uint64_t{32}<<30) || reply.shared.bytes%4096
-           || (reply.scope==3 ? (p->reconciliation ? strcmp(reply.shared.hash,reply.shared_base)==0
+           || (reply.scope==3 ? (p->reconciliation && !p->private_removal ? strcmp(reply.shared.hash,reply.shared_base)==0
                                                   : strcmp(reply.shared.hash,reply.shared_base)!=0)
                              : reply.shared.bytes!=reply.selected.bytes||strcmp(reply.shared.hash,reply.selected.hash)!=0))return result;
         if(!p->has_shared && (reply.shared.hash!=p->factory.sha256 || reply.shared.bytes!=p->factory.bytes))return result;
         if(p->reconciliation) {
             if(reply.scope!=3 || !wire::InputValid(reply.previous_shared,uint64_t{32}<<30)
                || reply.previous_shared.bytes%4096 || strcmp(reply.previous_shared.hash,reply.shared_base)!=0)return result;
+            if(p->private_removal && reply.previous_shared.bytes!=reply.shared.bytes)return result;
             if(reply.previous_shared.hash==p->factory.sha256 && reply.previous_shared.bytes!=p->factory.bytes)return result;
             selected.previous_shared={reply.previous_shared.bytes,reply.previous_shared.hash};
         }
@@ -229,7 +231,8 @@ static int Start(int groups,int store,int source,int helper,const std::vector<in
     if(!p)return Fail(ENOMEM);
     p->process=syscall(SYS_getpid);p->job=message.execution.job;p->plan=message.execution.plan;
     p->user=message.execution.user;p->serial=message.execution.serial;
-    p->selection=message.selection;p->reconciliation=message.selection==2;p->has_shared=shared;p->has_personal=personal;
+    p->selection=message.selection;p->reconciliation=message.selection>=2;p->private_removal=message.selection==3;
+    p->has_shared=shared;p->has_personal=personal;
     p->factory={message.image.bytes,message.image.hash};
     *output=p; // From here onward the caller retains partial ownership on failure.
     p->store.reset(fcntl(store,F_DUPFD_CLOEXEC,128));
@@ -277,10 +280,11 @@ int PackageRuntimeSelectionCheck(const PackageRuntimeSelection& request) {
         && h.size()==64 && h.find_first_not_of("0123456789abcdef")==std::string::npos ? 0 : Fail(EINVAL);
 }
 static int SelectionStart(int groups,int shared,int personal,int factory,int helper,
-                                 const PackageRuntimeSelection& request,PackagePreparer** output,bool reconciliation) {
+                                 const PackageRuntimeSelection& request,PackagePreparer** output,bool reconciliation,
+                                 bool private_removal=false) {
     if(shared < -1 || personal < -1 || PackageRuntimeSelectionCheck(request)<0)return Fail(EINVAL);
     wire::Request message={};message.magic=wire::kMagic;message.version=wire::kVersion;
-    message.selection=reconciliation?2:1;message.has_shared=shared>=0;message.has_personal=personal>=0;
+    message.selection=private_removal?3:reconciliation?2:1;message.has_shared=shared>=0;message.has_personal=personal>=0;
     auto& e=message.execution;e.magic=AEGIS_PACKAGE_EXEC_MAGIC;e.version=AEGIS_PACKAGE_EXEC_VERSION;
     e.user=request.requester;e.serial=request.serial;e.job=request.job;
     memcpy(e.plan,request.factory.sha256.c_str(),65);
@@ -298,14 +302,19 @@ int PackageReconciliationSelectionStart(int groups,int shared,int personal,int f
     if(personal<0)return Fail(EINVAL);
     return SelectionStart(groups,shared,personal,factory,helper,request,output,true);
 }
+int PackagePrivateRemovalSelectionStart(int groups,int shared,int personal,int factory,int helper,
+    const PackageRuntimeSelection& request,PackagePreparer** output) {
+    if(personal<0)return Fail(EINVAL);
+    return SelectionStart(groups,shared,personal,factory,helper,request,output,true,true);
+}
 
 static int Finish(PackagePreparer** pointer,bool cancel,int timeout_ms,
-                   PackagePreparationResult* result,int* candidates,bool reconciliation) {
+                   PackagePreparationResult* result,int* candidates,bool reconciliation,bool private_removal=false) {
     if(!pointer || !*pointer || !result || !candidates || timeout_ms<0 || timeout_ms>10000)return Fail(EINVAL);
     const unsigned count=reconciliation?3:1;
     for(unsigned i=0;i<count;++i)if(candidates[i]!=-1)return Fail(EINVAL);
     auto* p=*pointer;if(!Owned(p))return -1;
-    if(p->reconciliation!=reconciliation)return Fail(EINVAL);
+    if(p->reconciliation!=reconciliation||p->private_removal!=private_removal)return Fail(EINVAL);
     int64_t start=Now();
     // A signal failure does not bypass the completion checks or abandon work.
     if(cancel)(void)PackagePreparerCancel(p);
@@ -335,5 +344,9 @@ int PackagePreparerFinish(PackagePreparer** pointer,bool cancel,int timeout_ms,
 int PackageReconciliationSelectionFinish(PackagePreparer** pointer,bool cancel,int timeout_ms,
     PackagePreparationResult* result,int candidates[3]) {
     return Finish(pointer,cancel,timeout_ms,result,candidates,true);
+}
+int PackagePrivateRemovalSelectionFinish(PackagePreparer** pointer,bool cancel,int timeout_ms,
+    PackagePreparationResult* result,int candidates[3]) {
+    return Finish(pointer,cancel,timeout_ms,result,candidates,true,true);
 }
 } // namespace aegis

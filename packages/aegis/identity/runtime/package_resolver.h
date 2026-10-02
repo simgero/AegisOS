@@ -27,8 +27,9 @@ struct PackageResolverResult {
 // Write these exact bytes to the readonly policy/config before any APT starts.
 // policy/sources.list and policy/key.asc are immutable product inputs, not
 // client strings. A source must specify this exact keyring via signed-by.
-// Exact user version requests need the same complete dependency search as
-// reconciliation; this never relaxes repository trust or exact-root checks.
+// Exact installs can search non-candidate dependencies. Reconciliation instead
+// uses published candidates plus installed versions. Neither changes repository
+// trust or the independent exact-root checks.
 const char* PackageResolverConfiguration(bool internet=false,bool reconciliation=false,
                                          bool exact_version=false);
 int PackageResolverCheck(const PackageResolverRequest& request);

@@ -31,6 +31,17 @@ int PackageReconciliationDerive(const PackageReconciliationInput&,PackageReconci
 // These helpers neither authorize, execute, publish nor activate a generation.
 int PackageReconciliationCheckEffects(const PackageReconciliationInput&,
     const PackageReconciliationGoals&,const std::vector<PackageAptEffect>&);
+// Derive an explicitly requested private-choice removal from a current base.
+// Validate original provenance before erasing exactly one choice; retain every
+// other private root and restore common manual roots. A removed selection may
+// remain installed as an automatic dependency of a retained root. A no-version-
+// change result still changes the private manifest and needs fresh approval.
+// These helpers do not authorize the action or select/modify any image.
+int PackagePrivateRemovalDerive(const PackageReconciliationInput&,const std::string& removed,
+    PackageReconciliationGoals*,std::string* resulting_choices);
+int PackagePrivateRemovalCheckEffects(const PackageReconciliationInput&,const std::string& removed,
+    const PackageReconciliationGoals&,const std::string& resulting_choices,
+    const std::vector<PackageAptEffect>&);
 // Names-only canonical intent is bounded independently of changed effects.
 int PackageReconciliationRootsRead(const std::string&,std::set<std::string>*);
 // Independently apply exact effects and preserve untouched dpkg selections.

@@ -64,6 +64,15 @@ int PackageReconciliationSelectionStart(int groups,int shared_store,int personal
     int factory,int helper,const PackageRuntimeSelection& request,PackagePreparer** worker);
 int PackageReconciliationSelectionFinish(PackagePreparer** worker,bool cancel,int timeout_ms,
     PackagePreparationResult* result,int mounts[3]);
+// Explicit private removal has a CURRENT base and remains a user operation
+// requiring its original intent and fresh admin approval. Return private,
+// common, common views for the complete resolver input. Stale bases fail with
+// ESTALE; this stage cannot turn removal into an automatic update/rebase.
+// The distinct Finish entrypoint rejects consumption as reconciliation.
+int PackagePrivateRemovalSelectionStart(int groups,int shared_store,int personal_store,
+    int factory,int helper,const PackageRuntimeSelection& request,PackagePreparer** worker);
+int PackagePrivateRemovalSelectionFinish(PackagePreparer** worker,bool cancel,int timeout_ms,
+    PackagePreparationResult* result,int mounts[3]);
 int PackagePreparerCancel(PackagePreparer* worker);
 // Actual child reaping + empty/removed group first. Timeout retains *worker.
 // On Prepared only, *candidate receives ONE detached nosuid/nodev/noexec ext4

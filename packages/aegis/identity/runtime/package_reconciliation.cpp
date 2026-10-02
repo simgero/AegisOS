@@ -5,7 +5,8 @@ namespace aegis {
 namespace {
 int Fail(int e) { errno=e;return -1; }
 }
-int PackageReconciliationDerive(const PackageReconciliationInput& in,PackageReconciliationGoals* output) {
+static int Derive(const PackageReconciliationInput& in,PackageReconciliationGoals* output,
+                  const std::string& removed,std::string* resulting_choices) {
     if(!output)return Fail(EINVAL);
     if(in.private_choices.empty())return Fail(ENODATA);
     PackageInstalledRegistry own,old,current;std::set<std::string> own_auto,old_auto,current_auto;
@@ -25,6 +26,14 @@ int PackageReconciliationDerive(const PackageReconciliationInput& in,PackageReco
     // Do not silently reinterpret an unrecorded legacy private installation.
     for(const auto& [name,value]:own)
         if(!own_auto.count(name)&&!old.count(name)&&!choices.count(name))return Fail(ENODATA);
+    std::string desired;
+    if(!removed.empty()) {
+        // A user removal acts on a current private generation. Keep ordinary
+        // update activation separate; never reinterpret a stale base as consent.
+        if(in.previous_status!=in.current_status||in.previous_automatic!=in.current_automatic)return Fail(ESTALE);
+        if(!choices.erase(removed))return Fail(ENOENT);
+        if(PackagePrivateChoicesEncode(choices,&desired)<0)return -1;
+    }
     PackageReconciliationGoals goals;
     for(const auto& [name,value]:current) {
         if(!current_auto.count(name))goals.roots[name]={std::get<1>(value),std::get<0>(value)};
@@ -56,12 +65,24 @@ int PackageReconciliationDerive(const PackageReconciliationInput& in,PackageReco
             preference(name,std::get<0>(value),100);
     }
     if(goals.solver_preferences.size()>(4u<<20))return Fail(E2BIG);
-    *output=std::move(goals);return 0;
+    *output=std::move(goals);
+    if(resulting_choices)*resulting_choices=std::move(desired);
+    return 0;
 }
-int PackageReconciliationCheckEffects(const PackageReconciliationInput& in,
-    const PackageReconciliationGoals& goals,const std::vector<PackageAptEffect>& effects) {
+int PackageReconciliationDerive(const PackageReconciliationInput& in,PackageReconciliationGoals* output) {
+    return Derive(in,output,"",nullptr);
+}
+int PackagePrivateRemovalDerive(const PackageReconciliationInput& in,const std::string& removed,
+    PackageReconciliationGoals* output,std::string* resulting_choices) {
+    if(!resulting_choices||!PackagePlanNameValid(removed))return Fail(EINVAL);
+    return Derive(in,output,removed,resulting_choices);
+}
+static int CheckEffects(const PackageReconciliationInput& in,const PackageReconciliationGoals& goals,
+    const std::vector<PackageAptEffect>& effects,const std::string& removed,const std::string& resulting_choices) {
     PackageReconciliationGoals expected;
-    if(PackageReconciliationDerive(in,&expected)<0)return -1;
+    std::string desired;
+    if(Derive(in,&expected,removed,&desired)<0)return -1;
+    if(desired!=resulting_choices)return Fail(ESTALE);
     if(goals.roots!=expected.roots||goals.arguments!=expected.arguments
        ||goals.solver_automatic!=expected.solver_automatic
        ||goals.solver_preferences!=expected.solver_preferences)return Fail(ESTALE);
@@ -97,6 +118,16 @@ int PackageReconciliationCheckEffects(const PackageReconciliationInput& in,
         if(it==installed.end()||std::get<0>(it->second)!=c.version||std::get<1>(it->second)!=c.architecture)return Fail(EDEADLK);
     }
     return 0;
+}
+int PackageReconciliationCheckEffects(const PackageReconciliationInput& in,
+    const PackageReconciliationGoals& goals,const std::vector<PackageAptEffect>& effects) {
+    return CheckEffects(in,goals,effects,"","");
+}
+int PackagePrivateRemovalCheckEffects(const PackageReconciliationInput& in,const std::string& removed,
+    const PackageReconciliationGoals& goals,const std::string& resulting_choices,
+    const std::vector<PackageAptEffect>& effects) {
+    if(!PackagePlanNameValid(removed))return Fail(EINVAL);
+    return CheckEffects(in,goals,effects,removed,resulting_choices);
 }
 int PackageReconciliationRootsRead(const std::string& text,std::set<std::string>* output) {
     if(!output||text.empty()||text.size()>=AEGIS_PACKAGE_RECONCILIATION_ROOT_BYTES)return Fail(EINVAL);

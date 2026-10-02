@@ -176,10 +176,15 @@ int Select(const wire::Request& request,wire::Reply* reply,std::array<unique_fd,
         output->reset(Mount(image,bytes,true));return output->ok()?0:-1;
     };
     PackageGeneration selected=common;
-    if(request.selection==2) {
+    if(request.selection>=2) {
         if(!private_image.ok())return Fail(ENODATA);
-        if(own.shared_base_sha256==common.image_sha256)return Fail(EALREADY);
-        if(own.shared_base_sha256==request.image.hash) {
+        if(request.selection==3) {
+            if(own.shared_base_sha256!=common.image_sha256)return Fail(ESTALE);
+            if(!common_image.ok() && factory(&common_image)<0)return -1;
+            previous=common;previous_image.reset(fcntl(common_image.get(),F_DUPFD_CLOEXEC,3));
+            if(!previous_image.ok())return -1;
+        } else if(own.shared_base_sha256==common.image_sha256)return Fail(EALREADY);
+        else if(own.shared_base_sha256==request.image.hash) {
             previous={request.image.hash,"",request.image.bytes};
             if(factory(&previous_image)<0)return -1;
         } else {
@@ -205,7 +210,7 @@ int Select(const wire::Request& request,wire::Reply* reply,std::array<unique_fd,
     reply->scope=scope;reply->selected.bytes=selected.bytes;
     memcpy(reply->selected.hash,selected.image_sha256.c_str(),65);
     if(scope==3)memcpy(reply->shared_base,selected.shared_base_sha256.c_str(),65);
-    if(request.selection==2) {
+    if(request.selection>=2) {
         reply->previous_shared.bytes=previous.bytes;
         memcpy(reply->previous_shared.hash,previous.image_sha256.c_str(),65);
     }
@@ -287,7 +292,7 @@ int main(int argc,char**) {
     alignas(cmsghdr) char ancillary[CMSG_SPACE(3*sizeof(int))]={};iovec io={&reply,sizeof(reply)};
     msghdr message={};message.msg_iov=&io;message.msg_iovlen=1;
     if(!error) {
-        const size_t count=request.selection==2?3:1;int fds[3];
+        const size_t count=request.selection>=2?3:1;int fds[3];
         for(size_t i=0;i<count;++i)fds[i]=mounts[i].get();
         message.msg_control=ancillary;message.msg_controllen=CMSG_SPACE(count*sizeof(int));
         auto* c=CMSG_FIRSTHDR(&message);c->cmsg_level=SOL_SOCKET;c->cmsg_type=SCM_RIGHTS;c->cmsg_len=CMSG_LEN(count*sizeof(int));

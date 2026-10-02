@@ -454,6 +454,28 @@ Signatur-, Archiv-, Admin- und Veröffentlichungsprüfungen werden nicht veränd
 Die Systemabnahme dieser Korrektur verlangt einen neuen Vollbuild und die
 Wiederholung des realen gemeinsamen Updates mit zwei privaten Versionen.
 
+## Private Entfernung: vorbereitete Komponenten
+
+Die Zielableitung für eine private Entfernung validiert zuerst den ursprünglichen
+Bestand einschließlich aller aufgezeichneten privaten Auswahlen. Anschließend
+entfernt sie genau die beantragte Auswahl und leitet die gemeinsamen Hauptpakete
+plus sämtliche übrigen privaten Auswahlen ab. Ein Versionswechsel kann dadurch
+zur gemeinsamen Variante zurückführen. Ist die gemeinsame Version bereits
+installiert, bleibt dennoch eine ausdrückliche Änderung der privaten Absicht.
+Ein weiterhin von einem anderen Hauptpaket benötigtes Paket kann als automatische
+Abhängigkeit erhalten bleiben; die spätere Plananzeige muss diesen Zustand nennen.
+
+Der getrennte native Auswahlmodus verlangt einen aktuellen gemeinsamen
+Basisbezug. Er liefert ausschließlich geprüfte schreibgeschützte Ansichten des
+privaten und gemeinsamen Images; eine veraltete Basis wird zurückgewiesen.
+Er erteilt keine Freigabe, führt keine Paketänderung aus und aktiviert keinen
+Kontext. Der bisherige automatische Abgleich bleibt ein anderer Modus.
+
+Diese Komponenten sind noch nicht an den normalen CLI-Entfernungsauftrag
+angeschlossen. Offen sind dessen durchgängige Eigentümer-/Adminbindung,
+Resolver- und Planmetadaten, transparente Vorschau, Ausführung/Veröffentlichung
+und der Systemnachweis. T15 ist damit ausdrücklich noch nicht erfüllt.
+
 ## Nachweisgrenze
 
 Die Implementierung wird als Komponentensatz im lokalen QEMU geprüft.

@@ -113,6 +113,86 @@ TEST(PackageReconciliationGoals, InternalEvidenceCannotBeMistakenForAnOrdinaryAp
     EXPECT_EQ(-1,PackageResolverCheck(request));request.package.clear();request.action=PackageAction::Update;
     EXPECT_EQ(0,PackageResolverCheck(request));
 }
+PackageReconciliationInput RemovalInputs() {
+    auto i=Inputs();i.previous_status=i.current_status;
+    i.private_choices+="app\tall\t1\n";return i;
+}
+TEST(PackagePrivateRemovalGoals, RestoresCommonRootAndDependencyWithoutChangingOtherPrivateChoice) {
+    auto i=RemovalInputs();i.personal_status+=S("personal","7");i.private_choices+="personal\tall\t7\n";
+    const auto original=i.private_choices;PackageReconciliationGoals g;std::string desired;
+    ASSERT_EQ(0,PackagePrivateRemovalDerive(i,"app",&g,&desired));
+    EXPECT_EQ(Header+"personal\tall\t7\n",desired);EXPECT_EQ(original,i.private_choices);
+    EXPECT_EQ((std::vector<std::string>{"app=2","core=1","personal=7"}),g.arguments);
+    const std::vector<PackageAptEffect> effects={{"app","all","1","2",false},{"lib","all","1","2",true}};
+    EXPECT_EQ(0,PackagePrivateRemovalCheckEffects(i,"app",g,desired,effects));
+    EXPECT_EQ(-1,PackagePrivateRemovalCheckEffects(i,"app",g,desired,{}));EXPECT_EQ(EDEADLK,errno);
+    auto changed=effects;changed.push_back({"personal","all","7","",true});
+    EXPECT_EQ(-1,PackagePrivateRemovalCheckEffects(i,"app",g,desired,changed));EXPECT_EQ(EDEADLK,errno);
+}
+TEST(PackagePrivateRemovalGoals, SameVersionRemovalChangesOnlyIntent) {
+    auto i=Inputs();i.current_status=i.previous_status;i.private_choices+="app\tall\t1\n";
+    PackageReconciliationGoals g;std::string desired;
+    ASSERT_EQ(0,PackagePrivateRemovalDerive(i,"app",&g,&desired));EXPECT_EQ(Header,desired);
+    EXPECT_EQ("1",g.roots.at("app").version);
+    EXPECT_EQ(0,PackagePrivateRemovalCheckEffects(i,"app",g,desired,{}));
+    EXPECT_EQ(-1,PackagePrivateRemovalCheckEffects(i,"app",g,i.private_choices,{}));EXPECT_EQ(ESTALE,errno);
+}
+TEST(PackagePrivateRemovalGoals, PrivateOnlyRootIsValidatedBeforeItBecomesAutomatic) {
+    auto i=RemovalInputs();i.previous_status=i.current_status=S("core","1");
+    i.previous_automatic=i.current_automatic="";PackageReconciliationGoals g;std::string desired;
+    ASSERT_EQ(0,PackagePrivateRemovalDerive(i,"app",&g,&desired));
+    EXPECT_EQ(Header,desired);EXPECT_EQ((std::vector<std::string>{"core=1"}),g.arguments);
+    EXPECT_EQ(A("app")+A("lib"),g.solver_automatic);
+    EXPECT_EQ(0,PackagePrivateRemovalCheckEffects(i,"app",g,desired,
+        {{"app","all","1","",true},{"lib","all","1","",true}}));
+    // Erasing provenance from the input would make a private-only manual root
+    // indistinguishable from an unrecorded legacy installation.
+    i.private_choices=Header;
+    EXPECT_EQ(-1,PackagePrivateRemovalDerive(i,"app",&g,&desired));EXPECT_EQ(ENODATA,errno);
+}
+TEST(PackagePrivateRemovalGoals, RemovedSelectionMayRemainAsDependencyOfAnotherPrivateRoot) {
+    auto i=RemovalInputs();i.previous_status=i.current_status=S("core","1");
+    i.previous_automatic=i.current_automatic="";i.personal_automatic="";
+    i.private_choices+="lib\tall\t1\n";PackageReconciliationGoals g;std::string desired;
+    ASSERT_EQ(0,PackagePrivateRemovalDerive(i,"lib",&g,&desired));
+    EXPECT_EQ(Header+"app\tall\t1\n",desired);EXPECT_FALSE(g.roots.count("lib"));
+    EXPECT_EQ(A("lib"),g.solver_automatic);
+    EXPECT_EQ(0,PackagePrivateRemovalCheckEffects(i,"lib",g,desired,{}));
+}
+TEST(PackagePrivateRemovalGoals, RejectsStaleBaseAndUnselectedTargetsWithoutPartialOutputs) {
+    for(int variant=0;variant<4;variant++) {
+        auto i=RemovalInputs();PackageReconciliationGoals g;g.arguments={"unchanged"};std::string desired="unchanged";
+        int expected=ESTALE;
+        if(variant==0)i.previous_status=S("core","1");
+        if(variant==1)i.previous_automatic="";
+        if(variant==2) { i.private_choices=Header;expected=ENOENT; }
+        if(variant==3)i.private_choices=Header+"app\tall\t9\n";
+        EXPECT_EQ(-1,PackagePrivateRemovalDerive(i,"app",&g,&desired));EXPECT_EQ(expected,errno);
+        EXPECT_EQ("unchanged",desired);EXPECT_EQ((std::vector<std::string>{"unchanged"}),g.arguments);
+    }
+}
+TEST(PackagePrivateRemovalGoals, RejectsAlteredIntentGoalsAndUnpublishedEffects) {
+    auto i=RemovalInputs();PackageReconciliationGoals g;std::string desired;
+    ASSERT_EQ(0,PackagePrivateRemovalDerive(i,"app",&g,&desired));
+    const std::vector<PackageAptEffect> effects={{"app","all","1","2",false},{"lib","all","1","2",true}};
+    EXPECT_EQ(-1,PackagePrivateRemovalCheckEffects(i,"app",g,Header+"other\tall\t1\n",effects));EXPECT_EQ(ESTALE,errno);
+    auto changed=g;changed.roots.erase("app");
+    EXPECT_EQ(-1,PackagePrivateRemovalCheckEffects(i,"app",changed,desired,effects));EXPECT_EQ(ESTALE,errno);
+    auto newer=effects;newer[1].after_version="3";
+    EXPECT_EQ(-1,PackagePrivateRemovalCheckEffects(i,"app",g,desired,newer));EXPECT_EQ(EPERM,errno);
+    i.personal_status=S("core","1")+S("app","1","hold")+S("lib","1");
+    EXPECT_EQ(-1,PackagePrivateRemovalCheckEffects(i,"app",g,desired,effects));EXPECT_EQ(EDEADLK,errno);
+}
+TEST(PackagePrivateRemovalGoals, InvalidArgumentsAndMissingManifestAreRejected) {
+    auto i=RemovalInputs();PackageReconciliationGoals g;std::string desired;
+    EXPECT_EQ(-1,PackagePrivateRemovalDerive(i,"",&g,&desired));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(-1,PackagePrivateRemovalDerive(i,"app=1",&g,&desired));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(-1,PackagePrivateRemovalDerive(i,"app",nullptr,&desired));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(-1,PackagePrivateRemovalDerive(i,"app",&g,nullptr));EXPECT_EQ(EINVAL,errno);
+    EXPECT_EQ(-1,PackagePrivateRemovalCheckEffects(i,"",g,"",{}));EXPECT_EQ(EINVAL,errno);
+    i.private_choices="";
+    EXPECT_EQ(-1,PackagePrivateRemovalDerive(i,"app",&g,&desired));EXPECT_EQ(ENODATA,errno);
+}
 PackageResolvedPlan ReconciliationPlan() {
     PackageResolvedPlan p;p.requester=10;p.serial=42;p.personal=p.has_previous=p.reconciliation=true;
     p.action=PackageAction::Update;p.source={268435456,std::string(64,'a')};
