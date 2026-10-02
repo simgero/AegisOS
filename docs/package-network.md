@@ -359,6 +359,16 @@ Verzeichnisdeskriptoren, mit Inode-Abgleich, begrenzter Tiefe und Eintragszahl;
 fremde Mounts und besondere Dateien werden abgewiesen. Alle Deskriptoren werden
 auch bei Fehlern geschlossen. Es werden keine Labels repariert oder verändert.
 
+Die Prüfung vor dem ersten Paketprogramm läuft nach der READY-Antwort des
+bereits isolierten Workers. READY bestätigt dessen Einrichtung und registrierten
+Ressourcenbesitz, nicht einen gültigen Kandidaten oder eine erfolgreiche
+Installation. Der vollständige Dateibaum wird mit bereits begrenzten Rechten
+geprüft, bevor Guard, APT oder dpkg beginnen. Ein Prüffehler wird als fehlerhafter
+DONE-Abschluss abgeholt und verhindert die Veröffentlichung. Dadurch hält die
+größenabhängige Baumprüfung nicht die kurze Steuerkanal-/Zulassungsfrist offen.
+Mount-Inventur, Capability-Abbau und die Zehn-Sekunden-Frist für die Einrichtung
+bleiben vor READY erhalten.
+
 Nur im bereits aufgebauten Ausführungs-Namespace dürfen die separat geprüften
 Wurzeln `/dev`, `/proc`, `/tmp` und `/run` andere Dateisysteme sein. Ein bloßes
 Verzeichnis mit einem dieser Namen wird weiter vollständig geprüft; geschachtelte

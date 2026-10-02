@@ -28,6 +28,7 @@
 #include <time.h>
 #include <memory>
 #include <array>
+#include <chrono>
 using namespace aegis;
 using android::base::unique_fd;
 namespace {
@@ -211,17 +212,29 @@ class RuntimePackageExecutor : public ::testing::Test {
     }
     void RejectedBeforeScripts(int expected) {
         ASSERT_EQ(0,Start())<<strerror(errno);PackageExecutionResult result;
-        ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result));
+        ASSERT_EQ(0,Finish(&result));
         EXPECT_EQ(PackageExecutionOutcome::Failed,result.outcome);
         EXPECT_EQ(expected,result.error)<<"status="<<result.status;
         EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),"var/log/aegis-exec-script"));
         EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),"usr/bin/aegis-exec-app"));
     }
     int Start() { return PackageExecutorStart(parent.get(),stage.get(),candidate.get(),helper.get(),plan,Deadline(),&worker); }
+    int Finish(PackageExecutionResult* result) {
+        // Completion includes full-tree validation and real APT/dpkg work.
+        // Poll the same owned operation on TCG; do not restart it or extend the
+        // separate nine-second admission deadline used by Start().
+        const auto until=std::chrono::steady_clock::now()+std::chrono::minutes(10);
+        do {
+            int status=PackageExecutorFinish(&worker,false,0,result);
+            if(status==0 || errno!=ETIMEDOUT)return status;
+            usleep(25000);
+        } while(std::chrono::steady_clock::now()<until);
+        errno=ETIMEDOUT;return -1;
+    }
     void Completed() {
         int before=CountFDs();ASSERT_GT(before,0);
         ASSERT_EQ(0,Start()) << strerror(errno);
-        PackageExecutionResult result;ASSERT_EQ(0,PackageExecutorFinish(&worker,false,9000,&result)) << strerror(errno);
+        PackageExecutionResult result;ASSERT_EQ(0,Finish(&result)) << strerror(errno);
         EXPECT_EQ(PackageExecutionOutcome::NeedsValidation,result.outcome) << "status=" << result.status << " error=" << result.error
             << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+".log").c_str())
             << AptImageFixture::read(candidate.get(),("var/log/aegis-package-"+std::to_string(plan.job)+"-check.log").c_str())
@@ -317,6 +330,7 @@ TEST_F(RuntimePackageExecutor, WrongNestedLabelFailsAfterAdmissionBeforeDebianPr
     unique_fd file(openat(candidate.get(),"usr/share/aegis-label-fixture",O_CREAT|O_EXCL|O_WRONLY|O_CLOEXEC,0600));
     ASSERT_TRUE(file.ok());const char foreign[]="u:object_r:shell_data_file:s0";
     ASSERT_EQ(0,fsetxattr(file.get(),"security.selinux",foreign,sizeof(foreign),0));
+    file.reset(); // No writable reference may remain across the ID-mapped mount handoff.
     RejectedBeforeScripts(EPERM);ASSERT_FALSE(HasFatalFailure());
     EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),"var/log/aegis-package-1-verify-before.log"));
 }
