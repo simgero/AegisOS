@@ -151,3 +151,35 @@ Der erste Boot mit neuem Profil ist gestartet, die integrierte Abnahme bleibt
 offen. Neue Treibersteuerungen für beidseitige Konfiguration/Secrets,
 flüchtige Dateien und Runtime-Stopp haben eine Syntaxprüfung; sie gelten
 erst nach tatsächlicher Ausführung als Gastnachweis.
+
+
+## Beginn des integrierten Versionslaufs im neuen Image
+
+Profil `fe26fa6c-2cb1-4b31-bf5a-bad017b6a54a`, Boot-ID
+`6134993e-afda-4733-84fc-b1b990ab1323`, ursprünglicher SystemServer PID 1356.
+Der vollständige Erstboot ist bestätigt; SELinux Enforcing, FBE,
+Metadatenverschlüsselung und authentifiziertes ADB sind beobachtet. Ein echter
+256-KiB-ADB-Rundlauf ist bytegleich. Die Bootlogs enthalten bis zu dieser
+Beobachtung keinen Treffer der geprüften Fatal-/Watchdog-/Panic-Muster.
+Dies ersetzt keine abschließende Dienstbewertung nach dem ganzen Testlauf.
+
+Alpha wurde als AOSP-Admin 10/10 angelegt und blieb zunächst CE-gesperrt.
+Sein erster korrekter Login ohne vorherigen Fehlversuch, eine danach stabile
+Sitzung und echte GNU-Ausführung bestehen. Datei und persönliche Konfiguration
+sind in GNU erzeugt; die Basis ist schreibgeschützt, interne UID/GID sind 1000,
+Capabilities null, NoNewPrivs und Seccomp aktiv. Beta ist als normaler Benutzer
+11/11 angelegt und noch nicht angemeldet.
+
+Die echte CLI plant und veröffentlicht gemeinsam `jq` und `libjq1` in
+`1.7.1-6+deb13u3` sowie `libonig5` in `6.9.9-1+b1` nach frischer
+AOSP-Adminfreigabe. Der ursprüngliche Alpha-Kontext PID 5667 bleibt mit
+derselben Startzeit erhalten; die CLI weist auf den erforderlichen Neustart
+zur Aktivierung hin. `shared-v1-publication.json` belegt die Veröffentlichung.
+Der nächste private CLI-Plan wählt für Alpha `jq` und `libjq1` exakt in
+`1.7.1-6+deb13u4`. Tatsächliche Programmausführung beider Versionen,
+Aktivierung, Beta-Erstlogin und Persistenz stehen an diesem Prüfpunkt noch aus.
+
+Die früheren 177 Java-Komponententests sind ergänzend an identische Git-Objekte
+von Service, Plattform, Tests und Storage-Registrierung gebunden
+(`prior-java-source-binding.json`). Das ist keine neue Ausführung dieser
+Tests und schließt die geänderten nativen Paketquellen ausdrücklich aus.
