@@ -10,9 +10,11 @@ Vollbuild und Imageprüfung, Bedienung per Tastatur/Maus, authentifizierter
 binärer ADB-Rundlauf und die begrenzte Boot-/Kryptographiekontrolle sind
 belegt. Auf diesem Image bestehen 38 Java-Pakettests, sieben native Plantests,
 sechs Auswahltests, fünf Ausführungstests und beide Veröffentlichungstests.
-Persönliche Benutzer und der vollständige
-CLI-/Neustartablauf sind auf diesem Profil noch nicht angelegt beziehungsweise
-ausgeführt. Die einzelnen Belege und ihre Grenzen stehen weiter unten.
+Der erste persönliche Administrator Alpha ist über die CLI angelegt. Sein
+erster Login, GNU-Grundprüfung, persönliche Testdateien und Shell-Ende bei
+weiterlaufender Sitzung und demselben Hintergrundprozess sind belegt.
+Der zweite Benutzer und der vollständige Paket-/Logout-/Neustartablauf bleiben
+offen. Die einzelnen Belege und ihre Grenzen stehen weiter unten.
 
 ## Frühere integrierte Prüfstände
 
@@ -1556,3 +1558,31 @@ Log-SHA-256:
 `e1e2a2be6cbf77b5bb48842d2f4ceb1bffe766234283c92f2e6b29744329b2ff`.
 Dies sind Komponentenbelege; frische AOSP-Adminfreigaben und die tatsächliche
 Aktivierung im persönlichen CLI-Ablauf bleiben gesondert nachzuweisen.
+
+## Erster persönlicher CLI-/GNU-Ablauf auf 209278d
+
+Die echte CLI legt Alpha als AOSP-Admin `10/10` an. Danach ist CE `[0]`;
+auch die Vorbereitung der ersten Anmeldung entsperrt Alpha noch nicht und
+legt keinen GNU-Kontext an. Erst das richtige Passwort erlaubt Zugang.
+Ohne vorherigen Fehlversuch bestehen die verzögerte Sitzungsprüfung,
+Runtime-Start und tatsächliche GNU-Ausführung.
+
+Die zehn anfänglichen HOME-Verzeichnisse gehören `1000:1000` mit Modus `700`.
+Debian 13.7, glibc 2.41, bash, apt, dpkg und GNU-Werkzeuge funktionieren.
+Die beobachtete Host-Zuordnung lautet `1007500`; Runtime-Domäne, Mountlayout,
+schreibgeschützte Basis, leere Capability-Mengen, NoNewPrivs und Seccomp
+entsprechen den Grundprüfungen. Dies ist noch kein Zwei-Benutzer-Isolationsbeleg.
+
+Alpha schreibt seine ursprüngliche 1024-Byte-Datei aus GNU und liest sie zurück:
+SHA-256 `3eb21b6ca42204a1c533d3f9d7191c06ee67430258477d1ef25ae969e4439750`.
+Persönliche Konfigurations-/Testdateien sind ebenfalls angelegt und gelesen.
+Nach Shell-Ende bleibt Alpha angemeldet und derselbe Hintergrundprozess
+PID `8453`, Startzeit `592964`, schreitet fort. Boot-ID und ursprünglicher
+SystemServer bleiben unverändert; SELinux ist Enforcing, CE `[0, 10]`.
+
+Der eingefrorene Beleg enthält die Ereignisse, Eingabenbindung und Hashes:
+`out/phase1-dod/209278de/alpha-first-flow/result.json`, SHA-256
+`a08f725588f7a841f875b54c3eba4d255d7767b55a3c332e5fe6b3c6b1fce663`.
+Die originalen Dateien und der laufende Treiber bleiben für spätere
+Persistenz-/Lebenszyklusprüfungen erhalten. Paketinstallation, Beta, Logout,
+Neustart und die ergänzenden Pflichtvarianten sind damit nicht abgenommen.
