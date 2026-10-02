@@ -183,3 +183,30 @@ Die früheren 177 Java-Komponententests sind ergänzend an identische Git-Objekt
 von Service, Plattform, Tests und Storage-Registrierung gebunden
 (`prior-java-source-binding.json`). Das ist keine neue Ausführung dieser
 Tests und schließt die geänderten nativen Paketquellen ausdrücklich aus.
+
+
+## Zwei explizite Versionen tatsächlich ausgeführt
+
+Im selben neuen Vollimage sind nun beide ersten korrekten CLI-Anmeldungen
+ohne vorherigen Fehlversuch und echte GNU-Ausführung bestätigt. Alpha führt
+privat `jq`/`libjq1` `1.7.1-6+deb13u4` aus, Beta gemeinsam
+`1.7.1-6+deb13u3`. Beide berechnen aus einem JSON-Array korrekt die Summe 10.
+Paketdatenbank und Prüfsummen werden aus ihren gewöhnlichen GNU-Kontexten
+gelesen. Das kleine `jq`-Frontend ist in beiden Debian-Revisionen bytegleich;
+die tatsächlich verwendeten `libjq1`-Bibliotheken unterscheiden sich:
+Alpha `92012c8c198ed5f8e44042a124c3271e89a0a2867fc3344642d9ed391ef75f50`,
+Beta `58a6c82e3cc0b55f2e11e85ffa487bd2381c4cd30068874504c639c76a3e59d6`.
+
+`two-version-execution-before-reboot.json` bindet die tatsächlichen
+Terminalereignisse, Identitäten und den Boot aneinander, SHA-256
+`4874794ab294b224f1809ad03541a3dae2d97982112c5afada15236c79a4377e`.
+Dies schließt nur den Ausführungs-Teilfall; T15 bleibt bis zu Entfernung und
+weiteren Pflichtvarianten offen. Der vollständige gepaarte Reboot steht noch aus.
+
+Die private Veröffentlichung änderte die gemeinsame Generation nicht. Im alten
+Alpha-Kontext blieb `jq` tatsächlich unauffindbar, bis dieser ausdrücklich
+neugestartet wurde. Dabei blieb Alpha CE-entsperrt; ursprüngliche Datei und
+Konfiguration wurden anschließend bytegleich gelesen, die alte `/tmp`-Probe
+war verschwunden. Neue Proben für Konfiguration, Test-Secret, `/tmp` und `/run`
+sind von beiden Benutzern in GNU erzeugt. Beide Hintergrundjobs sind auf zwei
+Stunden begrenzt; gegenseitige Datei-/Prozess-/IPC-Prüfungen laufen.
