@@ -792,3 +792,33 @@ T07/T12 haben hier einen weiteren integrierten Persistenzbeleg. Passwortwechsel,
 Benutzerlöschung/ID-Wiederverwendung, gegenseitige Isolation im neuen Image,
 nachträgliche Benutzeranlage, T16-Abgleich und die übrigen Matrixvarianten
 bleiben vollständig erforderlich. Dieser Ablauf ersetzt ihre Abnahme nicht.
+
+
+## Beta hält u3 privat fest; eigener Stopp erhält Anmeldung und Alpha
+
+Beta fordert über seine echte CLI-Sitzung `jq=1.7.1-6+deb13u3` für `user` an.
+Der Plan zeigt ausdrücklich die unveränderte Version als private Auswahl.
+Alpha bestätigt mit frischer AOSP-Adminprüfung; die veröffentlichte Generation
+`2dba0c4f…` gehört dennoch Benutzer/Seriennummer 11/11. Gemeinsame Generation,
+Alphas private Auswahl und beide bisher laufenden Root-Mounts bleiben gleich.
+Betas Status meldet zunächst ausstehende Aktivierung; seine reale jq-Ausführung
+und ursprünglichen privaten Daten bleiben nutzbar.
+
+Ein eigener `linux stop` entfernt Betas ursprünglichen Prozess 4418/89924 und
+seinen Kontext, erhält aber die tatsächliche AOSP-Anmeldung und CE `[0,10,11]`.
+Alphas ursprünglicher Prozess 3639/76829 schreitet vorher und nachher weiter.
+Der folgende Start aktiviert Betas private Generation. Aus GNU bestätigt Beta
+jq/libjq1 u3, die bekannte Bibliotheksprüfsumme und Ergebnis 10; Datei und
+Konfiguration sind bytegleich, alte flüchtige Proben fehlen. Die neue begrenzte
+Hintergrundprobe hat eine separat beobachtete Identität 8054/180190.
+
+Beleg: `out/phase1-dod/3155115/beta-private-u3-activation-proof.json`, SHA-256
+`06a9f93e1940585d1b41ca59dca5d6ffbf491341a85980ec64499770aadc5cd6`.
+Er bindet die tatsächlichen CLI-/GNU-Ereignisse und die Paket-/Kontextbeobachtungen
+vor Veröffentlichung, vor Aktivierung und danach. Das deckt die Beta-Richtung
+des eigenen Runtime-Stopps und einen Eigentumsfall mit fremder Adminfreigabe ab;
+es ersetzt weder die gesamte T09- noch die T13-Matrix.
+
+Damit sind vor dem gemeinsamen Update beide privaten Versionen vorhanden:
+Alpha u4, Beta u3, gemeinsame Generation u3. Die gemeinsame Updateplanung läuft;
+T16 ist erst nach nachgewiesener konsistenter Aktivierung zu bewerten.
