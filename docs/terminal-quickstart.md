@@ -95,6 +95,14 @@ der vorherige Benutzer kann im Hintergrund weiterlaufen. `passwd` ändert das
 eigene Passwort durch AOSP. `status` zeigt die aktuelle Terminalanmeldung,
 `linux status` den eigenen Kontext und Paketstand.
 
+Nach einem gemeinsamen Paketupdate kann `linux start` die persönliche
+Paketauswahl neu abgleichen. Auf ARM64-QEMU ohne Hardwarebeschleunigung dauert
+bereits die Planung mehrere Minuten. Ab Quellstand `3155115` wartet dieser
+Aufruf insgesamt höchstens 15 Minuten; seine Integration wird noch geprüft.
+Ein Zeitablauf bestätigt weder einen gestarteten Kontext noch dessen Abbau.
+Dann den Zustand mit `linux status` prüfen und vor einem neuen Start den eigenen
+Kontext mit `linux stop` geordnet beenden. Dies ist keine Abmeldung.
+
 ## Gemeinsame und persönliche Pakete
 
 Zurück am `aegis>`-Prompt:
