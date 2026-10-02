@@ -235,3 +235,42 @@ ursprüngliche Prozess wird nicht nachträglich als überlebend ausgegeben.
 Beleg: `isolation-and-runtime-stop-before-reboot.json`, SHA-256
 `80698c455ddf255bb297667c33756071cc9eaea56b33645d856a60a62ed8c42b`.
 Bildschirmsperre, vollständiger Logout und gepaarter Neustart folgen gesondert.
+
+
+## Bildschirmsperre, Passwortwechsel und Vorbereitung des gepaarten Neustarts
+
+Im Vollimage `d1497661b70e301aec6c92190f2bb5ec58401caf` widerruft die
+beobachtete Android-Bildschirmsperre Betas GNU-Terminal. Beide ursprünglichen
+Hintergrundprozesse laufen mit unveränderter Identität weiter, während Android
+`Asleep` und eine sichtbare Keyguard-Sperre meldet. CE bleibt dabei entsperrt;
+das wird ausdrücklich nicht als Logout gewertet (`screen-lock-proof.json`).
+
+Betas Passwortwechsel erfolgt über AOSP. Nach bestätigtem Logout scheitert das
+alte Passwort ohne CE-Entsperrung; ein Runtime-Start ohne Anmeldung wird
+abgewiesen. Das neue Passwort erlaubt den Zugriff auf die unveränderte
+GNU-Datei, Konfiguration und gemeinsame `jq`-Version. Alpha liest anschließend
+seine ursprüngliche Datei, HOME-Anpassung und private Version unverändert.
+Beide Benutzer werden ausdrücklich abgemeldet: persönliche Prozesse und
+Kontexte verschwinden, AOSP meldet nur CE-Benutzer 0. Bekannte persönliche
+Dateien liefern keine Bytes. `identity-test/reboot-checkpoint.json` bindet
+Identitäten, ursprüngliche Dateihashes, Profil und Boot an diesen Zustand.
+
+QMP-Tastaturereignisse öffnen in Androids Einstellungen „Network & internet“;
+der QMP-Mausklick auf die beobachtete Zurück-Schaltfläche führt zur Übersicht.
+Gerenderte Bilder, UI-Bäume und Androids Eingabekoordinaten sind in
+`qmp-ui-proof.json` verknüpft. Ein erster UI-Dump während eines Übergangs hatte
+keine Wurzel; die späteren abgeschlossenen Beobachtungen belegen die Navigation.
+
+Die 44 nativen Tests für fscrypt-Entzug, Namespaces und Speicher-/Prozessgruppen
+bestehen jetzt auch direkt im vollständigen neuen Image (131 Sekunden
+Beobachtungsdauer). Boot-ID, SystemServer PID 1356, gesperrte persönliche
+Benutzer und leere Kontextliste bleiben vor/nach dem Lauf unverändert.
+Log-SHA-256: `75884580da9b37442a3ee3affb9d11205c1f4c2b331edcfa55a4f670108b9d23`.
+Das ist ein Komponentenbeleg und keine Gesamtfreigabe aller Systemfälle.
+
+Android und KeyMint-Helfer sind danach gemeinsam sauber beendet worden; der
+Launcher bestätigt beide Prozessenden mit Exitcode 0. Profilmanifest und
+Dateibindungen sind in `paired-shutdown-before-reboot.json` festgehalten.
+Der zweite Start verwendet dasselbe Profil ohne Neuanlage. Der Nachweis nach
+diesem Neustart steht noch aus; die Testzugänge bleiben ausschließlich im
+Speicher des weiterlaufenden Treibers.
