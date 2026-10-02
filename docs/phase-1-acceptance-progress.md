@@ -357,3 +357,32 @@ Paketabläufe bleiben Teilbelege; sie ergeben keine stabile Gesamtabnahme.
 Eine Korrektur, gezielte Wiederholung und erneute Prüfung der betroffenen
 Boot-/Bedienungsfälle sind erforderlich. Der SystemServer blieb während des
 beobachteten zweiten Ablaufs PID 1146.
+
+
+## Dritter Benutzer und tatsächlicher AOSP-Hintergrundstopp
+
+Gamma wurde erst nach den Paketinstallationen und dem gepaarten Neustart als
+normaler AOSP-Benutzer 12/12 über die CLI angelegt. Sein Speicher blieb bis zur
+ersten korrekten Anmeldung gesperrt. Der neue GNU-Kontext hat das unveränderte
+private HOME-Grundlayout, intern UID/GID 1000 und Host-Zuordnung 1207500. Gamma
+führt die gemeinsame `jq`/`libjq1`-Version `u3` mit erwarteter Bibliotheksprüfsumme
+aus; die Berechnung liefert 10.
+
+AOSP stoppt dabei Beta als Hintergrundbenutzer. Der zuvor positiv beobachtete
+GNU-Prozess PID 5547 mit Startzeit 165052 verschwindet samt Kontext; Betas CE
+ist gesperrt. Androids Stop-Broadcasts und Prozessabbau sind aufgezeichnet.
+Das ist ein tatsächlicher AOSP-Ressourcenstopp, kein behauptetes Weiterlaufen
+beim Wechsel. Ein anfänglicher Beobachter erwartete fälschlich drei gleichzeitig
+entsperrte persönliche Benutzer und verweigerte den Nachweis; die korrigierte
+Beobachtung benennt die tatsächlich aktiven Benutzer.
+
+Gammas GNU-Leseversuche auf beide fremden Dateien, Konfigurationen, Test-Secrets
+und privaten Paketauswahlen liefern keine Bytes. Alphas tatsächlich vorhandene
+Dateien bleiben bei entsperrtem CE vor/nach den Versuchen bytegleich. Beta ist
+bei dieser Prüfung bereits AOSP-gesperrt; das zählt nicht als zusätzlicher
+Gamma/Beta-Isolationstest bei gleichzeitig entsperrten Speichern. Dessen
+späterer Datenwiederzugriff nach dem Ressourcenstopp bleibt gesondert zu prüfen.
+
+Beleg: `third-user-and-background-stop-proof.json`, SHA-256
+`8ee5be06db6393949ea9192144d34b787e5da3e66d9d2082300816466e0831d7`.
+Der separat dokumentierte Bootanimation-Absturz hält D1 weiter offen.
