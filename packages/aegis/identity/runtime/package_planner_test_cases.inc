@@ -1141,6 +1141,25 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
         request.personal=true;request.request.reconciliation=true;request.request.action=aegis::PackageAction::Update;
         request.request.package.clear();request.request.version.clear();
     }
+    void ConfigureAutomaticLibrary(const char* common_version) {
+        const auto base=initial;
+        Configure("AEGIS-PRIVATE-CHOICES1\naegis-private-choice\tall\t1\n");ASSERT_FALSE(HasFatalFailure());
+        // Status-only unchanged roots need no archive. The signed repository's
+        // real library archives supply the independently updated dependency.
+        const std::string common="\nPackage: aegis-common-root\nStatus: install ok installed\nArchitecture: all\nVersion: 1\nDepends: aegis-probe-lib (>= 1)\nDescription: unchanged common root\n\n";
+        const std::string personal="\nPackage: aegis-private-choice\nStatus: install ok installed\nArchitecture: all\nVersion: 1\nDescription: retained personal choice\n\n";
+        auto library=[](const char* version) {
+            return std::string("\nPackage: aegis-probe-lib\nStatus: install ok installed\nArchitecture: all\nVersion: ")+version+"\nDescription: common automatic library\n\n";
+        };
+        old_status=base+common+library("1");initial=old_status+personal;
+        new_status=base+common+library(common_version);
+        for(int fd:{selected.get(),previous.get(),current.get()})Readonly(fd,false);
+        ASSERT_FALSE(HasFatalFailure());
+        ASSERT_EQ(0,Write(selected.get(),"var/lib/dpkg/status",initial));
+        ASSERT_EQ(0,Write(previous.get(),"var/lib/dpkg/status",old_status));
+        ASSERT_EQ(0,Write(current.get(),"var/lib/dpkg/status",new_status));
+        for(int fd:{selected.get(),previous.get(),current.get()})Readonly(fd,true);
+    }
     void StoreImage(AptImageFixture& fixture,Fd& view,int store,aegis::PackageOwner identity,
                     const aegis::PackageGeneration* prior,const std::string& base,aegis::PackageGeneration* output) {
         Fd tree(openat(view.get(),".",O_RDONLY|O_DIRECTORY|O_CLOEXEC));ASSERT_TRUE(tree.ok());
@@ -1267,9 +1286,9 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
         const int inputs[]={selected.get(),previous.get(),current.get()};
         return aegis::PackageReconciliationPlannerStart(parent.get(),source,inputs,sources.get(),key.get(),helper.get(),request,Deadline(),&planner);
     }
-    void Finish(bool success,size_t effects) {
+    void Finish(bool success,size_t effects,const char* library_version=nullptr) {
         int fd=-1;aegis::PackagePlanningResult result;
-        ASSERT_EQ(0,aegis::PackagePlannerFinish(&planner,false,10000,&result,&fd));Fd collected(fd);
+        ASSERT_EQ(0,FinishPlanBounded(&result,&fd));Fd collected(fd);
         EXPECT_EQ(initial,Read(selected.get(),"var/lib/dpkg/status"));
         EXPECT_EQ(automatic,Read(selected.get(),"var/lib/apt/extended_states"));
         EXPECT_EQ(old_status,Read(previous.get(),"var/lib/dpkg/status"));
@@ -1284,6 +1303,13 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
         ASSERT_EQ(aegis::PackagePlanningResult::Outcome::Collected,result.outcome)<<result.error<<" "<<result.status<<" "<<result.diagnostic;
         ASSERT_TRUE(collected.ok());ASSERT_TRUE(result.evidence.reconciliation);
         EXPECT_EQ(effects,result.evidence.changes.size());EXPECT_EQ(choices,result.evidence.initial_private_choices);
+        if(library_version) {
+            auto library=std::find_if(result.evidence.changes.begin(),result.evidence.changes.end(),
+                [](const auto& c){return c.name=="aegis-probe-lib";});
+            ASSERT_NE(result.evidence.changes.end(),library);
+            EXPECT_EQ("1",library->before_version);EXPECT_EQ(library_version,library->after_version);
+            EXPECT_EQ(aegis::PackageInstallReason::Automatic,library->reason);
+        }
         EXPECT_EQ(Hash(initial),result.evidence.initial_status_sha256);
         EXPECT_EQ(Hash(automatic),result.evidence.initial_apt_state.sha256);
         const auto& re=result.evidence.reconciliation_evidence;
@@ -1396,6 +1422,14 @@ TEST_F(RuntimeReconciliationPlanning, StopAfterThreeViewHandoffOwnsAndReapsTheSa
 TEST_F(RuntimeReconciliationPlanning, SharedUpdateResolvesNewAppAndItsDependency) {
     Configure("AEGIS-PRIVATE-CHOICES1\n");ASSERT_FALSE(HasFatalFailure());int before=descriptors();
     ASSERT_EQ(0,StartThree())<<strerror(errno);Finish(true,2);EXPECT_EQ(before,descriptors());
+}
+TEST_F(RuntimeReconciliationPlanning, SharedAutomaticLibraryUpdatesWithUnchangedManualRootAndPrivateChoice) {
+    ConfigureAutomaticLibrary("2");ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,StartThree())<<strerror(errno);Finish(true,1,"2");
+}
+TEST_F(RuntimeReconciliationPlanning, NewerRepositoryLibraryWithoutSharedPublicationIsNotAdopted) {
+    ConfigureAutomaticLibrary("1");ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,StartThree())<<strerror(errno);Finish(true,0);
 }
 TEST_F(RuntimeReconciliationPlanning, PrivateAppKeepsItsOldDependencyInsteadOfTheNewSharedVersion) {
     Configure("AEGIS-PRIVATE-CHOICES1\naegis-probe-app\tall\t1\n");ASSERT_FALSE(HasFatalFailure());
