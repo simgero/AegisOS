@@ -142,6 +142,12 @@ anhalten: `package-install-user hello=2.10-5`, `package-install-all ed`,
 `package-update-user` und `package-update-all`. Bereich und Version werden
 unverändert an die Produkt-CLI weitergereicht; der Treiber führt kein APT aus.
 
+Bei `remove --scope user` erkennt der Treiber auch die ausdrückliche Anzeige
+„private Versionswahl … aufheben“. Damit kann eine private Festlegung bei
+unveränderter Paketversion geprüft werden, obwohl keine Architektur-/Versions-
+Änderungszeile erscheint. Dies ändert weder die Produktprüfung noch die
+anschließend erforderliche Adminfreigabe.
+
 Den angezeigten Plan prüfen, danach genau eine Fortsetzung senden:
 `package-approve` verwendet Alphas aktuelles AOSP-Adminpasswort;
 `package-wrong` das falsche Testpasswort; `package-nonadmin` Betas korrektes

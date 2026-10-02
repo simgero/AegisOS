@@ -483,7 +483,10 @@ def package_begin(action_name,scope,package="hello"):
     package_name=package.split('=')[0]
     assert (re.search(re.escape(package_name)+r' \((?:arm64|all)\): ',clean(data))
             or action_name=='update'
-            or package_name+': privat festhalten, Version ' in clean(data))
+            or package_name+': privat festhalten, Version ' in clean(data)
+            or (action_name=='remove' and scope=='user'
+                and re.search(r'(?m)^  '+re.escape(package_name)
+                              +r': private Versionswahl \S+ aufheben$',clean(data))))
 
 def package_approve(key, administrator="alpha", observe_start=False):
     global package_prompt, package_running
