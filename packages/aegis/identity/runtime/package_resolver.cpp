@@ -115,17 +115,21 @@ const char* PackageResolverConfiguration(bool internet,bool reconciliation,bool 
         "Acquire::http::Proxy \"socks5h://127.0.0.1:1080\";\n"
         "Acquire::https::Proxy \"socks5h://127.0.0.1:1080\";\n"
         "Acquire::https::CaInfo \"/run/aegis-plan-policy/ca.pem\";\n";
-    // Exact requested roots, both ordinary installs and reconciliation, may
-    // need non-candidate dependency versions to keep matching libraries.
-    // Trust, signatures and all root/hold postconditions stay unchanged.
+    // Explicit installs may need a dependency version that is neither the
+    // installed version nor the ordinary repository candidate.
     static const std::string solver="APT::Solver \"3.0\";\nAPT::Solver::Strict-Pinning \"false\";\n";
     static const std::string exact_offline=std::string(policy)+solver;
     static const std::string exact_online=online+solver;
     static const std::string preferences=
         "Dir::Etc::preferences \"/tmp/aegis-planner/preferences\";\n"
         "Dir::Etc::preferencesparts \"/run/aegis-plan-policy/empty\";\n";
-    static const std::string reconcile_offline=exact_offline+preferences;
-    static const std::string reconcile_online=exact_online+preferences;
+    // Reconciliation has a narrower, published version set. Solver 3.0 strict
+    // pinning admits installed versions as well as candidates, preserving old
+    // private dependencies while excluding alternatives to exact private roots.
+    // With non-strict pinning an upgrade may replace even a preferred root.
+    static const std::string reconcile_solver="APT::Solver \"3.0\";\nAPT::Solver::Strict-Pinning \"true\";\n";
+    static const std::string reconcile_offline=std::string(policy)+reconcile_solver+preferences;
+    static const std::string reconcile_online=online+reconcile_solver+preferences;
     if(reconciliation)return internet?reconcile_online.c_str():reconcile_offline.c_str();
     if(exact_version)return internet?exact_online.c_str():exact_offline.c_str();
     return internet?online.c_str():policy;

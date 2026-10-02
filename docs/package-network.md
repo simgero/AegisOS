@@ -437,8 +437,11 @@ Deterministische APT-Präferenzen lassen nur Versionen aus dem veröffentlichten
 gemeinsamen oder bereits ausgewählten persönlichen Register zu. Gemeinsame
 Versionen werden bevorzugt; exakte Hauptpaketversionen einschließlich privater
 Auswahlen haben dabei Vorrang auch im allgemeinen Upgrade-Schritt. Vorhandene
-ältere Versionen bleiben als passende
-Abhängigkeiten einer ausdrücklich festgehaltenen privaten Version verfügbar.
+ältere Versionen bleiben als passende Abhängigkeiten einer ausdrücklich
+festgehaltenen privaten Version verfügbar. Für diesen Abgleich verwendet
+Solver 3.0 striktes Pinning: Neben dem Kandidaten darf er bereits installierte
+Versionen behalten. Die nichtstrikte Suche nach weiteren Abhängigkeitsversionen
+bleibt ausdrücklich angeforderten Installationen vorbehalten.
 Die anschließende native Effektprüfung weist jede neue Version oder Architektur
 außerhalb dieser beiden Register unabhängig von APT zurück. Exakte Hauptpakete,
 private Absichten und bestehende Holds werden weiterhin geprüft.
