@@ -43,8 +43,12 @@ Der verzögerte Schreibthread und die reguläre Prüfung bleiben unverändert.
 `register-egl-cache.py` bindet beide Quelldateien an Commit und SHA-256,
 verweigert fremde Änderungen und wird vor/nach dem AOSP-Build ausgeführt.
 Vier Hosttests prüfen diese Integration; neun Build-Snapshot-Tests bestehen.
-**Die korrigierte Bibliothek ist noch im Gast zu prüfen und anschließend in
-einem vollständigen Image mit Boot-/Bedienungsregression abzunehmen.**
+Das Vollimage `3155115` hat inzwischen einen regulären Erststart einschließlich
+beendeter Bootanimation ohne FORTIFY-Meldung bestanden. Die tatsächlich installierte
+Bibliothek entspricht SHA-256
+`831f33d0aa44611b2419da0e201070b68db6e4034e78d6050cbac903e243b0e3`.
+Tastatur, Maus und authentifiziertes ADB sind auf diesem Image geprüft.
+**Gepaarte Wiederholungsstarts und die vollständige D1-Abnahme bleiben offen.**
 
 Zeitabstand, geerbter Threadname und Mutex-Offset passen zum ursprünglichen
 Bootanimation-FORTIFY. Für dessen ursprünglichen Prozess fehlt jedoch weiterhin

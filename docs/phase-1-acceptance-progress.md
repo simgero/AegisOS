@@ -3,9 +3,11 @@
 Beginn: 1. Oktober 2026. Ziel ist die vollständige
 [DoD](architecture/phase-1-dod.md), einschließlich aller Varianten T01–T17.
 **Status: aktiv, keine vollständige Abnahme.** Aktueller integrierter Prüfstand:
-Image `d1497661b70e301aec6c92190f2bb5ec58401caf`, Profil
-`fe26fa6c-2cb1-4b31-bf5a-bad017b6a54a`. Der im zweiten Boot beobachtete
-Bootanimation-Absturz hält D1 offen; Einzelbelege ändern diesen Status nicht.
+Image `31551159cd11d66b0fa18442b5f62106edf4bfb5`, Profil
+`1c53b76e-bb1d-4ed6-a0df-7bbc21f2cfee`. Erster normaler Boot, Bedienung,
+ADB und 27 gezielte Java-Tests sind bestanden. Gepaarter Wiederholungsstart,
+Paketaktivierung und die vollständige Testmatrix bleiben offen.
+Der frühere Bootanimation-Absturz auf `d149766` bleibt als Regressionsevidenz erhalten.
 
 Ausgangspunkt ist das geprüfte Image `c52657113becde42d735669d4d64405c7740cc74`.
 Die [fünf bisherigen Meilensteine](server-acceptance.md) bleiben gültige
@@ -588,3 +590,48 @@ Lokaler Buildindex: `out/phase1-dod/3155115/build-validation.json`, SHA-256
 Er bindet Manifest, Quellbelege, Partitionsprüfung, AVB-/Diskbelege und
 Test-App-Build. Images und Profile bleiben auf dem Server; es wurde kein
 Build-Release oder Artefaktupload erzeugt.
+
+## Regulärer Erststart, Bedienung und 27 Java-Tests auf 3155115
+
+Boot `c0dd316f-92c0-4f39-bdc0-40aa8d4c9416` erreicht
+`sys.boot_completed=1`, authentifiziertes ADB und SELinux Enforcing. Vor der
+Benutzeranlage ist nur CE `[0]` entsperrt. SystemServer bleibt PID 1293 mit
+Startzeit 36603; im gesicherten Bootlog steht genau ein SystemServer-Start.
+Die Bootanimation endet regulär mit Status 0. Bis zur Beobachtung um
+12:48:52 UTC finden sich keine FORTIFY-, Fatal-Signal-, Watchdog-, Java-Fatal-
+oder ANR-Meldungen. Das ist ein begrenzter Erststartnachweis, kein Abschluss D1.
+
+Die Gastprüfsummen der korrigierten EGL-Bibliothek und des Identitätsdiensts
+entsprechen dem neuen Build. Alle elf `RuntimeStartWaiterTest`- und 16
+`RuntimeAdmissionTest`-Fälle bestehen; Boot und SystemServer bleiben gleich.
+Die synthetische Uhr prüft längere Planung, unverlängerbare Gesamtfrist und
+Widerruf der ursprünglichen Freigabe. Diese Komponententests ersetzen keine
+echte Anmeldung oder Paketaktivierung.
+
+QMP-TAB/RET öffnet von der bestätigten Einstellungsübersicht die Netzwerkeinstellungen.
+Der anschließende Mausklick bei beobachtetem Cursor `(57.165,106.163)` auf
+„Navigate up“ führt zurück. Screenshots und XML bestätigen beide Übergänge.
+Erste XML-Abfragen während der Animation lieferten keinen Root-Knoten;
+die späteren Beobachtungen wiederholten die Eingabe nicht. Ein separater
+256-KiB-ADB-Rücktransfer stimmt bytegleich.
+
+Frühe Init-Rückgaben sind separat eingeordnet: ausdrücklich übersprungener
+System-Mainline-Initializer bei erfolgreichem aktivem Mainline-Initializer,
+`misctrl` mit erfolgreicher boolescher Property-Setzung im Exitcode sowie
+Recovery-Refresh passend zu leerem pstore ohne frühere Protokolle. Reguläre
+`ctl.stop`-/`ctl.restart`-Vorgänge sind mit den Signal-Exitmeldungen verknüpft.
+Die Recovery-Einordnung bleibt eine Quell-/Zustandsinferenz, kein erneut
+provozierter Ablauf. Rohmeldungen bleiben unverändert erhalten.
+
+Lokale, gehashte Teilnachweise unter `out/phase1-dod/3155115/`:
+
+- `java-selected/result.json`: `2021091f48b210459e5abc5d8d7e6dbbdcc8fecfd670b6132a1d442f09fbd596`
+- `qmp-ui-proof.json`: `930a89652cb6860f115d4038829247603eb28ba1fdb53b051b268a2e4d0f1535`
+- `adb-roundtrip.json`: `32d3a3a7fb661b5d0d9840cf73e8ab2f576edc7e1c7152365869b8b15d5c6d64`
+- `init-exit-classification.json`: `fbda0db3f2e303cd90b2a3ae3d530bd9da91bb125f965236fc21d4a0f7827e65`
+
+Der neue reguläre CLI-Lauf hat Alpha 10/10 als Administrator und Beta 11/11
+als normalen Benutzer angelegt. Alphas erster korrekter Login gelingt ohne
+Fehlversuch davor; echte GNU-Ausführung, private Datei und Konfiguration sind
+nachgewiesen. Beta bleibt zunächst gesperrt. Die gemeinsame jq-Planung hat
+begonnen; noch keine Installation oder T16-Aktivierung wird daraus behauptet.
