@@ -65,6 +65,14 @@ def check(condition, message):
         raise ValueError(message)
 
 
+def test_only_sources(base, components):
+    check(base.get("version") == 1 and components.get("version") == 1, "Unknown source receipt schema")
+    check(base["files"].keys() == components["files"].keys(), "Source inventory changed")
+    changed = sorted(name for name in base["files"] if base["files"][name] != components["files"][name])
+    check(changed == ["runtime/package_executor_tests.cpp"], "Expected only the executor test correction")
+    return changed
+
+
 def run(args):
     run_dir, prepared = args.run.resolve(strict=True), args.prepared.resolve(strict=True)
     address = (run_dir / "adb-address.txt").read_text().strip()
@@ -84,7 +92,28 @@ def run(args):
     receipt, avb = read(args.receipt), read(prepared / "avb-checked.json")
     commit = receipt["source_commit"]
     check(re.fullmatch("[0-9a-f]{40}", commit), "Expected full source commit")
-    check(avb["builder_commit"] == commit, "Components and full image must match")
+    equivalence = None
+    if avb["builder_commit"] != commit:
+        check(args.group != "java" and args.test_only_reference is not None and args.component_sources is not None,
+              "Different native test commit requires explicit source and component reference receipts")
+        reference = read(args.test_only_reference)
+        check(reference["source_commit"] == avb["builder_commit"], "Reference must belong to the image commit")
+        check(set(reference["files"]) == BUNDLE and set(receipt["files"]) == BUNDLE, "Unexpected reference bundle")
+        check(all(reference["files"][name] == receipt["files"][name] for name in BUNDLE - {"AegisRuntimeNativeTests"}),
+              "Production helper bytes changed")
+        check(reference["java_tests_apk_sha256"] == receipt["java_tests_apk_sha256"], "Java test artifact changed")
+        base_sources = prepared / "build-receipts/identity-source-files.json"
+        check(digest(base_sources) == read(prepared / "build-validation.json")["receipts"]["identity-source-files.json"],
+              "Image source receipt changed")
+        check(digest(args.component_sources) == receipt["source_files_sha256"], "Component source receipt changed")
+        equivalence = {"changed_sources": test_only_sources(read(base_sources), read(args.component_sources)),
+                       "image_source_receipt_sha256": digest(base_sources),
+                       "component_source_receipt_sha256": digest(args.component_sources),
+                       "reference_receipt_sha256": digest(args.test_only_reference),
+                       "unchanged_helpers": sorted(BUNDLE - {"AegisRuntimeNativeTests"})}
+    else:
+        check(args.test_only_reference is None and args.component_sources is None,
+              "Test-only reference options are only for a different native test commit")
     profile = read(Path((run_dir / "profile-path.txt").read_text().strip()) / "profile.json")
     disk = profile["bindings"]["base_disk"]
     check(Path(disk["path"]).resolve() == prepared / "android.raw", "Wrong profile base")
@@ -130,12 +159,14 @@ def run(args):
         check(not shell("pidof AegisRuntimeNativeTests || true"), "Native tests already running")
         args.output.mkdir(mode=0o700, parents=True, exist_ok=False)
         target = "/data/local/tmp/aegis-package-tests-" + commit[:12]
-        proof = {"source_commit": commit, "guest_image_commit": commit,
+        proof = {"source_commit": commit, "guest_image_commit": avb["builder_commit"],
                  "group": args.group, "profile_id": profile["profile_id"],
                  "vbmeta_digest": avb["vbmeta_digest"], "adb_address": address,
                  "before": before, "build_receipt_sha256": digest(args.receipt),
                  "driver_sha256": digest(Path(__file__)), "passed": False,
                  "scope": "Component tests on the matching full image; real CLI T15/T16 and the full DoD remain separate."}
+        if equivalence is not None:
+            proof["test_only_equivalence"] = equivalence
         started = time.monotonic()
         try:
             if args.group == "java":
@@ -194,6 +225,10 @@ if __name__ == "__main__":
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--group", choices=["java", *GROUPS], required=True)
     parser.add_argument("--apk", type=Path)
+    parser.add_argument("--test-only-reference", type=Path,
+                        help="Original component receipt from the image commit; requires --component-sources")
+    parser.add_argument("--component-sources", type=Path,
+                        help="Source inventory from the corrected native build; only executor test source may differ")
     try:
         run(parser.parse_args())
     except (ValueError, OSError, subprocess.SubprocessError) as error:

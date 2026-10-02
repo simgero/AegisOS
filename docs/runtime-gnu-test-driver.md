@@ -325,3 +325,14 @@ erhalten; das Werkzeug löscht keine Dateien zur Wiederholung.
 und nachfolgenden Systemzustand sowie Prüfsummen von Beleg, Testtreiber und Log.
 Fehlende oder übersprungene Fälle ergeben keinen Erfolg. Diese Komponentenläufe
 ersetzen weder den vollständigen Referenzablauf noch die realen T15-/T16-Aktionen.
+
+Für die reine Korrektur der Wartebedingungen in
+`runtime/package_executor_tests.cpp` darf ein neuer nativer Testbuild verwendet
+werden: zusätzlich `--test-only-reference` mit dem ursprünglichen
+Komponentenbeleg des Image-Commits und `--component-sources` mit dem
+`source-files.json` des neuen Builds angeben. Dessen Prüfsumme muss als
+`source_files_sha256` im neuen Komponentenbeleg stehen. Das Werkzeug vergleicht
+die vollständigen Quellinventare; ausschließlich diese Testdatei darf abweichen.
+Alle zehn Helper-Binaries und das Java-Test-APK müssen bytegleich bleiben.
+Image- und Test-Commit sowie diese Vergleichsbelege stehen getrennt im Ergebnis.
+Andere Produktänderungen benötigen weiterhin das passende neue Vollimage.

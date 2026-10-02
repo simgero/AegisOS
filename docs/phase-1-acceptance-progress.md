@@ -1364,3 +1364,32 @@ Testtreiber-SHA-256:
 Diese Tests prüfen Metadaten und Transaktionszustände. Sie belegen keine echte
 AOSP-Anmeldung, Adminfreigabe oder Paketinstallation. Die nativen Imageprüfungen
 und die durchgängigen CLI-Nachweise bleiben offen.
+
+## Native Auswahl: unvollständige Beobachtung der Vorbereitung
+
+Alle sechs ausgewählten nativen Auswahlfälle scheitern auf `209278d` bereits
+in der gemeinsamen Testvorbereitung. Die Testschleife erwartet nach etwa neun
+Sekunden `Prepared`, beobachtet aber weiterhin `Preparing` mit Fehlercode 0.
+Sie beendet damit die Beobachtung eines noch laufenden Auftrags; die eigentlichen
+Auswahlwirkungen sind durch diesen Lauf nicht geprüft. SystemServer, Boot-ID,
+SELinux und CE bleiben unverändert. Die fehlgeschlagenen Testimages bleiben erhalten.
+
+Ergebnis: `out/phase1-dod/209278de/native-selection-components/result.json`, SHA-256
+`8600f2592b6fb6cafe643eefc77b8676403c7d414a660388630335a20b26d88d`.
+Log-SHA-256:
+`6ef4b65479771d9de6a9b8ed7dd31f54cd2f1bfdc73d3300c7adc940b4eeed65`.
+
+`6946970adc5158ffafa0d8771b22afbee12fd5a5` korrigiert ausschließlich die
+Beobachtungsbedingungen in `runtime/package_executor_tests.cpp`: derselbe
+Vorbereitungs-/Veröffentlichungsauftrag wird bis zu 180 Sekunden beobachtet;
+ein laufender Auftrag wird nicht erneut gestartet. Produktcode, Zulassungsfristen
+und die explizite Abbruchprüfung bleiben unverändert. Der Komponentenbuild
+`/srv/aegis/runs/native-6946970a-Q1YLjb` besteht nach 47 Sekunden. Die vollständigen
+Quellinventare unterscheiden sich ausschließlich in dieser Testdatei;
+alle zehn Helper-Binaries und das Java-Test-APK sind bytegleich zum Image-Stand.
+
+Der neue Buildbeleg
+`out/phase1-dod/209278de/native-observed-preparation-build-receipt.json` hat SHA-256
+`ffb57deaf0ab87bf2d91201f387028eb786e3964bcb8e8f414ef2e58fe643633`.
+Die Wiederholung mit korrigierter Beobachtung steht noch aus. Der längere
+Beobachtungszeitraum allein ist kein bestandener Test und kein Produktnachweis.
