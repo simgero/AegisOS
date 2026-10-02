@@ -264,7 +264,18 @@ public final class Aegis {
                 System.out.println("Paketplan: " + result.getString("action") + ", Bereich: "
                         + ("all".equals(result.getString("scope")) ? "gemeinsame Software" : "eigene Pakete"));
                 java.util.ArrayList<android.os.Bundle> changes = result.getParcelableArrayList("changes", android.os.Bundle.class);
-                if (changes == null || changes.isEmpty()) throw new IllegalStateException("Missing complete review");
+                android.os.Bundle removal = result.getBundle("privateRemoval");
+                if (changes == null || (changes.isEmpty() && removal == null)) throw new IllegalStateException("Missing complete review");
+                if (removal != null) {
+                    System.out.println("  " + removal.getString("name") + ": private Versionswahl " + removal.getString("before") + " aufheben");
+                    switch (removal.getString("result")) {
+                        case "common": System.out.println("  Danach gemeinsame Version " + removal.getString("after") + " verwenden."); break;
+                        case "dependency": System.out.println("  Version " + removal.getString("after") + " bleibt als benötigte Abhängigkeit installiert."); break;
+                        case "removed": System.out.println("  Das Paket wird entfernt; persönliche Konfigurationsdateien bleiben erhalten."); break;
+                        default: throw new IllegalStateException("Missing private removal result");
+                    }
+                    if (changes.isEmpty()) System.out.println("  Keine Paketversion ändert sich.");
+                }
                 for (android.os.Bundle change : changes) {
                     String before = change.getString("before"), after = change.getString("after");
                     if ("private_selection".equals(change.getString("effect"))) {

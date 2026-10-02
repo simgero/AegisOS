@@ -122,17 +122,19 @@ int main(int argc,char** argv) {
 #endif
     umask(022); // Fixed policy/input directory modes, independent of broker umask.
     int fds[AEGIS_PLANNING_INPUT_FDS]={-1,-1,-1,-1,-1,-1,-1,-1};aegis_planning_request r={};
-    if(recv(3,&r,sizeof(r),MSG_PEEK|MSG_TRUNC|MSG_DONTWAIT)!=ssize_t(sizeof(r)) || r.reconciliation>1)return 79;
-    const size_t expected=r.reconciliation?8:6;
-    if(aegis_planning_receive(3,&r,sizeof(r),fds,expected)<0 || expected!=(r.reconciliation?8u:6u))return 79;
+    if(recv(3,&r,sizeof(r),MSG_PEEK|MSG_TRUNC|MSG_DONTWAIT)!=ssize_t(sizeof(r))
+       || r.reconciliation>1 || r.private_removal>1 || (r.reconciliation && r.private_removal))return 79;
+    const size_t expected=(r.reconciliation || r.private_removal)?8:6;
+    if(aegis_planning_receive(3,&r,sizeof(r),fds,expected)<0 || expected!=((r.reconciliation || r.private_removal)?8u:6u))return 79;
     aegis::PackageResolverRequest request;
     bool valid=r.magic==AEGIS_PLANNING_MAGIC&&r.version==AEGIS_PLANNING_VERSION
         &&r.user==user&&r.serial==serial&&r.job&&r.job<=INT64_MAX&&r.internet<=1&&r.reconciliation<=1
+        &&r.private_removal<=1&&!(r.reconciliation&&r.private_removal)
         &&Fixed(r.package,sizeof(r.package))&&Fixed(r.version_text,sizeof(r.version_text));
     for(auto c:r.padding)if(c)valid=false;
     if(!valid)return 80;
-    request.reconciliation=r.reconciliation;request.internet=r.internet;request.action=static_cast<aegis::PackageAction>(r.action);request.package=r.package;request.version=r.version_text;
-    if(aegis::PackageResolverCheck(request)<0||Setup(fds,request.internet,request.reconciliation,!request.version.empty())<0) { perror("aegis planner setup");return 81; }
+    request.reconciliation=r.reconciliation;request.private_removal=r.private_removal;request.internet=r.internet;request.action=static_cast<aegis::PackageAction>(r.action);request.package=r.package;request.version=r.version_text;
+    if(aegis::PackageResolverCheck(request)<0||Setup(fds,request.internet,request.reconciliation || request.private_removal,!request.version.empty())<0) { perror("aegis planner setup");return 81; }
     for(int fd:fds)close(fd);
     if(syscall(SYS_close_range,4u,~0u,0u)<0||syscall(SYS_pivot_root,".",".")<0
        ||umount2(".",MNT_DETACH)<0||chdir("/")<0)return 82;

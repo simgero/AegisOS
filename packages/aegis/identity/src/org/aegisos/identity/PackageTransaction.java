@@ -186,6 +186,17 @@ final class PackageTransaction {
                 changes.add(item);
             }
             result.putParcelableArrayList("changes", changes);
+            if (review.privateRemoval != null) {
+                PackageBrokerProtocol.PrivateRemoval removal = review.privateRemoval;
+                Bundle item = new Bundle();
+                item.putString("name", intent.name);
+                item.putString("architecture", removal.architecture);
+                item.putString("before", removal.before);
+                item.putString("after", removal.after);
+                item.putString("result", removal.result == PackageBrokerProtocol.PrivateRemoval.REMOVED ? "removed"
+                        : removal.result == PackageBrokerProtocol.PrivateRemoval.COMMON ? "common" : "dependency");
+                result.putBundle("privateRemoval", item);
+            }
         }
         return result;
     }

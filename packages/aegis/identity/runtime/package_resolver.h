@@ -14,6 +14,7 @@ struct PackageResolverRequest {
     std::string package, version;
     bool internet=false; // Trusted product policy; never a proxy address from a caller.
     bool reconciliation=false; // Internal three-generation mode; only Update, no user operands.
+    bool private_removal=false; // Explicit personal Remove; private/current/current views.
 };
 struct PackageResolverResult {
     enum class Phase { Validate, Update, Simulate, Download, Indexes, Collected };

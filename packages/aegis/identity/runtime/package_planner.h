@@ -42,6 +42,10 @@ int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,
 int PackageReconciliationPlannerStart(int groups,int factory,const int selected[3],
     int sources,int key,int helper,const PackagePlanning& request,uint64_t deadline,
     PackagePlanner** worker,int network_helper=-1,int ca_bundle=-1);
+// Explicit personal Remove; same ownership duties, selected[1]/[2] both current.
+int PackagePrivateRemovalPlannerStart(int groups,int factory,const int selected[3],
+    int sources,int key,int helper,const PackagePlanning& request,uint64_t deadline,
+    PackagePlanner** worker,int network_helper=-1,int ca_bundle=-1);
 int PackagePlannerCancel(PackagePlanner* worker);
 // Actual pidfd reap, cgroup emptiness/removal and temporary-anchor detach precede
 // success. Timeout retains ownership and all outputs. A Collected result returns

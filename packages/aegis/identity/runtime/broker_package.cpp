@@ -1,4 +1,6 @@
 #include "broker_owner_package.h"
+#include "package_private_choices.h"
+#include "package_reconciliation.h"
 #include <json/json.h>
 #include <errno.h>
 #include <limits.h>
@@ -75,6 +77,19 @@ extern "C" int aegis_broker_owner_package(aegis_broker_owner* owner,const aegis_
             item["reason"]=static_cast<unsigned>(change.reason);changes.append(std::move(item));
         }
         data["changes"]=std::move(changes);
+        if(review.private_removal!=(review.personal && review.action==aegis::PackageAction::Remove))return fail(EPROTO);
+        if(review.private_removal) {
+            aegis::PackagePrivateChoices choices;std::set<std::string> roots;
+            if(aegis::PackagePrivateChoicesDecode(review.initial_private_choices,&choices)<0
+               ||aegis::PackageReconciliationRootsRead(review.reconciliation_evidence.roots,&roots)<0)return -1;
+            auto found=choices.find(review.requested_package);if(found==choices.end())return fail(EPROTO);
+            const auto& choice=found->second;std::string after=choice.version;
+            for(const auto& change:review.changes)if(change.name==review.requested_package)after=change.after_version;
+            Json::Value removal(Json::objectValue);removal["architecture"]=choice.architecture;
+            removal["before"]=choice.version;removal["after"]=after;
+            removal["result"]=after.empty()?1:roots.count(review.requested_package)?2:3;
+            data["privateRemoval"]=std::move(removal);
+        }
         return encode(data,2,output);
     }
     default:return fail(EINVAL);

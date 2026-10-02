@@ -2,6 +2,7 @@
 #include "package_registry.h"
 #include "package_resolver.h"
 #include "package_planning_protocol.h"
+#include "package_planner.h"
 #include <gtest/gtest.h>
 #include <errno.h>
 using namespace aegis;
@@ -258,7 +259,10 @@ TEST(PackagePrivateRemovalBinding, RejectsMissingChoiceStaleBaseWrongActionAndWr
     auto p=PrivateRemovalPlan();PackageBoundPlan b;
     EXPECT_EQ(-1,PackageBindResolvedPlan(p,1000,&b));EXPECT_EQ(EOPNOTSUPP,errno);
     EXPECT_EQ(-1,PackageBindReconciliationPlan(p,1000,&b));EXPECT_EQ(EOPNOTSUPP,errno);
-    aegis_planning_evidence wire={};EXPECT_EQ(-1,planning_wire::Encode(p,&wire));EXPECT_EQ(EOPNOTSUPP,errno);
+    aegis_planning_evidence wire={};ASSERT_EQ(0,planning_wire::Encode(p,&wire));
+    PackageResolvedPlan decoded;ASSERT_EQ(0,planning_wire::Decode(wire,&decoded));
+    EXPECT_TRUE(decoded.private_removal);EXPECT_FALSE(decoded.reconciliation);
+    EXPECT_EQ(p.initial_private_choices,decoded.initial_private_choices);
 }
 TEST(PackagePrivateRemovalBinding, RejectsChangedRemainingChoiceMissingRootAndWrongInitialVersion) {
     for(unsigned mode=0;mode<4;++mode) {
@@ -291,6 +295,33 @@ TEST(PackagePrivateRemovalBinding, ExplicitRemovalWithoutCommonCounterpartBindsR
     PackageBoundPlan b;ASSERT_EQ(0,PackageBindPrivateRemovalPlan(p,1000,&b))<<strerror(errno);
     EXPECT_TRUE(b.preparation.archives.empty());EXPECT_EQ(2u,b.preparation.execution.items.size());
     EXPECT_EQ(AEGIS_PACKAGE_PRIVATE_REMOVE,b.preparation.execution.kind);
+}
+TEST(PackagePrivateRemovalPlanning, RequiresExplicitRemoveAndExistingPersonalStore) {
+    PackagePlanning p;p.requester=10;p.serial=42;p.job=1;p.personal=true;
+    p.request.private_removal=true;p.request.action=PackageAction::Remove;p.request.package="app";
+    ASSERT_EQ(0,PackagePlanningCheck(p));
+    for(unsigned mode=0;mode<7;++mode) {
+        auto bad=p;
+        if(mode==0)bad.personal=false;if(mode==1)bad.create_store=true;
+        if(mode==2)bad.request.reconciliation=true;if(mode==3)bad.request.action=PackageAction::Install;
+        if(mode==4)bad.request.action=PackageAction::Update;if(mode==5)bad.request.package.clear();
+        if(mode==6)bad.request.version="1";
+        EXPECT_EQ(-1,PackagePlanningCheck(bad));EXPECT_EQ(EINVAL,errno)<<mode;
+    }
+    PackagePlanner* worker=nullptr;int views[]={-1,-1,-1};
+    EXPECT_EQ(-1,PackagePlannerStart(-1,-1,-1,-1,-1,-1,p,0,&worker));EXPECT_EQ(nullptr,worker);
+    EXPECT_EQ(-1,PackageReconciliationPlannerStart(-1,-1,views,-1,-1,-1,p,0,&worker));EXPECT_EQ(nullptr,worker);
+    p.request.private_removal=false;
+    EXPECT_EQ(-1,PackagePrivateRemovalPlannerStart(-1,-1,views,-1,-1,-1,p,0,&worker));EXPECT_EQ(nullptr,worker);
+}
+TEST(PackagePrivateRemovalPlanning, TransportPreservesModeAndRejectsAmbiguousModesAndReservedBytes) {
+    auto p=PrivateRemovalPlan();aegis_planning_evidence wire={};ASSERT_EQ(0,planning_wire::Encode(p,&wire));
+    for(unsigned mode=0;mode<3;++mode) {
+        auto bad=wire;PackageResolvedPlan decoded;decoded.requester=99;
+        if(mode==0)bad.reconciliation=1;if(mode==1)bad.private_removal=2;if(mode==2)bad.reserved=1;
+        EXPECT_EQ(-1,planning_wire::Decode(bad,&decoded));EXPECT_EQ(EPROTO,errno);EXPECT_EQ(99u,decoded.requester);
+    }
+    p.reconciliation=true;EXPECT_EQ(-1,planning_wire::Encode(p,&wire));EXPECT_EQ(EINVAL,errno);
 }
 TEST(PackageReconciliationBinding, BindsPrivateSourceAndNewBaseWithoutChangingPrivateIntent) {
     auto p=ReconciliationPlan();PackageBoundPlan b;ASSERT_EQ(0,PackageBindReconciliationPlan(p,1000,&b))<<strerror(errno);

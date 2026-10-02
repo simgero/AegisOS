@@ -80,6 +80,18 @@ final class PackageBrokerProtocol {
                     || (!before.isEmpty() && !version(before)) || (!after.isEmpty() && !version(after)) || (before.isEmpty() && after.isEmpty())) throw bad();
         }
     }
+    static final class PrivateRemoval {
+        static final int REMOVED=1, COMMON=2, DEPENDENCY=3;
+        final String architecture,before,after;
+        final int result;
+        PrivateRemoval(Map<String,Object> v) {
+            fields(v,"architecture","before","after","result");
+            architecture=text(v,"architecture");before=text(v,"before");after=text(v,"after");
+            result=(int)number(v,"result",REMOVED,DEPENDENCY);
+            if (!(architecture.equals("all") || architecture.equals("arm64")) || !version(before)
+                    || (!after.isEmpty() && !version(after)) || (result==REMOVED)!=after.isEmpty()) throw bad();
+        }
+    }
     static final class Metadata {
         final Intent intent;
         final String digest;
@@ -88,16 +100,21 @@ final class PackageBrokerProtocol {
         final String image,sharedBase;
         final long imageBytes;
         final List<Change> changes;
+        final PrivateRemoval privateRemoval;
         Metadata(Map<String,Object> v,boolean review) {
-            fields(v,review ? new String[]{"action","scope","package","version","digest","validUntil","changes"}
-                    : new String[]{"action","scope","package","version","digest","validUntil","phase","outcome","waitStatus","error","generation"});
             intent=new Intent((int)number(v,"action",1,3),(int)number(v,"scope",1,2),text(v,"package"),text(v,"version"));
+            boolean removal=review && intent.scope==PERSONAL && intent.action==REMOVE;
+            fields(v,review ? (removal
+                    ? new String[]{"action","scope","package","version","digest","validUntil","changes","privateRemoval"}
+                    : new String[]{"action","scope","package","version","digest","validUntil","changes"})
+                    : new String[]{"action","scope","package","version","digest","validUntil","phase","outcome","waitStatus","error","generation"});
+            privateRemoval=removal?new PrivateRemoval(object(v.get("privateRemoval"))):null;
             digest=text(v,"digest");validUntil=number(v,"validUntil",0,Long.MAX_VALUE);
             if (!digest.isEmpty() && !hash(digest)) throw bad();
             if (review) {
                 if (!hash(digest)) throw bad();
                 List<?> raw=list(v.get("changes"));
-                if (raw.isEmpty() || raw.size()>64) throw bad();
+                if ((!removal && raw.isEmpty()) || raw.size()>64) throw bad();
                 List<Change> checked=new ArrayList<>();String previous="";boolean requested=intent.action==UPDATE;
                 for (Object item:raw) {
                     Change c=new Change(object(item));
@@ -108,11 +125,18 @@ final class PackageBrokerProtocol {
                             || !c.name.equals(intent.name) || c.reason!=1)) throw bad();
                     if (previous.compareTo(c.name)>=0 || (!c.after.isEmpty() && !selection && validUntil==0)) throw bad();
                     if (c.name.equals(intent.name)) {
-                        if (c.after.isEmpty()!=(intent.action==REMOVE)
+                        if ((!removal && c.after.isEmpty()!=(intent.action==REMOVE))
                                 || (!intent.version.isEmpty() && !intent.version.equals(c.after))) throw bad();
+                        if (removal && (!c.architecture.equals(privateRemoval.architecture)
+                                || !c.before.equals(privateRemoval.before) || !c.after.equals(privateRemoval.after)
+                                || (!c.after.isEmpty() && c.reason!=(privateRemoval.result==PrivateRemoval.DEPENDENCY?2:1)))) throw bad();
                         requested=true;
                     }
                     previous=c.name;checked.add(c);
+                }
+                if (removal && !requested) {
+                    if (!privateRemoval.before.equals(privateRemoval.after)) throw bad();
+                    requested=true;
                 }
                 if (!requested || (intent.action!=REMOVE && validUntil==0
                         && !checked.get(0).before.equals(checked.get(0).after))) throw bad();

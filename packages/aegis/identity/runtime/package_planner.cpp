@@ -33,10 +33,10 @@ bool Owned(PackagePlanner* p) { return p&&p->process==syscall(SYS_getpid)&&aegis
 int Encode(const PackagePlanning& p,aegis_planning_request* r) {
     if(p.requester<10||p.requester>=21473||p.serial>INT32_MAX||!p.job||p.job>INT64_MAX)return Fail(EINVAL);
     if(PackageResolverCheck(p.request)<0)return -1;
-    if(p.request.reconciliation && (!p.personal || p.create_store))return Fail(EINVAL);
+    if((p.request.reconciliation || p.request.private_removal) && (!p.personal || p.create_store))return Fail(EINVAL);
     if(p.request.package.size()>128||p.request.version.size()>128)return Fail(EINVAL);
     *r={};r->magic=AEGIS_PLANNING_MAGIC;r->version=AEGIS_PLANNING_VERSION;r->user=p.requester;r->serial=p.serial;r->job=p.job;
-    r->reconciliation=p.request.reconciliation;r->internet=p.request.internet;r->action=uint32_t(p.request.action);memcpy(r->package,p.request.package.data(),p.request.package.size());
+    r->reconciliation=p.request.reconciliation;r->private_removal=p.request.private_removal;r->internet=p.request.internet;r->action=uint32_t(p.request.action);memcpy(r->package,p.request.package.data(),p.request.package.size());
     memcpy(r->version_text,p.request.version.data(),p.request.version.size());return 0;
 }
 
@@ -53,7 +53,7 @@ static int Start(int groups,int factory,const int selected[3],int sources,int ke
     if(plan.request.internet && aegis_package_policy_file(ca_bundle,1048576)<0)return -1;
     auto* p=new(std::nothrow) PackagePlanner;if(!p)return Fail(ENOMEM);
     p->process=syscall(SYS_getpid);p->request=r;*output=p;
-    const unsigned count=plan.request.reconciliation?3:1;
+    const unsigned count=(plan.request.reconciliation || plan.request.private_removal)?3:1;
     for(unsigned i=0;i<count;++i) { p->selected[i].reset(fcntl(selected[i],F_DUPFD_CLOEXEC,4));if(!p->selected[i].ok())return -1; }
     p->sources.reset(fcntl(sources,F_DUPFD_CLOEXEC,4));p->key.reset(fcntl(key,F_DUPFD_CLOEXEC,4));
     p->ca.reset(fcntl(plan.request.internet?ca_bundle:key,F_DUPFD_CLOEXEC,4));
@@ -79,18 +79,23 @@ static int Start(int groups,int factory,const int selected[3],int sources,int ke
     // Ordinary requests carry only six descriptors; no arbitrary extra input.
     int fds[]={p->root.get(),p->devices.get(),p->metadata[0].get(),p->sources.get(),p->key.get(),p->ca.get(),p->metadata[1].get(),p->metadata[2].get()};
     if(Left(deadline)<=0)return Fail(ETIMEDOUT);
-    if(aegis_planning_send(p->channel.get(),&r,sizeof(r),fds,plan.request.reconciliation?8:6)<0||aegis_namespace_resume(p->context)<0)return -1;
+    if(aegis_planning_send(p->channel.get(),&r,sizeof(r),fds,count==3?8:6)<0||aegis_namespace_resume(p->context)<0)return -1;
     // Channel owns queued copies; originals remain registered until reaping.
     return Left(deadline)>0?0:Fail(ETIMEDOUT);
 }
 int PackagePlannerStart(int groups,int factory,int selected,int sources,int key,int helper,
     const PackagePlanning& plan,uint64_t deadline,PackagePlanner** output,int network_helper,int ca_bundle) {
-    if(plan.request.reconciliation)return Fail(EINVAL);
+    if(plan.request.reconciliation || plan.request.private_removal)return Fail(EINVAL);
     const int views[]={selected,-1,-1};return Start(groups,factory,views,sources,key,helper,plan,deadline,output,network_helper,ca_bundle);
 }
 int PackageReconciliationPlannerStart(int groups,int factory,const int selected[3],int sources,int key,int helper,
     const PackagePlanning& plan,uint64_t deadline,PackagePlanner** output,int network_helper,int ca_bundle) {
-    if(!plan.request.reconciliation||!selected||selected[0]<0||selected[1]<0||selected[2]<0)return Fail(EINVAL);
+    if(!plan.request.reconciliation||plan.request.private_removal||!selected||selected[0]<0||selected[1]<0||selected[2]<0)return Fail(EINVAL);
+    return Start(groups,factory,selected,sources,key,helper,plan,deadline,output,network_helper,ca_bundle);
+}
+int PackagePrivateRemovalPlannerStart(int groups,int factory,const int selected[3],int sources,int key,int helper,
+    const PackagePlanning& plan,uint64_t deadline,PackagePlanner** output,int network_helper,int ca_bundle) {
+    if(!plan.request.private_removal||plan.request.reconciliation||!selected||selected[0]<0||selected[1]<0||selected[2]<0)return Fail(EINVAL);
     return Start(groups,factory,selected,sources,key,helper,plan,deadline,output,network_helper,ca_bundle);
 }
 int PackagePlannerCancel(PackagePlanner* p) {
@@ -134,7 +139,9 @@ int PackagePlannerFinish(PackagePlanner** pointer,bool cancel,int timeout,Packag
                 r.outcome=reply.phase==uint32_t(PackageResolverResult::Phase::Collected)&&!r.status&&!r.error
                     ? PackagePlanningResult::Outcome::Collected : PackagePlanningResult::Outcome::Failed;
                 if(r.outcome==PackagePlanningResult::Outcome::Collected
-                   &&(planning_wire::Decode(reply.evidence,&r.evidence)<0 || r.evidence.changes.size()!=r.effects || r.evidence.reconciliation!=bool(p->request.reconciliation))) {
+                   &&(planning_wire::Decode(reply.evidence,&r.evidence)<0 || r.evidence.changes.size()!=r.effects
+                      || r.evidence.reconciliation!=bool(p->request.reconciliation)
+                      || r.evidence.private_removal!=bool(p->request.private_removal))) {
                     r.outcome=PackagePlanningResult::Outcome::Failed;r.error=EPROTO;
                 }
             } else r.error=EPROTO;

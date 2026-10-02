@@ -29,7 +29,11 @@ public final class PackageTransactionTest {
         m.put("changes",changes);return new PackageBrokerProtocol.Metadata(m,true);
     }
     private static PackageBrokerProtocol.Metadata status(int phase,int outcome) {
+        return status(phase,outcome,1);
+    }
+    private static PackageBrokerProtocol.Metadata status(int phase,int outcome,int action) {
         Map<String,Object> m=common();
+        m.put("action",(long)action);
         if(phase<PackageBrokerProtocol.REVIEWED){m.put("digest","");m.put("validUntil",0L);}
         m.put("phase",(long)phase);m.put("outcome",(long)outcome);m.put("waitStatus",0L);m.put("error",0L);
         boolean published=outcome==PackageBrokerProtocol.PUBLISHED;
@@ -44,25 +48,47 @@ public final class PackageTransactionTest {
         final ArrayDeque<PackageBrokerProtocol.Reply> replies=new ArrayDeque<>();
         final List<Integer> calls=new ArrayList<>();
         final long[] now={1000};
-        final PackageTransaction transaction=new PackageTransaction(new AospIdentityBackend.UserKey(10,17),
-                new PackageBrokerProtocol.Intent(1,1,"bash",""),(op,job,intent,digest,deadline)-> {
+        final int action;
+        final PackageTransaction transaction;
+        Fixture() { this(1); }
+        Fixture(int action) {
+            this.action=action;
+            transaction=new PackageTransaction(new AospIdentityBackend.UserKey(10,17),
+                new PackageBrokerProtocol.Intent(action,1,"bash",""),(op,job,intent,digest,deadline)-> {
                     calls.add(op);assertEquals((int)ops.removeFirst(),op);assertEquals(DEADLINE,deadline);
                     assertEquals(op==8?0:41,job);
                     if(op==8)assertEquals("bash",intent.name);else assertNull(intent);
                     assertEquals(op==13?HASH:null,digest);
                     return replies.removeFirst();
                 },()->now[0]);
+        }
         void reply(int op,int error,PackageBrokerProtocol.Metadata data) {
             ops.add(op);replies.add(new PackageBrokerProtocol.Reply(error,41,data));
         }
         void ready() { ready(review()); }
         void ready(PackageBrokerProtocol.Metadata plan) {
             reply(8,0,null);transaction.begin(DEADLINE);
-            reply(12,0,status(1,0));reply(9,0,null);transaction.poll(DEADLINE);
-            reply(12,0,status(3,0));reply(10,0,plan);transaction.poll(DEADLINE);
-            reply(12,0,status(4,0));reply(11,0,null);transaction.poll(DEADLINE);
-            reply(12,0,status(6,0));assertEquals("approval_required",transaction.poll(DEADLINE).getString("state"));
+            reply(12,0,status(1,0,action));reply(9,0,null);transaction.poll(DEADLINE);
+            reply(12,0,status(3,0,action));reply(10,0,plan);transaction.poll(DEADLINE);
+            reply(12,0,status(4,0,action));reply(11,0,null);transaction.poll(DEADLINE);
+            reply(12,0,status(6,0,action));assertEquals("approval_required",transaction.poll(DEADLINE).getString("state"));
         }
+    }
+    @Test public void privateUnpinWithoutPackageEffectsStillRequiresOwnerBoundRemoveApproval() {
+        Map<String,Object> metadata=common();metadata.put("action",3L);metadata.put("validUntil",0L);
+        metadata.put("changes",List.of());metadata.put("privateRemoval",Map.of("architecture","arm64",
+                "before","5.2","after","5.2","result",2L));
+        Fixture f=new Fixture(3);f.ready(new PackageBrokerProtocol.Metadata(metadata,true));
+        Bundle view=f.transaction.view(false);assertEquals("approval_required",view.getString("state"));
+        assertTrue(view.getParcelableArrayList("changes",Bundle.class).isEmpty());
+        Bundle removal=view.getBundle("privateRemoval");assertNotNull(removal);
+        assertEquals("bash",removal.getString("name"));assertEquals("common",removal.getString("result"));
+        assertEquals("5.2",removal.getString("after"));assertFalse(f.calls.contains(13));
+        removal.putString("after","9.9");assertEquals("5.2",f.transaction.view(false).getBundle("privateRemoval").getString("after"));
+        PackageApproval.Prepared prepared=f.transaction.approval();assertEquals(PackageApproval.Action.REMOVE,prepared.action);
+        assertEquals(10,prepared.privateOwner().id);assertEquals(17,prepared.privateOwner().serial);
+        f.reply(13,0,null);f.transaction.start(prepared,DEADLINE);assertEquals("running",f.transaction.view(false).getString("state"));
+        denied(()->f.transaction.start(prepared,DEADLINE));
     }
     @Test public void completeReviewPrecedesOneHandoffAndOnlyPublishedIsSuccess() {
         Fixture f=new Fixture();f.ready();

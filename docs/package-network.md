@@ -454,7 +454,7 @@ Signatur-, Archiv-, Admin- und Veröffentlichungsprüfungen werden nicht veränd
 Die Systemabnahme dieser Korrektur verlangt einen neuen Vollbuild und die
 Wiederholung des realen gemeinsamen Updates mit zwei privaten Versionen.
 
-## Private Entfernung: vorbereitete Komponenten
+## Private Entfernung: Implementierung und Nachweisgrenze
 
 Die Zielableitung für eine private Entfernung validiert zuerst den ursprünglichen
 Bestand einschließlich aller aufgezeichneten privaten Auswahlen. Anschließend
@@ -480,12 +480,23 @@ Auch eine Entfernung ohne Versionsänderung benötigt diese Prüfung; sie führt
 keine Installationsskripte aus. Der interne Basisabgleich darf weiterhin überhaupt
 keine private Auswahl ändern. Das Ausführungsprotokoll hat dafür Version 7.
 
-Diese Komponenten sind noch nicht an den normalen CLI-Entfernungsauftrag
-angeschlossen. Offen sind dessen durchgängige Eigentümer-/Adminbindung,
-Resolver- und Planmetadaten, transparente Vorschau, integrierte Ausführung/Veröffentlichung
-und der Systemnachweis. T15 ist damit ausdrücklich noch nicht erfüllt.
-Der bisherige Planner-Transport weist den neuen Modus bis zu seiner Erweiterung
-ausdrücklich zurück, damit dessen Bedeutung nicht beim Übertragen verloren geht.
+Der normale persönliche CLI-Entfernungsauftrag verwendet nun diesen getrennten
+Pfad. Planner-Protokoll 9 erhält den ursprünglichen Remove-Auftrag und dessen
+Modus durch den Übergang von drei geprüften Ansichten zur signierten APT-Planung.
+Der Broker behält Antragsteller und Auftrag bei; die vorhandene frische
+AOSP-Adminfreigabe bleibt erforderlich. Eine fehlende private Auswahl oder eine
+veraltete gemeinsame Basis wird abgewiesen. Der interne Abgleich ist dafür kein
+Ersatzauftrag.
+
+Die native Vorschau und ihr strikter Java-Parser unterscheiden tatsächliche
+Entfernung, Rückkehr zur gemeinsamen Version und Verbleib als benötigte
+Abhängigkeit. Ein unverändertes Paket darf ohne künstlichen Installationseffekt
+aus der privaten Auswahl entfernt werden. Auch dann werden der Auftrag und die
+Vorschau bestätigt; Paketänderungen und Abhängigkeiten erscheinen vollständig.
+
+Die durchgängige Implementierung ist noch nicht durch einen neuen Vollimage-
+und CLI-Lauf abgenommen. Signierte APT-, Brokerübergabe- und echte
+Ausführungstests sind dafür ergänzt. T15 bleibt bis zu diesen Nachweisen offen.
 
 ## Nachweisgrenze
 

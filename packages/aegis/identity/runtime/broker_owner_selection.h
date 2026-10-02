@@ -32,6 +32,8 @@ int BrokerPreparePackageSelection(aegis_broker_owner* owner,const PackageRuntime
 // explicit planning handoff or confirmed STOP. No private FD is exported.
 int BrokerPrepareReconciliationSelection(aegis_broker_owner* owner,const PackageRuntimeSelection& request,
     int groups,int shared,int personal,int factory,int helper,uint64_t deadline,uint64_t* job);
+int BrokerPreparePrivateRemovalSelection(aegis_broker_owner* owner,const PackageRuntimeSelection& request,
+    int groups,int shared,int personal,int factory,int helper,uint64_t deadline,uint64_t* job);
 // Product inputs and CE/serial are opened only after registering the new job.
 // This internal entry grants neither package authority nor runtime activation.
 int BrokerBeginConfiguredReconciliation(aegis_broker_owner* owner,uint32_t user,uint32_t serial,

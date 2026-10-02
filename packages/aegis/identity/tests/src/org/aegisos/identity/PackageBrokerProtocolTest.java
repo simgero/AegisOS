@@ -113,6 +113,48 @@ public final class PackageBrokerProtocolTest {
         if(action==PackageBrokerProtocol.UPDATE)header=header.replace("\"package\":\"bash\"","\"package\":\"\"");
         return "{"+header+",\"changes\":["+String.join(",",effects)+"]}";
     }
+    private static String privateRemoval(String before,String after,int result,String... effects) {
+        String json=mixed(3,effects).replace("\"scope\":2","\"scope\":1");
+        return json.substring(0,json.length()-1)+",\"privateRemoval\":{\"architecture\":\"arm64\",\"before\":\""
+                +before+"\",\"after\":\""+after+"\",\"result\":"+result+"}}";
+    }
+    @Test public void privateRemovalDisclosesCommonFallbackAndItsDependencyChanges() {
+        PackageBrokerProtocol.Metadata m=review(privateRemoval("5.1","5.2",2,
+                effect("bash","5.1","5.2",1),effect("libc6","2.19","2.20",2)));
+        m.requireIntent(new PackageBrokerProtocol.Intent(3,1,"bash",""));
+        assertEquals(2,m.changes.size());assertEquals(2,m.privateRemoval.result);
+        assertEquals("5.2",m.privateRemoval.after);assertEquals("5.1",m.privateRemoval.before);
+    }
+    @Test public void privateRemovalCanUnpinSameVersionOrRetainNeededDependencyWithoutPackageEffects() {
+        for(int result:new int[]{2,3}) {
+            PackageBrokerProtocol.Metadata m=review(privateRemoval("5.2","5.2",result).replace("2000","0"));
+            assertTrue(m.changes.isEmpty());assertEquals(result,m.privateRemoval.result);assertEquals(0,m.validUntil);
+        }
+        PackageBrokerProtocol.Metadata removed=review(privateRemoval("5.1","",1,effect("bash","5.1","",2)).replace("2000","0"));
+        assertEquals(1,removed.privateRemoval.result);assertEquals("",removed.privateRemoval.after);
+    }
+    @Test public void privateRemovalCannotHideAChangedVersionMissingEffectOrDifferentArchitecture() {
+        denied(()->review(privateRemoval("5.1","5.2",2)));
+        denied(()->review(privateRemoval("5.1","",1)));
+        denied(()->review(privateRemoval("5.1","5.2",2,effect("bash","5.1","5.3",1))));
+        denied(()->review(privateRemoval("5.1","5.2",2,effect("bash","5.0","5.2",1))));
+        denied(()->review(privateRemoval("5.1","5.2",2,effect("bash","5.1","5.2",1).replace("arm64","all"))));
+        denied(()->review(privateRemoval("5.1","5.2",2,effect("bash","5.1","5.2",1)).replace("2000","0")));
+    }
+    @Test public void privateRemovalRequiresExplicitResultAndCannotChangeScopeOrAction() {
+        String valid=privateRemoval("5.2","5.2",2);
+        denied(()->review(valid.replace("\"scope\":1","\"scope\":2")));
+        denied(()->review(valid.replace("\"action\":3","\"action\":1")));
+        denied(()->review(valid.replace("\"result\":2","\"result\":1")));
+        denied(()->review(valid.replace("\"result\":2","\"result\":4")));
+        denied(()->review(mixed(3,effect("bash","5.1","",1)).replace("\"scope\":2","\"scope\":1")));
+    }
+    @Test public void privateRemovalDistinguishesManualCommonVersionFromAutomaticDependency() {
+        review(privateRemoval("5.1","5.2",3,effect("bash","5.1","5.2",2)));
+        denied(()->review(privateRemoval("5.1","5.2",3,effect("bash","5.1","5.2",1))));
+        denied(()->review(privateRemoval("5.1","5.2",2,effect("bash","5.1","5.2",2))));
+        denied(()->review(privateRemoval("5.2","5.2",2,effect("bash","5.2","5.2",1))));
+    }
     @Test public void sameVersionPrivateChoiceIsExplicitAndCanUseInstalledEvidenceWithoutExpiry() {
         String json=mixed(1,effect("bash","5.2","5.2",1)).replace("\"scope\":2","\"scope\":1").replace("2000","0");
         PackageBrokerProtocol.Metadata m=review(json);assertEquals(1,m.changes.size());assertEquals(0,m.validUntil);

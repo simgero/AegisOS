@@ -138,6 +138,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     PackageResolverResult result;
     auto fail=[&](int e) { result.error=e;return result; };
     if(PackageResolverCheck(r)<0)return fail(errno);
+    const bool projected=r.reconciliation || r.private_removal;
     if(getpid()!=1||getppid()||getuid()||getgid())return fail(EPERM);
     if(View("/",true,true)<0||View("/run/aegis-plan-policy",true,true)<0
        ||View("/run/aegis-plan-input",true,false)<0)return fail(errno);
@@ -147,7 +148,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
        ||Read("/run/aegis-plan-policy/key.asc",1048576,true,&key)<0
        ||Read("/run/aegis-plan-input/status",64u<<20,true,&status)<0)return fail(errno);
     if(r.internet&&Read("/run/aegis-plan-policy/ca.pem",1048576,true,&ca)<0)return fail(errno);
-    if(config!=PackageResolverConfiguration(r.internet,r.reconciliation,!r.version.empty())||sources.empty()||key.empty())return fail(EPERM);
+    if(config!=PackageResolverConfiguration(r.internet,projected,!r.version.empty())||sources.empty()||key.empty())return fail(EPERM);
     bool present=Read("/run/aegis-plan-input/extended_states",16u<<20,true,&automatic)==0;
     if(!present&&errno!=ENOENT)return fail(errno);
     bool chosen=Read("/run/aegis-plan-input/private-choices",AEGIS_PACKAGE_CHOICES_BYTES-1,true,&choices)==0;
@@ -158,18 +159,20 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     for(const char* path:{"/tmp/aegis-planner/lists","/tmp/aegis-planner/lists/partial",
         "/tmp/aegis-planner/archives","/tmp/aegis-planner/archives/partial"})if(mkdir(path,0755)<0)return fail(errno);
     PackageReconciliationInput reconciliation;
-    PackageReconciliationGoals goals;
-    if(r.reconciliation) {
+    PackageReconciliationGoals goals;std::string resulting_choices;
+    if(projected) {
         reconciliation.personal_status=status;reconciliation.personal_automatic=automatic;reconciliation.private_choices=choices;
         if(Read("/run/aegis-plan-input/previous-status",64u<<20,true,&reconciliation.previous_status)<0
            ||Read("/run/aegis-plan-input/current-status",64u<<20,true,&reconciliation.current_status)<0)return fail(errno);
         if(Read("/run/aegis-plan-input/previous-automatic",16u<<20,true,&reconciliation.previous_automatic)<0&&errno!=ENOENT)return fail(errno);
         if(Read("/run/aegis-plan-input/current-automatic",16u<<20,true,&reconciliation.current_automatic)<0&&errno!=ENOENT)return fail(errno);
-        if(PackageReconciliationDerive(reconciliation,&goals)<0)return fail(errno);
+        if((r.private_removal
+            ? PackagePrivateRemovalDerive(reconciliation,r.package,&goals,&resulting_choices)
+            : PackageReconciliationDerive(reconciliation,&goals))<0)return fail(errno);
         if(Write("/tmp/aegis-planner/preferences",goals.solver_preferences)<0)return fail(errno);
     }
-    const bool solver_present=r.reconciliation||present;
-    const std::string& solver_automatic=r.reconciliation?goals.solver_automatic:automatic;
+    const bool solver_present=projected||present;
+    const std::string& solver_automatic=projected?goals.solver_automatic:automatic;
     if(solver_present&&Write("/tmp/aegis-planner/extended_states",solver_automatic)<0)return fail(errno);
     if(aegis_limit_package_supervisor(user)<0)return fail(errno);
     auto command=[&](std::vector<std::string> args,const char* log) {
@@ -178,28 +181,30 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     };
     result.phase=PackageResolverResult::Phase::Update;
     if(!command({"/usr/bin/apt-get","-q","update"},"/tmp/aegis-planner/update.log"))return result;
-    const std::string action=r.reconciliation?"upgrade":r.action==PackageAction::Install?"install":r.action==PackageAction::Remove?"remove":"upgrade";
+    const std::string action=projected?"upgrade":r.action==PackageAction::Install?"install":r.action==PackageAction::Remove?"remove":"upgrade";
     std::vector<std::string> terms;
-    if(r.reconciliation)terms=goals.arguments;
+    if(projected)terms=goals.arguments;
     else if(r.action!=PackageAction::Update)terms.push_back(r.package+(r.version.empty()?"":"="+r.version));
     auto invocation=[&](bool download) {
         std::vector<std::string> args={"/usr/bin/apt-get","-q",download?"--download-only":"--simulate"};
         if(download)args.push_back("--yes");
-        if(r.reconciliation) {
+        if(projected) {
             args.push_back("--auto-remove");
             args.push_back("--with-new-pkgs");
         }
         // Download-only with --yes also requires explicit downgrade consent.
         // The requested version and every dependency change remain reviewed
         // before any installation; unversioned ordinary actions keep defaults.
-        if(r.reconciliation || (r.action==PackageAction::Install&&!r.version.empty()))
+        if(projected || (r.action==PackageAction::Install&&!r.version.empty()))
             args.push_back("--allow-downgrades");
         args.push_back(action);args.insert(args.end(),terms.begin(),terms.end());return args;
     };
     auto effects=[&](const std::string& bytes,std::vector<PackageAptEffect>* out) {
-        if(!r.reconciliation)return PackageReadAptPlan(bytes,r.action,r.package,r.version,out);
+        if(!projected)return PackageReadAptPlan(bytes,r.action,r.package,r.version,out);
         if(PackageReadAptOperation(bytes,action,terms,out)<0)return -1;
-        return PackageReconciliationCheckEffects(reconciliation,goals,*out);
+        return r.private_removal
+            ? PackagePrivateRemovalCheckEffects(reconciliation,r.package,goals,resulting_choices,*out)
+            : PackageReconciliationCheckEffects(reconciliation,goals,*out);
     };
     auto args=invocation(false);
     result.phase=PackageResolverResult::Phase::Simulate;
@@ -234,7 +239,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     bool have=Read("/tmp/aegis-planner/extended_states",16u<<20,false,&after)==0;
     if(!have&&errno!=ENOENT)return fail(errno);
     if(have!=solver_present||(solver_present&&after!=solver_automatic))return fail(ESTALE);
-    if(r.reconciliation) {
+    if(projected) {
         if(Read("/tmp/aegis-planner/preferences",4u<<20,false,&after)<0)return fail(errno);
         if(after!=goals.solver_preferences)return fail(ESTALE);
     }
@@ -248,8 +253,9 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     receipt["initial_apt_state_sha256"]=present?Hash(automatic):"";
     receipt["configuration_sha256"]=Hash(config);receipt["sources_sha256"]=Hash(sources);receipt["keyring_sha256"]=Hash(key);
     receipt["effect_count"]=Json::UInt(result.effects.size());
-    receipt["reconciliation"]=r.reconciliation;
-    if(r.reconciliation) {
+    receipt["reconciliation"]=r.reconciliation;receipt["private_removal"]=r.private_removal;
+    if(r.private_removal) { receipt["removed_choice"]=r.package;receipt["result_choices_sha256"]=Hash(resulting_choices); }
+    if(projected) {
         receipt["previous_status_sha256"]=Hash(reconciliation.previous_status);
         receipt["current_status_sha256"]=Hash(reconciliation.current_status);
         receipt["solver_automatic_sha256"]=Hash(solver_automatic);
@@ -276,13 +282,13 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     Json::StreamWriterBuilder writer;writer["indentation"]="";
     if(Write("/tmp/aegis-planner/receipt.json",Json::writeString(writer,receipt))<0)return fail(errno);
     auto& proof=result.evidence;
-    proof.reconciliation=r.reconciliation;proof.initial_status_sha256=Hash(status);
+    proof.private_removal=r.private_removal;proof.reconciliation=r.reconciliation;proof.initial_status_sha256=Hash(status);
     proof.initial_private_choices=choices;
     proof.initial_apt_state_presence=present?PackageStatePresence::Present:PackageStatePresence::Absent;
     if(present)proof.initial_apt_state={automatic.size(),Hash(automatic)};
     proof.policy_sha256=Hash("aegis-resolver-policy-v1:"+Hash(config)+Hash(sources)+Hash(key)+(r.internet?Hash(ca):""));
     proof.repositories=result.repositories;
-    if(r.reconciliation) {
+    if(projected) {
         auto& re=proof.reconciliation_evidence;
         for(const auto& [name,value]:goals.roots)re.roots+=name+"\n";
         PackageInstalledRegistry original,expected;std::set<std::string> marks;
@@ -298,7 +304,7 @@ PackageResolverResult PackageResolverRun(uint32_t user,const PackageResolverRequ
     }
     for(const auto& a:result.archives)proof.changes.push_back({a.effect.name,a.effect.architecture,
         a.effect.before_version,a.effect.after_version,a.repository,a.archive,
-        (r.reconciliation && !a.effect.after_version.empty() ? !goals.roots.count(a.effect.name) : a.effect.automatic)
+        (projected && !a.effect.after_version.empty() ? !goals.roots.count(a.effect.name) : a.effect.automatic)
             ?PackageInstallReason::Automatic:PackageInstallReason::Manual});
     if(r.action==PackageAction::Install && result.effects.empty()) {
         PackageChange selection;
