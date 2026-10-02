@@ -6,8 +6,13 @@ Beginn: 1. Oktober 2026. Ziel ist die vollständige
 Image `20d7d6d33fb3243cd87d0eb90fa2fd09bd2cc178`, Profil
 `06adfa48-f55f-46b7-a962-82bef7af5e83`. Normaler Boot und vier gezielte native
 Pakettests sind bestanden. Im neuen persönlichen CLI-Ablauf sind beide Benutzer
-angelegt; Alphas erster Zugang und GNU-Grundprüfung bestehen. Betas erster
-Zugang und der vollständige Paket-/Persistenzablauf stehen noch aus.
+angelegt; beide ersten Zugänge und GNU-Grundprüfungen bestehen. Beide führen
+unterschiedliche private jq-/libjq-Versionen aus. Das gemeinsame Update ist
+veröffentlicht; die bisherigen persönlichen Kontexte bleiben bis zum eigenen
+Neustart konsistent und laufen weiter. Betas anschließende Aktivierung meldet
+jedoch `packages=current`, obwohl gemeinsame PCRE2-/OpenSSL-Updates fehlen.
+Dieser reproduzierte T16-Fehler und der vollständige Paket-/Persistenzablauf
+sind noch offen.
 Die folgenden früheren integrierten Belege gehören zu Image
 `31551159cd11d66b0fa18442b5f62106edf4bfb5`, Profil
 `1c53b76e-bb1d-4ed6-a0df-7bbc21f2cfee`: normaler Boot, Bedienung,
@@ -15,8 +20,9 @@ ADB und 27 gezielte Java-Tests. Der dortige gepaarte Wiederholungsstart
 mit bytegleichen persönlichen Daten und getrennten jq-Versionen ist ebenfalls
 belegt. Das anschließende gemeinsame Update scheitert beim nativen Paketstart
 an der Steuerkanalfrist; die ausgewählten Paketgenerationen bleiben unverändert,
-beide laufenden Runtime-Kontexte werden jedoch beendet. Dieser Fehler und die
-vollständige Testmatrix bleiben offen.
+beide laufenden Runtime-Kontexte werden jedoch beendet. Der Fehler bleibt als
+älterer Befund erhalten; der neue Stand veröffentlicht diesen Updatefall ohne
+Abbau beider laufender Kontexte. Die vollständige Testmatrix bleibt offen.
 Der frühere Bootanimation-Absturz auf `d149766` bleibt als Regressionsevidenz erhalten.
 
 Ausgangspunkt ist das geprüfte Image `c52657113becde42d735669d4d64405c7740cc74`.
@@ -48,7 +54,7 @@ nicht, dass die ganze Zeile der DoD bereits geschlossen ist.
 | T13 | Installation beider Bereiche mit gültiger/falscher/Nicht-Adminfreigabe | Alle sechs Aktion-/Bereichskombinationen, fehlende Autorisierung/Bereiche und manipulierte Eigentümer |
 | T14 | Gemeinsame jq-Version bei Beta und nachträglich angelegtem Gamma; Alphas private Variante und getrennte Konfiguration | Varianten und Eigentumsnachweise vollständig zum finalen Ergebnisindex zuordnen |
 | T15 | Dasselbe jq mit passender libjq1 in u3/u4 tatsächlich ausgeführt, auch nach Reboot; erfolglose Versionsanforderung erhält Bestand | Genaue Ursache der abgewiesenen Versionsanforderung und unauflösbare Abhängigkeit; private Entfernung/Rückkehr |
-| T16 | Ausstehende Aktivierung bei laufendem Kontext | Gemeinsames Update bei privater Version und konsistenter Neustart oder erklärter Konflikt |
+| T16 | Auf 20d7d6d gemeinsames Update bei zwei privaten Versionen veröffentlicht; beide ursprünglichen Hintergrundprozesse bleiben erhalten | Fehler: Betas Aktivierung übernimmt gemeinsame automatische Bibliotheksupdates nicht, meldet aber aktuell; Korrektur und erneute Aktivierung beider Kontexte nachweisen |
 | T17 | Abgelehnte Paketfreigaben erhalten laufende Kontexte | Parallelität, Abbruch, Installationsfehler und Logout in unterschiedlichen Transaktionsphasen |
 
 ## Paketversionen
@@ -1076,3 +1082,67 @@ Images sowie Hintergrundprozesse Alpha 8372/405185 und Beta 12994/555841 an
 denselben Boot. Der gemeinsame Updateplan läuft an diesem Prüfpunkt erst;
 eine Veröffentlichung oder erfolgreiche anschließende Aktivierung wird noch
 nicht behauptet.
+
+## Gemeinsames Update bei zwei privaten Versionen veröffentlicht
+
+Der tatsächliche gemeinsame Updateplan erhöht jq/libjq1 auf u4,
+libpcre2-8-0 auf `10.46-1~deb13u3` sowie libssl3t64 und
+openssl-provider-legacy auf `3.5.7-1~deb13u3`. Beta beantragt den Auftrag;
+Alpha erteilt die frische AOSP-Adminfreigabe. Der Auftrag wird erfolgreich
+als gemeinsame Generation
+`cd3f9fa71e0080b121909f81be983d5e801563c909ed48d983eb5afe3c28bdc2`
+veröffentlicht. Anders als im alten 3155115-Lauf gibt es in diesem Ablauf
+keinen Steuerkanalabbruch beim Paketstart.
+
+Beide ursprünglichen privaten Selektoren und eingebundenen Images bleiben
+zunächst unverändert. Die Hintergrundprozesse Alpha 8372/405185 und Beta
+12994/555841 behalten ihre Identität und fortschreitende Zähler. Betas CLI
+zeigt ausstehende Aktivierung; seine tatsächlich ausgeführte GNU-Shell besitzt
+weiterhin jq/libjq1 u3 sowie die alten PCRE2-/OpenSSL-Bibliotheken u2.
+Ein frisch veröffentlichter gemeinsamer Stand verändert also den bereits
+laufenden Kontext in diesem Fall nicht teilweise.
+
+Beleg `out/phase1-dod/20d7d6d/shared-update-published-before-activation.json`,
+SHA-256 `756d6fdef7ff1726105028c4f5ef7024c1c00ae0b78551d24104a10ff02ff08d`,
+bindet 123 Ereignisse, Selektoren und Prozessidentitäten an das unveränderte
+Image, Profil, den Boot und SystemServer. Erst anschließend wird Beta bewusst
+gestoppt und dessen normaler Start mit automatischem Paketabgleich angefordert.
+Dieser Beleg enthält noch keinen abgeschlossenen Aktivierungsnachweis.
+
+## T16-Fehler: Aktivierung lässt gemeinsame Bibliotheksupdates zurück
+
+Betas normaler Start nach dem gemeinsamen Update endet mit `runtime=ready`
+und `packages=current`. Seine veröffentlichte persönliche Generation
+`8415295537365c0e1069b7a32d6b6365ff41acd05522a7d03ebf1c553370cc6a`
+verweist bereits auf den neuen gemeinsamen Stand `cd3f9fa7…`. Die tatsächlich
+ausgeführte GNU-Prüfung findet jedoch libpcre2-8-0 weiterhin in
+`10.46-1~deb13u2` und libssl3t64/openssl-provider-legacy weiterhin in
+`3.5.7-1~deb13u2`. Gemeinsam wurden jeweils u3-Versionen veröffentlicht.
+Betas private jq-/libjq1-Version u3 bleibt korrekt erhalten und ausführbar.
+
+Die zusammenhängende Prüfung erwartete neben dieser privaten Version die
+gemeinsamen Bibliotheksupdates und scheitert. Ein anschließender reiner
+Versions-/Ausführungsnachweis bestätigt die tatsächlichen alten Bibliotheken.
+Ein gesonderter Diagnoseversuch aus GNU konnte die geschützte interne
+Auswahlmanifestdatei nicht lesen; diese erwartete Zugriffsverweigerung ist
+vom Paketversionsfehler zu unterscheiden. Der unabhängige Beobachter bestätigt
+die unveränderte private Absicht und die neue gemeinsame Basisbindung.
+
+Betas ursprüngliche Datei und Konfiguration bleiben bytegleich; alte flüchtige
+Proben fehlen. Alphas ursprünglicher Kontext bleibt aktiv, seine Aktivierung
+wurde noch nicht angefordert. Boot und SystemServer-Identität sind unverändert.
+Fehlerbeleg `out/phase1-dod/20d7d6d/shared-update-beta-activation-failure.json`,
+SHA-256 `c9d84e6bd7f2a5e87925c5c531d9b7dd43944190761c72847a9cf103f2770ebf`,
+enthält 138 Ereignisse und die tatsächlich aktivierte Paketgeneration.
+
+Die Quellcodeprüfung zeigt eine Lücke im Abgleich: Die Ziele umfassen gemeinsame
+manuelle Hauptpakete plus explizite private Auswahlen; der Resolver führt dafür
+`install` aus. Unveränderte Hauptpakete verlangen dadurch keinen allgemeinen
+Upgrade-Schritt für bereits ausreichende automatische Abhängigkeiten.
+Das entspricht der Unterscheidung von `install` und `upgrade` in der
+[Debian-APT-Dokumentation](https://manpages.debian.org/trixie/apt/apt-get.8.en.html).
+Eine Korrektur muss gemeinsame Bibliotheksänderungen berücksichtigen und
+zugleich passende ältere Abhängigkeiten expliziter privater Versionen erhalten.
+Ein bloßes Erzwingen sämtlicher gemeinsamer Bibliotheksversionen würde den
+privaten jq-u3/libjq-u3-Fall verletzen. T16 bleibt fehlgeschlagen; neue
+Regressionstests, korrigierter Build und erneuter Systemnachweis stehen aus.
