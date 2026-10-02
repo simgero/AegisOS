@@ -1166,9 +1166,12 @@ Pläne zurück. Log:
 
 `173a547` korrigiert die allgemeine APT-Präferenzsyntax, bevorzugt exakte
 Hauptpakete und ergänzt den umgekehrten privaten Versionsfall bei gemeinsamem
-Downgrade. Die laufende Prüfung zeigt jedoch bereits Fehler für ältere und
-neuere private Hauptpakete: Höhere Präferenzen allein erzwingen sie bei einem
-nichtstrikten Solver nicht. Dieser Stand ist ebenfalls nicht abgenommen.
+Downgrade. Die abgeschlossene Prüfung besteht 26 Tests und verfehlt zwei,
+für ältere und neuere private Hauptpakete: Höhere Präferenzen allein erzwingen
+sie bei einem nichtstrikten Solver nicht. Dieser Stand ist ebenfalls nicht
+abgenommen. Beleg `out/phase1-dod/20d7d6d/native-exact-roots-tests/result.json`,
+SHA-256 `fd4cc2af742dc2f201aa216136e75a7a8e93943cb2ef425bcfe1115d360c7440`.
+Boot-ID, SystemServer, SELinux Enforcing und CE-Zustand sind vorher/nachher gleich.
 
 Der [APT-3.0.3-Quellcode](https://sources.debian.org/src/apt/3.0.3/apt-pkg/solver3.cc/)
 zeigt, dass striktes Pinning neben Kandidaten auch bereits installierte Versionen
@@ -1180,7 +1183,13 @@ der exakten Ziele und der veröffentlichten Versionen bleibt erhalten.
 Der native Build aus `1ebaa7a` ist erfolgreich; Herkunftsbeleg
 `out/phase1-dod/20d7d6d/native-strict-reconciliation-build-receipt.json`, SHA-256
 `d92e5de6634815cff2773f04c9c885e3c484f930acbfddee6c52c35760580da7`.
-Die Ausführung dieses Standes steht noch aus. Alle bisherigen Vergleiche nutzen
+Die beiden zuvor fehlgeschlagenen privaten Versionsfälle bestehen mit diesem
+Stand, ebenso sämtliche 19 Tests zur Zielableitung und Planbindung: 21 von 21
+Tests erfolgreich. Beleg
+`out/phase1-dod/20d7d6d/native-strict-reconciliation-tests/result.json`, SHA-256
+`e4041ee4dd961ae370189397a982c28983ff7c1d6adc5570c4ac650c14dcfe2b`.
+Der Lauf mit den sieben übrigen APT-Szenarien ist gestartet; anschließend stehen
+die signierten Veröffentlichungsfälle aus. Alle bisherigen Vergleiche nutzen
 isolierte Testdaten im weiterhin älteren Image `20d7d6d`; sie beweisen weder
 einen neuen Vollimage-Build noch die korrigierte reale CLI-Aktivierung. T16 und
 die vollständige Phase-1-Abnahme bleiben offen.
