@@ -1303,3 +1303,26 @@ die Veröffentlichungstests und die realen T15-/T16-CLI-Abläufe. Die lokale Sic
 der alten Testimages läuft weiter; bislang wurde nichts daraus gelöscht.
 Ein lokaler Vollimage-Build aus diesem Stand wurde gestartet. Das ist noch kein
 Boot- oder Systemnachweis und schließt kein vollständiges DoD-Kriterium ab.
+
+## Neuer Vollbuild für die Paketintegration vorbereitet
+
+Der Vollbuild `local-20261002T214847Z-209278de-FdoErg` aus
+`209278def7d5bc5612eeb397bdd8ee20ccb16d86` ist mit `LOCAL_BUILD_VERIFIED`
+abgeschlossen. Das Vorbereitungsskript aus `d7a62ef235492c9bd3aedf957ea4fba4651da93f`
+wurde erstmals auf diesen Build angewendet: alle 20 Image-Prüfsummen,
+Kernel-/Runtime-Belege, die AVB-Kette mit AOSP-Entwicklungsschlüsseln und der
+frisch erzeugte GPT-Datenträger sind erfolgreich geprüft.
+
+Die ausschließlich lokale Vorbereitung liegt unter
+`/srv/aegis/runs/phase1-209278de`. Ihr `build-validation.json` hat SHA-256
+`4d573af1e337549c20b74b6dbea7d90bde9a8f7501432c8492e2e760daf1c7fa`.
+Der Basisdatenträger hat SHA-256
+`de828bf42764f351bccd724e0d3943e68da534a2fbf3a05e38848087b772389c`,
+der AVB-Digest lautet
+`d823f1aff0a7215522695547e97e7614a5ae931a200e7d225b4af005fdadb657`.
+
+Ein neues gepaartes Profil wird für den Boot- und Integrationstest angelegt;
+das bisherige Profil aus `20d7d6d` wird dafür weder ersetzt noch migriert.
+Diese Vorbereitung ist noch kein bestandener Boot, kein T15-/T16-Systemnachweis
+und keine vollständige Phase-1-Abnahme. Images, Profile und Rohbelege bleiben
+auf dem Buildserver.
