@@ -56,6 +56,18 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
             if(uint64_t(now.tv_sec)*1000000000+now.tv_nsec>=end) { errno=ETIMEDOUT;return -1; }
         }
     }
+    template<class Poll> int ObserveOwned(Poll poll,int pending=EAGAIN) {
+        // Only observation of an already owned job is repeated. Production
+        // admission deadlines and per-call limits remain unchanged.
+        timespec started={};if(clock_gettime(CLOCK_MONOTONIC,&started)<0)return -1;
+        const uint64_t end=uint64_t(started.tv_sec)*1000000000+started.tv_nsec+UINT64_C(180000000000);
+        for(;;) {
+            const int rc=poll();if(rc==0||errno!=pending)return rc;
+            timespec now={};if(clock_gettime(CLOCK_MONOTONIC,&now)<0)return -1;
+            if(uint64_t(now.tv_sec)*1000000000+now.tv_nsec>=end) { errno=ETIMEDOUT;return -1; }
+            usleep(50000);
+        }
+    }
     void CreateOwner() {
         ASSERT_EQ(0,aegis_broker_owner_create(parent.get(),source,setup,setup,&owner));request.job=0;
     }
@@ -169,18 +181,18 @@ class RuntimePackagePlanning : public RuntimePackageResolver {
     }
     void Prepared(uint64_t job,const std::string& digest) {
         aegis::PublicationState state=aegis::PublicationState::Preparing;aegis::PackageExecutionResult result;
-        for(unsigned i=0;i<400;++i) {
-            ASSERT_EQ(0,aegis::BrokerPollExecution(owner,10,1234,job,digest,&state,&result));
-            if(state!=aegis::PublicationState::Preparing)break;usleep(50000);
-        }
+        ASSERT_EQ(0,ObserveOwned([&] {
+            if(aegis::BrokerPollExecution(owner,10,1234,job,digest,&state,&result)<0)return -1;
+            if(state==aegis::PublicationState::Preparing) { errno=EAGAIN;return -1; }return 0;
+        }))<<strerror(errno);
         ASSERT_EQ(aegis::PublicationState::Prepared,state)<<result.error;
     }
     void Completed(uint64_t job,const std::string& digest,aegis::PackageExecutionResult* result) {
         aegis::PublicationState state=aegis::PublicationState::Preparing;
-        for(unsigned i=0;i<600;++i) {
-            ASSERT_EQ(0,aegis::BrokerPollExecution(owner,10,1234,job,digest,&state,result));
-            if(state==aegis::PublicationState::Complete)break;usleep(50000);
-        }
+        ASSERT_EQ(0,ObserveOwned([&] {
+            if(aegis::BrokerPollExecution(owner,10,1234,job,digest,&state,result)<0)return -1;
+            if(state!=aegis::PublicationState::Complete) { errno=EAGAIN;return -1; }return 0;
+        }))<<strerror(errno);
         ASSERT_EQ(aegis::PublicationState::Complete,state);
     }
     void ContinueConfigured(uint32_t user,uint32_t serial,uint64_t job) {
@@ -1175,7 +1187,7 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
         for(unsigned i=0;i<32;i++)snprintf(text+2*i,3,"%02x",bytes[i]);
         aegis::PackageGeneration generation{text,base,static_cast<uint64_t>(st.st_size)};
         std::unique_ptr<aegis::PackageStore> owned(aegis::PackageStore::Open(store,identity,prior==nullptr));ASSERT_TRUE(owned)<<strerror(errno);
-        const std::atomic_bool proceed{false};ASSERT_EQ(aegis::PackagePublish::Confirmed,owned->Publish(prior,file.get(),generation,proceed));
+        const std::atomic_bool proceed{false};ASSERT_EQ(aegis::PackagePublish::Confirmed,owned->Publish(prior,file.get(),generation,proceed))<<strerror(errno);
         *output=generation;
     }
     void StoredViews() {
@@ -1192,21 +1204,20 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
         Fd factory(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC)),prepare(Program("aegis-package-prepare"));ASSERT_TRUE(factory.ok());ASSERT_TRUE(prepare.ok());
         aegis::PackageRuntimeSelection input;input.requester=10;input.serial=1234;input.factory={image->original.bytes,image->original.sha256};
         ASSERT_EQ(0,aegis::BrokerPrepareReconciliationSelection(owner,input,parent.get(),shared_store.get(),private_store.get(),factory.get(),prepare.get(),Deadline(),&selection_job));
-        uint64_t same=0;int started=-1;
-        for(int i=0;i<200;i++) {
-            started=aegis::BrokerStartPlanningFromSelection(owner,request,selection_job,parent.get(),source,sources.get(),key.get(),helper.get(),Deadline(),&same);
-            if(started==0)break;ASSERT_EQ(EAGAIN,errno);ASSERT_EQ(0u,same);usleep(50000);
-        }
-        ASSERT_EQ(0,started)<<strerror(errno);EXPECT_EQ(selection_job,same);
+        uint64_t same=0;
+        ASSERT_EQ(0,ObserveOwned([&] {
+            const int rc=aegis::BrokerStartPlanningFromSelection(owner,request,selection_job,parent.get(),source,sources.get(),key.get(),helper.get(),Deadline(),&same);
+            if(rc<0&&errno==EAGAIN&&same) { errno=EPROTO;return -1; }return rc;
+        }))<<strerror(errno);EXPECT_EQ(selection_job,same);
         aegis::RuntimeSelectionState state;aegis::PackagePreparationResult result;
         EXPECT_EQ(-1,aegis::BrokerPollRuntimeSelection(owner,10,1234,selection_job,&state,&result));EXPECT_EQ(ENOENT,errno);
     }
     void OwnerReview(size_t effects) {
         aegis::PlanningState state;aegis::PackagePlanningResult result;
-        for(int i=0;i<200;i++) {
-            ASSERT_EQ(0,aegis::BrokerPollPlanning(owner,10,1234,selection_job,&state,&result));
-            if(state!=aegis::PlanningState::Running)break;usleep(50000);
-        }
+        ASSERT_EQ(0,ObserveOwned([&] {
+            if(aegis::BrokerPollPlanning(owner,10,1234,selection_job,&state,&result)<0)return -1;
+            if(state==aegis::PlanningState::Running) { errno=EAGAIN;return -1; }return 0;
+        }))<<strerror(errno);
         ASSERT_EQ(aegis::PlanningState::Collected,state)<<result.error<<" "<<result.status<<" "<<result.diagnostic;
         aegis::PackageBoundPlan bound;ASSERT_EQ(0,aegis::BrokerReviewPlanning(owner,10,1234,selection_job,Deadline(),&bound))<<strerror(errno);
         EXPECT_TRUE(bound.reviewed.reconciliation);EXPECT_EQ(effects,bound.reviewed.changes.size());EXPECT_EQ(AEGIS_PACKAGE_RECONCILE,bound.preparation.execution.kind);
@@ -1269,7 +1280,9 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
         selection.factory={image->original.bytes,image->original.sha256};
         ASSERT_EQ(0,aegis::PackageRuntimeSelectionStart(parent.get(),shared_store.get(),private_store.get(),factory.get(),prepare.get(),selection,&readback));
         aegis::PackagePreparationResult selected_result;int fd=-1;
-        ASSERT_EQ(0,aegis::PackagePreparerFinish(&readback,false,9000,&selected_result,&fd));readback_view.reset(fd);
+        ASSERT_EQ(0,ObserveOwned([&] {
+            return aegis::PackagePreparerFinish(&readback,false,1000,&selected_result,&fd);
+        },ETIMEDOUT))<<strerror(errno);readback_view.reset(fd);
         ASSERT_EQ(aegis::PackagePreparationOutcome::Prepared,selected_result.outcome)<<selected_result.error;ASSERT_TRUE(readback_view.ok());
         EXPECT_EQ(result.generation.image_sha256,selected_result.generation.image_sha256);
         EXPECT_EQ("#!/bin/sh\nprintf 'app-"+version+"\\n'\n",Read(readback_view.get(),"usr/bin/aegis-probe-app"));

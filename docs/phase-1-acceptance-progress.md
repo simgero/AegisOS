@@ -1188,8 +1188,51 @@ Stand, ebenso sämtliche 19 Tests zur Zielableitung und Planbindung: 21 von 21
 Tests erfolgreich. Beleg
 `out/phase1-dod/20d7d6d/native-strict-reconciliation-tests/result.json`, SHA-256
 `e4041ee4dd961ae370189397a982c28983ff7c1d6adc5570c4ac650c14dcfe2b`.
-Der Lauf mit den sieben übrigen APT-Szenarien ist gestartet; anschließend stehen
-die signierten Veröffentlichungsfälle aus. Alle bisherigen Vergleiche nutzen
+Auch die sieben übrigen APT-Szenarien bestehen. Beleg
+`out/phase1-dod/20d7d6d/native-strict-reconciliation-remaining-tests/result.json`,
+SHA-256 `a5c263f172e7db0ab584f8092123f6e961d52146dad855f55858076c2394852e`.
+Dabei bleiben Boot und SystemServer einschließlich Prozessstartzeit unverändert.
+Alle bisherigen Vergleiche nutzen
 isolierte Testdaten im weiterhin älteren Image `20d7d6d`; sie beweisen weder
 einen neuen Vollimage-Build noch die korrigierte reale CLI-Aktivierung. T16 und
 die vollständige Phase-1-Abnahme bleiben offen.
+
+## Veröffentlichungstests: Beobachtungsfrist und belegter Speicherbedarf
+
+Die zwei signierten Veröffentlichungstests auf `1ebaa7a` sind fehlgeschlagen.
+Der erste beendet die Auswahlbeobachtung nach 200 Abfragen mit je 50 ms Pause
+weiterhin mit `EAGAIN`, bevor die Planung beginnt. Der zweite scheitert beim
+Anlegen seines synthetischen gemeinsamen Testbestands. Sein ursprünglicher
+Fehlercode wurde nicht ausgegeben; die anschließende Speicherprüfung findet
+nur noch 39 MB freien Platz auf der 7,9-GB-Gastpartition.
+
+Beleg `out/phase1-dod/20d7d6d/native-strict-reconciliation-publication-tests/result.json`,
+SHA-256 `dbfdbb0e79168325ad4636de1e170c9e019917718a3867b261860c97a63db16a`.
+Keiner der beiden Fälle zählt als bestanden. Die Testbeobachtung wird auf
+wiederholtes Abfragen desselben Auftrags innerhalb einer monoton gemessenen
+180-Sekunden-Frist umgestellt; Produktfristen und Erfolgsbedingungen bleiben
+unverändert. Die Fixture-Veröffentlichung erhält eine Fehlercodeausgabe.
+
+21 noch vorhandene synthetische Fixture-Verzeichnisse lassen sich den lokalen
+Fehlertestprotokollen zuordnen. Ihre vollständigen Dateien werden lokal archiviert
+und gegen SHA-256-Werte aus dem Gast geprüft, bevor ausschließlich diese
+gesicherten Testverzeichnisse entfernt werden. Benutzerprofile, deren Daten und
+Paketbestände sind nicht Teil dieser Bereinigung. Weitere Image-Tests warten
+auf den Abschluss der Sicherung und wieder ausreichend freien Gastplatz.
+
+## T15: Native Entfernungsvorbereitung implementiert
+
+`edfa33c` ergänzt eine getrennte Ableitung der Entfernungsziele und einen
+getrennten Modus zur Auswahl eines aktuellen privaten/gemeinsamen Imagepaars.
+Die ursprüngliche private Absicht wird vor dem Aufheben genau einer Auswahl
+geprüft. Gemeinsame Hauptpakete und alle anderen privaten Auswahlen bleiben
+Ziele; weiterhin benötigte Abhängigkeiten können automatisch erhalten bleiben.
+Eine veraltete Basis ist kein impliziter Auftrag zum gemeinsamen Update.
+
+Der native Build ist erfolgreich. Sieben neue Tests zur Zielableitung und
+19 bestehende Reconciliation-Tests bestehen: 26 von 26. Beleg
+`out/phase1-dod/20d7d6d/native-private-removal-goals-tests/result.json`, SHA-256
+`5922f9afd615a8d7a8b1e2c1f7645622175f871b8a4212653089b100136a0a02`.
+Die Auswahltests mit echten Images sind vorbereitet, aber noch nicht ausgeführt.
+Die durchgängige Anbindung an CLI, Adminfreigabe, Planbindung und Veröffentlichung
+steht ebenfalls aus; T15 bleibt offen.
