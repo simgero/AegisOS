@@ -1485,3 +1485,24 @@ Log-SHA-256:
 Die Paket-Ausführungsgruppe ist anschließend gestartet; Veröffentlichung und
 reale CLI-Nachweise bleiben noch offen. Diese sechs Fälle schließen weder T15
 noch T16 vollständig ab.
+
+## Fünf native Paketausführungstests bestanden
+
+Die Ausführungsgruppe besteht mit **5 von 5 Fällen** auf Vollimage `209278d`
+mit dem ausschließlich im Testcode korrigierten Build `6946970`. Der Lauf
+dauert rund 523 Sekunden. Upgrade und Downgrade erhalten persönliche
+Konfiguration, Dateieigentümer und private Paketauswahl. Ein Abgleich ohne
+Paketwirkung verändert nur die vollständigen Paketmarkierungen. Die private
+Entfernung stellt die gemeinsame Version samt passender Abhängigkeit wieder
+her; bei gleicher Version ändert sie das Manifest ohne Paketskripte.
+
+Die Quell- und Helper-Gleichheit ist im Ergebnis dokumentiert. Boot-ID,
+SystemServer PID/Startzeit, SELinux Enforcing und CE `[0]` bleiben identisch.
+Ergebnis: `out/phase1-dod/209278de/native-execution-components/result.json`,
+SHA-256 `ed01f7b71df8d3d58383af426aa61f8adf7e71b3546da3f805ce20d70bc962da`.
+Log-SHA-256:
+`c162a373646e5066fc3f509fc9ae09f3585d7c7c79f255940508035089529155`.
+
+Die zwei Veröffentlichungstests und der vollständige CLI-Ablauf bleiben offen.
+Diese Komponententests bedeuten keine vollständige Abnahme von T15/T16 oder
+Phase 1. Es wurden keine gezielten Diagnoseabstürze wieder aufgenommen.
