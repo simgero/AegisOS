@@ -860,3 +860,51 @@ Die gemeldete Plattform-Sicherheitswarnung hat keinen nachgewiesenen Auslöser
 in diesen AEGIS-Protokollen. Sie wird nicht mit dem Paketfehler gleichgesetzt.
 Die ausgeschlossene gezielte Absturzdiagnostik bleibt eingestellt; vorhandene
 Ergebnisse werden dadurch weder gelöscht noch als bestanden umgedeutet.
+
+
+## Paketstartkorrektur gebaut; erster Komponentenlauf nicht bestanden
+
+Produktcommit `20d7d6d33fb3243cd87d0eb90fa2fd09bd2cc178` verschiebt die
+vollständige Kennzeichnungsprüfung in die überwachte Ausführungsphase, weiterhin
+vor Guard und jedem Debian-Prozess. Einrichtung, Mount-Inventur, Rechtebegrenzung
+und die kurze Startfrist bleiben erhalten. READY bestätigt nur den eingerichteten
+Worker; ein späterer Prüffehler verhindert die Veröffentlichung. Dies behebt
+einen größenabhängigen Arbeitsschritt innerhalb der kurzen Steuerkanalfrist;
+welcher Abschnitt den früheren konkreten Timeout auslöste, bleibt ungemessen.
+
+Der vollständige lokale Build
+`/srv/aegis/runs/local-20261002T144125Z-20d7d6d3-RhemVS` endet mit
+`LOCAL_BUILD_VERIFIED`, Exitcode 0 und 20 bestätigten Image-Prüfsummen. AVB und
+die neue vollständige GPT-Basisdisk sind geprüft. Lokale Belege unter
+`out/phase1-dod/20d7d6d/`:
+
+- `build-validation.json`:
+  `02d8e8f5a83e7b5fdd470f8991d19441501022cf36fc1701774641aad0aecba4`
+- `avb-checked.json`:
+  `b89d52541c4508fb79541cc1bebfb6d06756fcd1a8ac038b5ea0dbf6fc57d5b9`
+- `android.raw.json`:
+  `0fd2b32f00905312b4bbad5790ccb84ed3df6d63bad55c67eecf7e43e8f733d4`
+
+Der erste gezielte Komponentenlauf im alten Gast ist **nicht bestanden**:
+Die Root-Kennzeichnungsprüfung besteht; die verschachtelte Prüfung erreicht
+wegen eines noch schreibend geöffneten Fixture-Deskriptors die Mount-Übergabe
+nicht (`EBUSY`). Der normale Installations-/Update-/Entfernungsfall überschreitet
+die neunsekündige Abschlusswartezeit des Tests. Der letzte Fall zur privaten
+Versionsauswahl besitzt keinen Abschlussbericht. Später sind QEMU, Testprozess
+und der ausschließlich im Speicher gehaltene Passworttreiber nicht mehr
+vorhanden. Ursache und geordneter Shutdown sind nicht belegt; die bisherigen
+Profile und Rohprotokolle bleiben unverändert erhalten.
+
+`native-selected/interrupted-result.json`, SHA-256
+`13b70ffdfcddfbed3796bd55a4f7bbdb6b9f76abb96532da9a7ebf7c0e5eeadd`,
+bindet diesen unvollständigen Fehlerstand. Testcommit `3012569` schließt den
+Fixture-Schreibdeskriptor vor der Übergabe und fragt denselben asynchronen
+Paketauftrag bis zu einer begrenzten Gesamtdauer ab. Die separate Startfrist
+bleibt unverändert. Alle produktiven Helfer des erneuten Komponentenbuilds
+sind bytegleich mit `20d7d6d`; nur Tests und Dokumentation wurden geändert.
+Beleg `native-corrected-build-receipt.json`, SHA-256
+`e9d363b9a1ddad7dec69dc878127da84cb3607b1eb2327d30ff55e584e6bb9b3`.
+
+Das neue Profilpaar `06adfa48-f55f-46b7-a962-82bef7af5e83` startet regulär mit
+Image `20d7d6d`. Die korrigierten Tests und der echte CLI-Updateablauf sind an
+diesem Prüfpunkt noch nicht bestanden. T16 und die vollständige DoD bleiben offen.
