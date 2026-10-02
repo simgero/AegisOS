@@ -274,3 +274,42 @@ Dateibindungen sind in `paired-shutdown-before-reboot.json` festgehalten.
 Der zweite Start verwendet dasselbe Profil ohne Neuanlage. Der Nachweis nach
 diesem Neustart steht noch aus; die Testzugänge bleiben ausschließlich im
 Speicher des weiterlaufenden Treibers.
+
+
+## Gepaarter Neustart mit ursprünglichen Daten und beiden Paketversionen
+
+Der zweite Boot desselben Profils ist vollständig gestartet: Boot-ID
+`c85c6448-6bd3-4a70-b2fc-bdc53b6910dd`, SystemServer PID 1146. Profilmanifest,
+Dateiidentitäten beider Profilhälften und AVB-Digest bleiben gebunden. ADB
+funktioniert mit dem bestehenden Hostschlüssel ohne erneute Provisionierung;
+der erste Transportversuch benötigte den vorgesehenen authentifizierten Retry.
+SELinux, FBE und Metadatenverschlüsselung bleiben aktiv. Vor jeglicher Anmeldung
+sind nur CE-Benutzer 0 und kein persönlicher Runtime-Kontext vorhanden. Bekannte
+private Dateien und Alphas Paketauswahl liefern keine Bytes.
+
+Beide ersten korrekten Anmeldungen nach diesem Neustart bestehen ohne vorherigen
+Fehlversuch. Alpha liest seine ursprüngliche 1024-Byte-Datei, HOME-Anpassung,
+Konfiguration und sein Test-Secret bytegleich; private `jq`/`libjq1` `u4` werden
+mit derselben Bibliotheksprüfsumme tatsächlich ausgeführt. Beta liest seine
+ursprüngliche Datei und privaten Proben bytegleich und führt die gemeinsame
+Version `u3` aus. Beide Programme berechnen wieder die Summe 10. Die alten
+`/tmp`-/`/run`-Proben bleiben verschwunden. Gemeinsame und private
+Paketauswahl sind exakt dieselben wie vor dem Reboot.
+
+Alpha wird vor Betas Anmeldung ausdrücklich abgemeldet; während Beta arbeitet,
+bleibt Alpha CE-gesperrt. Betas neues Passwort funktioniert nach dem Neustart;
+nach dessen erneutem Logout scheitert das alte Passwort, CE bleibt `[0]`.
+Beide bekannten GNU-Dateien sind nach dem jeweiligen Logout wieder unlesbar.
+
+Zusammenhängender Beleg mit ausgewählten tatsächlichen Terminalereignissen:
+`out/phase1-dod/d149766/paired-reboot-persistence-proof.json`, SHA-256
+`417a570939c8a4266915e714c7b23abbc47062f1555af42e83fa84b8d71ff78a`.
+Zwei vorangehende Beobachterzugriffe verwendeten falsche gemeinsame Store-Pfade
+und scheiterten vor dem Vergleich; der erfolgreiche Vergleich verwendet den
+im Gast und Brokerquelltext bestätigten Pfad. Diese Orchestrierungsfehler
+werden nicht als Produktfehler oder erfolgreiche Prüfungen gezählt.
+
+Dieser Lauf schließt die beschriebenen Persistenz-/Passwortvarianten. D1–D7
+und T01–T17 bleiben bis zur vollständigen ergänzenden Matrix insgesamt offen.
+Insbesondere Updates, Entfernung/Rückkehr, Parallelität, Löschung/ID-Reuse
+und der nachträglich angelegte Benutzer sind noch zu ergänzen.
