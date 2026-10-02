@@ -2,7 +2,10 @@
 
 Beginn: 1. Oktober 2026. Ziel ist die vollständige
 [DoD](architecture/phase-1-dod.md), einschließlich aller Varianten T01–T17.
-**Status: aktiv, keine vollständige Abnahme.**
+**Status: aktiv, keine vollständige Abnahme.** Aktueller integrierter Prüfstand:
+Image `d1497661b70e301aec6c92190f2bb5ec58401caf`, Profil
+`fe26fa6c-2cb1-4b31-bf5a-bad017b6a54a`. Der im zweiten Boot beobachtete
+Bootanimation-Absturz hält D1 offen; Einzelbelege ändern diesen Status nicht.
 
 Ausgangspunkt ist das geprüfte Image `c52657113becde42d735669d4d64405c7740cc74`.
 Die [fünf bisherigen Meilensteine](server-acceptance.md) bleiben gültige
@@ -23,16 +26,16 @@ nicht, dass die ganze Zeile der DoD bereits geschlossen ist.
 | T03 | UID/GID, sechs getrennte Namespaces, zwei fortlaufende Prozesse | Nachweise zum finalen Versions-/Referenzablauf zuordnen |
 | T04 | Admission-/Namespace-/Mapping-Komponententests | Gezielte Gasttests für alle fehlenden Voraussetzungen und fehlende Berechtigung zuordnen/ausführen |
 | T05 | GNU-Shell, Exit und Zugriff auf eigene Datei | Ablehnungen für gesperrte/fremde Kontexte und Exit-Lebenszyklus zum finalen Stand binden |
-| T06 | Gegenseitige Dateizugriffe, Signalversuche, POSIX-Mqueues | Konfiguration, private Paketmetadaten, temporäre Dateien und Test-Secrets beidseitig ergänzen |
-| T07 | Datei, Alpha-Konfiguration, private Installation nach Reboot | Beide Konfigurationen, `/tmp`/`/run`-Erneuerung und abweichende Paketversion nach Neustart |
-| T08 | Hintergrundbetrieb; ältere Bildschirmsperrtests | Sperre und AOSP-Ressourcenstopp im aktuellen Image mit tatsächlichen Zuständen prüfen |
-| T09 | Runtime-Start/-Stopp vorhanden | Nur eigener Kontext beendet, Sitzung/CE und anderer Benutzer erhalten |
+| T06 | Gegenseitige Dateien, Konfiguration, Test-Secrets, temporäre Dateien, Prozesse und POSIX-Mqueues | Zusätzliche Gegenrichtung für Betas inzwischen vorhandenen privaten Paketbestand; alle Varianten zum finalen Image binden |
+| T07 | Beide ursprünglichen Dateien/Konfigurationen, private Version und getrennte gemeinsame Version nach Reboot; alte `/tmp`-/`/run`-Proben fehlen | In den finalen Ergebnisindex übernehmen; bei betroffenen Produktänderungen erneut prüfen |
+| T08 | Bildschirmsperre bei weiterlaufender Arbeit; tatsächlicher AOSP-Stopp Betas beim Start Gammas; spätere Datenwiederherstellung | Einzelne Wechsel-/Hintergrundvarianten vollständig zum finalen Ergebnisindex zuordnen |
+| T09 | Eigener Kontext gestoppt, Sitzung/CE und ursprünglicher Peer-Prozess erhalten | Belege zum finalen Image zuordnen; kein allgemeiner Logout-Nachweis |
 | T10 | Bestätigter Logout, CE gesperrt, Peer weiter aktiv | Konkurrierenden Start und vollständigen Ressourcenabbau gezielt zuordnen/prüfen |
 | T11 | Echter EBUSY-/CE-Timeout mit sicherem Wiederanlauf | Zusammenwirken mit laufenden Paketaktionen ergänzen |
 | T12 | Gepaarter Reboot; frühere CLI-Löschung und Allocator-Tests | Vollständige aktuelle Löschung, neue Identität, ID-Stilllegung bis Systemserver-Ende und sichere Wiederverwendung nach Neustart |
 | T13 | Installation beider Bereiche mit gültiger/falscher/Nicht-Adminfreigabe | Alle sechs Aktion-/Bereichskombinationen, fehlende Autorisierung/Bereiche und manipulierte Eigentümer |
-| T14 | Gemeinsames ed und privates hello | Nachträglich angelegter Benutzer C und getrennte persönliche Konfiguration gemeinsamer Software |
-| T15 | Private Installation eines anderen Programms | Dasselbe Paket in zwei Versionen samt Abhängigkeiten, unauflösbare Version, private Entfernung/Rückkehr |
+| T14 | Gemeinsame jq-Version bei Beta und nachträglich angelegtem Gamma; Alphas private Variante und getrennte Konfiguration | Varianten und Eigentumsnachweise vollständig zum finalen Ergebnisindex zuordnen |
+| T15 | Dasselbe jq mit passender libjq1 in u3/u4 tatsächlich ausgeführt, auch nach Reboot; erfolglose Versionsanforderung erhält Bestand | Genaue Ursache der abgewiesenen Versionsanforderung und unauflösbare Abhängigkeit; private Entfernung/Rückkehr |
 | T16 | Ausstehende Aktivierung bei laufendem Kontext | Gemeinsames Update bei privater Version und konsistenter Neustart oder erklärter Konflikt |
 | T17 | Abgelehnte Paketfreigaben erhalten laufende Kontexte | Parallelität, Abbruch, Installationsfehler und Logout in unterschiedlichen Transaktionsphasen |
 
@@ -435,3 +438,24 @@ beobachtete Absturz bleibt ungeklärt, D1 bleibt offen.
 Lokaler Abschlussbeleg: `out/phase1-dod/bootanimation-diagnostic/full-animation-1.json`;
 zugehöriger Logcat-SHA-256
 `8f43cb0e538b67d94ebba83ade9616a4bcdf06222ce54bb99ea4ee562b6e5393`.
+
+## Gemeinsames Update ohne Adminfreigabe abgebrochen
+
+Beta fordert über die echte CLI `linux package update --scope all` an. Der
+vollständige Plan zeigt fünf Aktualisierungen, darunter `jq`/`libjq1` von `u3`
+auf `u4`. Der leere Adminname bricht vor der Passwortabfrage ab; keine
+Adminfreigabe wird übergeben. Die CLI bestätigt keine Veröffentlichung.
+
+Gemeinsame und private Paketauswahl, aktive Root-Mount und ursprünglicher
+Runtime-Initprozess sind vor/nach dem Abbruch identisch. CE bleibt `[0, 11]`,
+der SystemServer PID 1146. Der Kontext meldet `packages=current`; Betas
+private `jq`-/`libjq1`-Version `u3` ist danach mit unveränderter Bibliotheksprüfsumme
+ausführbar und berechnet 10.
+
+Beleg: `out/phase1-dod/d149766/update-all-missing-approval-proof.json`, SHA-256
+`96adfa3e6824aec492290d4126fc7b15b9c6edc3e7bedb9300aa38ae5964af51`.
+Das deckt `update/all` ohne Freigabe und Abbruch bei der Planprüfung ab.
+Falsche/Nicht-Adminfreigabe, erfolgreiche Aktualisierung und Abbruch während
+der Installation bleiben separate offene Fälle. Ein anschließender Scan
+findet keine vollständigen Testpasswörter in den sieben vorhandenen Bootlogs;
+dies ersetzt nicht die noch offene umfassende Transport-/Dateiprüfung T01.
