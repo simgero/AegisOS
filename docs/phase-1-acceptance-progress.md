@@ -7,8 +7,10 @@ Image `31551159cd11d66b0fa18442b5f62106edf4bfb5`, Profil
 `1c53b76e-bb1d-4ed6-a0df-7bbc21f2cfee`. Erster normaler Boot, Bedienung,
 ADB und 27 gezielte Java-Tests sind bestanden. Der gepaarte Wiederholungsstart
 mit bytegleichen persönlichen Daten und getrennten jq-Versionen ist ebenfalls
-belegt. Gemeinsames Update mit privatem Abgleich und die vollständige Testmatrix
-bleiben offen.
+belegt. Das anschließende gemeinsame Update scheitert beim nativen Paketstart
+an der Steuerkanalfrist; die ausgewählten Paketgenerationen bleiben unverändert,
+beide laufenden Runtime-Kontexte werden jedoch beendet. Dieser Fehler und die
+vollständige Testmatrix bleiben offen.
 Der frühere Bootanimation-Absturz auf `d149766` bleibt als Regressionsevidenz erhalten.
 
 Ausgangspunkt ist das geprüfte Image `c52657113becde42d735669d4d64405c7740cc74`.
@@ -822,3 +824,39 @@ es ersetzt weder die gesamte T09- noch die T13-Matrix.
 Damit sind vor dem gemeinsamen Update beide privaten Versionen vorhanden:
 Alpha u4, Beta u3, gemeinsame Generation u3. Die gemeinsame Updateplanung läuft;
 T16 ist erst nach nachgewiesener konsistenter Aktivierung zu bewerten.
+
+
+## Gemeinsames Update scheitert an der Paketstartfrist
+
+Der reguläre Updateplan vom 2. Oktober, 14:18:30 UTC, enthält jq/libjq1 von
+u3 auf u4 sowie Aktualisierungen von libpcre2-8-0, libssl3t64 und
+openssl-provider-legacy. Nach Alphas echter Adminfreigabe meldet die CLI um
+14:19:45 UTC einen unbestätigten Abbruch. Der SystemServer protokolliert
+`Control channel failed: operation=13 cause=IllegalStateException deadlineExpired=true`.
+Operation 13 ist der native Paketstart. Das ist ein fehlgeschlagener normaler
+Funktionslauf; es wurde kein Absturz absichtlich ausgelöst.
+
+Die Beobachtung um 14:19:55 UTC bestätigt unveränderte gemeinsame und private
+Paketgenerationen. Beide zuvor beobachteten Hintergrundprozesse sind beendet.
+Der ursprüngliche SystemServer 1140/21254 besteht weiter; CE enthält weiterhin
+`[0,10,11]`. Das ist weder eine erfolgreiche Aktualisierung noch ein bestätigter
+Logout. Unveränderte Generationsverweise allein belegen auch keine vollständige
+Byteprüfung sämtlicher persönlicher Dateien nach diesem Fehler.
+
+Der eingefrorene Beleg enthält alle 243 bisherigen Treiberereignisse und bindet
+den lokalen Logcat-Schnappschuss sowie die Beobachtungen vor und nach dem Fehler:
+`out/phase1-dod/3155115/common-update-start-failure-proof.json`, SHA-256
+`ecaa987180dd4bac6f70c9b9433284189bb2ccd089b09ca26c9463cc6e4c9cd7`.
+T16 bleibt fehlgeschlagen/offen; das Verhalten ist zusätzlich für T17 relevant.
+
+Die Quellprüfung zeigt, dass `PackageExecutorStart` synchron auf die
+READY-Antwort wartet. Davor richtet der Worker seinen Kontext ein und prüft
+rekursiv die Dateikennzeichnungen des Kandidaten. Welcher Abschnitt die Frist
+überschritten hat, ist noch nicht gemessen. Die nächste Korrektur muss diese
+Prüfungen, die Adminbindung und die begrenzte Zulassungsfrist erhalten; ein
+erneuter identischer Fehlerlauf ist kein Ersatz für die Ursachenanalyse.
+
+Die gemeldete Plattform-Sicherheitswarnung hat keinen nachgewiesenen Auslöser
+in diesen AEGIS-Protokollen. Sie wird nicht mit dem Paketfehler gleichgesetzt.
+Die ausgeschlossene gezielte Absturzdiagnostik bleibt eingestellt; vorhandene
+Ergebnisse werden dadurch weder gelöscht noch als bestanden umgedeutet.
