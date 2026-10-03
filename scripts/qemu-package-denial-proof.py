@@ -42,9 +42,12 @@ def verify(args):
     area = "gemeinsame Software" if args.scope == "all" else "eigene Pakete"
     require(f"\nPaketplan: {args.action}, Bereich: {area}\n" in plan["output"], "Wrong plan action/scope")
     require("Admin-Benutzer für diesen Plan (leer bricht ab): " in plan["output"], "No approval prompt")
-    labels = {"cancel": "package-cancel-plan", "wrong": "package-approve-wrong",
-              "nonadmin": "package-approve-beta"}
-    results = [e for e in current if e["action"] == labels[args.outcome]]
+    # The driver names approval events after the in-memory credential slot.
+    # A password change switches Beta to newbeta without changing its identity
+    # or role. Count both labels together so two outcomes remain ambiguous.
+    labels = {"cancel": {"package-cancel-plan"}, "wrong": {"package-approve-wrong"},
+              "nonadmin": {"package-approve-beta", "package-approve-newbeta"}}
+    results = [e for e in current if e["action"] in labels[args.outcome]]
     require(len(results) == 1, "Expected one denial outcome")
     result = results[0]
     require(current.index(plan) < current.index(result), "Outcome precedes plan")

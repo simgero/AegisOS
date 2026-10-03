@@ -3160,3 +3160,44 @@ Prozessidentitäten. Login-, GNU- und Paketsteuerungen bleiben nutzbar.
 Die Ablehnung des alten Passworts ist bislang im zweiten Boot belegt, nicht
 zusätzlich im dritten. Weitere Matrixfälle und die vollständige Phase-1-Abnahme
 bleiben offen.
+
+### Altes Passwort auch nach dem gepaarten Neustart abgewiesen
+
+Im dritten Boot folgt nach dem ersten erfolgreichen neuen Passwortzugang ein
+weiterer regulärer Beta-Logout um 14:14:55 UTC. Die unabhängige Aufnahme bestätigt
+das Ende des aktuellen Kontexts 4099/108039, die entfernte Runtime-Gruppe und
+CE `[0,10]`. Betas ursprüngliche Testdatei liefert keine Bytes. Der anschließende
+einmalige Versuch mit dem alten Passwort wird um 14:18:38 UTC von AOSP abgewiesen.
+Bereits die Anmeldevorbereitung lässt Beta gesperrt und ohne Kontext; danach
+bleibt das Terminal unangemeldet und die bekannte Datei weiterhin unlesbar.
+
+Der vollständige Zustandsvergleich erhält Alphas Kontext 3553/81468 und seine
+Paketdaten unverändert. Beta besitzt keinen Kontext; seine gesperrte private
+Paketauswahl wird nicht gelesen. Boot-ID und SystemServer bleiben identisch.
+Der Offline-Nachweis bindet den unveränderten gestarteten Treiber, Ereignisse
+586–592 und die unabhängigen Vor-/Nachaufnahmen:
+`out/phase1-dod/f098f439/boot3-old-password-denial-proof.json`, SHA-256
+`59f512b71e2e512ce3a0414d8993af4be0d4e7cca01243ccc65e334a2575c496`.
+Damit ist die zuvor ausstehende zusätzliche Ablehnung nach diesem Neustart
+belegt. Die übrigen Pflichtfälle und die Gesamtfreigabe bleiben offen.
+
+### Offline-Paketnachweise nach Passwortwechsel
+
+Der laufende Testtreiber benennt Betas Freigabeereignis nach einem Passwortwechsel
+`package-approve-newbeta`. Der Offline-Prüfer akzeptierte bisher nur den alten
+Namen und hätte einen gültigen Nachweis der Nicht-Admin-Ablehnung zurückgewiesen.
+Er erkennt jetzt beide Namen als dieselbe Prüfrolle und verlangt weiterhin
+genau ein Ergebnis, die ausdrückliche Ablehnung, die gültige Antragstellersitzung
+und vollständig unveränderte Zustandsfelder. Zwei Ergebnisse bleiben mehrdeutig
+und werden abgelehnt; andere Identitäten oder eine bloße Passwortablehnung
+ersetzen keine Nicht-Admin-Prüfung.
+
+Sieben Host-Regressionstests bestehen. Die drei ursprünglichen privaten
+Installationsablehnungen wurden mit dem geänderten Prüfer erneut ausgewertet;
+Originalbelege und Gastzustand wurden dabei nicht verändert. Lokale Belege:
+`denial-verifier-rotated-credential/result.json`, SHA-256
+`af80100159e8aef660b6bb01a6f199a38e60deb98f07b3380e8fc2a3486f0234`,
+und `denial-verifier-rotated-credential/historical-replay.json`, SHA-256
+`2e4c34dabb2e60d3ce98bda876e1629607ebb027a5c39250b5e274be997ce0a9`.
+Dies ändert ausschließlich die Offline-Auswertung; ein neuer Gasttest mit
+gewechseltem Nicht-Admin-Passwort ist dadurch noch nicht nachgewiesen.
