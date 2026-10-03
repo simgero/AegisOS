@@ -2487,3 +2487,34 @@ Benutzer-/CE-Entsperrcallbacks und gibt nur bereinigten Status zurück. Diese
 Quellprüfung ergänzt die CE-Beobachtungen; sie ersetzt nicht die verbleibenden
 Aktions-, Rollen- und Isolationsprüfungen. Der begrenzte Scan von drei lokalen
 Laufprotokollen fand kein vollständiges Testpasswort; T01.5 bleibt insgesamt offen.
+
+### Zwei aktive Benutzer mit privaten/gemeinsamen Versionen auf f098f43
+
+Betas erster korrekter Login bleibt nach sechs Sekunden gültig und führt ohne
+vorherigen Fehlversuch tatsächlich GNU-Befehle aus. Die bloße Zielauswahl hatte
+vorher weder Betas CE entsperrt noch dessen Kontext angelegt. Danach sind
+System, Alpha und Beta entsperrt; die beiden persönlichen Kontexte bestehen
+gleichzeitig. Beta führt gemeinsames jq/libjq1 u3 mit passender Bibliothek aus,
+während Alphas privater u4-Kontext unverändert bleibt.
+
+Beide normalen GNU-Kontexte verwenden intern UID/GID 1000. Tatsächlich
+beobachtete Host-UID/GID-Zuordnungen sind getrennt, ebenso User-, Mount-, PID-,
+IPC-, UTS- und Netzwerk-Namespaces. Die normalen Hintergrundprozesse laufen
+als Host-UID/GID 1007500 beziehungsweise 1107500. Alphas nach Aktivierung neu
+angelegter Prozess 14559/720255 überlebt den Wechsel unverändert und schreitet
+fort; Betas Prozess 16811/782059 schreitet ebenfalls fort. Betas ursprüngliche
+1024-Byte-Datei hat SHA-256
+`e32b6a6650212c74df22976a962bed97babc4fd30dd1fc393948ca1ebdf08175`;
+seine getrennten Konfigurations-/flüchtigen Proben sind ebenfalls angelegt.
+
+Beleg: `two-user-version-baseline-proof.json`, SHA-256
+`e9069aa25986d82adf291cf05b5eb6f95877c9319e82a1fba8c205999b8e727a`.
+Er bindet die tatsächlichen GNU-Ereignisse, beide vollständigen Paketbestände,
+die GID-Beobachtung und die öffentliche technische Kontozuordnung ein.
+Letztere ist zusätzlich in der [Identitätsgrundlage](identity-crypto-baseline.md)
+mit dem Image-Quellstand verknüpft.
+
+Diese gleichzeitige Trennung ist noch kein Nachweis verweigerter gegenseitiger
+Zugriffe. Beta hat noch keinen privaten Paketstore. Die gegenseitigen Datei-/
+Prozess-/IPC-Prüfungen sowie Logout, gepaarter Neustart und die übrige
+Aktions-/Lebenszyklusmatrix bleiben auf diesem Image erforderlich.

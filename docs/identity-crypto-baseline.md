@@ -1,7 +1,7 @@
 # Passwort- und Verschlüsselungsgrundlage
 
-Stand: 2. Oktober 2026. Der aktuelle Serverlauf verwendet das Image
-`209278def7d5bc5612eeb397bdd8ee20ccb16d86`, AOSP `android-16.0.0_r1` und den
+Stand: 3. Oktober 2026. Der aktuelle Korrekturlauf verwendet das Image
+`f098f439f051c34e92fb1be0b4d908cc542358ea`, AOSP `android-16.0.0_r1` und den
 gepinnten Android-16-Kernel 6.12.18 mit dokumentierten AEGIS-Anpassungen.
 Die AEGIS-Anbindung delegiert Authentifizierung und Schlüsselverwaltung an
 AOSP. Sie implementiert keine eigene KDF, Passwortdatenbank oder CE-Schlüsselablage.
@@ -18,7 +18,7 @@ den neuen AEGIS-Adapter nicht. Ein separater [Persistenztest](persistent-qemu.md
 bestätigt inzwischen den Erhalt passwortgeschützter Daten nach einem geordneten
 vollständigen Neustart.
 
-## Quellbindung für die nächste Prüfung auf f098f43
+## Quellbindung und Gastzuordnung auf f098f43
 
 Für das lokal gebaute Korrekturimage `f098f43` sind acht relevante Quelldateien
 gegen die tatsächlich gespeicherten Image-/Runtime-Buildbelege geprüft.
@@ -50,8 +50,20 @@ Die gelesene Implementierung ordnet die Verantwortlichkeiten wie folgt zu:
   Kontometadaten. Diese Prüfung ist Bestandteil der Kandidatenvalidierung.
 
 Dieser Beleg bestätigt Quellbindung und die gelesenen Zuständigkeiten.
-T01.4 benötigt zusätzlich die Zuordnung zu den tatsächlichen persönlichen
-Gastkontexten; T01.5 zur Offenlegungsprüfung ist damit ebenfalls nicht erledigt.
+Die zusätzliche Gastzuordnung ist inzwischen für Alpha 10/10 auf Werksbasis
+und privatem jq-u4-Stand sowie Beta 11/11 auf gemeinsamem jq-u3-Stand erfasst.
+Alle drei gewöhnlichen GNU-Abfragen liefern denselben technischen POSIX-Eintrag
+`runtime:x:1000:1000:AEGIS runtime:/home/user:/bin/bash` und bytegleiche
+öffentliche Dateien `/etc/passwd`, `/etc/group` und `/etc/nsswitch.conf`.
+Persönliche Anmeldung und Speicherfreigabe erfolgten zuvor durch AEGIS/AOSP;
+eine zusätzliche Linux-Anmeldung findet nicht statt.
+
+Beleg: `out/phase1-dod/f098f439/two-user-technical-identity-proof.json`, SHA-256
+`5843f9d6fe3c4e5e937d010b8d65b727be2e56ca1309d1920b4b00ce71ff71b8`.
+Er bindet die tatsächlichen GNU-Ereignisse an die oben geprüften Quellen.
+Es wurden nur öffentliche technische Kontometadaten gelesen, keine
+Shadow-Einträge, Passwörter oder Schlüssel. T01.5 zur umfassenden
+Offenlegungsprüfung bleibt davon getrennt und weiterhin offen.
 
 ## Beobachtete Konfiguration auf 209278d
 
