@@ -173,7 +173,7 @@ nicht, dass die ganze Zeile der DoD bereits geschlossen ist.
 | ID | Vorhandene Grundlage | Für die vollständige Abnahme zu ergänzen/zuordnen |
 | --- | --- | --- |
 | T01 | Zwei echte CLI-Benutzer, AOSP-Authentifizierung, Logscan | Vollständige Zuordnung der Transport-/History-/Dateiprüfungen und keine zweite persönliche Identitätsquelle |
-| T02 | Neues Passwort, altes abgewiesen, Datei nach Reboot identisch | In den finalen Ergebnisindex übernehmen; bei Produktänderung betroffene Abläufe wiederholen |
+| T02 | f098f43: Passwortwechsel, bestätigte Sperrung, altes Passwort abgewiesen, neue Anmeldung und ursprüngliche Daten/private Pakete erhalten; ältere Reboot-Belege separat | Neues Passwort und beide privaten Bestände auf f098f43 über einen vollständigen gepaarten VM-Neustart nachweisen |
 | T03 | UID/GID, sechs getrennte Namespaces, zwei fortlaufende Prozesse | Nachweise zum finalen Versions-/Referenzablauf zuordnen |
 | T04 | Admission-/Namespace-/Mapping-Komponententests | Gezielte Gasttests für alle fehlenden Voraussetzungen und fehlende Berechtigung zuordnen/ausführen |
 | T05 | GNU-Shell, Exit und Zugriff auf eigene Datei | Ablehnungen für gesperrte/fremde Kontexte und Exit-Lebenszyklus zum finalen Stand binden |
@@ -3052,3 +3052,50 @@ Der frühere POSIX-Mqueue-Beleg bleibt separat. Die Zustandsaufnahmen sind
 sequenziell, keine atomare oder lückenlose CE-Beobachtung. Der anschließende Scan
 aller sechs Lauf-Logs findet kein vollständiges Testpasswort; die übrigen
 T01-Prüfungen und die vollständige Phase-1-Abnahme bleiben offen.
+
+### Passwortwechsel und erneute gesperrte Anmeldung auf f098f43
+
+Am 3. Oktober 13:10:34 UTC bestätigt AOSP den über die CLI ausgeführten
+Passwortwechsel von Beta 11/11. Die weiterhin gültige Sitzung liest die
+ursprüngliche 1024-Byte-Datei und Konfiguration unverändert und führt privates
+jq/libjq1 `1.7.1-6+deb13u3` mit dem erwarteten Rechenergebnis aus. Die vollständige
+Paketaufnahme bleibt gegenüber dem vorherigen Isolationsstand in allen Feldern
+außer Erfassungszeitpunkt und dem dokumentierten Vordergrundwechsel von Alpha
+zu Beta identisch. Beide bisherigen Hintergrundprozesse schreiten fort.
+
+Der reguläre Beta-Logout bestätigt um 13:16:19 UTC den Ressourcenabbau und die
+CE-Sperrung. Die unabhängige Kontrolle bestätigt das Ende der ursprünglichen
+Probe 9255/1238958, einen fehlenden Beta-Kontext und CE `[0,10]`. Die bekannte
+ursprüngliche Beta-Datei liefert keine Bytes. Ein einzelner Versuch mit dem
+alten Passwort wird um 13:18:17 UTC ausdrücklich von AOSP abgewiesen; der
+Terminalstatus bleibt unauthentifiziert. Die anschließende Aufnahme zeigt
+weiterhin gesperrtes Beta-CE, keinen Beta-Kontext und einen vollständig
+unveränderten Alpha-Kontext. Auch die zweite Prüfung der Originaldatei liefert
+keine Bytes.
+
+Das neue Passwort wird um 13:21:46 UTC akzeptiert. Beide Anmeldevorbereitungen
+ließen Beta vor der Passworteingabe gesperrt und ohne Runtime. Der anschließende
+reguläre Start erzeugt Kontext 22053/1572254. Die ursprüngliche Datei bleibt bei
+SHA-256 `e32b6a6650212c74df22976a962bed97babc4fd30dd1fc393948ca1ebdf08175`,
+die Konfiguration bei
+`214bf6c06705677aec69726a3273f9e194ad145c9a7051fbcd7fd89409ecfd28`.
+Die vor dem Logout vorhandenen temporären Testdateien fehlen. Privates jq/libjq1
+u3 wird tatsächlich ausgeführt; alle 81 Paketversionen, der rohe Datenbankhash,
+das private Image, die Auswahl und das UID-Mapping stimmen mit dem Vorzustand
+überein. Alphas Kontext und ursprüngliche Probe 11600/1317468 bleiben erhalten.
+Betas neue begrenzte Probe 22512/1586287 entsteht erst nach belegtem Ende der
+alten Probe und erneutem Originaldaten-Readback.
+
+Der lokale Offline-Verifier bindet Ereignispräfix 544, den vorherigen
+Isolationsnachweis und die drei neuen Zustandsaufnahmen. Beleg:
+`out/phase1-dod/f098f439/beta-password-change-readback-proof.json`, SHA-256
+`276ff9864fe81196268aae2ff673156bea885d4a8a781e1b3edab3c276262180`.
+Der abschließende Scan der sechs Lauf-Logs findet weder das vollständige alte
+noch das neue Testpasswort. Die Testpasswörter bleiben ausschließlich im Speicher
+des bestehenden Treibers.
+
+Dies belegt den Passwortwechsel und die erneute Anmeldung nach bestätigter
+Sperrung auf dem aktuellen Image. Ein vollständiger gepaarter VM-Neustart mit
+dem neuen Passwort und beiden privaten Beständen steht noch aus; T02 ist damit
+noch nicht vollständig abgenommen. Die unveränderten Dateiinhalte allein
+belegen außerdem keine Details der Schlüsselumhüllung oder Neuverschlüsselung.
