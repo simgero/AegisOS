@@ -373,6 +373,12 @@ die übrigen 79 Paketversionen und ursprünglichen Beta-Daten bleiben gleich,
 Alphas Kontext mit leerer privater Versionsliste bleibt unverändert. Beleg
 `out/phase1-dod/3fdb058-diagnostics/beta-private-update-u4-activation-proof.json`,
 SHA-256 `98cf3351582affbbb4d5e7e6fdf2dc608c854aca19ebaf181e55ac2a40d48c13`.
+Nach gemeinsamer jq-Entfernung ist Betas private u4-Auswahl erneut aktiviert:
+alle 81 Paketversionen und ursprünglichen Daten bleiben erhalten, Alphas
+bisheriger Kontext bleibt unverändert. Beleg
+`out/phase1-dod/3fdb058-diagnostics/shared-remove-beta-activation-proof.json`,
+SHA-256 `91c3de13536e2e9e9aa87c9f9146cdaadcdd943866d936776154e1f4dda2a1da`.
+Alphas Aktivierung dieser Entfernung steht auf dem Diagnoseprofil noch aus.
 Die eigentliche CLI-Fehlerreproduktion steht noch aus. Die früheren f098f439-Ergebnisse
 werden dadurch nicht automatisch zu bestandenen Abläufen auf diesem Image;
 der ursprüngliche Alpha-Fehler und die vollständige DoD bleiben offen.

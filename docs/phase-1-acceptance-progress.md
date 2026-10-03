@@ -3832,3 +3832,26 @@ SHA-256 `98cf3351582affbbb4d5e7e6fdf2dc608c854aca19ebaf181e55ac2a40d48c13`,
 bindet Ereignispräfix 155. Der anschließende gemeinsame Entfernungsfall ist
 noch offen; dieser erfolgreiche private Updatefall erklärt den ursprünglichen
 Startfehler nicht.
+
+### Diagnoseimage: gemeinsame Entfernung mit privatem Beta-Paket
+
+Der reguläre gemeinsame Entfernungsplan entfernt ausschließlich jq. Nach
+Alphas Adminfreigabe ändert die Veröffentlichung die gemeinsame Auswahl;
+beide laufenden Kontexte und ihre privaten Auswahlen bleiben unverändert.
+Beta meldet zunächst ausstehende Aktivierung.
+
+Nach ausdrücklichem Stopp/Start bleibt Betas privates jq u4 verfügbar. Alle
+81 installierten Paketversionen bleiben unverändert; Paketdateiprüfung,
+jq-Funktionstest und Vergleich der ursprünglichen Datei und Konfiguration
+bestehen. Seine neue private Generation ist an die neue gemeinsame Auswahl
+gebunden. Der Status meldet `packages=current`; Alphas bisheriger Kontext
+bleibt unverändert. Die begrenzten Brokerdiagnosen vor und nach Betas Start
+enthalten keine Fehlermeldung.
+
+Beleg
+`out/phase1-dod/3fdb058-diagnostics/shared-remove-beta-activation-proof.json`,
+SHA-256 `91c3de13536e2e9e9aa87c9f9146cdaadcdd943866d936776154e1f4dda2a1da`,
+bindet Ereignispräfix 169. Alphas Aktivierung der gemeinsamen Entfernung ist
+auf diesem Diagnoseprofil noch nicht ausgeführt. Der ursprüngliche
+Alpha-Startfehler bleibt offen; auch dieser erfolgreiche Beta-Fall schließt
+weder die Autorisierungsmatrix noch die vollständige Phase-1-Abnahme ab.
