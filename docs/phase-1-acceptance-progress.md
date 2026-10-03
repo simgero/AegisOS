@@ -3602,3 +3602,19 @@ Der lokale Vollbuild `local-20261003T191808Z-3fdb0583-RnRAcC` ist mit demselben
 Quellcommit und den vorhandenen verifizierten Kernel-/Runtime-Eingaben
 gestartet. Bei diesem Eintrag läuft er noch; ein neues gebootetes Image und
 die tatsächliche CLI-Reproduktion sind damit weiterhin ausstehend.
+
+Dieser Vollbuild endet anschließend mit `LOCAL_BUILD_VERIFIED`; die enthaltene
+GNU-Basis und sämtliche Imagekopien sind geprüft. Die separate Vorbereitung
+`/srv/aegis/runs/phase1-3fdb0583` bestätigt alle 20 Imageprüfsummen, die
+Kernel-/Runtime-Eingaben, AVB und die neue QEMU-Basisdisk. Ihr Beleg
+`build-validation.json` hat SHA-256
+`95e2490736080b85b7075570758a89d102ed29b0952b2502d6d19e2d90d12e13`;
+vbmeta-Digest `3fb3cf12a81aa412238de80cbb27b4b5f9eb8c2de2e01a552dd1e739cdec1d27`,
+Basisdisk SHA-256 `caf37801184b299b0f8f2239361d076da01abc4e1876bb9c1fb8ccfb2214c58b`.
+Das vollständige Quell-Dateiinventar entspricht den gesicherten nativen
+Komponenten; eine Ausnahme für abweichende Testquellen ist nicht erforderlich.
+
+Der Launcher für ein neues gepaartes Profil unter
+`out/phase1-dod/3fdb058-diagnostics/` ist gestartet. Bootabschluss, die drei
+Startfehler-Kontrollen und der reguläre CLI-Versuch sind zu diesem Zeitpunkt
+noch nicht bestätigt. Keine Buildartefakte wurden hochgeladen.
