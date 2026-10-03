@@ -3264,3 +3264,58 @@ Zustands- und Rollenanforderungen bleiben unverändert. Der generische
 Anmeldehinweis der CLI ist weiterhin irreführend und wird nicht als tatsächlicher
 Sitzungsverlust gewertet. Damit sind alle drei verweigerten Freigabevarianten
 für private Entfernung belegt; gültige Ausführung und Aktivierung bleiben offen.
+
+### Private Entfernung mit anderer gemeinsamer Version vollständig aktiviert
+
+Der vierte Beta-Plan erhält um 15:10:57 UTC eine frische Alpha-Adminfreigabe.
+Die CLI bestätigt um 15:12:58 UTC die Veröffentlichung. Ausschließlich Betas
+private Auswahl wechselt auf Generation
+`16a0d93cd966f55b4327deff1c50edec7fd476eb7d46ded718422136f8fe6352`, weiterhin
+an gemeinsame Generation `53e5fddf27e7b22607a60bad9e28a1ad77128d009cb31d0b698329eb1c23bc34`
+gebunden. Beide vollständigen laufenden Kontexte bleiben zunächst unverändert;
+Beta meldet ausstehende Aktivierung und führt tatsächlich weiter jq/libjq1 `u3`
+aus. Originaldatei und Einstellungen sind bereits hier bytegleich lesbar.
+
+Zwei neue gewöhnliche GNU-Testdateien in `/tmp` und `/run/user/1000` werden vor
+dem eigenen Runtime-Stopp erzeugt und anhand ihres Inhalts bestätigt. Der
+reguläre Stopp um 15:15:51 UTC entfernt Betas ursprünglichen Init 5565/294246
+und die Runtime-Gruppe. Die unabhängige Aufnahme bestätigt Alphas vollständig
+unveränderten Kontext 3553/81468, beide Paketauswahlen und CE `[0,10,11]`.
+Betas AOSP-Sitzung bleibt gültig; dieser Runtime-Stopp ist kein Logout.
+
+Nach dem bewussten Start führt Beta unter UID/GID 1000 jq und libjq1 `u4` mit
+korrektem Ergebnis aus. Alle 81 Paketversionen stimmen mit der vorher
+festgehaltenen Erwartung überein; nur jq und libjq1 unterscheiden sich vom
+vorherigen Bestand. Die private Auswahlmetadatei enthält keine Festlegung mehr.
+Das resultierende persönliche Image verbleibt in Betas CE-Speicher. Der neue
+Kontext 7089/553217 besitzt von Alpha getrennte Namespaces; sein Datenbankhash
+lautet `6bcb23b8377daad330bdfe6a0c5595da8989ef5c567581223c608cede0fb6f9b`.
+Die beiden frisch erzeugten temporären Dateien fehlen, Originaldatei und
+Einstellungen sind bytegleich erhalten. Der abschließende Status meldet
+`packages=current`.
+
+Der lokale Offline-Verifier bindet alle drei vorherigen Ablehnungen, die
+vorab festgelegten Erwartungen, vier vollständige Zustandsaufnahmen, den
+gesonderten Prozessabbau und Ereignispräfix 639. Beleg:
+`out/phase1-dod/f098f439/private-remove-beta-activation-proof.json`, SHA-256
+`0fb703e608d8924a87607351f4fb4f159f4be2430474b0b104935541ed9d7bed`.
+Damit sind die vier Autorisierungsvarianten dieser Aktion/Bereich-Kombination
+und die private Entfernung mit abweichender gemeinsamer Version nachgewiesen.
+Entfernung bei gleicher Version, `update user`, `remove all`, weitere
+Fehler-/Parallelitätsfälle und die Gesamtfreigabe bleiben offen.
+
+### Überholte QEMU-Testpaare geordnet beendet
+
+Die weiterhin aktiven Testpaare des Stands `20d7d6d` (ADB 15872) und `209278de`
+(ADB 15873) verbrauchten in einer dreisekündigen Stichprobe jeweils etwa zwei
+CPU-Kerne. Beide wurden über Androids regulären Shutdown beendet; ihre bereits
+laufenden Launcher fuhren anschließend die jeweiligen KeyMint-Helfer sauber
+herunter und endeten mit Status 0. Ursprüngliche Prozessidentitäten sind weg,
+Profilmanifeste unverändert und beide Datenträger pro Profil weiterhin vorhanden.
+Der aktuelle Lauf auf ADB 15874 blieb aktiv. Es wurde kein erzwungenes
+Prozesssignal gesendet und kein Profil gelöscht.
+
+Lokaler Beleg: `out/phase1-dod/f098f439/old-qemu-pairs-shutdown-result.json`,
+SHA-256 `f9c359474892588f98498b4f1d7c78617ce1d8b3ae6d2af0d8f5564a812b2e72`.
+Dies ist die geordnete Freigabe alter Testressourcen, kein zusätzlicher
+Persistenznachweis durch spätere Wiederanmeldung in diesen alten Profilen.
