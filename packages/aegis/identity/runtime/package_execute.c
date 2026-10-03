@@ -309,7 +309,11 @@ static _Noreturn void apt(const struct aegis_package_execution_request *r, enum 
     args[n++] = "-o";args[n++] = "Dpkg::Options::=--path-include=/*";
     args[n++] = "-o";args[n++] = "Dir::Etc::sourcelist=/run/aegis-empty.list";
     args[n++] = "-o";args[n++] = "Dir::Etc::sourceparts=/run/aegis-empty.d";
-    if(aegis_package_projects_registry(r->kind))args[n++]="--allow-downgrades";
+    // A reviewed ordinary archive install can request an older version too.
+    // The review binds every before/after version; the simulation guard still
+    // rejects any different effects before package scripts are executed.
+    // Unreviewed developer fixtures retain APT's default downgrade refusal.
+    if(r->review.present)args[n++]="--allow-downgrades";
     if(command==PACKAGE_SIMULATE) {
         args[n++]="--simulate";args[n++]="-o";
         args[n++]="AptCli::Hooks::Install::=/tmp/aegis-trusted/hook --apt-plan-hook";

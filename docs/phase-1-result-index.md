@@ -147,6 +147,18 @@ ihre Aussage ein. Keine Profile, Passwörter oder Buildartefakte werden hochgela
 | E34 | `beta-private-install-wrong-proof.json` | `178488713f28a6f2cb220be5c452336b8b5d492ce7a451c91cc7d90288a7b605` |
 | E35 | `beta-private-install-nonadmin-proof.json` | `1f07beb76514f6894a69ad79702d3b93a203d25c4d0218128d17bd924e3a16d2` |
 | E36 | `beta-private-install-valid-failure-proof.json` | `4625a96c725a71959554368546ac43cb5a62dc3cf5f437dd3724a34d89e223b2` |
+| E37 | `reviewed-downgrade-before-fix/result.json` | `9280d539c42b8683bde43c233c71dcaf99a1fd81bc6383dd11a609a91ac016c6` |
+
+E37 ist eine **fehlgeschlagene Regression zur Fehlerreproduktion**, kein
+bestandener Abnahmefall. Sie läuft im separaten frischen Profil
+`af23f1ac-854c-4883-a499-665ca9494aef` auf Image `209278de`; Testcommit
+`065c6e8` ändert ausschließlich den Executor-Test, alle zehn Hilfsprogramme
+sind bytegleich. Der normale geprüfte Archivplan für Version 2 → 1 endet
+in der APT-Simulation mit Status 100: Die nichtinteraktive Ausführung benötigt
+`--allow-downgrades`. Boot-/SystemServer-Identität, Enforcing und CE `[0]`
+bleiben unverändert. Die vorbereitete Korrektur erlaubt den Versionsrückgang
+bei vorhandenem geprüftem Plan; die exakte Prüfung der simulierten Änderungen
+bleibt erhalten. Ihr erfolgreicher Build und Wiederholungstest stehen noch aus.
 
 ## Abschlusskriterien und Referenzablauf
 

@@ -2231,3 +2231,29 @@ die Paketstatusabfrage den bereits gesperrten Auftrag ablehnt. Der Hinweis
 auf erneute Anmeldung ist daher irreführend; ein tatsächlicher Sitzungsverlust
 oder eine Fristüberschreitung wird nicht behauptet. Die Formulierung ist noch
 nicht korrigiert und darf nicht als erledigt gelten.
+
+## Gewöhnlicher privater Versionsrückgang: APT-Fehler reproduziert
+
+Ein separater frischer QEMU-Gast auf Image `209278de` führt den Test
+`ReviewedArchiveDowngradePreservesPrivateChoiceConfigurationAndDependency`
+aus Commit `065c6e8` aus. Nach erfolgreicher Installation der synthetischen
+App/Bibliothek in Version 2 scheitert der geprüfte gewöhnliche Archivplan
+für Version 1 bereits in der Simulation mit APT-Status 100:
+`Packages were downgraded and -y was used without --allow-downgrades.`
+Damit ist die bisherige Quellhypothese am unveränderten Executor reproduziert.
+Der ursprüngliche CLI-Fehlerbeleg E36 bleibt separat erhalten; dessen bereinigte
+Kandidatenlogs wurden nicht nachträglich wiedergewonnen.
+
+Der Fehlerbeleg liegt lokal in
+`out/phase1-dod/209278de/reviewed-downgrade-before-fix/result.json`, SHA-256
+`9280d539c42b8683bde43c233c71dcaf99a1fd81bc6383dd11a609a91ac016c6`.
+Testausgabe und fehlgeschlagene synthetische Testumgebung bleiben erhalten.
+Alle zehn Produkt-Hilfsprogramme sind bytegleich zum bisherigen Image;
+Boot, SystemServer, Enforcing und ausschließlich System-CE bleiben stabil.
+
+Die Korrektur setzt APTs explizite Zustimmung zum Versionsrückgang für jeden
+vorhandenen geprüften Plan, einschließlich gewöhnlicher Archivinstallation.
+Die Simulation muss weiterhin exakt den freigegebenen Vorher-/Nachher-Versionen
+entsprechen, bevor Paketskripte ausgeführt werden. Ungebundene Entwicklertests
+erhalten diese Zustimmung nicht. Build, erfolgreicher Regressionstest und
+der echte CLI-Ablauf auf einem passenden Produktimage stehen noch aus.
