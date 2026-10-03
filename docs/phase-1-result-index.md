@@ -158,7 +158,11 @@ in der APT-Simulation mit Status 100: Die nichtinteraktive Ausführung benötigt
 `--allow-downgrades`. Boot-/SystemServer-Identität, Enforcing und CE `[0]`
 bleiben unverändert. Die vorbereitete Korrektur erlaubt den Versionsrückgang
 bei vorhandenem geprüftem Plan; die exakte Prüfung der simulierten Änderungen
-bleibt erhalten. Ihr erfolgreicher Build und Wiederholungstest stehen noch aus.
+bleibt erhalten. Der Korrekturstand `f098f43` ist inzwischen vollständig lokal
+gebaut; 20 Images, Kernel-/Runtime-Eingaben, AVB und die neue Basisdisk sind
+geprüft. Boot und erfolgreicher Wiederholungstest auf diesem Stand stehen noch
+aus. Dieser Index bleibt an das bisherige Referenzimage gebunden, bis die
+aktuellen Laufzeitnachweise vorliegen.
 
 ## Abschlusskriterien und Referenzablauf
 

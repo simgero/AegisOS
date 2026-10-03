@@ -2257,3 +2257,32 @@ Die Simulation muss weiterhin exakt den freigegebenen Vorher-/Nachher-Versionen
 entsprechen, bevor Paketskripte ausgeführt werden. Ungebundene Entwicklertests
 erhalten diese Zustimmung nicht. Build, erfolgreicher Regressionstest und
 der echte CLI-Ablauf auf einem passenden Produktimage stehen noch aus.
+
+### Korrekturimage f098f43 lokal gebaut und vorbereitet
+
+Der vollständige lokale Build des Commits
+`f098f439f051c34e92fb1be0b4d908cc542358ea` ist erfolgreich abgeschlossen:
+`/srv/aegis/runs/local-20261003T055438Z-f098f439-lvp0t1`.
+Der erste Versuch hielt vor der Kompilierung wegen zu wenig verfügbarem RAM an.
+Nach geordnetem Stoppen des abgeschlossenen Regressionstest-Profilpaars
+bestand dieselbe unveränderte Speicherprüfung mit 51,5 GiB verfügbar.
+Die fehlgeschlagene synthetische Testumgebung und ihr Profil bleiben erhalten.
+
+Die neue Vorbereitung `/srv/aegis/runs/phase1-f098f439` verifiziert alle
+20 Imageprüfsummen, die festgehaltenen Kernel-/Runtime-Eingaben, die
+AVB-Metadaten und eine frisch erzeugte QEMU-Basisdisk. Ihr Beleg
+`build-validation.json` hat SHA-256
+`42f9c6767390410c3ad3e3ce304bf32659e991f4182b75795941f6ddc77a38b5`;
+der vbmeta-Digest ist
+`291686e8e3bbbc92e7e0b3ea215e78701b3447d880aebc31ebc7c211ab7e30c5`.
+Das ist eine Build-/Vorbereitungsprüfung, noch kein erfolgreicher Gasttest.
+
+Die passend kompilierten nativen Komponenten liegen lokal unter
+`out/phase1-dod/f098f439/`. Gegenüber dem roten Regressionstest ändern sich
+ausschließlich `aegis-package-execute` und dessen Testvariante; das native
+Testprogramm und das Java-Test-APK sind bytegleich. Für den nächsten Lauf
+sind der neue Regressionstest sowie fünf vorhandene Kontrollen für gewöhnliche
+Installation/Aktualisierung/Entfernung, Konfigurationserhalt, abweichende
+Simulation, Abgleich und private Entfernung ausgewählt. Der frische Gaststart
+läuft; keiner dieser Wiederholungstests wird bereits als bestanden gewertet.
+Buildartefakte bleiben ausschließlich lokal.
