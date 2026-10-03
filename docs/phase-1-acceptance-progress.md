@@ -2032,3 +2032,61 @@ keine geheimen Schlüssel ausgelesen.
 
 T02.1 ist damit belegt. T02.2 bleibt offen, bis der vollständige gepaarte
 VM-Neustart mit dem geänderten Passwort und erneutem Datenvergleich erfolgt ist.
+
+## Geändertes Passwort über zweiten gepaarten Neustart bestätigt
+
+Nach regulärer Abmeldung sämtlicher persönlicher Benutzer werden Android und
+KeyMint-Helfer geordnet beendet. Android bestätigt Power-down; der Helfer
+bestätigt das Aushängen seines persistenten Zustands und ebenfalls Power-down.
+Boot 3 startet mit demselben Profilpaar und unverändertem Profilmanifest sowie
+denselben Datenträger-Inodes. Die neue Boot-ID lautet
+`e720d2bf-faef-4af8-87b9-709112eb3c41`; SystemServer ist 1177/20364.
+
+Vor persönlicher Anmeldung sind nur Benutzer 0 und CE `[0]` aktiv, sämtliche
+persönlichen Kontexte fehlen und bekannte Originaldateien liefern keine Bytes.
+Betas erster Versuch verwendet direkt das geänderte Passwort und gelingt.
+Nach verzögerter Sitzungsprüfung und GNU-Start sind Originaldatei und beide
+Konfigurationsproben bytegleich erhalten. Inode, Größe, mtime, ctime, Eigentümer
+und Modus entsprechen weiterhin dem Stand vor dem Passwortwechsel. Die
+gemeinsame jq/libjq1-u3-Version wird tatsächlich ausgeführt.
+
+Beta meldet sich anschließend regulär ab. Das alte Passwort wird auch in
+diesem neuen Boot abgewiesen; CE bleibt `[0]`, ein Runtime-Start wird verweigert,
+kein persönlicher Kontext ist vorhanden und die bekannte Datei liefert keine
+Bytes. Der erfolgreiche erste Zugang wurde nicht durch einen Fehlversuch
+vorbereitet. Die ursprünglichen Dateien wurden nicht neu erzeugt.
+
+Beleg: `out/phase1-dod/209278de/beta-password-reboot-proof.json`, SHA-256
+`31db67c68b1fcbbc1bd64480edb2e53abea325290c8aa5fef0dccd2d3b167964`.
+Er bindet Shutdown, gesperrten Bootzustand, Dateimetadaten und Quellprüfung ein.
+Ein anfänglicher Fehler des Host-Beobachters ist erhalten: Er erwartete eine
+nicht vorhandene Zeile statt des tatsächlichen `dumpsys activity users`-Formats.
+Die korrigierte Prüfung verlangt weiterhin exakt Benutzer 0 und `[0]` als
+gestartete Benutzer. Es gab vor dieser Korrektur keine persönliche Anmeldung.
+
+T02.2 ist damit nachgewiesen. Alphas erneuter Originaldaten-/Privatpaketvergleich
+in Boot 3 und die übrigen Pflichtvarianten bleiben gesonderte Arbeiten.
+
+## Boot-2-Gesundheit und zusätzlicher Migrations-Aufräumstatus
+
+Die vollständige Logkopie unmittelbar vor dem zweiten Shutdown enthält keine
+Fatal-, ANR-, FORTIFY- oder Watchdog-Abbruchmeldungen und genau einen
+SystemServer-Start. HIDL-Allocator-PID 905 erhielt Signal 9 nach seiner expliziten
+`hidl_memory.disabled=true`-Stopregel; das ist als regulärer Abbau zugeordnet.
+
+Zusätzlich endet ein einmaliger VirtualizationService-Aufräumbefehl mit Status 1.
+Der identische installierte und AOSP-Quellabschnitt beschreibt eine Migration:
+alte Dateien der früheren Dienst-UID entfernen, danach ein `system`-eigenes
+Verzeichnis erstellen. Das beobachtete Verzeichnis und sein Sticky-Elternordner
+gehören bereits `system`, während der Befehl unter der alten UID 1081 läuft.
+Dieser Besitzkonflikt erklärt eine fehlende Löschberechtigung als Quell-/Zustands-
+inferenz. Der konkrete fehlschlagende Dateipfad und errno wurden nicht erfasst.
+Boot 3 zeigt denselben einmaligen Status. Es wurde weder erneut aufgeräumt noch
+eine Berechtigung geändert; erfolgreicher Cleanup oder eine Fehlerbehebung wird
+nicht behauptet. Der Status bleibt im D1-Audit sichtbar.
+
+Belege: `boot2-pre-shutdown-health.json`, SHA-256
+`580f1d6e32b6507fb56803f7dd38b4e43d9746773bb96ab8f51be839058035a1`, und
+`boot-migration-cleanup-classification.json`, SHA-256
+`c798664aeeebb93514bc66de8927ea754d9dede938598f6792618b758dcce877`,
+jeweils unter `out/phase1-dod/209278de/`. D1 und die Gesamtfreigabe bleiben offen.

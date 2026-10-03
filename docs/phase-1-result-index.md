@@ -36,7 +36,7 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T01.4 Identitätsquelle | Keine parallelen persönlichen Linux-Konten/Passwortspeicher | Offen: vollständige Quell-/Gastzuordnung erforderlich | — |
 | T01.5 Passworttransport | Keine Offenlegung in Transport, Argumenten, History, Dateien und Logs | Offen: begrenzte Quellkontinuität allein genügt nicht | — |
 | T02.1 Passwortwechsel und erneute Sperre | Neues Passwort erlaubt Zugriff, altes scheitert; Originaldaten erhalten | Bestanden Beta: AOSP-Passwortwechsel, regulärer Logout, altes Passwort verweigert, neues bestätigt; ursprüngliche Datei/Konfiguration und Inode-Metadaten unverändert | E23 |
-| T02.2 Passwortwechsel über Reboot | Neues Passwort nach Reboot gültig, altes ungültig; keine vollständige Neuverschlüsselung | Offen | — |
+| T02.2 Passwortwechsel über Reboot | Neues Passwort nach Reboot gültig, altes ungültig; keine vollständige Neuverschlüsselung | Bestanden Beta: gleiches Profilpaar geordnet gestoppt/gestartet, erster neuer Passwortzugang gültig, anschließend altes Passwort verweigert; Originalbytes und Inode-Metadaten erhalten. Quellprüfung bestätigt Weiterverwendung des Synthetic Password | E23, E24 |
 | T03.1 Interne/äußere Identität | Intern UID/GID 1000, getrennte Hostbereiche, keine unübersetzte Host-UID 1000 | Bestanden: Host-UIDs 1007500/1107500 | E01, E02 |
 | T03.2 Namespaces | Unterschiedliche User-, Mount-, PID- und IPC-Namespaces | Bestanden, zusätzlich UTS/Net getrennt beobachtet | E02 |
 | T03.3 Zuordnung bei Wechsel | Ursprüngliche Prozess-/Benutzerzuordnung bleibt erhalten | Bestanden für beide externen Wechselrichtungen | E08 |
@@ -133,14 +133,17 @@ ihre Aussage ein. Keine Profile, Passwörter oder Buildartefakte werden hochgela
 | E21 | `gamma-shared-program-proof.json` | `76b162a64cd6ea9962e9bda60d5f9412f6da79e927eda4c8ed08e9bffbf0f9a9` |
 | E22 | `beta-aosp-resource-recovery-proof.json` | `4283d6658f6ca6e6b94cd0422caeed23b8b9931d45ec117e1e364728ec0f1d82` |
 | E23 | `beta-password-change-proof.json` | `551d7d9f268a4a3f3c05aed474e5f949f50fe4b25320334b2f4edb61ba54eac1` |
+| E24 | `beta-password-reboot-proof.json` | `31db67c68b1fcbbc1bd64480edb2e53abea325290c8aa5fef0dccd2d3b167964` |
+| E25 | `boot2-pre-shutdown-health.json` | `580f1d6e32b6507fb56803f7dd38b4e43d9746773bb96ab8f51be839058035a1` |
+| E26 | `boot-migration-cleanup-classification.json` | `c798664aeeebb93514bc66de8927ea754d9dede938598f6792618b758dcce877` |
 
 ## Abschlusskriterien und Referenzablauf
 
 | Kriterium | Noch erforderliche vollständige Abnahme |
 | --- | --- |
-| D1 | Build-/Versionsinventar, Bedienung/ADB und Schutzmechanismen vollständig indexieren; weitere Läufe prüfen. E14 bestätigt nur den abgeschlossenen ersten Referenzboot. |
+| D1 | Build-/Versionsinventar, Bedienung/ADB und Schutzmechanismen vollständig indexieren; weitere Läufe prüfen. E14 bestätigt den ersten Referenzboot, E25 die begrenzte Boot-2-Beobachtung vor Shutdown. Zusätzlicher Migrations-Aufräumstatus ist in E26 eingeordnet, nicht als behoben behauptet. |
 | D2 | Gesamte Benutzerverwaltung, Ablehnungen, Identitätsbindung und Passworttransport einschließlich T01/T02/T12 vervollständigen. |
-| D3 | Passwortpersistenz, Logoutfehler und Löschung vollständig belegen; aktueller regulärer Reboot ist mit E13/E15/E16 nachgewiesen. |
+| D3 | Logoutfehler und Löschung vollständig belegen; Passwortpersistenz ist mit E23/E24 und regulärer Reboot mit E13/E15/E16 nachgewiesen. |
 | D4 | Abschließende Zuordnung aller Runtime-Lebenszyklusanforderungen prüfen. AOSP-Ressourcenstopp samt Wiederanmeldung/Datenvergleich ist mit E20/E22 belegt; Runtime-Stopp mit aktivem Peer in beiden Richtungen mit E17. |
 | D5 | Fehlende Startvoraussetzungen und Betas privaten Paketbestand prüfen; Rechte-/Adminbegrenzung vollständig zuordnen. |
 | D6 | Sechs vollständige Autorisierungskombinationen, Entfernung, Updates, Konflikte und Parallelität nachweisen. |
