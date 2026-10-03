@@ -1,5 +1,28 @@
 # Gemeinsame Softwaregeneration
 
+## Korrektur der Basis-Paketmarkierungen am 3. Oktober 2026
+
+Das Basisrezept hält jetzt alle bewusst mitgelieferten Pakete als manuell
+gewählte gemeinsame Basis fest. Dafür erzeugt es eine leere reguläre
+`var/lib/apt/extended_states`; Paketdateien und Paketversionen bleiben gleich.
+Später installierte Abhängigkeiten erhalten weiterhin ihre normalen
+automatischen Markierungen. Links oder Verzeichnisse am Metadatenpfad werden
+abgewiesen. Der signierte Upstream-Import wird nicht verändert.
+
+Die bisherige Docker-Basis markierte alle 78 Pakete als automatisch. Nach
+Entfernung des einzigen zusätzlich manuell gewählten gemeinsamen Pakets konnte
+eine leere private Versionswahl deshalb keine gemeinsame Paketwurzel mehr
+ableiten. Der Planer verweigerte den Start mit `ENODATA`. Die Prüfung auf
+fehlende Wurzeln bleibt bestehen; korrigiert wird die Herkunft dieses Zustands.
+
+102 Hosttests für Runtime-Basis, Generation und Integration bestehen, darunter
+die zuvor fehlgeschlagene Regression mit vollständig automatisch markierter
+Upstream-Basis. Ein neuer deterministischer Basisbuild, ein passendes
+Produktimage und der Entfernungstest im Gast stehen für diese Korrektur noch
+aus. Bestehende veröffentlichte Generationen werden nicht nachträglich
+umgeschrieben. Der folgende Basislauf gehört zum früheren Rezept und ist kein
+gültiger Eingang für das geänderte Rezept.
+
 ## Aktualisierte Rezeptbindung am 30. September 2026
 
 Der Basislauf `runtime-base-20260930T152043Z-178cbb6e-r88QIR` für Commit

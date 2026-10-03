@@ -3855,3 +3855,33 @@ bindet Ereignispräfix 169. Alphas Aktivierung der gemeinsamen Entfernung ist
 auf diesem Diagnoseprofil noch nicht ausgeführt. Der ursprüngliche
 Alpha-Startfehler bleibt offen; auch dieser erfolgreiche Beta-Fall schließt
 weder die Autorisierungsmatrix noch die vollständige Phase-1-Abnahme ab.
+
+### Diagnoseimage: Alpha-Startfehler eingegrenzt, Basisrezept korrigiert
+
+Alpha meldet sich regulär an, sieht die ausstehende Aktivierung und stoppt
+seine Runtime. Der einmalige folgende Start scheitert am 3. Oktober um
+22:45:38 UTC erneut mit „Aktion nicht bestätigt“. Status und unabhängige
+Aufnahme bestätigen: CE bleibt entsperrt, Alpha besitzt keinen Runtime-Kontext,
+Beta bleibt unverändert aktiv. Alle aufgenommenen Zustandsfelder außer dem
+Erfassungszeitpunkt entsprechen der Aufnahme nach dem Stopp. Es erfolgte kein
+erneuter Startversuch und kein Framework-Neustart.
+
+Der tatsächliche Broker meldet `phase=planning errno=61 worker_state=0
+worker_status=0 worker_errno=61`: `ENODATA` während der Eingabevalidierung,
+vor APT. Beleg
+`out/phase1-dod/3fdb058-diagnostics/shared-removal-alpha-failure-proof.json`,
+SHA-256 `21d31efda67e9b70a09f92b85136592aeef8ddaa84f28c73c3187e59f9a6ece6`,
+bindet Ereignispräfix 176 und die Zustands-/Diagnoseaufnahmen. Der vollständige
+JSON-Vergleich wurde zuerst einschließlich der unterschiedlichen Zeitstempel
+abgewiesen; der anschließende Vergleich schließt ausschließlich `utc` aus.
+
+Die lokale Metadatenprüfung der bisherigen Basis zeigt 78 installierte und
+78 automatisch markierte Pakete. Betas erfolgreicher Abgleich nach der
+gemeinsamen Entfernung hat nur seine private jq-Wahl als manuelle Wurzel.
+Alphas hashgeprüfte private Generation enthält eine leere Versionswahl.
+Das Basisrezept übernimmt deshalb künftig die bewusst mitgelieferten Pakete
+als manuelle Wurzeln, statt Docker-Markierungen unverändert zu übernehmen.
+102 Hosttests bestehen nach zuvor fehlgeschlagener Regression. Die
+Startvalidierung wird nicht gelockert. Produktbuild und Gastnachweis der
+Korrektur bleiben erforderlich; der ursprüngliche Fehler ist noch nicht als
+behoben abgenommen.

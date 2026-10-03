@@ -79,6 +79,33 @@ class GenerationTests(unittest.TestCase):
         self.assertIn("home/user 1000 1000 0700 capabilities=0", rows)
         self.assertTrue(all(row.endswith(" capabilities=0") for row in rows))
 
+    def test_factory_packages_are_explicit_roots_when_upstream_marks_all_automatic(self):
+        data = files()
+        marks = "var/lib/apt/extended_states"
+        data[marks] = "".join(
+            "Package: " + name + "\nArchitecture: arm64\nAuto-Installed: 1\n\n"
+            for name in sorted(generation.base.REQUIRED_PACKAGES)).encode()
+        plan = self.plan(data)
+        original = generation.sha_file(self.imported / "rootfs.tar.gz")
+        stage = self.root / "factory-roots"
+        generation.materialize(plan, self.imported / "rootfs.tar.gz", stage)
+        # Empty APT automatic state makes the deliberately shipped factory
+        # packages manual roots, independent of Docker's upstream marks.
+        self.assertEqual(b"", (stage / marks).read_bytes())
+        self.assertEqual(data["var/lib/dpkg/status"],
+                         (stage / "var/lib/dpkg/status").read_bytes())
+        self.assertEqual(original, generation.sha_file(self.imported / "rootfs.tar.gz"))
+        self.assertEqual(plan, generation.make_plan(self.pin, self.imported, self.layout))
+
+    def test_factory_mark_replacement_rejects_linked_upstream_state(self):
+        for kind in (tarfile.SYMTYPE, tarfile.LNKTYPE):
+            with self.subTest(kind=kind):
+                self.imported = self.root / kind.decode()
+                link = tarfile.TarInfo("var/lib/apt/extended_states")
+                link.type, link.linkname = kind, "var/lib/dpkg/status"
+                with self.assertRaisesRegex(ValueError, "factory package marks"):
+                    self.plan(extras=[link])
+
     def test_lost_found_is_planned_but_only_filesystem_tool_may_create_it(self):
         plan = self.plan()
         entries = generation.validate_plan(plan)

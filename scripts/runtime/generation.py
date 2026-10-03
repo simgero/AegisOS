@@ -138,6 +138,16 @@ def make_plan(pin, imported, layout, project=PROJECT):
                 raise ValueError("Base contains state beneath a private mount point")
             entries[name] = entry
 
+    # The slim Docker rootfs marks even apt/bash/coreutils as automatic. AEGIS
+    # deliberately ships the entire pinned factory package set as its common
+    # base, so those packages are explicit roots. Otherwise removing the last
+    # added application leaves reconciliation with no common root at all.
+    # New dependency packages keep their ordinary automatic marks later.
+    marks = "var/lib/apt/extended_states"
+    if marks in entries and entries[marks]["kind"] != "file":
+        raise ValueError("Unexpected link or directory at factory package marks")
+    entries[marks] = text_entry(marks, "")
+
     for entry in list(entries.values()):
         for parent in PurePosixPath(entry["path"]).parents:
             entries.setdefault(str(parent), directory(str(parent)))

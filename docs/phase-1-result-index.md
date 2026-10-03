@@ -379,9 +379,15 @@ bisheriger Kontext bleibt unverändert. Beleg
 `out/phase1-dod/3fdb058-diagnostics/shared-remove-beta-activation-proof.json`,
 SHA-256 `91c3de13536e2e9e9aa87c9f9146cdaadcdd943866d936776154e1f4dda2a1da`.
 Alphas Aktivierung dieser Entfernung steht auf dem Diagnoseprofil noch aus.
-Die eigentliche CLI-Fehlerreproduktion steht noch aus. Die früheren f098f439-Ergebnisse
-werden dadurch nicht automatisch zu bestandenen Abläufen auf diesem Image;
-der ursprüngliche Alpha-Fehler und die vollständige DoD bleiben offen.
+Alphas einmaliger Start reproduziert anschließend den Fehler. Beleg
+`out/phase1-dod/3fdb058-diagnostics/shared-removal-alpha-failure-proof.json`,
+SHA-256 `21d31efda67e9b70a09f92b85136592aeef8ddaa84f28c73c3187e59f9a6ece6`:
+Planer-Eingabevalidierung meldet `ENODATA`; Zustandsfelder bleiben gegenüber
+dem Stopp unverändert. Die Korrektur der automatisch markierten Factory-Basis
+besteht 102 Hosttests, benötigt aber einen neuen Basis-/Produktbuild und
+Gastnachweis. Die früheren f098f439-Ergebnisse werden nicht automatisch zu
+bestandenen Abläufen auf diesem Image; Fehlerabnahme und vollständige DoD
+bleiben offen.
 
 ### Historische Restliste des Referenzlaufs 209278de
 
