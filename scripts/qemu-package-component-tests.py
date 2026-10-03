@@ -3,8 +3,9 @@
 
 Requires an already booted, authenticated QEMU and a recorded system-only
 baseline. Does not create users, approve CLI transactions, boot or reset VMs.
-Run selection first to upload the native bundle; then inspect each group before
-starting another. Failed synthetic fixtures and all logs are retained.
+Run selection first to upload the native bundle, or explicitly use
+--upload-bundle for a targeted native group. Inspect each group before starting
+another. Failed synthetic fixtures and all logs are retained.
 """
 import argparse
 import fcntl
@@ -47,6 +48,9 @@ GROUPS = {
         "RemovedSharedRootsAreAutoremovedWhenNoPrivateRootNeedsThem",
         "PrivateRootSurvivesSharedRemovalWithItsDependency",
         "RemovedSharedRootsExecutePublishAndReopenWithoutPrivateChoice"]),
+    "reconciliation-orphan": ("RuntimeReconciliationPlanning", [
+        "RemovedSharedRootsExecutePublishAndReopenWithoutPrivateChoice",
+        "RemovedSharedRootWithRetainedAutomaticCommonLibraryPublishes"]),
 }
 BUNDLE = {"AegisRuntimeNativeTests", "aegis-package-execute",
           "aegis-package-execute-probe", "aegis-package-network", "aegis-package-plan",
@@ -79,6 +83,7 @@ def test_only_sources(base, components):
 
 
 def run(args):
+    check(not args.upload_bundle or args.group != "java", "Bundle upload is only for native groups")
     run_dir, prepared = args.run.resolve(strict=True), args.prepared.resolve(strict=True)
     address = (run_dir / "adb-address.txt").read_text().strip()
     check(re.fullmatch(r"127\.0\.0\.1:[0-9]{4,5}", address), "Expected local ADB endpoint")
@@ -183,7 +188,7 @@ def run(args):
                 proof.update(classes=JAVA_CLASSES, expected_tests=38,
                              apk_sha256=receipt["java_tests_apk_sha256"])
             else:
-                if args.group == "selection":
+                if args.group == "selection" or args.upload_bundle:
                     shell("test ! -e " + target)
                     check(command(adb + ["push", str(args.components), target], args.output / "upload.log") == 0,
                           "Bundle upload failed")
@@ -230,6 +235,8 @@ if __name__ == "__main__":
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--group", choices=["java", *GROUPS], required=True)
     parser.add_argument("--apk", type=Path)
+    parser.add_argument("--upload-bundle", action="store_true",
+                        help="Upload a new native bundle before the selected group; never overwrite an existing target")
     parser.add_argument("--test-only-reference", type=Path,
                         help="Original component receipt from the image commit; requires --component-sources")
     parser.add_argument("--component-sources", type=Path,

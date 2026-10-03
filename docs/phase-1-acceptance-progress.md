@@ -3512,5 +3512,28 @@ den Rückfall auf die Werksbasis sowie Abbruch und Ressourcenabschluss.
 Beleg: `out/phase1-dod/5975256-removal/selection/result.json`, SHA-256
 `2c2b21d80782a4422cc27bb0631998ba623ec215976c71b003b32c72e2666723`;
 Testlog SHA-256 `c379ea8aa47f3a9f07a1b363897b73a431aede2644659a53f922410382b6ec60`.
-Der gezielte Lauf `reconciliation-removal` beginnt erst danach; sein Ergebnis
-steht noch aus. Die Auswahltests erklären Alphas fehlgeschlagenen Start nicht.
+Der anschließende Lauf `reconciliation-removal` besteht alle drei Fälle ohne
+übersprungene Tests. Insbesondere besteht der neue vollständige Entfernungsfall
+mit Veröffentlichung und erneutem Öffnen; die zwei Planungsfälle bestätigen
+Entfernung ohne private Wahl beziehungsweise Erhalt einer privaten Wahl samt
+Abhängigkeit. Derselbe Systemzustand ist vor/nachher bestätigt. Beleg:
+`out/phase1-dod/5975256-removal/reconciliation-removal/result.json`, SHA-256
+`cb0f032fb2864ada0d62e1ab7c11d1b14014f3439c7251ffe67261d09f785b75`;
+Testlog SHA-256 `f0d92bdfb46bf9912fd6ab45308bf141ef4c07eddbb07a4933f81fdcb0a837e1`.
+Alphas tatsächlicher Startfehler ist damit noch nicht reproduziert oder behoben.
+
+Der freigegebene gemeinsame CLI-Plan entfernte nur jq. Die synthetische
+Ausgangsvariante entfernt dagegen bereits Anwendung und Bibliothek aus der
+gemeinsamen Generation. Deshalb ergänzt
+`RemovedSharedRootWithRetainedAutomaticCommonLibraryPublishes` die Variante
+mit in der gemeinsamen Basis verbliebener automatischer Bibliothek. Die
+private Umgebung ohne private Wahl soll Anwendung und Bibliothek entfernen,
+ihre Konfiguration erhalten und die gemeinsame Generation unverändert lassen.
+Dieser zusätzliche Test ist noch nicht kompiliert oder ausgeführt.
+Die neue Gruppe `reconciliation-orphan` prüft ihn zusammen mit dem bisherigen
+vollständigen Fall, deren Assertions nun gemeinsam verwendet werden.
+`--upload-bundle` erlaubt die ausdrückliche Bereitstellung eines neuen
+Testbundles für eine gezielte native Gruppe, ohne die bereits bestandene
+Auswahlgruppe allein für den Upload wiederholen zu müssen. Alle vorhandenen
+Profil-, Image-, Quell- und Bytegleichheitsprüfungen bleiben erhalten;
+vorhandene Bundle-Ziele werden weiterhin abgewiesen. Neun Hosttests bestehen.

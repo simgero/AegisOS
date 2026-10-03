@@ -285,7 +285,7 @@ Ereignisse 742 bis Präfix 785. Die vollständige gemeinsame Entfernung und die
 Gesamtfreigabe bleiben damit ausdrücklich offen; Ursache noch ungeklärt.
 
 Der gezielte native Regressionstest aus Commit `5975256` ist lokal erfolgreich
-kompiliert, sein Gastlauf steht noch aus. Der Buildbeleg
+kompiliert und in den unten bezeichneten Gastgruppen geprüft. Der Buildbeleg
 `out/phase1-dod/5975256-removal/native-build-receipt.json` hat SHA-256
 `d311e91a93d14fe7b9eaad1872817940aacf46112911e212c75151dac53e05b4`.
 Nur die Testquelldatei weicht ab; zehn produktive Hilfsprogramme sind bytegleich
@@ -297,7 +297,15 @@ Die sechs vorhandenen Auswahlfälle sind im separaten Profil
 Boot-ID, SystemServer-Startzeit, Enforcing und System-CE vor/nach dem Lauf.
 Beleg `out/phase1-dod/5975256-removal/selection/result.json`, SHA-256
 `2c2b21d80782a4422cc27bb0631998ba623ec215976c71b003b32c72e2666723`.
-Die danach gestarteten Entfernungsfälle sind noch nicht abgeschlossen.
+Auch die drei danach ausgeführten Entfernungsfälle bestehen ohne übersprungene
+Tests, einschließlich Ausführung, Veröffentlichung und erneutem Öffnen.
+Beleg `out/phase1-dod/5975256-removal/reconciliation-removal/result.json`, SHA-256
+`cb0f032fb2864ada0d62e1ab7c11d1b14014f3439c7251ffe67261d09f785b75`.
+Der Systemzustand bleibt gleich. Alphas CLI-Fehler bleibt ungeklärt: Die
+synthetische gemeinsame Generation enthält nach Entfernung keine Bibliothek
+mehr, während der freigegebene CLI-Plan nur jq entfernt. Ein zusätzlicher Test
+mit verbliebener automatischer gemeinsamer Bibliothek ist ergänzt, aber noch
+nicht kompiliert/ausgeführt. Kein T13-/T16-Gesamtabschluss wird daraus abgeleitet.
 
 ### Historische Restliste des Referenzlaufs 209278de
 

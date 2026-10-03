@@ -1274,6 +1274,7 @@ class RuntimeReconciliationPlanning : public RuntimePackagePlanning {
         ASSERT_EQ(0,aegis::BrokerStartExecution(owner,10,1234,selection_job,digest,Deadline()))<<strerror(errno);
         Completed(selection_job,digest,result);ASSERT_FALSE(HasFatalFailure());
     }
+    void VerifySharedRemovalPublication();
     void VerifyReopened(const aegis::PackageExecutionResult& result,const std::string& version) {
         ASSERT_EQ(aegis::PackageExecutionOutcome::Published,result.outcome)<<result.error<<" "<<result.status;
         EXPECT_EQ(current_generation.image_sha256,result.generation.shared_base_sha256);
@@ -1451,9 +1452,7 @@ TEST_F(RuntimeReconciliationPlanning, SignedPrivateVersionOverridePublishesNewBa
     ASSERT_EQ(0,PrepareOwned(digest));Prepared(selection_job,digest);ASSERT_FALSE(HasFatalFailure());
     aegis::PackageExecutionResult result;ExecuteOwned(&result);ASSERT_FALSE(HasFatalFailure());VerifyReopened(result,"1");
 }
-TEST_F(RuntimeReconciliationPlanning, RemovedSharedRootsExecutePublishAndReopenWithoutPrivateChoice) {
-    Configure("AEGIS-PRIVATE-CHOICES1\n",true);ASSERT_FALSE(HasFatalFailure());
-    ExecutionSource();ASSERT_FALSE(HasFatalFailure());
+void RuntimeReconciliationPlanning::VerifySharedRemovalPublication() {
     TransferOwner();ASSERT_FALSE(HasFatalFailure());OwnerReview(2);ASSERT_FALSE(HasFatalFailure());
     for(const auto& change:owner_bound.reviewed.changes) {
         EXPECT_FALSE(change.before_version.empty());EXPECT_TRUE(change.after_version.empty());
@@ -1495,6 +1494,32 @@ TEST_F(RuntimeReconciliationPlanning, RemovedSharedRootsExecutePublishAndReopenW
     EXPECT_EQ(42u,st.st_uid);EXPECT_EQ(42u,st.st_gid);
     EXPECT_EQ(owner_bound.reviewed.reconciliation_evidence.result_registry_sha256,Hash(aegis::PackageCanonicalInstalled(actual)));
     readback_view.reset();
+}
+TEST_F(RuntimeReconciliationPlanning, RemovedSharedRootsExecutePublishAndReopenWithoutPrivateChoice) {
+    Configure("AEGIS-PRIVATE-CHOICES1\n",true);ASSERT_FALSE(HasFatalFailure());
+    ExecutionSource();ASSERT_FALSE(HasFatalFailure());
+    VerifySharedRemovalPublication();
+}
+TEST_F(RuntimeReconciliationPlanning, RemovedSharedRootWithRetainedAutomaticCommonLibraryPublishes) {
+    Configure("AEGIS-PRIVATE-CHOICES1\n",true);ASSERT_FALSE(HasFatalFailure());
+    // An ordinary common 'remove app' retains its automatic library. A later
+    // private rebase must collect that orphan despite its presence in the new
+    // common registry and leave the common generation itself unchanged.
+    const auto library=old_status.find("\nPackage: aegis-probe-lib\n");
+    ASSERT_NE(std::string::npos,library);new_status+=old_status.substr(library);
+    Readonly(current.get(),false);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,Write(current.get(),"var/lib/dpkg/status",new_status));
+    ASSERT_EQ(0,Write(current.get(),"var/lib/apt/extended_states",
+        "Package: aegis-probe-lib\nArchitecture: all\nAuto-Installed: 1\n\n"));
+    ASSERT_EQ(0,mkdirat(current.get(),"usr/share/aegis-probe",0755));
+    ASSERT_EQ(0,Write(current.get(),"usr/share/aegis-probe/library","1\n"));
+    ASSERT_EQ(0,Write(current.get(),"var/lib/dpkg/info/aegis-probe-lib.list",
+        "/.\n/usr\n/usr/share\n/usr/share/aegis-probe\n/usr/share/aegis-probe/library\n"));
+    ASSERT_EQ(0,Write(current.get(),"var/lib/dpkg/info/aegis-probe-lib.md5sums",
+        "b026324c6904b2a9cb4b88d6d61c81d1  usr/share/aegis-probe/library\n"));
+    Readonly(current.get(),true);ASSERT_FALSE(HasFatalFailure());
+    ExecutionSource();ASSERT_FALSE(HasFatalFailure());
+    VerifySharedRemovalPublication();
 }
 TEST_F(RuntimeReconciliationPlanning, CommonSelectionChangeAfterSignedPreparationPreventsPrivatePublication) {
     Configure("AEGIS-PRIVATE-CHOICES1\n");ASSERT_FALSE(HasFatalFailure());ExecutionSource();ASSERT_FALSE(HasFatalFailure());
