@@ -2382,3 +2382,30 @@ Beleg: `package-argument-denials-proof.json`, SHA-256
 `2551b8fb3f5ef23a35e2ecac4b934bafa06c48df785378baa26947c3401e6939`.
 Dies belegt diese CLI-Eingabevarianten von T13.7; beliebige direkte
 Binder-Aufrufer sind dadurch nicht geprüft.
+
+Auch Betas korrekt eingegebene Nicht-Adminbestätigung für einen frisch
+geplanten gemeinsamen Installationsauftrag wird abgewiesen. Der Vergleich
+umfasst Planung und Ablehnung: Paketdatenbank, ausgewählte Generationen,
+ursprüngliche Runtime, Benutzer, CE `[0,10]` und Systemidentität bleiben gleich.
+Eine anschließende direkte Statusabfrage bestätigt Alphas weiterhin gültige
+Anmeldung. Der generische CLI-Hinweis auf eine erneute Anmeldung ist hier
+irreführend und bleibt als Bedienungsfehler offen.
+Beleg: `shared-install-nonadmin-proof.json`, SHA-256
+`c24d2162f05fb0f1ca92944c57f9b9b89a0624e252b51a0f37f1aec33909802f`.
+
+### Bootmeldung des optionalen Tombstone-Exports eingeordnet
+
+Im aktuellen Boot protokolliert `tombstone_transmit` die Meldung
+`Port flag is required` mit Logschwere F. Der unveränderte Cuttlefish-Quellstand
+`c6a8b05c38d88e8d19b83fd8d47f75c0686f2e69` verwendet an dieser Stelle ausdrücklich
+`FATAL_WITHOUT_ABORT` und danach eine Schlafschleife. Im Gast ist die optionale
+Portproperty leer; der ursprüngliche Prozess 1186 läuft mit Zustand S und
+Startzeit 33285 weiter. Diese konkrete Meldung wird daher als unkonfigurierter
+optionaler Host-Diagnoseexport eingeordnet, nicht als nachgewiesener Absturz.
+
+Der lokale Beleg `tombstone-export-observation.json`, SHA-256
+`a84b7ae49e2bcda4aaf4cce99af7acd410ea108e66eb4ec679f24e57a4b91070`,
+enthält Quellprüfsumme, Vergleich mit dem Quellcommit, Logpräfixbindung und
+Gastzustand. Das ist eine begrenzte Quell-/Zustandsinferenz; die vollständige
+D1-Dienstprüfung bleibt offen. Es wurde kein Diagnoseabsturz ausgelöst und
+keine Dienstkonfiguration verändert.
