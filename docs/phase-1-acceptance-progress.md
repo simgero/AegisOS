@@ -3391,5 +3391,38 @@ Weitere Belege im selben lokalen Verzeichnis:
 - `update-user-nonadmin-proof.json`, Ereignisse 704 bis Präfix 707, SHA-256
   `9e9fc7e573fef34902216c38998ab9fa810570b4949b5d98ae673af04e832322`.
 
-Die erfolgreiche private Updateaktivierung und die übrigen Paketvarianten
-bleiben offen.
+Die nachfolgende erfolgreiche private Updateaktivierung ist separat geprüft;
+die übrigen Paketvarianten bleiben offen.
+
+### Privates Update: gültige Freigabe und tatsächliche Aktivierung
+
+Der vierte private Updateplan erhält am 3. Oktober um 16:42:12 UTC eine frische
+Alpha-Freigabe. Die CLI bestätigt um 16:43:46 UTC die Veröffentlichung.
+Ausschließlich Betas ausgewählte private Generation wechselt; beide laufenden
+Kontexte, die gemeinsame Auswahl und Alphas private Auswahl bleiben vollständig
+unverändert. Beta meldet `activation-pending` und führt weiterhin jq/libjq1
+`u3` mit korrektem Ergebnis unter UID/GID 1000 aus. Seine ursprüngliche Datei
+und Einstellungen bleiben bytegleich verfügbar.
+
+Betas regulärer Runtime-Stopp um 16:46:24 UTC entfernt den alten Init
+8662/811783 und die Kontextgruppe; AOSP-Sitzung und CE bleiben erhalten.
+Alphas vollständiger Kontext 8016/700474 bleibt unverändert. Nach dem eigenen
+Start führt Beta tatsächlich jq/libjq1 `u4` aus. Der neue Init 10025/1092943
+verwendet die private Generation
+`64f6efd9c246fea0c66a4859f19e1e82b66e5394de3c3b4ba19a819289a90363`
+mit expliziter privater jq-Auswahl `u4`. Genau die beiden geplanten Versionen
+ändern sich; alle 81 installierten Pakete sind vollständig geprüft.
+Originaldatei und Einstellungen stimmen weiterhin; zwei unmittelbar zuvor
+angelegte temporäre Dateien fehlen nach dem Neustart. Der Status lautet
+`packages=current`. Alpha bleibt auch in dieser abschließenden Aufnahme
+unverändert; Gamma bleibt CE-gesperrt und ohne Kontext.
+
+Beleg: `out/phase1-dod/f098f439/private-update-activation-proof.json`, SHA-256
+`a928b7c364beeeb85ecae3a105f3c4e1257c522146f3a51787ccd1d2a7512cc0`.
+Er bindet Ereignisse 707 bis Präfix 733, die drei Ablehnungsbelege, vier
+vollständige Zustandsaufnahmen, den unabhängigen Prozessabbau und die vorab
+festgelegten Erwartungen. Damit ist `update --scope user` einschließlich aller
+vier Freigabevarianten und tatsächlicher Aktivierung belegt. Dies ersetzt weder
+`remove --scope all` noch die offenen Fehler-/Parallelitätsfälle. Die Aufnahmen
+sind einzelne abgeschlossene Beobachtungen, keine lückenlose Überwachung aller
+Paketprozesse oder CE-Zugriffe.

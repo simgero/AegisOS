@@ -255,8 +255,15 @@ und Nicht-Adminfreigabe mit unverändertem vollständigem Zustand belegt:
 und `update-user-nonadmin-proof.json`, SHA-256
 `9e9fc7e573fef34902216c38998ab9fa810570b4949b5d98ae673af04e832322`.
 Der vorausgehende reguläre private Installationslauf stellt nur den
-Update-Ausgangsbestand her. Gültige Freigabe und erfolgreiche Aktivierung
-bleiben offen; Einzelheiten im
+Update-Ausgangsbestand her. Die gültige Alpha-Freigabe und erfolgreiche private
+Aktivierung sind anschließend separat belegt:
+`private-update-activation-proof.json`, SHA-256
+`a928b7c364beeeb85ecae3a105f3c4e1257c522146f3a51787ccd1d2a7512cc0`,
+Ereignisse 707 bis Präfix 733. Der laufende Beta-Kontext behält zunächst `u3`;
+sein eigener Stopp/Start aktiviert `u4` samt expliziter privater Wahl. Alle 81
+Versionen, Originaldaten und der unveränderte Alpha-Kontext sind geprüft.
+Damit sind die vier Autorisierungsfälle für `update user` erfüllt;
+`remove all` und die übrigen Pflichtvarianten bleiben offen. Einzelheiten im
 [Abnahmeabgleich](phase-1-acceptance-progress.md).
 
 | Kriterium | Noch erforderliche vollständige Abnahme |
