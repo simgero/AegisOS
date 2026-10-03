@@ -2518,3 +2518,44 @@ Diese gleichzeitige Trennung ist noch kein Nachweis verweigerter gegenseitiger
 Zugriffe. Beta hat noch keinen privaten Paketstore. Die gegenseitigen Datei-/
 Prozess-/IPC-Prüfungen sowie Logout, gepaarter Neustart und die übrige
 Aktions-/Lebenszyklusmatrix bleiben auf diesem Image erforderlich.
+
+### Gegenseitige Zugriffe und Bildschirmsperre auf f098f43
+
+Am 3. Oktober 08:37–08:49 UTC wurden die gegenseitigen Zugriffe aus den
+beiden tatsächlichen GNU-Kontexten geprüft. Bekannte Dateien des anderen
+Benutzers liefern keine Bytes; dessen Konfiguration, synthetische Test-Secrets
+und flüchtige Dateien sind weder lesbar noch veränderbar. Ein unabhängiger
+Beobachter bestätigt jeweils deren tatsächliche Existenz und unveränderten
+Inhalt. Der fremde begrenzte Testprozess lässt sich nicht adressieren;
+derselbe Prozess mit unveränderter Startzeit und Namespace-Zuordnung schreitet
+vor und nach den Versuchen fort. Beide Benutzer lesen aus gleichnamigen
+POSIX-Nachrichtenwarteschlangen nur ihre eigene Nachricht; die zusätzliche
+Warteschlange des anderen Benutzers ist jeweils nicht erreichbar.
+
+Betas Prüfung umfasst Alphas tatsächlich vorhandene private Paketauswahl.
+Alpha kann Betas private Pakete noch nicht prüfen, weil Beta bislang keinen
+privaten Store besitzt. Dies bleibt eine offene T06-Variante. Der Lauf
+beansprucht auch keine vollständige Systemaufrufabdeckung. Alle Felder der
+vollständigen Paket-/Kontextaufnahmen vor und nach den Prüfungen sind bis auf
+den Erfassungszeitpunkt identisch; der ursprüngliche SystemServer blieb erhalten.
+
+Beleg: `two-user-isolation-proof.json`, SHA-256
+`e4ce118967b669b41907a1420cbd4f90218d4e7786a8fb3d617f9c370bdb8283`.
+Der lokale Ersteller `record-two-user-isolation.py` prüft die Erfolgsereignisse,
+Prozessidentitäten, Fortschritte und Zustandsvergleiche und bindet den festen
+Ereignispräfix samt Prüfsummen ein. Rohbelege bleiben auf dem Buildserver.
+
+Die anschließende Android-Bildschirmsperre widerruft Betas offene GNU-Shell;
+die CLI meldet `terminal=unauthenticated`. Power und Keyguard bestätigen
+unabhängig `mWakefulness=Asleep`, `showing=true` und `mIsShowing=true`.
+Die ursprünglichen Prozesse 14559/720255 und 16811/782059 schreiten weiter;
+CE bleibt `[0,10,11]`. Boot-ID, SystemServer-PID/Startzeit und Enforcing
+bleiben unverändert. Das belegt die vorgesehene Bildschirmsperre und behauptet
+keinen CE-Schlüsselentzug.
+
+Beleg: `screen-lock-background-proof.json`, SHA-256
+`cdb4ffd32e9b3b4decc6d64d5852d11989266263fb95b90d65b3a7d4139fb380`;
+unabhängige Beobachtung `screen-lock-observation/result.json`, SHA-256
+`1b8f8bec5395610215b7676a7c3952e359a231377df2c5c67daf6aa50fb3a143`.
+Logout, gepaarter Neustart und die verbleibende Pflichtmatrix werden separat
+fortgesetzt; die Gesamtfreigabe bleibt offen.
