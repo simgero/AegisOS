@@ -3481,9 +3481,23 @@ Der zusätzliche native Test
 `RuntimeReconciliationPlanning.RemovedSharedRootsExecutePublishAndReopenWithoutPrivateChoice`
 erweitert die bisherige reine Planungsprüfung um tatsächliche Ausführung,
 Veröffentlichung und erneute Auswahl samt Datei-/Paket- und Konfigurationstest.
-Er ist zunächst ergänzt; Kompilierung und Gastlauf stehen noch aus. Die neue
+Der Test ist in Commit `59752564a98d7eb158dd48d0da3cc6610c288889` ergänzt. Die neue
 Gruppe `reconciliation-removal` im Komponententreiber verbindet ihn mit zwei
 bestehenden Planungsfällen. Neun Hosttests bestätigen die eingegrenzte
 Quellbindung: Nur die benannten Testdateien dürfen abweichen; Produkt-,
 Builddefinition- und Inventaränderungen bleiben abgewiesen. Das laufende
 Abnahmeimage und seine Produktionshelfer sind unverändert.
+
+Der lokale Komponentenbuild
+`identity-20261003T175434Z-59752564-QS2OlS` endet um 18:03:12 UTC erfolgreich
+mit `IDENTITY_COMPILED_NOT_INSTALLED`. Der native Test ist damit kompiliert,
+aber noch nicht ausgeführt. Die Quellinventare unterscheiden sich ausschließlich
+in `runtime/package_planner_test_cases.inc`; alle zehn produktiven Hilfsprogramme
+und das Java-Test-APK sind bytegleich mit dem f098f439-Referenzbuild.
+Lokaler Beleg: `out/phase1-dod/5975256-removal/native-build-receipt.json`,
+SHA-256 `d311e91a93d14fe7b9eaad1872817940aacf46112911e212c75151dac53e05b4`;
+Quellinventar `native-sources.json`, SHA-256
+`f32abae69f780b561cc2037edbc10c404f9ed5a5e5bcd6d9f791a8009c62c60d`.
+Ein gesondertes frisches Android-/KeyMint-Profil wird für den Gasttest gestartet;
+das persönliche Abnahmeprofil bleibt erhalten. Kein Build wurde hochgeladen.
+Dieser Buildnachweis erklärt oder behebt Alphas Startfehler noch nicht.

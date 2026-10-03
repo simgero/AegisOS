@@ -284,6 +284,14 @@ SHA-256 `1d5ffac286d8766897491c8962b07afc461108a9ae3012873a27d9b18038eb3f`,
 Ereignisse 742 bis Präfix 785. Die vollständige gemeinsame Entfernung und die
 Gesamtfreigabe bleiben damit ausdrücklich offen; Ursache noch ungeklärt.
 
+Der gezielte native Regressionstest aus Commit `5975256` ist lokal erfolgreich
+kompiliert, sein Gastlauf steht noch aus. Der Buildbeleg
+`out/phase1-dod/5975256-removal/native-build-receipt.json` hat SHA-256
+`d311e91a93d14fe7b9eaad1872817940aacf46112911e212c75151dac53e05b4`.
+Nur die Testquelldatei weicht ab; zehn produktive Hilfsprogramme sind bytegleich
+mit dem Referenzbuild. Dies ist kein bestandener T13-/T16-Fall und kein Nachweis
+einer Fehlerbehebung.
+
 | Kriterium | Noch erforderliche vollständige Abnahme |
 | --- | --- |
 | D1 | Build-/Versionsinventar, Bedienung/ADB und Schutzmechanismen vollständig indexieren; weitere Läufe prüfen. E14 bestätigt den ersten Referenzboot, E25 die begrenzte Boot-2-Beobachtung vor Shutdown. Zusätzlicher Migrations-Aufräumstatus ist in E26 eingeordnet, nicht als behoben behauptet. |
