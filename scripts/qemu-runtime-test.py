@@ -747,10 +747,14 @@ def private_state(operation,key):
         raise ValueError('Unknown private-state operation')
     for path in (paths if operation=='write' else paths[:2]):
         command+='test "$(cat '+shlex.quote(path)+')" = '+shlex.quote(value)+'; sha256sum '+shlex.quote(path)+'; '
-    checked_gnu('private-state-'+operation+'-'+key,command)
+    output=checked_gnu('private-state-'+operation+'-'+key,command)
+    expected=hashlib.sha256(value.encode()).hexdigest()
+    for path in (paths if operation=='write' else paths[:2]):
+        assert re.findall(r'(?m)^([0-9a-f]{64})  '+re.escape(path)+r'$',output)==[expected], \
+            'Private-state bytes differ from the original probe'
     if operation=='write': private_state_written.add(key)
     record('private-state-'+operation+'-proof-'+key,{'user':users[key],
-           'sha256':hashlib.sha256(value.encode()).hexdigest(),
+           'sha256':expected,
            'scope':'Ordinary GNU processes; synthetic configuration/secret bytes. Empty check also requires original persistent bytes.'})
 
 

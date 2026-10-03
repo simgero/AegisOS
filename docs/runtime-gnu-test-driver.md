@@ -106,6 +106,11 @@ prüft später die ursprünglichen persistenten Bytes. Nach einem Kontext- oder
 VM-Neustart verlangt `private-state-ephemeral-empty-a/b` zusätzlich, dass beide
 alten flüchtigen Dateien verschwunden sind.
 
+Jede ausgegebene SHA-256-Zeile muss für den jeweiligen Pfad genau einmal dem
+ursprünglichen Inhalt entsprechen. Der reine Shell-Vergleich per `$(cat …)`
+genügt nicht, weil die Shell abschließende Newlines entfernt. Fehlende,
+abweichende oder doppelte Hashzeilen verhindern einen Erfolgsbeleg.
+
 Sind beide Proben und Hintergrundjobs angelegt, prüft
 `private-state-isolation-a/b` verweigerte Lese- und Schreibzugriffe aus GNU auf
 den anderen Kontext. Der Beobachter bestätigt vor und nach dem Versuch die
