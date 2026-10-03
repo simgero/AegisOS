@@ -243,6 +243,16 @@ des Korrekturstands bleiben erforderlich.
 
 ## Abschlusskriterien und Referenzablauf
 
+Für `f098f43` ist zusätzlich der Abbruch eines echten privaten Updateplans
+jq/libjq1 `u3` → `u4` bei leerer Adminauswahl geprüft. Die vollständigen
+Zustandsaufnahmen bleiben gleich und die Antragstellersitzung gültig.
+`out/phase1-dod/f098f439/update-user-cancel-proof.json`, SHA-256
+`b50b868a4e14d9f94e1d83fcfe6686c1e8804f187934a5c966175eb1ffeb135c`,
+bindet Ereignisse 697 bis Präfix 700. Der vorausgehende reguläre private
+Installationslauf stellt nur den Update-Ausgangsbestand her. Die drei weiteren
+Autorisierungsfälle für dieses private Update und dessen Aktivierung bleiben
+offen; Einzelheiten im [Abnahmeabgleich](phase-1-acceptance-progress.md).
+
 | Kriterium | Noch erforderliche vollständige Abnahme |
 | --- | --- |
 | D1 | Build-/Versionsinventar, Bedienung/ADB und Schutzmechanismen vollständig indexieren; weitere Läufe prüfen. E14 bestätigt den ersten Referenzboot, E25 die begrenzte Boot-2-Beobachtung vor Shutdown. Zusätzlicher Migrations-Aufräumstatus ist in E26 eingeordnet, nicht als behoben behauptet. |

@@ -52,8 +52,14 @@ Version verwendet wird, das Paket als benötigte Abhängigkeit erhalten bleibt
 oder entfernt wird. Andere private Versionswahlen bleiben bestehen; Konflikte
 werden abgewiesen. Auch wenn keine Paketversion geändert werden muss, ist eine
 frische Adminfreigabe erforderlich. Ohne eigene Auswahl oder bei veraltetem
-gemeinsamem Basisbezug wird dieser Auftrag abgelehnt. Dieser neue Ablauf ist
-implementiert; sein vollständiger Vollimage-/CLI-Nachweis steht noch aus.
+gemeinsamem Basisbezug wird dieser Auftrag abgelehnt. Im Vollimage `f098f43`
+sind inzwischen die vier Autorisierungsvarianten für private Entfernung sowie
+die tatsächliche Rückkehr zur gemeinsamen Version bei gleicher und abweichender
+Version geprüft. Beide Aktivierungen erhalten Originaldaten und den jeweiligen
+anderen Kontext; bei gleicher Version bleibt auch die Paketdatenbank bytegleich.
+Die konkreten Belege und weiterhin offenen Konflikt-/Parallelitätsfälle stehen
+im [Ergebnisindex](phase-1-result-index.md). Dies schließt nicht die gesamte T15-
+oder Phase-1-Abnahme.
 
 Der Dienst gibt ein prozessgebundenes `IAegisPackage` für genau einen Auftrag
 zurück. Der Client kann weder Benutzer-ID, Seriennummer, Auftragskennung,

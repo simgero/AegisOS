@@ -1,6 +1,6 @@
 # Bedrohungsmodell — Foundation
 
-**Status:** Phase-1-Bedrohungsmodell, aktualisiert 2026-10-01. Sicherheitsziele
+**Status:** Phase-1-Bedrohungsmodell, aktualisiert 2026-10-03. Sicherheitsziele
 sind Anforderungen; die [Server-Teilabnahme](../docs/server-acceptance.md)
 belegt einzelne Abläufe. Die [vollständige DoD](../docs/architecture/phase-1-dod.md)
 und der [laufende Abnahmeabgleich](../docs/phase-1-acceptance-progress.md)
@@ -47,7 +47,7 @@ die tatsächlich aktive Sicherheitsrichtlinie vorausgesetzt.
 | 9 | Wechsel oder Bildschirmsperre bei laufender Runtime | Persönliche Hintergrundprozesse dürfen gemäß AOSP weiterlaufen, bleiben dem bisherigen Benutzer zugeordnet. Terminalzugriff wird angemessen widerrufen; kein behaupteter CE-Entzug (T08/T09). | Wechsel und Logout sind verschieden. AOSP darf Hintergrundbenutzer aus Ressourcengründen stoppen; dann muss auch die Runtime abgebaut werden. |
 | 10 | Logout, Speicher-Sperrung oder Paketoperation scheitert/konkurriert | Kein falscher Erfolg, keine neue unberechtigte Freigabe, geordneter Ressourcenabbau und erklärter Wiederanlauf (T10/T11/T17). | Echter CE-EBUSY-Wiederanlauf bereits belegt; vollständige Paket-/Lebenszykluskonkurrenz weiterhin offen. |
 | 11 | Paketauftrag manipuliert Bereich, Adminfreigabe oder Eigentümer | Bereich explizit, frische AOSP-Adminprüfung und serverseitige Bindung an Antragsteller/Seriennummer/Plan; keine fremde CE-Freigabe (T13/T14). | Adminfreigabe für gemeinsame ausführbare Software ist eine Vertrauensentscheidung. Ein Admin kann künftiges Programmverhalten beeinflussen; daraus folgt kein direktes Leserecht auf fremdes CE. |
-| 12 | Gemeinsames Update bei privaten Versionen oder parallelen Transaktionen | Exakte private Auswahl und passende Abhängigkeiten bleiben konsistent; kontrollierte Aktivierung oder sichtbarer Konflikt, kein Teilbestand als Erfolg (T15/T16/T17). | Komponenten und bisherige Installation sind Teilbelege. Die vollständige Versions-, Update-, Entfernungs- und Parallelitätsmatrix muss noch im Gast abgenommen werden. |
+| 12 | Gemeinsames Update bei privaten Versionen oder parallelen Transaktionen | Exakte private Auswahl und passende Abhängigkeiten bleiben konsistent; kontrollierte Aktivierung oder sichtbarer Konflikt, kein Teilbestand als Erfolg (T15/T16/T17). | Gemeinsame Updateaktivierung mit erhaltener privater Auswahl sowie private Entfernung bei gleicher und anderer gemeinsamer Version sind im aktuellen Image belegt; siehe [Ergebnisindex](../docs/phase-1-result-index.md). Die vollständige Update-, Konflikt- und Parallelitätsmatrix bleibt offen. |
 
 ## Ergänzende Szenarien und Grenzen
 

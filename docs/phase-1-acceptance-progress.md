@@ -3356,3 +3356,24 @@ gemeinsamen Variante sowohl bei gleicher als auch bei anderer Version belegt.
 Die identische Paketdatenbank ist kein lückenloser Nachweis über sämtliche
 eventuellen Paketskriptaufrufe. Andere Pflichtfälle und die Gesamtfreigabe
 bleiben offen.
+
+### Privates Update: Ausgangsbestand und Abbruch der Freigabe
+
+Beta installiert jq/libjq1 `u3` über die reguläre CLI mit frischer Adminfreigabe
+erneut als privaten Ausgangsbestand. Nach eigenem Runtime-Stopp/Start führt er
+diese Version unter UID/GID 1000 aus; Originaldatei und Einstellungen bleiben
+erhalten, Alphas Kontext bleibt unverändert. Der lokale Beleg
+`private-update-fixture-proof.json` bindet Ereignisse 672 bis Präfix 697 und hat
+SHA-256 `8b560cf66a4bbc703c7b971b926ca60ca1ca0a54389992c1eab847568d28e68b`.
+Dies ist die Vorbereitung eines echten Updates, kein Update-Erfolg.
+
+Der anschließende Befehl `linux package update --scope user` plant genau den
+Wechsel von jq/libjq1 `u3` auf `u4`. Eine leere Adminauswahl bricht den Auftrag
+ab. Die anschließende Sitzung bleibt gültig; vollständige Zustandsaufnahmen
+vor und nach dem Abbruch stimmen überein. Beleg unter
+`out/phase1-dod/f098f439/update-user-cancel-proof.json`, SHA-256
+`b50b868a4e14d9f94e1d83fcfe6686c1e8804f187934a5c966175eb1ffeb135c`,
+Ereignisse 697 bis Präfix 700. Das belegt nur den Abbruch vor Freigabe;
+falsche und Nicht-Adminfreigabe sowie erfolgreiche private Updateaktivierung
+bleiben für diesen Ablauf offen. Kein Abbruch während der Ausführung wird
+daraus abgeleitet.

@@ -494,9 +494,26 @@ Abhängigkeit. Ein unverändertes Paket darf ohne künstlichen Installationseffe
 aus der privaten Auswahl entfernt werden. Auch dann werden der Auftrag und die
 Vorschau bestätigt; Paketänderungen und Abhängigkeiten erscheinen vollständig.
 
-Die durchgängige Implementierung ist noch nicht durch einen neuen Vollimage-
-und CLI-Lauf abgenommen. Signierte APT-, Brokerübergabe- und echte
-Ausführungstests sind dafür ergänzt. T15 bleibt bis zu diesen Nachweisen offen.
+Die private Entfernung ist inzwischen im Vollimage `f098f43` über die normale
+CLI geprüft: fehlende, falsche und Nicht-Adminfreigabe ändern keinen Bestand;
+frische Adminfreigabe erlaubt die Veröffentlichung. Beta kehrt von privatem
+jq/libjq1 `u3` zu gemeinsamer Version `u4` zurück. Alpha hebt dagegen eine private
+`u4`-Wahl bei gleicher gemeinsamer Version auf; sämtliche 81 Paketversionen und
+die rohe Paketdatenbank bleiben dabei identisch. In beiden Fällen behalten die
+laufenden Kontexte zunächst ihren Stand; erst der eigene Stopp/Start aktiviert
+die neue Auswahl. Originaldateien und Einstellungen bleiben erhalten, der
+jeweilige andere Kontext bleibt unverändert.
+
+Lokale Belege unter `out/phase1-dod/f098f439/` sind
+`private-remove-beta-activation-proof.json` (SHA-256
+`0fb703e608d8924a87607351f4fb4f159f4be2430474b0b104935541ed9d7bed`)
+und `private-remove-alpha-proof.json` (SHA-256
+`790219c2c476e262fee76e7b5feb544a9b338066a3191295cab62d77a14f9bbd`).
+Der [Ergebnisindex](phase-1-result-index.md) bindet die Einzelablehnungen und
+grenzt diese Fälle von noch offenen Versionskonflikten, weiteren Paketaktionen
+und Parallelität ab. Die identische Datenbank im zweiten Fall wird nicht als
+lückenlose Beobachtung sämtlicher möglicher Paketskriptaufrufe ausgegeben.
+Die gesamte T15-/Phase-1-Abnahme bleibt offen.
 
 ## Nachweisgrenze
 
