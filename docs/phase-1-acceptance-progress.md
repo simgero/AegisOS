@@ -3214,3 +3214,37 @@ und `denial-verifier-rotated-credential/historical-replay.json`, SHA-256
 `2e4c34dabb2e60d3ce98bda876e1629607ebb027a5c39250b5e274be997ce0a9`.
 Dies ändert ausschließlich die Offline-Auswertung; ein neuer Gasttest mit
 gewechseltem Nicht-Admin-Passwort ist dadurch noch nicht nachgewiesen.
+
+### Private Entfernung: fehlende und falsche Adminfreigabe
+
+Beta beantragt im dritten Boot die Entfernung seiner privaten jq-Auswahl `u3`
+bei gemeinsam installiertem `u4`. Beide unabhängig berechneten CLI-Pläne zeigen
+ausdrücklich die Aufhebung der privaten Wahl und die Rückkehr zu gemeinsamer
+Version `u4`; jq und libjq1 sollen gemeinsam von `u3` auf `u4` wechseln.
+
+Die erste Adminauswahl bleibt leer. Die CLI bestätigt um 14:44:58 UTC das Ende
+ohne erfolgreiche Veröffentlichung. Beim zweiten Plan verweigert AOSP um
+14:53:25 UTC ausdrücklich das falsche Alpha-Passwort. Nach beiden Ablehnungen
+bestätigt ein eigener Statusaufruf Betas gültige Nicht-Admin-Sitzung.
+
+Die vollständigen unabhängigen Vor-/Nachaufnahmen sind in sämtlichen geprüften
+Feldern identisch: Image, Profil, Boot, SystemServer, CE `[0,10,11]`, Vordergrund,
+Benutzerliste, gemeinsame und private Auswahlen, beide vollständigen Kontexte
+einschließlich Paketdatenbanken sowie fehlende Paketworker. Alpha bleibt privat
+auf `u4`, Beta auf `u3`; Gamma bleibt gesperrt und seine Auswahl wird nicht gelesen.
+Die Aufnahmen sind aufeinanderfolgende Beobachtungen im ruhenden Zustand,
+keine lückenlose Beobachtung während der Planung.
+
+Belege unter `out/phase1-dod/f098f439/`:
+
+- `private-remove-beta-cancel-proof.json`, SHA-256
+  `142ff9a48c2a06b08bdaa86cd7188c20fd1e4cffea5d98ee69f0b49c15073a8c`,
+  Ereignisintervall `[604,607)`.
+- `private-remove-beta-wrong-proof.json`, SHA-256
+  `66a5a9ea9636c640a95f9d25ac3600eccca46e88bb197d047cad0677626aa23f`,
+  Ereignisintervall `[607,610)`.
+
+Dies schließt zwei Varianten von `remove --scope user`. Nicht-Adminfreigabe,
+gültige Freigabe und die tatsächliche Aktivierung der gemeinsamen Variante
+bleiben in dieser Kombination noch offen. Ein vor der Ausführung abgebrochener
+Plan ist kein Nachweis für Abbruch während einer laufenden Installation.
