@@ -78,7 +78,7 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T12.5 Neue Identität und ID-Wiederverwendung | Kein Zugriff auf alte Daten/Zuordnungen, Seriennummer/Lebenszyklus korrekt | Offen; kontrolliertes zusätzliches Profil zulässig | — |
 | T13.1 `install all` | Gültige Freigabe erlaubt; fehlende/falsche/Nicht-Adminfreigabe verweigert | Teilbelegt: gültige Alpha-Freigabe und tatsächliche Installation; drei Ablehnungsarten offen | E03 |
 | T13.2 `install user` | Gleiche vollständige Autorisierungsmatrix | Teilbelegt: gültige Alpha-Freigabe und tatsächliche Installation; drei Ablehnungsarten offen | E04 |
-| T13.3 `update all` | Erlaubte Aktion und alle drei Ablehnungsarten | Teilbelegt: leere Adminauswahl, falsches Adminpasswort und Nicht-Adminfreigabe verhindern Veröffentlichung; beide aktiven Kontexte und Paketbestände unverändert. Erlaubte Ausführung noch offen | E28–E30 |
+| T13.3 `update all` | Erlaubte Aktion und alle drei Ablehnungsarten | Bestanden: leere Adminauswahl, falsches Adminpasswort und Nicht-Adminfreigabe verhindern Veröffentlichung; frische Alpha-Freigabe erlaubt genau den geplanten gemeinsamen Updatebestand, anschließend tatsächlich aktiviert und ausgeführt | E28–E32 |
 | T13.4 `update user` | Erlaubte Aktion und alle drei Ablehnungsarten | Offen | — |
 | T13.5 `remove all` | Erlaubte Aktion und alle drei Ablehnungsarten | Offen | — |
 | T13.6 `remove user` | Erlaubte Aktion und alle drei Ablehnungsarten | Offen | — |
@@ -94,9 +94,9 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T15.4 Unauflösbare Abhängigkeiten | Ohne stille Ersetzung ablehnen, Bestand erhalten | Offen auf diesem Image | — |
 | T15.5 Private Entfernung abweichender Version | Rückkehr zur gemeinsamen Variante anzeigen und konsistent ausführen | Offen | — |
 | T15.6 Private Entfernung gleicher Version | Private Auswahl tatsächlich aufheben, auch ohne Versionsänderung | Offen | — |
-| T16.1 Gemeinsames Update bei privatem Bestand | Aktive Kontexte konsistent erhalten, Aktivierung ausstehend anzeigen | Offen: Installationsaktivierung ersetzt diesen Updatefall nicht | — |
-| T16.2 Aktivierung nach Update | Gemeinsame Updates plus private Auswahl konsistent aktivieren oder Konflikt erklären | Offen: aktueller Systemnachweis für korrigierten früheren Fehler erforderlich | — |
-| T16.3 Private Version bleibt | Keine stille Überschreibung privater Festlegungen beim Abgleich | Offen | — |
+| T16.1 Gemeinsames Update bei privatem Bestand | Aktive Kontexte konsistent erhalten, Aktivierung ausstehend anzeigen | Bestanden: fünf gemeinsame Updates veröffentlicht; beide bisherigen Prozessidentitäten, Mounts und vollständigen Paketbestände erhalten. Beide zeigen ausstehende Aktivierung und führen ihre bisherigen jq-/Bibliotheksversionen tatsächlich aus | E31 |
+| T16.2 Aktivierung nach Update | Gemeinsame Updates plus private Auswahl konsistent aktivieren oder Konflikt erklären | Bestanden: beide eigenen Kontextneustarts aktivieren exakt die geplanten Versionen einschließlich PCRE2/OpenSSL; beide vollständigen 81-Paket-Bestände geprüft, jq tatsächlich ausgeführt, Status aktuell. Der jeweils andere Kontext bleibt unverändert | E32 |
+| T16.3 Private Version bleibt | Keine stille Überschreibung privater Festlegungen beim Abgleich | Bestanden: Alphas explizite private jq-u4-Auswahl bleibt bytegleich und die neue private Generation bindet an die neue gemeinsame Basis. Das gemeinsame jq wird bei diesem Update ebenfalls u4; der vorherige V1/V2-Unterschied ist gesondert belegt | E04, E31, E32 |
 | T17.1 Gleichzeitig gemeinsam/privat | Serialisierung oder sichtbare Ablehnung, kein Teilbestand als Erfolg | Offen | — |
 | T17.2 Aktionen verschiedener Benutzer | Eigentum/Autorisierung und konsistenter Bestand bleiben erhalten | Offen | — |
 | T17.3 Abbruch | Letzter konsistenter Bestand bleibt erhalten/wird wiederhergestellt | Teilbelegt: Abbruch des gemeinsamen Updateplans vor Freigabe erhält beide Kontexte und Paketbestände; Ausführungsphasen bleiben offen | E28 |
@@ -141,6 +141,8 @@ ihre Aussage ein. Keine Profile, Passwörter oder Buildartefakte werden hochgela
 | E28 | `update-all-cancel-proof.json` | `45770e57849e8820b745bc47b06f7a9ad3abaefad14acce93921013e1c91fcc8` |
 | E29 | `update-all-wrong-password-proof.json` | `9f9643bfb5eb89b1ad733d3c1579b77cf15c8401c0c69ce08b5d688483a32401` |
 | E30 | `update-all-nonadmin-proof.json` | `8083b52d469e496c317f9b1bd1259755c89ae2dcd2cdbe03963b3009055e25d6` |
+| E31 | `shared-update-publication-proof.json` | `4cda0dc2b398d6c8809a441b63f4c1b924ae25f250d2d683fd06dbd60a0f31ba` |
+| E32 | `shared-update-activation-proof.json` | `80ec5a01d0a952c7d1455360b9155d2760c17a08665b5097b36acc48d119b961` |
 
 ## Abschlusskriterien und Referenzablauf
 

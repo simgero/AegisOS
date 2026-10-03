@@ -4,8 +4,8 @@ Beginn: 1. Oktober 2026. Ziel ist die vollständige
 [DoD](architecture/phase-1-dod.md), einschließlich aller Varianten T01–T17.
 **Status: aktiv, keine vollständige Abnahme.** Aktueller Prüfstand:
 Image `209278def7d5bc5612eeb397bdd8ee20ccb16d86`, Profil
-`2366ca04-d587-4170-8c56-a63c8a8e1774`, zweiter Boot mit ID
-`2816650c-96bf-4db0-84e6-f169f9dfada9`.
+`2366ca04-d587-4170-8c56-a63c8a8e1774`, dritter Boot mit ID
+`e720d2bf-faef-4af8-87b9-709112eb3c41`.
 Vollbuild und Imageprüfung, Bedienung per Tastatur/Maus, authentifizierter
 binärer ADB-Rundlauf und die begrenzte Boot-/Kryptographiekontrolle sind
 belegt. Auf diesem Image bestehen 38 Java-Pakettests, sieben native Plantests,
@@ -23,10 +23,48 @@ und POSIX-Mqueue-Prüfungen, beide externen Wechselrichtungen, Bildschirmsperre
 und beide regulären Abmeldungen sind belegt. Das Profilpaar ist sauber gestoppt
 und erneut gestartet; persönliche Daten sind vor Anmeldung gesperrt. Beide
 ersten korrekten Logins danach sowie bytegleiche Originaldateien/Konfigurationen
-und tatsächlich getrennte jq-Versionen sind ebenfalls belegt. Der dritte
-Benutzer und die vollständige ergänzende Matrix bleiben offen.
+und tatsächlich getrennte jq-Versionen sind ebenfalls belegt. Gamma wurde
+nachträglich angelegt und führte gemeinsame Software aus; seine vollständige
+Fremddatenprüfung bleibt offen. Betas Passwortwechsel und beide ursprünglichen
+Datensätze sind auch über den zweiten gepaarten Neustart belegt.
+Das gemeinsame Update und beide Aktivierungen einschließlich Alphas privater
+Versionsbindung bestehen inzwischen auf diesem Image (E31/E32). Die vollständige
+ergänzende Matrix bleibt offen.
 Der [Ergebnisindex](phase-1-result-index.md) trennt
 einzelne aktuelle Varianten von historischen Teilbelegen.
+
+## Gemeinsames Update und private Aktivierung, 3. Oktober 2026
+
+Um 04:21:10 UTC meldete der mit frischer Alpha-Adminfreigabe ausgeführte
+gemeinsame Updateauftrag die Veröffentlichung. Die gemeinsame Generation ist
+jetzt `1a6c3fe780ce47378453186b098964ee79c16c63539b55aa0c0f6d8250525a16`.
+Beide laufenden Kontexte behielten zunächst ihre vollständigen Paketbestände,
+Prozessstartzeiten, Mounts, Namespace-Zuordnungen und Alphas private Auswahl.
+Beide meldeten `activation-pending` und führten ihre bisherigen jq-Versionen
+mit den alten Bibliotheksrevisionen weiterhin erfolgreich aus (E31).
+
+Betas eigener Kontextneustart aktivierte die gemeinsame Generation. Alphas
+anschließender eigener Neustart führte den privaten Abgleich durch und band die
+neue private Generation
+`12fee076517596f0005e2a0545446471b55bc9bc5ce4b6100a651f6280af92b9`
+an diese gemeinsame Basis. Seine explizite private jq-Festlegung blieb bytegleich.
+Jeder Neustart erhielt den jeweils anderen Kontext vollständig unverändert.
+
+Beide tatsächlichen 81-Paket-Bestände entsprechen exakt den geplanten Änderungen:
+jq/libjq1 `1.7.1-6+deb13u4`, PCRE2 `10.46-1~deb13u3` und libssl3t64 sowie
+openssl-provider-legacy `3.5.7-1~deb13u3`. Beide Statusabfragen melden `current`;
+gewöhnliche GNU-Prozesse führen jq aus und bestätigen den passenden libjq-Hash.
+Beider ursprüngliche Dateien und Konfigurationen bleiben bytegleich, alte
+flüchtige Testdateien sind nicht vorhanden (E32).
+
+Damit ist der zuvor reproduzierte Fall „aktueller Status trotz fehlender
+gemeinsamer Bibliotheksupdates“ auf dem aktuellen Image positiv nachgeprüft.
+Dieser Lauf führt gemeinsame und private jq-Version auf denselben Wert u4;
+er belegt zusätzlich ausdrücklich den Erhalt der privaten Auswahlmetadaten.
+Die frühere gleichzeitige Ausführung unterschiedlicher Versionen steht in E02/E04.
+Konflikte, Entfernungen, weitere Autorisierungskombinationen und Parallelität
+bleiben eigenständige offene Pflichtfälle. Produktcode und Image wurden in
+diesem Prüfabschnitt nicht geändert.
 
 ## Ergänzung: vorhandene Update-Ablehnungen, 3. Oktober 2026
 

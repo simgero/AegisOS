@@ -1,4 +1,38 @@
-## Lokale Weiterentwicklung: sichtbare ausstehende Paketaktivierung
+# Pakettransaktionen und Aktivierung
+
+## Aktuell im Produktimage geprüft
+
+Image `209278def7d5bc5612eeb397bdd8ee20ccb16d86` besteht den gemeinsamen
+Update- und Aktivierungsfall mit einem bestehenden privaten Paketbestand.
+[Ergebnisindex E28–E32](../docs/phase-1-result-index.md) und
+[vollständiger Ablauf](../docs/phase-1-acceptance-progress.md) binden die
+Beobachtungen an Profil, Boot und tatsächliche Paket-/Prozessidentitäten.
+
+`linux package update --scope all` bereitet einen konkreten Plan vor und
+verlangt dessen frische AOSP-Adminfreigabe. Leere Auswahl, falsches Passwort
+und Nicht-Adminfreigabe veröffentlichten in diesem Lauf keine Änderung.
+Die gültige Freigabe veröffentlichte die neue gemeinsame Auswahl, während
+beide laufenden Kontexte ihre bisherigen Paketdateisysteme behielten.
+`linux status` zeigte für beide `packages=activation-pending`.
+
+Erst `linux stop` und `linux start` aktivierten jeweils den neuen Stand.
+Beim Benutzer mit privatem Paketbestand wurde dessen private Generation gegen
+die neue gemeinsame Basis abgeglichen. Seine explizite private Versionswahl
+blieb erhalten; gemeinsame Bibliotheksupdates wurden tatsächlich übernommen.
+Beide vollständigen Paketbestände, Programmausführungen und persönlichen
+Dateien wurden geprüft. Danach meldeten beide `packages=current`.
+
+Das Update hob die gemeinsame jq-Version auf die bereits privat gewählte
+Version an. Die private Auswahl blieb trotzdem ausdrücklich bestehen.
+Ein Abhängigkeitskonflikt oder eine weiterhin abweichende private Version nach
+einem anderen gemeinsamen Update ist damit nicht zusätzlich getestet.
+Die vollständige Phase-1-Paketmatrix ist weiterhin offen.
+
+Die folgenden Abschnitte sind historische Entwicklungsschritte. Aussagen wie
+„noch nicht kompiliert“ beziehen sich ausschließlich auf den dort genannten
+damaligen Stand.
+
+## Historisch: sichtbare ausstehende Paketaktivierung
 
 Die Statusanzeige erhält eine getrennte native Beobachtung der aktiven Auswahl
 gegenüber den aktuellen gemeinsamen und privaten Auswahlmetadaten. Sie meldet
