@@ -3810,3 +3810,25 @@ SHA-256 `5a334210620c48241aa51669addb677a94fc644bfca321456d3b44c5e04d5088`,
 bindet Ereignispräfix 139. Dies bestätigt die private Entfernung bei gleicher
 gemeinsamer Version. Die spätere gemeinsame Entfernung, bei der der
 ursprüngliche Startfehler auftrat, ist damit noch nicht geprüft oder behoben.
+
+### Diagnoseimage: Betas privates Update auf u4 aktiviert
+
+Beta beantragt anschließend ein privates Update. Der regulär geprüfte Plan
+aktualisiert genau jq und libjq1 von u3 auf u4; Alpha erteilt die
+AOSP-Adminfreigabe. Die Veröffentlichung verändert weder den gemeinsamen
+Bestand noch Alphas leere private Auswahl oder die laufenden Kontexte.
+Beta meldet ausstehende Aktivierung.
+
+Nach ausdrücklichem Stopp/Start führt Beta u4 mit passender Bibliothek
+tatsächlich aus. Paketdateiprüfung und jq-Test bestehen; die übrigen 79
+installierten Paketversionen bleiben unverändert. Die private Auswahl ist
+weiterhin an Beta `11/11` gebunden und enthält jetzt explizit jq u4. Seine
+ursprüngliche Datei und Konfiguration sind bytegleich; Alpha behält seinen
+Kontext mit leerer privater Versionsliste. Beta meldet `packages=current`.
+
+Beleg
+`out/phase1-dod/3fdb058-diagnostics/beta-private-update-u4-activation-proof.json`,
+SHA-256 `98cf3351582affbbb4d5e7e6fdf2dc608c854aca19ebaf181e55ac2a40d48c13`,
+bindet Ereignispräfix 155. Der anschließende gemeinsame Entfernungsfall ist
+noch offen; dieser erfolgreiche private Updatefall erklärt den ursprünglichen
+Startfehler nicht.

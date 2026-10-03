@@ -368,6 +368,11 @@ Paketversionen unverändert, ursprüngliche Alpha-Daten erhalten, Betas
 u3-Kontext unverändert. Beleg
 `out/phase1-dod/3fdb058-diagnostics/alpha-unpin-activation-proof.json`, SHA-256
 `5a334210620c48241aa51669addb677a94fc644bfca321456d3b44c5e04d5088`.
+Auch Betas privates Update von jq/libjq1 u3 auf u4 ist aktiviert und geprüft:
+die übrigen 79 Paketversionen und ursprünglichen Beta-Daten bleiben gleich,
+Alphas Kontext mit leerer privater Versionsliste bleibt unverändert. Beleg
+`out/phase1-dod/3fdb058-diagnostics/beta-private-update-u4-activation-proof.json`,
+SHA-256 `98cf3351582affbbb4d5e7e6fdf2dc608c854aca19ebaf181e55ac2a40d48c13`.
 Die eigentliche CLI-Fehlerreproduktion steht noch aus. Die früheren f098f439-Ergebnisse
 werden dadurch nicht automatisch zu bestandenen Abläufen auf diesem Image;
 der ursprüngliche Alpha-Fehler und die vollständige DoD bleiben offen.
