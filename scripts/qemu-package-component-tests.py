@@ -20,6 +20,10 @@ import time
 
 
 GROUPS = {
+    "start-failure": ("RuntimeSelectionOwner", [
+        "FailedSelectionIsNotPendingAndCannotSilentlyRestart",
+        "StartContinuationCannotRecreateStoppedOrReplacedJob",
+        "ZeroBudgetStopNeverLeavesAResumableStart"]),
     "selection": ("RuntimePackageReconciliation", [
         "PrivateRemovalReturnsCurrentCommonWithoutChangingSelections",
         "PrivateRemovalRejectsStaleBaseInsteadOfImplicitReconciliation",

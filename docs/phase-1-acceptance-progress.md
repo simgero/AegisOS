@@ -3529,7 +3529,8 @@ gemeinsamen Generation. Deshalb ergänzt
 mit in der gemeinsamen Basis verbliebener automatischer Bibliothek. Die
 private Umgebung ohne private Wahl soll Anwendung und Bibliothek entfernen,
 ihre Konfiguration erhalten und die gemeinsame Generation unverändert lassen.
-Dieser zusätzliche Test ist noch nicht kompiliert oder ausgeführt.
+Bei Ergänzung war dieser zusätzliche Test noch nicht kompiliert oder ausgeführt;
+der folgende Nachweis hält seinen anschließend abgeschlossenen Lauf fest.
 Die neue Gruppe `reconciliation-orphan` prüft ihn zusammen mit dem bisherigen
 vollständigen Fall, deren Assertions nun gemeinsam verwendet werden.
 `--upload-bundle` erlaubt die ausdrückliche Bereitstellung eines neuen
@@ -3537,6 +3538,24 @@ Testbundles für eine gezielte native Gruppe, ohne die bereits bestandene
 Auswahlgruppe allein für den Upload wiederholen zu müssen. Alle vorhandenen
 Profil-, Image-, Quell- und Bytegleichheitsprüfungen bleiben erhalten;
 vorhandene Bundle-Ziele werden weiterhin abgewiesen. Neun Hosttests bestehen.
+
+Der Komponentenbuild `identity-20261003T185327Z-c1663c3f-AtF89H` aus Commit
+`c1663c3fd1d50b31bbabd6c62fad42f2a0b45976` endet erfolgreich. Beleg
+`out/phase1-dod/c1663c3-orphan/native-build-receipt.json`, SHA-256
+`99bee6600a632573ce2b7719f06f198416625f960ea43d167927593edb4d4ec9`.
+Nur die Testquelldatei unterscheidet sich vom Referenzstand; alle zehn
+Produkthelfer und das Java-Test-APK bleiben bytegleich.
+
+Die Gruppe `reconciliation-orphan` besteht danach **beide Tests ohne
+übersprungene Fälle** im gleichen separaten Systemprofil. Der ursprüngliche
+vollständige Fall besteht nach gemeinsamer Nutzung der Assertions erneut;
+auch die verbliebene automatische Bibliothek verhindert den vollständigen
+synthetischen Abgleich nicht. Boot-ID, SystemServer, SELinux Enforcing und
+System-CE `[0]` sind vor/nachher identisch. Beleg
+`out/phase1-dod/c1663c3-orphan/tests/result.json`, SHA-256
+`78a55279e744c864b1d1a85309633b2bbc8d181fd7d88b4018d594cebe63b0b4`;
+Testlog SHA-256 `171a3fae4e29cbd3f93f5ac4ba983160a3878e30602e2bf75ad205d49b0e4f42`.
+**Alphas tatsächlicher CLI-Fehler bleibt ungeklärt und ist nicht behoben.**
 
 ### Begrenzte Diagnose für fehlgeschlagene Runtime-Starts
 
@@ -3553,3 +3572,11 @@ Gast geprüftes Produkt. Sie erklärt Alphas früheren Fehler nicht rückwirkend
 Ein neues passendes Image und ein regulärer CLI-Versuch in einem gesonderten
 Profil müssen den tatsächlichen Fehlerpfad erst sichtbar machen. Das laufende
 persönliche Abnahmeprofil und seine bisherigen Belege bleiben erhalten.
+
+Die Gruppe `start-failure` im bestehenden Komponententreiber wählt dafür drei
+vorhandene Tests: Ein fehlgeschlagener Selector bleibt fehlgeschlagen;
+Fortsetzungen können gestoppte/ersetzte Starts nicht wiederherstellen; auch
+ein Stopp ohne Wartebudget hinterlässt keinen fortsetzbaren Start. Die Gruppe
+ist vorbereitet, aber noch nicht auf dem Diagnoseimage ausgeführt. Weil die
+Diagnose Produktcode ändert, gilt die Ausnahme für reine Testquelländerungen
+hier ausdrücklich nicht; die bestehende Image-/Quellprüfung bleibt erforderlich.

@@ -304,8 +304,13 @@ Beleg `out/phase1-dod/5975256-removal/reconciliation-removal/result.json`, SHA-2
 Der Systemzustand bleibt gleich. Alphas CLI-Fehler bleibt ungeklärt: Die
 synthetische gemeinsame Generation enthält nach Entfernung keine Bibliothek
 mehr, während der freigegebene CLI-Plan nur jq entfernt. Ein zusätzlicher Test
-mit verbliebener automatischer gemeinsamer Bibliothek ist ergänzt, aber noch
-nicht kompiliert/ausgeführt. Kein T13-/T16-Gesamtabschluss wird daraus abgeleitet.
+mit verbliebener automatischer gemeinsamer Bibliothek ist in Commit `c1663c3`
+kompiliert und zusammen mit dem ursprünglichen vollständigen Fall bestanden
+(2/2, keine übersprungenen Tests, identischer Systemzustand vor/nachher).
+Beleg `out/phase1-dod/c1663c3-orphan/tests/result.json`, SHA-256
+`78a55279e744c864b1d1a85309633b2bbc8d181fd7d88b4018d594cebe63b0b4`.
+Auch diese Variante reproduziert den tatsächlichen Alpha-Fehler nicht.
+Kein T13-/T16-Gesamtabschluss wird daraus abgeleitet.
 
 ### Historische Restliste des Referenzlaufs 209278de
 
