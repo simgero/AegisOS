@@ -397,6 +397,13 @@ SHA-256 `7aec07ce58bbb7bb37f6781b06233e236ce5fdf4c4768ad93992c651f8b0fcfc`.
 Die erfolgreiche Ableitung mit 78 expliziten Basiswurzeln ist ein lokaler
 Metadatenvergleich; Gastaktivierung und Persistenz der Korrektur bleiben offen.
 
+Die korrigierte Basis wurde anschließend zweimal bytegleich gebaut und
+unabhängig geprüft: unveränderte Paketliste, ausschließlich korrigierte
+APT-Markierungen. Beleg `out/phase1-dod/b832d6c-base/base-verification.json`,
+SHA-256 `8766c6d38f4573de3b07cba1667e5fb097e5c751c370d8afa8bac3ef68b63412`.
+Dies ist ein Basisimage-Nachweis; der passende Produktbuild und Gastnachweis
+bleiben erforderlich.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte

@@ -17,11 +17,25 @@ fehlende Wurzeln bleibt bestehen; korrigiert wird die Herkunft dieses Zustands.
 
 102 Hosttests für Runtime-Basis, Generation und Integration bestehen, darunter
 die zuvor fehlgeschlagene Regression mit vollständig automatisch markierter
-Upstream-Basis. Ein neuer deterministischer Basisbuild, ein passendes
-Produktimage und der Entfernungstest im Gast stehen für diese Korrektur noch
-aus. Bestehende veröffentlichte Generationen werden nicht nachträglich
-umgeschrieben. Der folgende Basislauf gehört zum früheren Rezept und ist kein
-gültiger Eingang für das geänderte Rezept.
+Upstream-Basis. Der neue Basislauf
+`runtime-base-20261003T230204Z-b832d6c0-TCF6AT` für Commit
+`b832d6c077baeee4324e00d00dc3618372f3e9d9` ist mit
+`BUILT_VERIFIED_NOT_MOUNTED` abgeschlossen. Beide gebauten Images sind
+bytegleich; Dateisystem, Inhalte, Eigentümer und Modi bestehen die Prüfungen.
+Image-SHA-256:
+`f0d294fadfa0924489213cd3cb7fe0bf908da30330f1f34bb582dac4aca12514`.
+Plan-SHA-256:
+`32224de227d92e367473173780af6fed8c2183c4935809e4e22b1602d1c4c8cd`.
+
+Der unabhängige Vergleich mit dem bisherigen Basisplan bestätigt dieselbe
+Paketliste und ausschließlich `var/lib/apt/extended_states` als geänderten
+Dateieintrag. Diese Datei ist auch im tatsächlichen neuen Image leer. Beleg
+`out/phase1-dod/b832d6c-base/base-verification.json`, SHA-256
+`8766c6d38f4573de3b07cba1667e5fb097e5c751c370d8afa8bac3ef68b63412`.
+Ein passendes Produktimage und der Entfernungstest im Gast stehen für diese
+Korrektur noch aus. Bestehende veröffentlichte Generationen werden nicht
+nachträglich umgeschrieben. Der folgende Basislauf gehört zum früheren Rezept
+und ist kein gültiger Eingang für das geänderte Rezept.
 
 ## Aktualisierte Rezeptbindung am 30. September 2026
 
