@@ -4,8 +4,8 @@ Beginn: 1. Oktober 2026. Ziel ist die vollständige
 [DoD](architecture/phase-1-dod.md), einschließlich aller Varianten T01–T17.
 **Status: aktiv, keine vollständige Abnahme.** Aktueller Prüfstand:
 Image `209278def7d5bc5612eeb397bdd8ee20ccb16d86`, Profil
-`2366ca04-d587-4170-8c56-a63c8a8e1774`, Boot-ID
-`44dbff5f-3a76-4e97-9334-beb437fcd461`.
+`2366ca04-d587-4170-8c56-a63c8a8e1774`, zweiter Boot mit ID
+`2816650c-96bf-4db0-84e6-f169f9dfada9`.
 Vollbuild und Imageprüfung, Bedienung per Tastatur/Maus, authentifizierter
 binärer ADB-Rundlauf und die begrenzte Boot-/Kryptographiekontrolle sind
 belegt. Auf diesem Image bestehen 38 Java-Pakettests, sieben native Plantests,
@@ -18,9 +18,15 @@ veröffentlicht, regulär aktiviert und tatsächlich ausgeführt.
 Beta ist als normaler Benutzer angelegt; auch sein erster Login und seine
 GNU-Grundprüfung bestehen. Er führt gemeinsames u3 aus, während Alpha privates
 u4 behält. Beide ursprünglichen persönlichen Dateien und fortlaufenden
-Hintergrundprozesse sind erfasst. Der vollständige Isolations-, Paketfehler-,
-Logout- und Neustartablauf bleibt offen. Die einzelnen Belege und ihre Grenzen
-stehen weiter unten.
+Hintergrundprozesse sind erfasst. Gegenseitige Datei-/Prozess-/Konfigurations-
+und POSIX-Mqueue-Prüfungen, beide externen Wechselrichtungen, Bildschirmsperre
+und beide regulären Abmeldungen sind belegt. Das Profilpaar ist sauber gestoppt
+und erneut gestartet; persönliche Daten sind vor Anmeldung gesperrt. Beide
+ersten korrekten Logins danach sowie bytegleiche Originaldateien/Konfigurationen
+und tatsächlich getrennte jq-Versionen sind ebenfalls belegt. Der dritte
+Benutzer und die vollständige ergänzende Matrix bleiben offen.
+Der [Ergebnisindex](phase-1-result-index.md) trennt
+einzelne aktuelle Varianten von historischen Teilbelegen.
 
 ## Frühere integrierte Prüfstände
 
@@ -1805,3 +1811,74 @@ Profil-ID, Image-Commit, bisherigen Boot und ursprüngliche Dateihashes:
 `out/phase1-dod/209278de/identity-test/reboot-checkpoint.json`, SHA-256
 `40df7073677cda4cf824cec36ecbab9fe5aaa193e254664a140517b5eb2e684a`.
 Der Passworttreiber bleibt für die anschließende Anmeldung am Leben.
+
+## Profilpaar sauber beendet und erneut gestartet
+
+Android endet regulär mit `reboot: Power down`; anschließend hängt der Helfer
+seinen bestehenden Zustand aus und meldet `AEGIS_HELPER_SHUTDOWN_CLEAN`.
+Der gemeinsame Launcher endet mit Code 0. Beleg:
+`out/phase1-dod/209278de/paired-shutdown-1.json`, SHA-256
+`a1ddc71361415466e697cd6e363b2a36ab42ae84e58f5b6b4435e3d3c7657ed4`.
+
+Die vollständigen Logs dieses ersten Referenzboots enthalten keine beobachteten
+fatalen Ausnahmen, fatalen Signale, ANRs, FORTIFY-Abbrüche oder Watchdog-Kills.
+Genau ein SystemServer-Start ist protokolliert; unmittelbar vor dem Shutdown
+besitzt er weiterhin PID/Startzeit `1368/37230`. Die vor dem Shutdown erfassten
+Init-Rückgabewerte entsprechen den bereits begründeten Einmal-/Stopfällen.
+Für alle 79 zusätzlichen nichtnull Dienstabschlüsse während des Shutdowns
+ist ein vorheriges explizites Stoppsignal an denselben Dienst und dieselbe PID
+im Protokoll zugeordnet. Diese Abschlüsse werden nicht ausgeblendet.
+Beleg: `out/phase1-dod/209278de/first-reference-boot-health.json`, SHA-256
+`b41f371a1c0b92b80eace46ba06021dff01005cbb671f2e4f8ded5bbaebd9553`.
+
+Der zweite Start verwendet dasselbe Profil ohne Neuanlage. Manifest-Hash,
+Profil-ID und beide Disk-Inodes stimmen überein; die Boot-ID ist neu:
+`2816650c-96bf-4db0-84e6-f169f9dfada9`. ADB authentifiziert sich mit dem
+bestehenden Schlüssel. SELinux ist Enforcing, der AVB-Digest unverändert.
+Vor persönlicher Anmeldung sind nur Systembenutzer 0 gestartet, CE `[0]` und
+keine persönlichen Runtime-Kontexte vorhanden. Beide ursprünglichen
+GNU-Dateien und Alphas private Paketmetadaten liefern keine Bytes.
+Beleg: `out/phase1-dod/209278de/postboot-locked-baseline.json`, SHA-256
+`38868bfb264e865835c1a375c92c6377ef17744a9a1a782e21c31f7b09fc0553`.
+
+Die ersten korrekten persönlichen Anmeldungen und Originaldaten-/Paketprüfungen
+nach diesem Boot sind eigene Folgeschritte; sie werden durch den erfolgreichen
+Boot allein nicht vorweggenommen.
+
+## Erste Anmeldungen, Originaldaten und Paketversionen nach Reboot erhalten
+
+Alpha und Beta melden sich jeweils beim ersten korrekten Versuch nach dem
+zweiten Boot erfolgreich an, ohne vorgeschalteten Fehlversuch. Die
+Vorbereitungsbeobachtung bestätigt jeweils weiterhin gesperrtes Ziel-CE und
+keinen Kontext vor der Passwortübermittlung. Verzögerte Statusprüfung und
+anschließende tatsächliche GNU-Ausführung bestehen für beide Benutzer.
+
+Die ursprünglichen 1024-Byte-Dateien sowie beide persönlichen Konfigurations-
+und Testdateien stimmen bytegleich mit den vor dem Reboot geschriebenen Proben
+überein. Die alten `/tmp`-/`/run`-Dateien und POSIX-Mqueues fehlen in beiden
+neuen Kontexten. Alpha führt privates jq/libjq1 `1.7.1-6+deb13u4` aus, Beta
+gemeinsames `1.7.1-6+deb13u3`; beide berechnen tatsächlich `6` aus `[1,2,3]`.
+Bibliotheksauflösung, Paketversionen und die ursprünglichen Binary-/Library-
+Prüfsummen stimmen. Beide CLI-Statusausgaben melden `packages=current`.
+
+Gemeinsame und private Auswahlmetadaten und die tatsächlichen Root-Backings
+sind unverändert. Die vollständigen Paketdatensätze bleiben für beide Benutzer
+gleich, jeweils 81 installierte Pakete. Beim ersten Rohbytevergleich bestand
+eine einzelne zusätzliche abschließende Newline gegenüber dem früheren
+lokalen Beleg; dieser Beobachtungsfehler und die Rohdaten sind erhalten.
+Der erfolgreiche Vergleich erlaubt nur diese einzelne Endzeile und verlangt
+ansonsten identische Bytes. Produktdaten oder Berechtigungen wurden nicht
+geändert. SystemServer bleibt während dieser Prüfung PID/Startzeit `1159/20411`.
+
+Beleg: `out/phase1-dod/209278de/paired-reboot-readback-v2/result.json`, SHA-256
+`5f527250f03c94b3677224987d110dd9c8a888f4bb90c79d943db6909db19ab1`.
+Er verknüpft den vollständigen Shutdown, die Sperrbeobachtung vor Anmeldung,
+die ursprünglichen Dateihashes und tatsächliche Ausgaben aus beiden GNU-Shells.
+Für weitere Lebenszyklusfälle sind erst nach diesen Readbacks neue begrenzte
+Hintergrundproben angelegt. Sie behaupten kein Prozessüberleben über den Reboot.
+
+Dies schließt den regulären gepaarten Neustart des aktuellen Referenzlaufs.
+Passwortwechsel, nachträglicher Benutzer, Löschung/ID-Wiederverwendung sowie
+die ergänzenden Paket-, Fehler- und Lebenszyklusvarianten bleiben offen.
+Der neue Ergebnisindex führt 71 einzeln bezeichnete Varianten und grenzt
+bestandene Teilfälle ausdrücklich von der noch offenen Gesamtfreigabe ab.
