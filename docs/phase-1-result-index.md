@@ -30,7 +30,7 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 
 | Variante | Erwartete Wirkung | Tatsächliches Ergebnis / Status | Beleg |
 | --- | --- | --- | --- |
-| T01.1 Anlage und Auflistung | Zwei unterschiedliche persönliche AOSP-Identitäten, A Admin, B normal | Teilbelegt: Anlage und Identitäten bestätigt; explizite vollständige Listenausgabe noch zuordnen | E01, E02 |
+| T01.1 Anlage und Auflistung | Zwei unterschiedliche persönliche AOSP-Identitäten, A Admin, B normal | Bestanden: tatsächliche Anlage und CLI-Auflistung mit Alpha 10/10 als Admin und Beta 11/11 als normalem Benutzer | E01, E02, E19 |
 | T01.2 Erster korrekter Zugang A/B | Jeweils erster richtiger Login ohne Aufwärmversuch; nur Ziel-CE neu entsperrt | Bestanden vor Reboot; Vorbereitung und echte GNU-Ausführung erfasst | E01, E02 |
 | T01.3 Falsches Passwort | Keine Entsperrung, keine Sitzung, kein Runtime-Start | Offen auf diesem Image | — |
 | T01.4 Identitätsquelle | Keine parallelen persönlichen Linux-Konten/Passwortspeicher | Offen: vollständige Quell-/Gastzuordnung erforderlich | — |
@@ -54,14 +54,14 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T06.5 Flüchtige Dateien A→B und B→A | Kein fremder Inhalt/Schreibzugriff bei gleichzeitig entsperrten Benutzern | Bestanden; Alphas flüchtige Probe wurde separat nach Kontextneustart erneuert | E06 |
 | T06.6 Prozesse A→B und B→A | Kein Zugriff/Stoppsignal; ursprünglicher Peer macht weiter Fortschritt | Bestanden, mit unabhängiger Beobachtung derselben PID/Startzeit | E05 |
 | T06.7 IPC A→B und B→A | Gleicher Queue-Name bleibt privat, fremde Queue unzugänglich | Bestanden für POSIX-Mqueues; keine Aussage über beliebige weitere IPC-Schnittstellen | E07 |
-| T07.1 Daten nach Runtime-Neustart | Originaldatei, Konfiguration und private Software erhalten | Teilbelegt: Alpha bei regulärer Paketaktivierung bestanden; Beta-Neustart noch zuordnen | E03, E04 |
-| T07.2 Flüchtige Daten nach Kontextneustart | Alte `/tmp`- und `/run`-Proben fehlen, persistente Bytes bleiben | Teilbelegt: Alpha bei Aktivierung bestanden; Gegenbenutzer noch prüfen | E03, E04 |
+| T07.1 Daten nach Runtime-Neustart | Originaldatei, Konfiguration und private Software erhalten | Bestanden für beide Benutzer: Originalbytes, Konfiguration, tatsächliche jq-Versionen und unveränderte Paketgenerationen | E03, E04, E17 |
+| T07.2 Flüchtige Daten nach Kontextneustart | Alte `/tmp`- und `/run`-Proben fehlen, persistente Bytes bleiben | Bestanden für beide Benutzer mit unmittelbar vorher neu angelegten flüchtigen Proben | E17 |
 | T07.3 Daten/Pakete nach VM-Neustart | Beide Originaldateien/Konfigurationen und A-private/B-gemeinsame Version erhalten | Bestanden: Originalbytes, getrennte Konfiguration, jq/libjq1 u4/u3, unveränderte Paketgenerationen/-datensätze; alte flüchtige Proben fehlen | E13, E15, E16 |
 | T08.1 Wechsel beider Richtungen | Alten Terminalkanal widerrufen, zulässigen Hintergrundprozess erhalten | Bestanden, frische Anmeldung über zweite CLI | E08 |
 | T08.2 Bildschirmsperre | Terminal widerrufen, zulässige Arbeit weiterführen; kein behaupteter CE-Entzug | Bestanden: Keyguard/Asleep unabhängig bestätigt, beide Originalprozesse laufen, CE bleibt entsperrt | E09 |
-| T08.3 AOSP-Ressourcenstopp | Gestoppten Hintergrundbenutzer samt Runtime-Ressourcen abbauen | Offen auf diesem Image | — |
-| T09.1 Eigener Runtime-Stopp A/B | Nur eigener Kontext/flüchtige Ressourcen enden, Sitzung/CE korrekt | Teilbelegt: Alpha-Aktivierungsstopps; vollständiger Lebenszyklus beider Benutzer fehlt | E03, E04 |
-| T09.2 Runtime-Stopp mit aktivem Peer | Peer bleibt unverändert arbeitsfähig | Offen in beiden Richtungen | — |
+| T08.3 AOSP-Ressourcenstopp | Gestoppten Hintergrundbenutzer samt Runtime-Ressourcen abbauen | Teilbelegt: AOSP-Limit stoppt Beta, Originalprozess/Kontext entfernt und CE gesperrt; erneute Anmeldung und Originaldatenvergleich noch offen. Vorzeitige fehlgeschlagene Endzustandsprüfung bleibt dokumentiert | E20 |
+| T09.1 Eigener Runtime-Stopp A/B | Nur eigener Kontext/flüchtige Ressourcen enden, Sitzung/CE korrekt | Bestanden in beiden Richtungen: Originalprozess/Kontext weg, Sitzung und CE erhalten; anschließende Daten-/Tmp-/Run-/Mqueue-Prüfungen bestanden | E17 |
+| T09.2 Runtime-Stopp mit aktivem Peer | Peer bleibt unverändert arbeitsfähig | Bestanden in beiden Richtungen mit gleicher Peer-PID/Startzeit und fortschreitendem Zähler | E17 |
 | T10.1 Regulärer Logout Beta mit Alpha aktiv | Beta-Prozess/Kontext weg, CE gesperrt, bekannte Datei unlesbar; Alpha unverändert aktiv | Bestanden | E10 |
 | T10.2 Regulärer Logout Alpha | Originalprozess/Kontext weg, CE gesperrt, bekannte Datei unlesbar, Systembenutzer erhalten | Bestanden | E11, E12 |
 | T10.3 Offene Zugriffe, Mounts, IPC | Vollständigen Ressourcenabbau und fehlenden Wiederzugriff zeigen | Teilbelegt: Kontext/Cgroup leer; eigenständiger Mqueue-/Mount-/Zugriffsabbau noch vollständig zuordnen | E12 |
@@ -126,6 +126,10 @@ ihre Aussage ein. Keine Profile, Passwörter oder Buildartefakte werden hochgela
 | E14 | `first-reference-boot-health.json` | `b41f371a1c0b92b80eace46ba06021dff01005cbb671f2e4f8ded5bbaebd9553` |
 | E15 | `postboot-locked-baseline.json` | `38868bfb264e865835c1a375c92c6377ef17744a9a1a782e21c31f7b09fc0553` |
 | E16 | `paired-reboot-readback-v2/result.json` | `5f527250f03c94b3677224987d110dd9c8a888f4bb90c79d943db6909db19ab1` |
+| E17 | `reciprocal-runtime-stop-proof.json` | `e6e3763b9ffc5b4b72fd0ccfc8431dd02e956d81d53908d580d8cf1495ba8c85` |
+| E18 | `private-state-hash-verifier-check.json` | `ed64a678635800422ce3d7e00cb512a7acfa21bb2ca95858fa3f55680e1f0239` |
+| E19 | `before-third-user.json` | `645ee4ccaccbcd3e04ffa97b5699e1b8c2f940a766f58768a51ed80adea41e6c` |
+| E20 | `beta-aosp-resource-stop-proof.json` | `1c65561ea6a2461714261f7fe0b709174c20e5c2acc4162c8ccb9a0e25da6ae4` |
 
 ## Abschlusskriterien und Referenzablauf
 
@@ -134,7 +138,7 @@ ihre Aussage ein. Keine Profile, Passwörter oder Buildartefakte werden hochgela
 | D1 | Build-/Versionsinventar, Bedienung/ADB und Schutzmechanismen vollständig indexieren; weitere Läufe prüfen. E14 bestätigt nur den abgeschlossenen ersten Referenzboot. |
 | D2 | Gesamte Benutzerverwaltung, Ablehnungen, Identitätsbindung und Passworttransport einschließlich T01/T02/T12 vervollständigen. |
 | D3 | Passwortpersistenz, Logoutfehler und Löschung vollständig belegen; aktueller regulärer Reboot ist mit E13/E15/E16 nachgewiesen. |
-| D4 | AOSP-Ressourcenstopp und Runtime-Stopp mit aktivem Peer ergänzen. |
+| D4 | Wiederanmeldung und Datenvergleich nach AOSP-Ressourcenstopp ergänzen (Teilnachweis E20); Runtime-Stopp mit aktivem Peer ist in beiden Richtungen mit E17 belegt. |
 | D5 | Fehlende Startvoraussetzungen und Betas privaten Paketbestand prüfen; Rechte-/Adminbegrenzung vollständig zuordnen. |
 | D6 | Sechs vollständige Autorisierungskombinationen, Entfernung, Updates, Konflikte und Parallelität nachweisen. |
 | D7 | Sämtliche offenen Varianten schließen; Source-/Build-/CLI-/Architektur-/Threat-Model-/Kryptographieübergabe gegen den Entwicklerauftrag prüfen. |

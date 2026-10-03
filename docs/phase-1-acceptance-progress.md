@@ -1882,3 +1882,72 @@ Passwortwechsel, nachträglicher Benutzer, Löschung/ID-Wiederverwendung sowie
 die ergänzenden Paket-, Fehler- und Lebenszyklusvarianten bleiben offen.
 Der neue Ergebnisindex führt 71 einzeln bezeichnete Varianten und grenzt
 bestandene Teilfälle ausdrücklich von der noch offenen Gesamtfreigabe ab.
+
+## Runtime-Stopp beider Benutzer mit aktivem Gegenbenutzer bestätigt
+
+Beta und Alpha führen jeweils `linux stop` aus, während der andere Benutzer
+seinen positiv beobachteten ursprünglichen Hintergrundprozess behält. Eigener
+Prozess und Kontext werden entfernt; AOSP-Sitzung, Vordergrundidentität und
+CE-Liste `[0, 10, 11]` bleiben erhalten. Der Peer behält jeweils PID, Startzeit
+und Namespaces und macht vor/nach dem Stopp weiter Fortschritt. Das ist ein
+Runtime-Stopp, ausdrücklich kein Logout oder CE-Schlüsselentzug.
+
+Vor jedem Stopp werden nur die zuvor als leer bestätigten flüchtigen Proben
+in `/tmp` und `/run` sowie persönliche POSIX-Mqueues neu angelegt. Persistente
+Originaldateien werden nicht überschrieben. Nach erneutem Runtime-Start fehlen
+diese flüchtigen Proben und Queues, während die ursprünglichen Dateien und
+Konfigurationsbytes unverändert lesbar sind. Beta führt weiterhin jq/libjq1
+`u3` aus, Alpha seine private Variante `u4`. Gemeinsame/private Auswahlmetadaten
+sind unverändert. Neue Hintergrundproben werden erst nach bestätigtem Ende
+der alten Prozesse und erfolgreichem Originaldaten-Readback angelegt.
+
+Beleg: `out/phase1-dod/209278de/reciprocal-runtime-stop-proof.json`, SHA-256
+`e6e3763b9ffc5b4b72fd0ccfc8431dd02e956d81d53908d580d8cf1495ba8c85`.
+Boot-ID und SystemServer `1159/20411` bleiben unverändert, SELinux Enforcing.
+Der nachträgliche Benutzer und AOSPs eigener Ressourcenstopp sind separate
+Pflichtfälle; ihr anschließender Teilstand ist unten festgehalten.
+
+## Konfigurations-Hashprüfung im Testwerkzeug präzisiert
+
+Die bisherige private Konfigurationsprüfung verglich den Inhalt per Shell-
+Substitution und gab SHA-256 aus, kontrollierte die ausgegebenen Hashzeilen
+jedoch nicht automatisch. Damit konnte sie zusätzliche abschließende Newlines
+allein über den Shell-Vergleich nicht zuverlässig erkennen. Commit `1ee00e1`
+verlangt nun pro geprüftem Pfad genau eine tatsächliche, passende SHA-256-Zeile.
+
+Die geänderte Funktion wurde gegen alle elf bis zum Korrekturzeitpunkt
+vorliegenden Originalausgaben ausgeführt: Alle Hashes stimmen. Zusätzliche
+Daten-Newline, fehlende Hashzeile und doppelte Hashzeile werden für beide
+Benutzer in veränderten Ausgabekopien abgewiesen. Beleg:
+`out/phase1-dod/209278de/private-state-hash-verifier-check.json`, SHA-256
+`ed64a678635800422ce3d7e00cb512a7acfa21bb2ca95858fa3f55680e1f0239`.
+
+Der lebende Passworttreiber wurde nicht ersetzt und verwendet weiterhin seine
+ursprünglich geladene Fassung. Die vollständigen Runtime-Stopp-Belege prüfen
+deshalb zusätzlich die tatsächlichen Hashzeilen aus seinen Rohereignissen.
+Das Produktimage und die persönlichen Daten bleiben unverändert.
+
+## Nachträglicher Benutzer und AOSP-Ressourcenstopp: Teilnachweis
+
+Gamma wurde über die CLI als normaler AOSP-Benutzer 12/12 angelegt und mit
+seinem Passwort angemeldet. Sein GNU-Kontext meldet am 3. Oktober 2026 um
+02:17:20 UTC `runtime=ready ce=unlocked`. Die tatsächliche Programmausführung
+und der Paketbestand dieses neuen Benutzers sind damit noch nicht abgenommen.
+
+AOSP stoppte beim Wechsel zu Gamma den Hintergrundbenutzer Beta wegen seines
+Limits laufender Benutzer. Das AOSP-Protokoll nennt ausdrücklich
+`Too many running users (4). Attempting to stop user 11`. Anschließend wurden
+Betas ursprünglicher Prozess und Kontext entfernt und sein CE-Speicher
+gesperrt. Die bekannte persönliche Originaldatei lieferte danach keine Bytes.
+Es wurde hierfür kein zusätzlicher CLI-Logout oder Runtime-Stopp angefordert.
+
+Eine vorzeitig ausgeführte Endzustandsprüfung schlug um 02:14:11 UTC fehl.
+Der unabhängig beobachtete Benutzerabbau war damals noch nicht abgeschlossen;
+die genaue fehlgeschlagene Assertion wurde nicht protokolliert. Dieser Fehler
+bleibt erhalten. Die später bestätigte Sperrung ersetzt ihn nicht rückwirkend.
+Die erneute Anmeldung und der Vergleich der ursprünglichen Daten nach diesem
+Ressourcenstopp bleiben offen.
+
+Beleg: `out/phase1-dod/209278de/beta-aosp-resource-stop-proof.json`, SHA-256
+`1c65561ea6a2461714261f7fe0b709174c20e5c2acc4162c8ccb9a0e25da6ae4`.
+Die vollständige Phase-1-Abnahme bleibt ausstehend.
