@@ -2656,3 +2656,86 @@ Damit ist der reguläre Paar-Neustart mit Originaldaten und unterschiedlichen
 Paketversionen auf diesem Image nachgewiesen. Passwortwechsel, dritter Benutzer,
 vollständige Paketautorisierung, Updates/Entfernung/Konflikte/Parallelität und die
 übrigen Pflichtvarianten bleiben offen. Die Phase-1-Gesamtfreigabe bleibt ausstehend.
+
+### Dritter Benutzer mit gemeinsamer Software auf f098f43
+
+Nach dem gepaarten Neustart wird Gamma über die tatsächliche CLI und mit frischer
+Adminbestätigung durch Alpha als normaler AOSP-Benutzer `12/12` angelegt.
+Die unabhängige Vorher-Aufnahme bestätigt gesperrtes Gamma-CE, keinen Gamma-Kontext
+und unveränderte Originaldateien von Alpha/Beta. Auch die Zielvorbereitung vor
+der Passworteingabe entsperrt Gamma nicht. Der erste korrekte Login bleibt bei
+der verzögerten Statusprüfung gültig; die anschließende GNU-Shell besitzt ein
+frisches HOME mit den zehn erwarteten privaten Standardverzeichnissen.
+
+Gamma führt gemeinsames jq/libjq1 `1.7.1-6+deb13u3` und libonig5 `6.9.9-1+b1`
+mit erfolgreicher Berechnung und passender Bibliotheksauflösung aus. Seine
+vollständige Datenbank mit 81 Paketen und deren Rohdaten-Prüfsumme entsprechen
+exakt Betas zuvor verwendeter gemeinsamer Generation. Gamma erhält Host-UID/GID
+1207500 bei interner UID/GID 1000; seine sechs beobachteten Namespaces unterscheiden
+sich von Alphas aktivem und Betas vorherigem Kontext. Die Basis bleibt
+schreibgeschützt, Capabilities sind leer, NoNewPrivs und Seccomp aktiv.
+
+Aus Gammas gewöhnlicher GNU-Shell liefern die bekannten ursprünglichen Dateien,
+Konfigurations- und synthetischen persönlichen Testdateien von A/B weder unter
+ihren CE-Pfaden noch unter den gleichnamigen eigenen HOME-Pfaden Bytes. Der
+Zugriff auf Alphas tatsächlich vorhandene private Paketauswahl wird ebenfalls
+verweigert. Gamma legt eigene JSON-Einstellungen mit Modus 0600 an und verarbeitet
+sie mit dem gemeinsamen jq. Alphas Konfiguration bleibt nach den Prüfungen
+bytegleich; sein ursprünglicher Hintergrundprozess 3660/89824 schreitet weiter.
+
+Dabei beendet AOSP eigenständig Beta, nachdem der Start von Gamma das konfigurierte
+Limit laufender Benutzer erreicht. Das Log nennt ausdrücklich „Too many running
+users (4)“ und den gewählten Benutzer 11. Betas ursprüngliche Probe 5139/121459
+und sein Kontext sind anschließend entfernt, sein CE ist gesperrt; seine bekannte
+Originaldatei liefert auch bei gesonderter Prüfung keine Bytes. Es wurde in
+diesem Ablauf kein Beta-Logout oder Beta-Runtime-Stopp angefordert. Die Beobachtung
+behauptet deshalb keine gleichzeitige Isolation dreier entsperrter Benutzer.
+Beta besitzt weiterhin keinen privaten Paketstore; dessen Abwesenheit zählt
+nicht als Prüfung eines vorhandenen privaten Bestands.
+
+Beleg: `out/phase1-dod/f098f439/third-user-common-and-isolation-proof.json`, SHA-256
+`1af75bc265b6905f516e48c08955bf272984e6e31941aa207d42c7e796784847`.
+Er bindet den unveränderlichen Präfix von 266 Treiberereignissen, die vollständigen
+Paketaufnahmen, tatsächlich ausgeführten GNU-Befehle, AOSP-Lifecycle-Beobachtung
+und den unveränderten SystemServer 1124/21865 ein. Die begrenzte Logaufnahme
+enthält keine geprüften Fatal-/ANR-/FORTIFY-/Watchdog-Meldungen. Betas Datenreadback
+nach erneuter Anmeldung ist im folgenden gesonderten Wiederanlaufnachweis
+erfasst; sämtliche anderen offenen Pflichtvarianten bleiben erforderlich.
+
+### Betas Daten nach AOSP-Ressourcenstopp auf f098f43 erhalten
+
+Gamma wird regulär über die CLI abgemeldet. Vor Betas anschließender frischer
+Anmeldung meldet AOSP nur CE `[0,10]`; auch die Zielvorbereitung lässt Betas CE
+gesperrt und seinen GNU-Kontext abwesend. Die korrekte Anmeldung bleibt bei
+verzögerter Prüfung stabil. Nach dem neuen Runtime-Start liest Beta seine
+ursprüngliche Datei und Konfiguration bytegleich, führt gemeinsames jq/libjq1
+`u3` mit passenden Abhängigkeiten aus und sieht Gammas eigene JSON-Einstellungen
+nicht in seinem HOME.
+
+Die vollständige Paketaufnahme bestätigt dieselben 81 installierten Pakete,
+dieselbe Rohdaten-Prüfsumme, gemeinsame/private Auswahlen und dasselbe gemeinsame
+Backing-Image wie vor dem Ressourcenstopp. Betas neuer Kontext ist 13017/315337;
+seine Namespace-Identitäten unterscheiden sich vom alten Kontext und von Alpha.
+Alphas kompletter Kontextdatensatz einschließlich Paketbestand bleibt unverändert,
+und die ursprüngliche Probe 3660/89824 schreitet bei Beta im Vordergrund weiter.
+Gamma besitzt nach seinem Logout keinen Kontext und bleibt CE-gesperrt.
+
+Erst nach festgestelltem Ende der alten Beta-Probe 5139/121459 und Originaldaten-
+Readback wird eine neue begrenzte Probe erzeugt: 13555/331098. Dies zählt nicht
+als Überleben der alten Probe. Die kontrollierten alten flüchtigen Dateinamen
+waren bereits vor diesem Ressourcenstopp abwesend; ihre erneute Abwesenheit
+wird nicht als neuer Nachweis für den Abbau flüchtiger Dateien gewertet.
+
+Beleg: `out/phase1-dod/f098f439/beta-resource-stop-recovery-proof.json`, SHA-256
+`bc0b3107b85f0cd631b7e21a27b3fda36fea7c6eb86195b3c9c39da527d8c2e3`.
+Der ursprüngliche SystemServer 1124/21865 bleibt erhalten; die eingefrorene
+Logaufnahme enthält weiterhin einen Start und keine geprüften Fatal-/ANR-/
+FORTIFY-/Watchdog-Meldungen. Der zum Startbeleg bytegleiche Testtreiber prüft
+zusätzlich alle sechs Lauf-Logs beider Boots gegen seine vollständigen
+synthetischen Testpasswörter und findet keinen Treffer. Dies ersetzt weiterhin
+keine vollständige T01.5-Prüfung aller Argumente, Dateien und History-Pfade.
+
+Der aktuelle Referenzschritt 11 sowie dieser AOSP-Ressourcenstopp mit Wiederanlauf
+sind damit belegt. Die vollständige Autorisierungsmatrix, Updates, private
+Versionsrückgänge/Entfernung/Konflikte/Parallelität und die übrigen Lebenszyklus-
+und Identitätsfälle bleiben offen; D1–D7 werden nicht als abgeschlossen markiert.
