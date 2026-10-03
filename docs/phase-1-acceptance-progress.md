@@ -173,12 +173,12 @@ nicht, dass die ganze Zeile der DoD bereits geschlossen ist.
 | ID | Vorhandene Grundlage | Für die vollständige Abnahme zu ergänzen/zuordnen |
 | --- | --- | --- |
 | T01 | Zwei echte CLI-Benutzer, AOSP-Authentifizierung, Logscan | Vollständige Zuordnung der Transport-/History-/Dateiprüfungen und keine zweite persönliche Identitätsquelle |
-| T02 | f098f43: Passwortwechsel, bestätigte Sperrung, altes Passwort abgewiesen, neue Anmeldung und ursprüngliche Daten/private Pakete erhalten; ältere Reboot-Belege separat | Neues Passwort und beide privaten Bestände auf f098f43 über einen vollständigen gepaarten VM-Neustart nachweisen |
+| T02 | f098f43: Passwortwechsel, bestätigte Sperrung, altes Passwort abgewiesen; neues Passwort und ursprüngliche Daten/beide privaten Paketbestände auch nach vollständigem gepaarten VM-Neustart bestätigt | Abschließende Zuordnung einschließlich AOSP-Schlüsselverwaltung; eine zusätzliche Ablehnung des alten Passworts im dritten Boot ist noch nicht ausgeführt |
 | T03 | UID/GID, sechs getrennte Namespaces, zwei fortlaufende Prozesse | Nachweise zum finalen Versions-/Referenzablauf zuordnen |
 | T04 | Admission-/Namespace-/Mapping-Komponententests | Gezielte Gasttests für alle fehlenden Voraussetzungen und fehlende Berechtigung zuordnen/ausführen |
 | T05 | GNU-Shell, Exit und Zugriff auf eigene Datei | Ablehnungen für gesperrte/fremde Kontexte und Exit-Lebenszyklus zum finalen Stand binden |
 | T06 | Gegenseitige Dateien, Konfiguration, Test-Secrets, temporäre Dateien, Prozesse und POSIX-Mqueues; zusätzlich beide tatsächlich vorhandenen privaten Paketauswahlen auf f098f43 | Alle Varianten zum finalen Image binden; die Prüfung der Auswahldateien belegt nicht sämtliche privaten Paketdateien |
-| T07 | Beide ursprünglichen Dateien/Konfigurationen, private Version und getrennte gemeinsame Version nach Reboot; alte `/tmp`-/`/run`-Proben fehlen | In den finalen Ergebnisindex übernehmen; bei betroffenen Produktänderungen erneut prüfen |
+| T07 | Beide ursprünglichen Dateien/Konfigurationen nach Reboot; auf f098f43 außerdem beide privaten jq-Versionen u4/u3 nach Passwortwechsel und erneutem Paarneustart erhalten; alte temporäre Probepfade fehlen | Im finalen Ergebnisindex die getrennten positiven Vorzustände der temporären Proben und die jeweiligen Neustartvarianten zuordnen |
 | T08 | Bildschirmsperre bei weiterlaufender Arbeit; tatsächlicher AOSP-Stopp Betas beim Start Gammas; spätere Datenwiederherstellung | Einzelne Wechsel-/Hintergrundvarianten vollständig zum finalen Ergebnisindex zuordnen |
 | T09 | Eigener Kontext gestoppt, Sitzung/CE und ursprünglicher Peer-Prozess erhalten | Belege zum finalen Image zuordnen; kein allgemeiner Logout-Nachweis |
 | T10 | Bestätigter Logout, CE gesperrt, Peer weiter aktiv | Konkurrierenden Start und vollständigen Ressourcenabbau gezielt zuordnen/prüfen |
@@ -3099,3 +3099,64 @@ Sperrung auf dem aktuellen Image. Ein vollständiger gepaarter VM-Neustart mit
 dem neuen Passwort und beiden privaten Beständen steht noch aus; T02 ist damit
 noch nicht vollständig abgenommen. Die unveränderten Dateiinhalte allein
 belegen außerdem keine Details der Schlüsselumhüllung oder Neuverschlüsselung.
+
+### Neues Passwort und beide privaten Bestände über gepaarten Neustart erhalten
+
+Am 3. Oktober wird das laufende Profil nach dem Passwortwechsel erneut vollständig
+heruntergefahren und als `boot-3` gestartet. Beta meldet sich um 13:33:15 UTC ab,
+Alpha um 13:39:34 UTC. Beide direkten Logouts werden bestätigt; die ursprünglichen
+Proben 22512/1586287 und 11600/1317468 sowie beide Runtime-Kontexte sind entfernt.
+Die bekannten Originaldateien liefern keine Bytes und AOSP bestätigt CE `[0]`.
+Alphas früherer ausstehender Logout bleibt dadurch weder erklärt noch behoben.
+
+Der neue Checkpoint bindet die konkrete Android-/KeyMint-Prozessgruppe und
+Profil-ID `535c2e93-df64-445b-b9e2-b71e6b403db7`. Android bestätigt den regulären
+Power-down, der Helfer seine saubere Beendigung, der Launcher endet mit Status 0.
+Alle aufgezeichneten Prozessidentitäten sind beendet. Das Profilmanifest bleibt
+bytegleich; der neue Start verwendet dasselbe Android-Overlay und dieselbe
+Helferpartition ohne Neuanlage eines Profils.
+
+Vor jeder persönlichen Anmeldung bestätigt der unabhängige Beobachter die neue
+Boot-ID `ea23ac90-af1b-4f26-b027-9085f390f21b`, SystemServer 1103/21177, aktives
+SELinux, authentifiziertes ADB, CE `[0]` und fehlende persönliche Kontexte.
+Beide bekannten Originaldateien sind weiterhin unlesbar. Der Helfer bestätigt
+das vorhandene persistente Profil. Die ADB-Verbindung benötigt nach einem
+fehlgeschlagenen ersten Handshake den bereits vorgesehenen zweiten Verbindungsaufbau
+mit derselben Host-Identität; es wird kein neuer Hostschlüssel autorisiert.
+Beide Ergebnisse bleiben in `boot3-adb-connection.json` erhalten.
+
+Alphas erster korrekter Login gelingt um 13:57:47 UTC, Betas erster Login mit
+dem **neuen** Passwort um 14:03:07 UTC. Keinem dieser Logins geht im neuen Boot
+ein falsches oder altes Passwort voraus. Die jeweiligen Vorbereitungen lassen
+den Zielbenutzer vor der Passwortprüfung gesperrt und ohne Runtime. Danach lesen
+beide gewöhnlichen GNU-Kontexte ihre ursprünglichen 1024-Byte-Dateien und
+Konfigurationen bytegleich. Alpha führt privates jq/libjq1 `u4`, Beta privates
+`u3` mit dem erwarteten Ergebnis aus.
+
+Der vollständige Vergleich gegen den Zustand vor dem Herunterfahren bestätigt
+beide 81-Paket-Bestände einschließlich aller Versionen und rohen Datenbankhashes,
+privaten Imagepfade, Auswahlmetadaten und UID-Mappings. Die sechs Namespaces der
+neuen Kontexte sind untereinander getrennt. Alte temporäre Probepfade fehlen;
+Betas ursprüngliche temporäre Dateien waren bereits bei seinem vorherigen
+Kontextneustart entfernt worden. Ihre erneute Abwesenheit wird daher nicht als
+zusätzlicher Versuch mit unmittelbar positivem Vorzustand ausgegeben.
+
+Beleg: `out/phase1-dod/f098f439/password-paired-reboot-readback-proof.json`, SHA-256
+`28244bb5466e7ab96ad56a4ac337d541e12f75d74c2f44af6518b4e33d05f0c8`.
+Der Offline-Verifier bindet Ereignispräfix 586, Passwortwechsel, beide Logouts,
+gepaarten Shutdown, neue gesperrte Ausgangslage und vollständige Readbacks.
+Der Scan aller neun Lauf-Logs findet kein vollständiges Testpasswort.
+Die begrenzte Logprüfung `boot3-bounded-health.json`, SHA-256
+`aebc15ccd52519bfba81dc13f6ae42bc9d1b74b0636cebd40781dac12b05cead`,
+zeigt einen SystemServer-Eintritt und keine der geprüften Kernel-Panik-,
+Fatal-, ANR-, FORTIFY- oder Watchdog-Meldungen. Sie ersetzt keine vollständige
+Gerätedienstklassifizierung.
+
+Der alte laufende Testtreiber bindet die Erneuerung seiner Hintergrundproben an
+seinen ersten `reboot-checkpoint.json`. Diese Grenze wurde vor einer erneuten
+Verwendung erkannt. Der ursprüngliche Checkpoint bleibt unverändert; der zweite
+Neustart verwendet separate Nachweise und behauptet keine Fortführung alter
+Prozessidentitäten. Login-, GNU- und Paketsteuerungen bleiben nutzbar.
+Die Ablehnung des alten Passworts ist bislang im zweiten Boot belegt, nicht
+zusätzlich im dritten. Weitere Matrixfälle und die vollständige Phase-1-Abnahme
+bleiben offen.
