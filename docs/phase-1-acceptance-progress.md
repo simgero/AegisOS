@@ -2305,3 +2305,48 @@ sind ebenfalls auf diesem Stand bestätigt und im
 [Ergebnisindex](phase-1-result-index.md#zusätzlicher-korrekturstand-f098f43)
 mit Grenzen und Prüfsummen erfasst. Der persönliche CLI-Lauf muss die Korrektur
 und die vollständigen Pflichtfälle anschließend auf diesem Image nachweisen.
+
+### Erster persönlicher CLI-Ablauf auf f098f43
+
+Auf dem Korrekturimage wurden Alpha (ID/Serial 10/10, Administrator) und
+Beta (11/11, Standardbenutzer) über die CLI angelegt. Die Anlage und die
+bloße Auswahl des Anmeldeziels entsperrten dessen CE nicht. Alphas erste
+Anmeldung blieb anschließend stabil; der persönliche GNU-Prozess führte
+Befehle erfolgreich aus. Die zehn anfänglichen Home-Verzeichnisse besitzen
+jeweils UID/GID 1000 und Modus 0700. Debian-Werkzeuge, schreibgeschützte
+Softwarebasis, Namespaces und Prozessbeschränkungen sind für Alpha geprüft.
+
+Ein tatsächlicher GNU-Prozess schrieb die 1024-Byte-Prüfdatei. Derselbe
+Hintergrundprozess (Host-PID 7316, Startzeit 275842) lief mit fortschreitenden
+Zählern vor und nach dem Shell-Ende weiter; die AEGIS-Anmeldung blieb gültig.
+Nach Betas Anlage waren nur System und Alpha entsperrt (`[0,10]`). Das ist
+noch kein Nachweis von Betas Runtime, gegenseitiger Isolation oder Persistenz.
+
+Der lokale Beleg `out/phase1-dod/f098f439/initial-personal-flow.json`, SHA-256
+`53ca89bcd135f6b9856448d89692eadae41d46edb370805d9029f38be4c5cdee`,
+bindet die ersten 34 Ereignisse des weiterlaufenden Testtreibers über eine
+definierte kanonische Prüfsumme. Der gesamte Ablauf bleibt unvollständig.
+
+Ein neuer Statusbeobachter scheiterte zunächst an der legitimen
+Paketarbeitsgruppe `p10-s10`, weil er ausschließlich Benutzergruppen `u…`
+erwartete. Der Produktcode erzeugt beide Typen ausdrücklich. Die korrigierte
+Auswertung erfasst Paketgruppen separat und erhält sämtliche Prüfungen der
+Benutzerlaufzeiten. Unbekannte Gruppennamen werden weiterhin abgelehnt.
+Die ursprüngliche Fassung und ihre Fehlerklassifikation bleiben lokal erhalten
+(`observer-classification-error.json`, SHA-256
+`375f7731fa693c4aae91895ec4c24444d2332a649e45838bbb94786d6f166e48`).
+
+Der gemeinsame Installationsplan für `jq` und `libjq1` in Version
+`1.7.1-6+deb13u3` sowie `libonig5` in Version `6.9.9-1+b1` wurde am
+Adminprompt durch leere Eingabe regulär abgebrochen. Vorher/nachher sind
+Laufzeitidentität, Paketdatenbank, ausgewählte Paketgenerationen, CE-Zustand,
+Boot und SystemServer exakt gleich. Betas CE bleibt gesperrt. Die CLI meldet
+hier ungenau einen fehlgeschlagenen Paketauftrag; eine erfolgreiche
+Installation wird nicht behauptet.
+
+Beleg: `shared-install-cancel-proof.json`, SHA-256
+`e440ef7c69b981fd7b2a72c9e9608a485259554541820a96a78291f42a7959e1`.
+Beide Momentaufnahmen erfolgten nach abgeschlossener Planung und zeigen keine
+Paketarbeitsgruppe. Eine anfängliche zusätzliche Vergleichsannahme, vor dem
+Abbruch müsse diese Gruppe noch vorhanden sein, schlug fehl und ist im Beleg
+erhalten. Ein Entfernen der Gruppe durch den Abbruch ist damit nicht bewiesen.
