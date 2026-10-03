@@ -3319,3 +3319,40 @@ Lokaler Beleg: `out/phase1-dod/f098f439/old-qemu-pairs-shutdown-result.json`,
 SHA-256 `f9c359474892588f98498b4f1d7c78617ce1d8b3ae6d2af0d8f5564a812b2e72`.
 Dies ist die geordnete Freigabe alter Testressourcen, kein zusätzlicher
 Persistenznachweis durch spätere Wiederanmeldung in diesen alten Profilen.
+
+### Private Entfernung bei gleicher gemeinsamer Version
+
+Alpha meldet sich im bestehenden dritten Boot regulär an. Die vollständige
+Ausgangsaufnahme erhält beide bisherigen Kontexte und Paketbestände; Alpha
+besitzt noch die private jq-Festlegung `u4`, während gemeinsam ebenfalls `u4`
+installiert ist. Originaldatei und Einstellungen sind bytegleich verfügbar.
+Der CLI-Plan zeigt ausdrücklich die Aufhebung dieser privaten Wahl, die Rückkehr
+zur gemeinsamen Version `u4` und „Keine Paketversion ändert sich.“
+
+Nach frischer Alpha-Freigabe um 15:35:31 UTC bestätigt die CLI die Veröffentlichung
+um 15:36:58 UTC. Ausschließlich Alphas private Auswahl wechselt auf Generation
+`0dcb3459ade359d52bd85195ae580f3bfbab9102ee41be1fb7b634070d388760`.
+Beide vollständigen laufenden Kontexte bleiben identisch; Alpha führt weiterhin
+`u4` aus und meldet ausstehende Aktivierung. Zwei neue temporäre Testdateien
+werden unmittelbar vor seinem eigenen Runtime-Stopp erzeugt und gehasht.
+
+Der reguläre Stopp um 15:40:26 UTC entfernt Alphas ursprünglichen Init
+3553/81468 und die Runtime-Gruppe. AOSP-Sitzung und CE bleiben erhalten;
+Betas vollständiger Kontext 7089/553217 und sämtliche Auswahlen bleiben
+unverändert. Nach dem Start führt Alpha unter UID/GID 1000 weiterhin jq/libjq1
+`u4` mit korrektem Ergebnis aus. Der neue Kontext 8016/700474 besitzt keine
+private Paketfestlegung mehr. Alle 81 Versionen **und die rohe Paketdatenbank**
+sind exakt unverändert, SHA-256
+`6bcb23b8377daad330bdfe6a0c5595da8989ef5c567581223c608cede0fb6f9b`.
+Die neuen temporären Dateien fehlen, ursprüngliche Datei und Einstellungen
+sind bytegleich erhalten; der abschließende Status lautet `packages=current`.
+
+Beleg: `out/phase1-dod/f098f439/private-remove-alpha-proof.json`, SHA-256
+`790219c2c476e262fee76e7b5feb544a9b338066a3191295cab62d77a14f9bbd`.
+Der lokale Verifier bindet Ereignisse ab Index 640 bis Präfix 672, vier
+vollständige Zustandsaufnahmen, die vorher festgelegten Erwartungen und den
+separaten Prozessabbau. Damit sind private Entfernung und Rückkehr zur
+gemeinsamen Variante sowohl bei gleicher als auch bei anderer Version belegt.
+Die identische Paketdatenbank ist kein lückenloser Nachweis über sämtliche
+eventuellen Paketskriptaufrufe. Andere Pflichtfälle und die Gesamtfreigabe
+bleiben offen.
