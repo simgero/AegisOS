@@ -2409,3 +2409,48 @@ enthält Quellprüfsumme, Vergleich mit dem Quellcommit, Logpräfixbindung und
 Gastzustand. Das ist eine begrenzte Quell-/Zustandsinferenz; die vollständige
 D1-Dienstprüfung bleibt offen. Es wurde kein Diagnoseabsturz ausgelöst und
 keine Dienstkonfiguration verändert.
+
+### Gemeinsame Installation und Aktivierung auf f098f43 nachgewiesen
+
+Nach den drei verweigerten Freigabevarianten erlaubt Alphas frische gültige
+AOSP-Adminbestätigung den vollständig angezeigten gemeinsamen jq-u3-Plan.
+Die veröffentlichte Generation lautet
+`13629e83de8896bf52e5695a071abd67b4232300791fa0f6c3ed484c19f9007e`.
+Alphas laufender Kontext behält zunächst exakt seine bisherigen 78 Pakete;
+der ursprüngliche Hintergrundprozess 7316/275842 schreitet weiter fort.
+Die CLI meldet korrekt `activation-pending`.
+
+Ein regulärer `linux stop` entfernt Kontext und ursprünglichen Prozess bei
+weiterhin gültiger Anmeldung und CE `[0,10]`. Dabei wurde irrtümlich die
+Logoutprüfung `bg-gone-a` aufgerufen; deren zusätzliche Forderung nach
+gesperrtem CE scheitert erwartungsgemäß. Dieser Prüfbedienfehler bleibt im
+Ereignisprotokoll. Ein separater Beleg prüft ausdrücklich die vorgesehenen
+Runtime-Stoppzustände, ohne Logout zu behaupten:
+`shared-activation-runtime-stop.json`, SHA-256
+`40a28a7437e23934a1346290f774631edbb45cdd19f5b3daae24f01826bd282c`.
+
+Nach `linux start` zeigt der Status `packages=current`. Der neue Root-Mount
+gehört genau zur veröffentlichten Generation. Die vollständige Datenbank
+enthält die bisherigen 78 Pakete plus `jq`/`libjq1` jeweils
+`1.7.1-6+deb13u3` und `libonig5` `6.9.9-1+b1`. Die normale GNU-Shell mit
+UID 1000 führt jq tatsächlich aus, berechnet `6` aus `[1,2,3]` und löst die
+erwartete Bibliothek auf. Originaldatei und persönliche Konfiguration bleiben
+bytegleich; die ursprünglichen flüchtigen Dateien unter `/tmp` und `/run`
+sind verschwunden. Beta bleibt gesperrt.
+
+Der zusammengefasste lokale Beleg `shared-u3-activation-proof.json`, SHA-256
+`3bee77ca545d0a6b67e612bed633b34239f6cce7c31860ba421a1cc15a2d8a8b`,
+bindet den Ereignispräfix, die Vorher-/Nachher-Aufnahmen, den Stoppbeleg und
+die tatsächlich installierte Debian-Quellenkonfiguration. Damit ist die
+gemeinsame Installations-Freigabematrix dieses Laufs geschlossen; andere
+Aktionen und Bereiche bleiben separat erforderlich. Die private u4-Version
+für Alpha ist danach erst angefordert, noch nicht freigegeben oder installiert.
+
+Die ergänzende begrenzte Boot-/Dienstbeobachtung bis zur gemeinsamen
+Veröffentlichung enthält einen SystemServer-Start und keine Java-Fatal-,
+Fatal-Signal-, ANR-, FORTIFY- oder Watchdog-Abbruchmeldungen. Die drei frühen
+Einmalrückgaben sind erneut mit unveränderten Quellen und Gastzustand
+abgeglichen; Signal-Exits passen zu den protokollierten Stop-/Restart-Vorgängen.
+Beleg: `init-exit-classification.json`, SHA-256
+`791bf54516d21d8e161d5b92596933792e1d76835ce73ae3db470eccae8b5314`.
+Diese zeitlich begrenzte Beobachtung ersetzt keine spätere Lebenszyklusabnahme.

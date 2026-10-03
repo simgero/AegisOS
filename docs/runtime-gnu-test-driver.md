@@ -96,6 +96,13 @@ aus und verlangt einen eindeutigen tatsächlich ausgegebenen Exitcode 0.
 `gnu BEFEHL` ist nur eine Diagnose ohne diese Erfolgsbehauptung. Eingaben und
 synthetische Dateiproben werden protokolliert; keine fremden Secrets verwenden.
 
+`bg-gone-a/b` ist ausdrücklich eine **Logoutprüfung**: Neben Prozessende und
+Kontextabbau verlangt sie gesperrtes CE. Nach `linux stop` ist sie ungeeignet,
+weil dieser Befehl CE und Anmeldung erhalten muss. Für den Runtime-Stopp mit
+aktivem zweitem Benutzer dient `stop-own-runtime-a/b`; ohne zweiten Kontext
+sind ursprüngliche Prozessidentität, Kontextabbau und weiterhin entsperrtes CE
+separat zu beobachten.
+
 ## Konfiguration, Test-Secrets und flüchtige Dateien
 
 `private-state-write-a/b` erzeugt pro Benutzer unterschiedliche synthetische
