@@ -1686,3 +1686,17 @@ Paketregister, Namespace- und Prozessdaten sowie den gehashten Ereignissnapshot:
 Dies ist der Ausgangszustand für die gegenseitigen Zugriffstests; deren
 Ablehnung wird hier noch nicht behauptet. Logout, Reboot, private Entfernung,
 gemeinsames Update und die übrigen Pflichtvarianten bleiben offen.
+
+## Gewöhnlicher Datei-/Prozesszugriff Beta zu Alpha abgewiesen
+
+Aus Betas angemeldeter GNU-Shell liefern die geprüften Pfade zu Alphas
+ursprünglicher Testdatei keine Bytes. Alphas Prozess ist in Betas Prozesssicht
+nicht zugänglich; das versuchte Stoppsignal wirkt nicht. Der unabhängige
+Beobachter bestätigt vor und nach dem Versuch denselben Alpha-Prozess
+`10172/748802` mit fortschreitendem Zähler. Beide Kontexte sind dabei entsperrt.
+
+Beleg: `out/phase1-dod/209278de/beta-to-alpha-file-process-proof.json`, SHA-256
+`5e40a465cb0080717177a95e309a0fea6d732add53998b71cdd159e313834abd`.
+Der Beleg umfasst diese Richtung und diese Datei-/Prozessfälle. Gegenrichtung,
+Konfiguration, Paketstore, temporäre Dateien und IPC bleiben gesondert zu
+prüfen; T06 ist noch nicht vollständig abgenommen.
