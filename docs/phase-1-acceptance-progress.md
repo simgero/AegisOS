@@ -2454,3 +2454,36 @@ abgeglichen; Signal-Exits passen zu den protokollierten Stop-/Restart-Vorgängen
 Beleg: `init-exit-classification.json`, SHA-256
 `791bf54516d21d8e161d5b92596933792e1d76835ce73ae3db470eccae8b5314`.
 Diese zeitlich begrenzte Beobachtung ersetzt keine spätere Lebenszyklusabnahme.
+
+### Private u4-Version bei unveränderter gemeinsamer u3-Basis
+
+Alphas gültige Adminfreigabe veröffentlicht ausschließlich für Antragsteller
+10/10 die private Generation
+`19ca0517a7f27e170328b52c64feb07edd5c507ef92ffde0c7beff3769fd316c`.
+Die gemeinsame Auswahl bleibt unverändert. Vor der bewussten Aktivierung
+besitzt Alphas laufender Kontext weiterhin exakt den gemeinsamen u3-Bestand;
+der Status meldet `activation-pending`.
+
+Nach regulärem Stopp/Start liegt der aktive Root unter Alphas CE-Paketstore.
+Sein vollständiger 81-Paket-Bestand unterscheidet sich ausschließlich in
+`jq` und `libjq1`, jeweils `1.7.1-6+deb13u4`. Die tatsächliche GNU-Ausführung
+bestätigt Versionen, Bibliothek und Berechnung. Originaldatei und Einstellungen
+bleiben bytegleich; alte flüchtige Dateien sind verschwunden. Das private
+Auswahlregister hält ausdrücklich jq u4 fest. Beta bleibt gesperrt.
+
+Beleg: `private-u4-activation-proof.json`, SHA-256
+`b14ea49a66246e89b0418b44856509f5bbf5108fe32e4deeda7bc2fa3dd74474`.
+Danach wird für die folgenden Wechsel-/Isolationsprüfungen eine neue begrenzte
+Hintergrundprobe angelegt; das Ende der ursprünglichen Probe bleibt separat
+belegt. Flüchtige Testdateien werden erst nach bestätigter Abwesenheit aus der
+eigenen unveränderten synthetischen Konfiguration neu erzeugt.
+
+Zusätzlich sind die gelesenen Paketfreigabequellen einschließlich der tatsächlich
+eingebauten LockSettings-Methode gegen die Buildbelege geprüft:
+`package-approval-source-binding.json`, SHA-256
+`2d4bff84b59172abe80573c56ac16498e6ff13d6479ab484bbff3f84b9cb53a2`.
+Die Bestätigung verwendet AOSPs vorhandenen Protector-Prüfpfad ohne die normalen
+Benutzer-/CE-Entsperrcallbacks und gibt nur bereinigten Status zurück. Diese
+Quellprüfung ergänzt die CE-Beobachtungen; sie ersetzt nicht die verbleibenden
+Aktions-, Rollen- und Isolationsprüfungen. Der begrenzte Scan von drei lokalen
+Laufprotokollen fand kein vollständiges Testpasswort; T01.5 bleibt insgesamt offen.
