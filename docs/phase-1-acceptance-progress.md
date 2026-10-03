@@ -2559,3 +2559,42 @@ unabhängige Beobachtung `screen-lock-observation/result.json`, SHA-256
 `1b8f8bec5395610215b7676a7c3952e359a231377df2c5c67daf6aa50fb3a143`.
 Logout, gepaarter Neustart und die verbleibende Pflichtmatrix werden separat
 fortgesetzt; die Gesamtfreigabe bleibt offen.
+
+### Regulärer Logout und sauberer Paar-Stopp auf f098f43
+
+Nach dem Aufwecken authentifiziert sich Beta erneut und meldet sich ausdrücklich
+ab, ohne vorgeschalteten Runtime-Stopp. Sein ursprünglicher Prozess 16811/782059
+und der persönliche Kontext verschwinden; AOSP meldet CE `[0,10]`.
+Die zuvor tatsächlich aus GNU geschriebene Datei liefert beim gesperrten Zugriff
+keine Bytes. Alphas ursprünglicher Prozess 14559/720255 schreitet unverändert
+fort, während der Systembenutzer im Vordergrund steht.
+
+Nach frischer Alpha-Anmeldung bleiben Originaldatei und Konfiguration bytegleich
+lesbar. Anschließend meldet sich auch Alpha ausdrücklich ab. Sein ursprünglicher
+Prozess und Kontext verschwinden ebenfalls; seine bekannte Datei ist unlesbar.
+Die unabhängige Endaufnahme bestätigt CE `[0]`, Vordergrund 0, keine persönlichen
+Runtime-Kontexte und keine Paketworker. Beide persönlichen Stores werden wegen
+gesperrtem CE nicht gelesen. Die gemeinsame Paketauswahl bleibt bestehen.
+Boot-ID und ursprünglicher SystemServer 1404/40097 bleiben unverändert.
+
+Beleg: `both-logout-before-reboot-proof.json`, SHA-256
+`1c21ea6ccfa78082147f4882fcab0eada5446650f6e0caa6b01acb5261e6db8d`.
+Der Neustart-Checkpoint bestätigt zusätzlich nur System als gestarteten
+Benutzer, leere Runtime-Prozessgruppen und die weiterhin unlesbaren Originaldateien.
+Die Dienstbeobachtung bis nach beiden Logouts findet weiterhin genau einen
+SystemServer-Start und keine der geprüften Java-/Native-Absturz-, ANR-, FORTIFY-
+oder Watchdog-Meldungen: `pre-reboot-health.json`, SHA-256
+`ef9d70963fded8c8bbee2ed2622e2d32356d9b70c8e1f11c935c369ba88c23d7`.
+Die bereits eingeordneten frühen Einmalrückgaben bleiben dokumentiert.
+
+Danach fährt Android über seinen regulären Shutdown-Pfad herunter, während
+KeyMint bis zu dessen Ende läuft. Beide ursprünglichen VM-Prozesse und ihr
+Starter sind nachweislich beendet. Android protokolliert `reboot: Power down`,
+der Helfer `AEGIS_HELPER_SHUTDOWN_CLEAN`; das Profilmanifest ist bytegleich.
+Beleg: `paired-shutdown-proof.json`, SHA-256
+`4dd9969d3a48f88a47a54be02b157086df5d455af655fcc1d1ba429dbab77fce`.
+Der zweite Start verwendet dasselbe Profilpaar und dieselben geprüften Images;
+seine Logs liegen separat unter `boot-2`. Bootabschluss, anfängliche CE-Sperrung
+sowie Daten-/Versionsreadback nach frischer Anmeldung sind noch nachzuweisen.
+Auch Logoutfehler, konkurrierender Start und die übrigen Matrixvarianten bleiben
+offen; dieser reguläre Ablauf schließt T10–T12 nicht insgesamt ab.
