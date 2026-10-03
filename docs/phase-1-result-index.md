@@ -14,6 +14,7 @@ automatisch für das aktuelle Image.
 - Profil: `2366ca04-d587-4170-8c56-a63c8a8e1774`.
 - Erster Boot: `44dbff5f-3a76-4e97-9334-beb437fcd461`.
 - Zweiter Boot: `2816650c-96bf-4db0-84e6-f169f9dfada9`.
+- Dritter Boot: `e720d2bf-faef-4af8-87b9-709112eb3c41`.
 - Alpha: AOSP-Benutzer/Seriennummer `10/10`, Administrator.
 - Beta: AOSP-Benutzer/Seriennummer `11/11`, normaler Benutzer.
 - Alle unten bezeichneten Belege liegen lokal unter
@@ -77,7 +78,7 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T12.5 Neue Identität und ID-Wiederverwendung | Kein Zugriff auf alte Daten/Zuordnungen, Seriennummer/Lebenszyklus korrekt | Offen; kontrolliertes zusätzliches Profil zulässig | — |
 | T13.1 `install all` | Gültige Freigabe erlaubt; fehlende/falsche/Nicht-Adminfreigabe verweigert | Teilbelegt: gültige Alpha-Freigabe und tatsächliche Installation; drei Ablehnungsarten offen | E03 |
 | T13.2 `install user` | Gleiche vollständige Autorisierungsmatrix | Teilbelegt: gültige Alpha-Freigabe und tatsächliche Installation; drei Ablehnungsarten offen | E04 |
-| T13.3 `update all` | Erlaubte Aktion und alle drei Ablehnungsarten | Teilbelegt: leere Adminauswahl beendet Plan ohne Veröffentlichung; beide aktiven Kontexte und Paketbestände unverändert. Falsche/Nicht-Adminfreigabe und erlaubte Ausführung noch offen | E28 |
+| T13.3 `update all` | Erlaubte Aktion und alle drei Ablehnungsarten | Teilbelegt: leere Adminauswahl, falsches Adminpasswort und Nicht-Adminfreigabe verhindern Veröffentlichung; beide aktiven Kontexte und Paketbestände unverändert. Erlaubte Ausführung noch offen | E28–E30 |
 | T13.4 `update user` | Erlaubte Aktion und alle drei Ablehnungsarten | Offen | — |
 | T13.5 `remove all` | Erlaubte Aktion und alle drei Ablehnungsarten | Offen | — |
 | T13.6 `remove user` | Erlaubte Aktion und alle drei Ablehnungsarten | Offen | — |
@@ -138,6 +139,8 @@ ihre Aussage ein. Keine Profile, Passwörter oder Buildartefakte werden hochgela
 | E26 | `boot-migration-cleanup-classification.json` | `c798664aeeebb93514bc66de8927ea754d9dede938598f6792618b758dcce877` |
 | E27 | `alpha-second-reboot-readback-proof.json` | `b3b4b958c2ff1f32d057290627e3ebd76dd9f420df00b3fb775510cb0873b212` |
 | E28 | `update-all-cancel-proof.json` | `45770e57849e8820b745bc47b06f7a9ad3abaefad14acce93921013e1c91fcc8` |
+| E29 | `update-all-wrong-password-proof.json` | `9f9643bfb5eb89b1ad733d3c1579b77cf15c8401c0c69ce08b5d688483a32401` |
+| E30 | `update-all-nonadmin-proof.json` | `8083b52d469e496c317f9b1bd1259755c89ae2dcd2cdbe03963b3009055e25d6` |
 
 ## Abschlusskriterien und Referenzablauf
 

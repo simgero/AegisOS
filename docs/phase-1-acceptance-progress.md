@@ -28,6 +28,28 @@ Benutzer und die vollständige ergänzende Matrix bleiben offen.
 Der [Ergebnisindex](phase-1-result-index.md) trennt
 einzelne aktuelle Varianten von historischen Teilbelegen.
 
+## Ergänzung: vorhandene Update-Ablehnungen, 3. Oktober 2026
+
+Im dritten Boot `e720d2bf-faef-4af8-87b9-709112eb3c41` wurde die
+gemeinsame Updatefreigabe um 03:52:17 UTC mit einem falschen Adminpasswort
+abgewiesen (E29). Um 03:59:14 UTC wurde auch die Freigabe durch den normalen
+Benutzer Beta abgewiesen (E30); die anschließende Benutzerliste bestätigt
+seine unveränderte Rolle. Zusammen mit dem leeren Adminfeld aus E28 sind die
+drei Ablehnungsarten für `update all` belegt. Die Snapshots bestätigen jeweils
+unveränderte Paketgenerationen, Paketbestände und aktive Runtime-Kontexte.
+Die erlaubte Ausführung sowie Aktivierung und private Versionsbindung nach
+dem gemeinsamen Update bleiben offen. Die Belege wurden nach einer gemeldeten
+Plattformunterbrechung gelesen und indexiert; die Tests wurden dafür nicht
+wiederholt. Buildartefakte und Rohbelege bleiben lokal.
+
+Der konkrete Auslöser der vom Benutzer gemeldeten Security-Meldung ist aus
+diesen Projektbelegen nicht feststellbar. Die Meldung wird weder als Beweis
+eines Richtlinienverstoßes noch als bestätigter Fehlalarm eingeordnet.
+Weitere Arbeit bleibt auf das eigene AEGIS-Testsystem und die vereinbarten
+Entwicklungs- und Funktionstests begrenzt. Eine abgewiesene Aktion wird vor
+einem weiteren Versuch anhand ihres konkreten Ablehnungsgrundes geprüft;
+Schutzmechanismen werden nicht umgangen oder abgeschwächt.
+
 ## Frühere integrierte Prüfstände
 
 Image `20d7d6d33fb3243cd87d0eb90fa2fd09bd2cc178`, Profil
