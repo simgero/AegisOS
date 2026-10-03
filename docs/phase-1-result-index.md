@@ -389,6 +389,14 @@ Gastnachweis. Die früheren f098f439-Ergebnisse werden nicht automatisch zu
 bestandenen Abläufen auf diesem Image; Fehlerabnahme und vollständige DoD
 bleiben offen.
 
+Die Ursache ist durch lokale Ausführung der unveränderten Produktparser auf
+den drei hashgeprüften Generationen bestätigt: 80 automatische gemeinsame
+Pakete und keine private Wahl ergeben null Wurzeln und `ENODATA`. Beleg
+`out/phase1-dod/3fdb058-diagnostics/shared-removal-root-cause-proof.json`,
+SHA-256 `7aec07ce58bbb7bb37f6781b06233e236ce5fdf4c4768ad93992c651f8b0fcfc`.
+Die erfolgreiche Ableitung mit 78 expliziten Basiswurzeln ist ein lokaler
+Metadatenvergleich; Gastaktivierung und Persistenz der Korrektur bleiben offen.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte

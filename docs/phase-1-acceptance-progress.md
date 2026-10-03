@@ -3885,3 +3885,19 @@ als manuelle Wurzeln, statt Docker-Markierungen unverändert zu übernehmen.
 Startvalidierung wird nicht gelockert. Produktbuild und Gastnachweis der
 Korrektur bleiben erforderlich; der ursprüngliche Fehler ist noch nicht als
 behoben abgenommen.
+
+Der Ursachenbeleg ist anschließend mit allen drei unveränderten, vollständig
+hashgeprüften Generationen abgeschlossen: Die neue gemeinsame Generation
+enthält 80 installierte Pakete, ausschließlich automatisch markiert; Alphas
+private Wahl enthält null Einträge. Die unveränderten C++-Produktparser aus
+`3fdb058` reproduzieren daraus lokal `ENODATA`. Ein ausschließlich im Speicher
+vorgenommener Vergleich mit den 78 ursprünglichen Basispaketen als manuellen
+Wurzeln leitet erfolgreich genau diese 78 Wurzeln ab. Weder ein Gastimage noch
+eine veröffentlichte Generation wurde dabei verändert; dies ist noch keine
+APT-Ausführung oder erfolgreiche Gastaktivierung.
+
+Beleg `out/phase1-dod/3fdb058-diagnostics/shared-removal-root-cause-proof.json`,
+SHA-256 `7aec07ce58bbb7bb37f6781b06233e236ce5fdf4c4768ad93992c651f8b0fcfc`,
+bindet Metadaten, Parserquellen, ausführbaren Diagnosehelfer und Fehlerbeleg.
+Der erste lokale Linkversuch ließ die originale `package_syntax.cpp` aus und
+scheiterte; der korrigierte Diagnosebuild verwendet diese Originalquelle.
