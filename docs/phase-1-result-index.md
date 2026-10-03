@@ -41,7 +41,7 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T03.1 Interne/äußere Identität | Intern UID/GID 1000, getrennte Hostbereiche, keine unübersetzte Host-UID 1000 | Bestanden: Host-UIDs 1007500/1107500 | E01, E02 |
 | T03.2 Namespaces | Unterschiedliche User-, Mount-, PID- und IPC-Namespaces | Bestanden, zusätzlich UTS/Net getrennt beobachtet | E02 |
 | T03.3 Zuordnung bei Wechsel | Ursprüngliche Prozess-/Benutzerzuordnung bleibt erhalten | Bestanden für beide externen Wechselrichtungen | E08 |
-| T04.1 Gesperrtes CE | Kein Runtime-Start und kein Ersatzbetrieb | Offen: expliziter Startversuch fehlt | — |
+| T04.1 Gesperrtes CE | Kein Runtime-Start und kein Ersatzbetrieb | Teilbelegt: nach verweigertem Beta-Login wurde `linux start` ausdrücklich abgewiesen; CE blieb gesperrt und Kontext fehlte. Dieser Fall hat zusätzlich keine gültige CLI-Sitzung und isoliert daher die CE-Startvoraussetzung noch nicht | E23, E24 |
 | T04.2 Fehlende Namespaces | Start wird verweigert | Offen: gezielter aktueller Nachweis | — |
 | T04.3 Ungültiges Mapping | Start wird verweigert | Offen: gezielter aktueller Nachweis | — |
 | T04.4 Fehlende Sicherheitsvoraussetzungen | Jede erforderliche Voraussetzung erzwingen, kein schwächerer Ersatz | Offen: Voraussetzungen und Varianten vollständig zuordnen | — |
@@ -77,7 +77,7 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T12.4 CLI-Benutzerlöschung | Schlüsselzugriff, Runtime und privater Zustand entfernt | Offen | — |
 | T12.5 Neue Identität und ID-Wiederverwendung | Kein Zugriff auf alte Daten/Zuordnungen, Seriennummer/Lebenszyklus korrekt | Offen; kontrolliertes zusätzliches Profil zulässig | — |
 | T13.1 `install all` | Gültige Freigabe erlaubt; fehlende/falsche/Nicht-Adminfreigabe verweigert | Teilbelegt: gültige Alpha-Freigabe und tatsächliche Installation; drei Ablehnungsarten offen | E03 |
-| T13.2 `install user` | Gleiche vollständige Autorisierungsmatrix | Teilbelegt: gültige Alpha-Freigabe und tatsächliche Installation; drei Ablehnungsarten offen | E04 |
+| T13.2 `install user` | Gleiche vollständige Autorisierungsmatrix | Teilbelegt: gültige Alpha-Freigabe und tatsächliche Installation; Betas privater Versionsplan bleibt bei leerer Adminauswahl und falschem Adminpasswort unveröffentlicht, aktive Bestände unverändert. Nicht-Adminfreigabe noch offen | E04, E33, E34 |
 | T13.3 `update all` | Erlaubte Aktion und alle drei Ablehnungsarten | Bestanden: leere Adminauswahl, falsches Adminpasswort und Nicht-Adminfreigabe verhindern Veröffentlichung; frische Alpha-Freigabe erlaubt genau den geplanten gemeinsamen Updatebestand, anschließend tatsächlich aktiviert und ausgeführt | E28–E32 |
 | T13.4 `update user` | Erlaubte Aktion und alle drei Ablehnungsarten | Offen | — |
 | T13.5 `remove all` | Erlaubte Aktion und alle drei Ablehnungsarten | Offen | — |
@@ -99,7 +99,7 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T16.3 Private Version bleibt | Keine stille Überschreibung privater Festlegungen beim Abgleich | Bestanden: Alphas explizite private jq-u4-Auswahl bleibt bytegleich und die neue private Generation bindet an die neue gemeinsame Basis. Das gemeinsame jq wird bei diesem Update ebenfalls u4; der vorherige V1/V2-Unterschied ist gesondert belegt | E04, E31, E32 |
 | T17.1 Gleichzeitig gemeinsam/privat | Serialisierung oder sichtbare Ablehnung, kein Teilbestand als Erfolg | Offen | — |
 | T17.2 Aktionen verschiedener Benutzer | Eigentum/Autorisierung und konsistenter Bestand bleiben erhalten | Offen | — |
-| T17.3 Abbruch | Letzter konsistenter Bestand bleibt erhalten/wird wiederhergestellt | Teilbelegt: Abbruch des gemeinsamen Updateplans vor Freigabe erhält beide Kontexte und Paketbestände; Ausführungsphasen bleiben offen | E28 |
+| T17.3 Abbruch | Letzter konsistenter Bestand bleibt erhalten/wird wiederhergestellt | Teilbelegt: Abbruch des gemeinsamen Updateplans und des persönlichen Installationsplans vor Freigabe erhält beide Kontexte und Paketbestände; Ausführungsphasen bleiben offen | E28, E33 |
 | T17.4 Installationsfehler | Fehler sichtbar, keine teilweise aktivierte Umgebung als Erfolg | Offen | — |
 | T17.5 Logout während Transaktion | Kein persönlicher Restzugriff, sichtbarer Abschluss/Abbruch/Reparaturbedarf | Offen | — |
 
@@ -143,6 +143,8 @@ ihre Aussage ein. Keine Profile, Passwörter oder Buildartefakte werden hochgela
 | E30 | `update-all-nonadmin-proof.json` | `8083b52d469e496c317f9b1bd1259755c89ae2dcd2cdbe03963b3009055e25d6` |
 | E31 | `shared-update-publication-proof.json` | `4cda0dc2b398d6c8809a441b63f4c1b924ae25f250d2d683fd06dbd60a0f31ba` |
 | E32 | `shared-update-activation-proof.json` | `80ec5a01d0a952c7d1455360b9155d2760c17a08665b5097b36acc48d119b961` |
+| E33 | `beta-private-install-cancel-proof.json` | `37174daf62c17c7ccba4843f20d08ed2c1f06419c3d27cc7f3cfdf043fb82093` |
+| E34 | `beta-private-install-wrong-proof.json` | `178488713f28a6f2cb220be5c452336b8b5d492ce7a451c91cc7d90288a7b605` |
 
 ## Abschlusskriterien und Referenzablauf
 

@@ -33,6 +33,23 @@ ergänzende Matrix bleibt offen.
 Der [Ergebnisindex](phase-1-result-index.md) trennt
 einzelne aktuelle Varianten von historischen Teilbelegen.
 
+## Persönliche Paketfreigabe für Beta, 3. Oktober 2026
+
+Nach dem gemeinsamen Update beantragt Beta über seine eigene authentifizierte
+CLI `jq=1.7.1-6+deb13u3` im Bereich `user`. Der signiert vorbereitete Plan
+enthält genau jq und libjq1 von u4 auf u3. Die leere Adminauswahl bricht ihn
+um 04:53:44 UTC ohne Veröffentlichung ab (E33); ein einzelnes falsches
+Alpha-Adminpasswort wird um 05:00:58 UTC von AOSP abgewiesen (E34).
+Beide vollständigen aktiven Kontexte, gemeinsame und Alpha-private Auswahl
+bleiben unverändert; Beta hat weiterhin keine ausgewählte private Generation.
+Die Nicht-Adminfreigabe und der anschließende erlaubte Beta-Auftrag mit
+frischer Alpha-Freigabe sind an diesem Zwischenstand noch offen.
+
+Der Ergebnisindex ordnet außerdem die vorhandenen abgewiesenen Runtime-Starts
+aus E23/E24 T04.1 zu. Sie belegen den konkreten CLI-Fall bei gesperrtem CE,
+isolieren aber die CE-Voraussetzung wegen zugleich fehlender CLI-Sitzung
+nicht. Es wurde dafür kein zusätzlicher Login-Fehlversuch ausgeführt.
+
 ## Gemeinsames Update und private Aktivierung, 3. Oktober 2026
 
 Um 04:21:10 UTC meldete der mit frischer Alpha-Adminfreigabe ausgeführte
