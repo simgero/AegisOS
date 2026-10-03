@@ -14,6 +14,7 @@
 #include <sys/vfs.h>
 #include <linux/magic.h>
 #include <android-base/unique_fd.h>
+#include <log/log.h>
 #include <array>
 #include <memory>
 #include <optional>
@@ -128,6 +129,39 @@ struct aegis_broker_owner {
 };
 
 static int fail(int error) { errno = error; return -1; }
+// Only fixed state names and numeric results enter logcat. In particular, do
+// not log the planner's diagnostic text, package choices, identities or paths.
+static void report_start_failure(const aegis_broker_owner* owner,
+                                 const runtime_start_slot& start,int error) {
+    const char* phase="unknown";
+    switch(start.phase) {
+        case RuntimeStartPhase::Selecting: phase="selecting";break;
+        case RuntimeStartPhase::ReconciliationSelection: phase="reconciliation-selection";break;
+        case RuntimeStartPhase::Planning: phase="planning";break;
+        case RuntimeStartPhase::Execution: phase="execution";break;
+        case RuntimeStartPhase::Reselecting: phase="reselecting";break;
+        case RuntimeStartPhase::Activated: phase="activated";break;
+        case RuntimeStartPhase::Failed: return; // Report each owned failure once.
+    }
+    int worker_state=-1,worker_status=0,worker_error=0;
+    if(start.phase==RuntimeStartPhase::Planning) {
+        for(const auto& slot:owner->planners)if(slot && slot->plan.job==start.child_job) {
+            worker_state=static_cast<int>(slot->result.phase);
+            worker_status=slot->result.status;worker_error=slot->result.error;
+            break;
+        }
+    } else if(start.phase==RuntimeStartPhase::Execution) {
+        for(const auto& slot:owner->executions)if(slot && slot->plan.job==start.child_job) {
+            worker_state=static_cast<int>(slot->state);
+            worker_status=slot->result.status;worker_error=slot->result.error;
+            break;
+        }
+    }
+    __android_log_print(ANDROID_LOG_ERROR,"AegisRuntimeBroker",
+        "AEGIS_RUNTIME_START_FAILED: phase=%s errno=%d worker_state=%d worker_status=%d worker_errno=%d",
+        phase,error,worker_state,worker_status,worker_error);
+    errno=error;
+}
 static runtime_start_slot* find_start(aegis_broker_owner* owner,uint32_t user) {
     for(auto& slot:owner->starts)if(slot && slot->user==user)return &*slot;
     return nullptr;
@@ -1961,6 +1995,7 @@ int aegis_broker_owner_start(aegis_broker_owner* owner,const aegis_broker_call* 
         *job=public_job;
         if(result==0)start->phase=RuntimeStartPhase::Activated;
     } else if(start) {
+        report_start_failure(owner,*start,error);
         start->phase=RuntimeStartPhase::Failed;start->error=error;
     }
     return result==1 ? fail(EAGAIN) : result<0 ? fail(error) : 0;

@@ -137,6 +137,7 @@ cc_library_static {
     name: "libaegis-runtime-broker-owner",
     defaults: ["aegis-runtime-native-defaults"],
     srcs: ["runtime/broker_owner.cpp", "runtime/broker_package.cpp"],
+    shared_libs: ["liblog"],
     static_libs: ["libaegis-runtime-context", "libaegis-runtime-broker-protocol", "libaegis-package-store", "libaegis-package-publisher", "libaegis-package-executor", "libaegis-package-preparer", "libaegis-package-planner", "libaegis-package-plan", "libbase", "libjsoncpp"],
     export_include_dirs: ["runtime"],
 }

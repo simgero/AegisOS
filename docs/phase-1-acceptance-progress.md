@@ -3537,3 +3537,19 @@ Testbundles für eine gezielte native Gruppe, ohne die bereits bestandene
 Auswahlgruppe allein für den Upload wiederholen zu müssen. Alle vorhandenen
 Profil-, Image-, Quell- und Bytegleichheitsprüfungen bleiben erhalten;
 vorhandene Bundle-Ziele werden weiterhin abgewiesen. Neun Hosttests bestehen.
+
+### Begrenzte Diagnose für fehlgeschlagene Runtime-Starts
+
+Der Broker protokolliert beim erstmaligen Übergang eines vorhandenen
+Startvorgangs in den Fehlerzustand die feste Startphase und den numerischen
+Fehlercode. In Planung/Ausführung kommen der numerische Worker-Zustand,
+Prozessstatus und Worker-Fehler hinzu. Wiederholte Abfragen desselben bereits
+fehlgeschlagenen Vorgangs erzeugen keine erneute Meldung. Planner-Freitext,
+Identitäten, Paketwahl, Pfade und Zugangsdaten werden nicht ausgegeben.
+Fehlerrückgabe, Autorisierung und Ressourcenabbau bleiben unverändert.
+
+Diese Diagnose ist zunächst eine Quelländerung, noch kein gebautes oder im
+Gast geprüftes Produkt. Sie erklärt Alphas früheren Fehler nicht rückwirkend.
+Ein neues passendes Image und ein regulärer CLI-Versuch in einem gesonderten
+Profil müssen den tatsächlichen Fehlerpfad erst sichtbar machen. Das laufende
+persönliche Abnahmeprofil und seine bisherigen Belege bleiben erhalten.
