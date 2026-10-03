@@ -13,8 +13,14 @@ sechs Auswahltests, fünf Ausführungstests und beide Veröffentlichungstests.
 Der erste persönliche Administrator Alpha ist über die CLI angelegt. Sein
 erster Login, GNU-Grundprüfung, persönliche Testdateien und Shell-Ende bei
 weiterlaufender Sitzung und demselben Hintergrundprozess sind belegt.
-Der zweite Benutzer und der vollständige Paket-/Logout-/Neustartablauf bleiben
-offen. Die einzelnen Belege und ihre Grenzen stehen weiter unten.
+Gemeinsames jq/libjq1 `u3` und anschließend Alphas privates `u4` sind
+veröffentlicht, regulär aktiviert und tatsächlich ausgeführt.
+Beta ist als normaler Benutzer angelegt; auch sein erster Login und seine
+GNU-Grundprüfung bestehen. Er führt gemeinsames u3 aus, während Alpha privates
+u4 behält. Beide ursprünglichen persönlichen Dateien und fortlaufenden
+Hintergrundprozesse sind erfasst. Der vollständige Isolations-, Paketfehler-,
+Logout- und Neustartablauf bleibt offen. Die einzelnen Belege und ihre Grenzen
+stehen weiter unten.
 
 ## Frühere integrierte Prüfstände
 
@@ -1615,3 +1621,68 @@ Lokale Belege:
 
 Die private u4-Installation für Alpha ist anschließend angefordert. Ihr Plan
 und ihre tatsächliche Ausführung bleiben bis zu deren Ergebnis offen.
+
+## Alphas private u4-Version bei unverändertem gemeinsamem u3
+
+Der persönliche Plan ändert ausschließlich `jq` und `libjq1` von
+`1.7.1-6+deb13u3` auf `1.7.1-6+deb13u4`. Nach frischer AOSP-Adminfreigabe
+gehört die veröffentlichte private Generation
+`1fc85751f125f95df24b4c81dc07229a1a9a02b83366b41e0286052fb5728746`
+zu Alpha `10/10` und bleibt an die unveränderte gemeinsame Generation gebunden.
+Der alte laufende Kontext bleibt zunächst auf gemeinsamem u3;
+`activation-pending` wird korrekt angezeigt.
+
+Nach dem regulären Kontextneustart ist das private Image tatsächlich aktiv.
+GNU bestätigt u4 für beide Pakete, führt die jq-Berechnung erfolgreich aus
+und lädt die passende Bibliothek. Der Vergleich aller 81 installierten
+Paketversionen zur gemeinsamen Basis findet genau diese beiden Änderungen.
+Alphas ursprüngliche Datei und Konfiguration bleiben unverändert.
+
+Ein zusammengesetzter Diagnosebefehl endete zunächst mit Fehler, weil zusätzlich
+die interne `private-choices`-Datei aus dem gewöhnlichen GNU-Kontext gelesen
+werden sollte. Dieser Fehlbeleg bleibt erhalten. Der separat ausgeführte
+Programm-/Versionscheck besteht. Der Entwicklungsbeobachter bestätigt die
+Festlegung auf jq u4 sowie Eigentümer/Modus `1005000:1005000:600`; die
+Metadatenrechte wurden nicht verändert. Die interne Auswahl wird nicht als
+aus GNU gelesener Beleg dargestellt.
+
+Lokale Belege:
+
+- `out/phase1-dod/209278de/alpha-u4-before-activation.json`, SHA-256
+  `2818fabb1f96bda6258c827438419bccb2f808e05988c539207daea79b2ab90f`.
+- `out/phase1-dod/209278de/alpha-u4-activation/result.json`, SHA-256
+  `3e942b3d1bb018ad1b8a9dad03e9f7a57c3f57c1616825d9d9071736e73080b2`,
+  mit Ereignissnapshot, Paketregister und vollständigem Versionsvergleich.
+
+Betas Ausführung, gegenseitige Isolation, Logout und gepaarter Neustart stehen
+noch aus. T15 und der vollständige Referenzablauf bleiben offen.
+
+## Zwei angemeldete Benutzer mit tatsächlich verschiedenen Versionen
+
+Beta wird über die CLI mit frischer Adminbestätigung als normaler AOSP-Benutzer
+`11/11` angelegt. Vor seiner ersten Passwortübermittlung bleiben nur System
+und Alpha entsperrt; Beta besitzt noch keinen GNU-Kontext. Sein erster korrekter
+Login ohne vorherigen Fehlversuch, verzögerte Sitzungsprüfung und tatsächliche
+GNU-Ausführung bestehen. Die anfänglichen HOME- und Runtime-Grundprüfungen
+bestehen ebenfalls.
+
+Beta führt die gemeinsame jq-/libjq1-Version u3 mit passender Bibliothek aus.
+Sein vollständiger Bestand entspricht allen 81 Paketen der gemeinsamen Basis.
+Alphas privates u4-Image ist gleichzeitig weiterhin aktiv. Beide haben intern
+UID/GID 1000, aber Host-UIDs 1007500 und 1107500 und sechs unterschiedliche
+Namespace-Identitäten. Alpha bleibt beim Wechsel in den Hintergrund mit
+demselben Prozess `10172/748802` aktiv; Betas Prozess ist `12013/791922`
+(jeweils PID/Startzeit). Beide Fortschrittszähler steigen. CE ist `[0, 10, 11]`;
+Boot-ID, SystemServer und SELinux bleiben unverändert.
+
+Betas ursprüngliche 1024-Byte-Datei hat SHA-256
+`e70532731b672a9222adfb11f0394da224873314a893b7c43ad95fd82d2c8793`.
+Eigene Konfiguration und temporäre Proben sind ebenfalls angelegt und gelesen.
+Der eingefrorene gemeinsame Beleg enthält beide aktiven Imagezuordnungen,
+Paketregister, Namespace- und Prozessdaten sowie den gehashten Ereignissnapshot:
+`out/phase1-dod/209278de/two-user-version-baseline/result.json`, SHA-256
+`7c3ec5ef166622fc6139757b6b90229f1633e479d30d6477ef0ae5187d1b0ba5`.
+
+Dies ist der Ausgangszustand für die gegenseitigen Zugriffstests; deren
+Ablehnung wird hier noch nicht behauptet. Logout, Reboot, private Entfernung,
+gemeinsames Update und die übrigen Pflichtvarianten bleiben offen.
