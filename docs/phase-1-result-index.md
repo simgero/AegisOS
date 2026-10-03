@@ -266,6 +266,15 @@ Damit sind die vier Autorisierungsfälle für `update user` erfüllt;
 `remove all` und die übrigen Pflichtvarianten bleiben offen. Einzelheiten im
 [Abnahmeabgleich](phase-1-acceptance-progress.md).
 
+Für `remove all` sind anschließend leere Adminauswahl und falsches
+Adminpasswort mit gültiger Antragstellersitzung und vollständig unverändertem
+Zustand belegt: `remove-all-cancel-proof.json`, SHA-256
+`44aafe8667cd25b6ad7d45af5f74fdf8f5cdd41d81ae657f3a5fa2113a66c1c8`,
+und `remove-all-wrong-proof.json`, SHA-256
+`35485f9621a15105c515e9a30f5bd91cc3ab39166227151ad86a3c456e0b0d83`.
+Die beiden weiteren Freigabevarianten und die tatsächliche gemeinsame
+Entfernung bleiben offen.
+
 | Kriterium | Noch erforderliche vollständige Abnahme |
 | --- | --- |
 | D1 | Build-/Versionsinventar, Bedienung/ADB und Schutzmechanismen vollständig indexieren; weitere Läufe prüfen. E14 bestätigt den ersten Referenzboot, E25 die begrenzte Boot-2-Beobachtung vor Shutdown. Zusätzlicher Migrations-Aufräumstatus ist in E26 eingeordnet, nicht als behoben behauptet. |

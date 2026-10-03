@@ -3426,3 +3426,23 @@ vier Freigabevarianten und tatsächlicher Aktivierung belegt. Dies ersetzt weder
 `remove --scope all` noch die offenen Fehler-/Parallelitätsfälle. Die Aufnahmen
 sind einzelne abgeschlossene Beobachtungen, keine lückenlose Überwachung aller
 Paketprozesse oder CE-Zugriffe.
+
+### Gemeinsame Entfernung: Abbruch und falsche Freigabe
+
+Nach dem privaten Update beantragt Beta `linux package remove --scope all jq`.
+Der Plan entfernt ausschließlich das gemeinsame jq `u4`. Leere Adminauswahl
+und ein einzelnes falsches Alpha-Passwort verhindern jeweils die
+Veröffentlichung; AOSP bestätigt die Passwortablehnung ausdrücklich.
+Betas Sitzung bleibt gültig. Beide vollständigen Kontexte, alle Paketversionen,
+gemeinsame und private Auswahlen, CE und Systemidentität bleiben unverändert.
+
+Lokale Belege unter `out/phase1-dod/f098f439/`:
+
+- `remove-all-cancel-proof.json`, Ereignisse 733 bis Präfix 736, SHA-256
+  `44aafe8667cd25b6ad7d45af5f74fdf8f5cdd41d81ae657f3a5fa2113a66c1c8`.
+- `remove-all-wrong-proof.json`, Ereignisse 736 bis Präfix 739, SHA-256
+  `35485f9621a15105c515e9a30f5bd91cc3ab39166227151ad86a3c456e0b0d83`.
+
+Nicht-Adminfreigabe und gültige gemeinsame Entfernung mit anschließender
+Aktivierung bleiben offen. Die Abbrüche vor Freigabe ersetzen keine
+Ausführungsabbrüche aus T17.

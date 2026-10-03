@@ -1,6 +1,22 @@
 # Kontrollierter Paketabruf
 
-Aktuell installiert das Vollimage `8168cf7f` nach echter frischer AOSP-Freigabe
+**Aktueller Nachweisstand, 3. Oktober 2026:** Im Vollimage `f098f43` sind
+gemeinsame und private Installation, gemeinsames und privates Update sowie
+private Entfernung über die normale CLI einschließlich frischer AOSP-
+Adminfreigabe und tatsächlicher Aktivierung belegt. Für diese fünf Kombinationen
+sind auch Abbruch vor Freigabe, falsches Passwort und Nicht-Adminfreigabe
+geprüft. Gemeinsame Entfernung sowie weitere Konflikt-, Fehler- und
+Parallelitätsfälle bleiben offen. Der [Ergebnisindex](phase-1-result-index.md)
+und [Abnahmeabgleich](phase-1-acceptance-progress.md) nennen die Belege und
+deren genaue Grenzen; eine vollständige Phase-1-Abnahme wird nicht behauptet.
+
+Die folgenden Entwicklungsnotizen bewahren frühere Fehler und deren damaligen
+Build-/Teststand. Aussagen über ausstehende Builds in diesen Notizen beziehen
+sich auf den jeweils genannten historischen Stand.
+
+## Entwicklungsverlauf und technische Entscheidungen
+
+Das damalige Vollimage `8168cf7f` installiert nach echter frischer AOSP-Freigabe
 `hello` bis zur Einrichtung im isolierten Kandidaten. Die Übernahme scheitert
 anschließend an neuen fehlenden Dokumentations- und Übersetzungsdateien:
 Die geerbten Debian-Slim-Regeln schließen sie beim Entpacken aus, während die
