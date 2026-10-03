@@ -2739,3 +2739,37 @@ Der aktuelle Referenzschritt 11 sowie dieser AOSP-Ressourcenstopp mit Wiederanla
 sind damit belegt. Die vollständige Autorisierungsmatrix, Updates, private
 Versionsrückgänge/Entfernung/Konflikte/Parallelität und die übrigen Lebenszyklus-
 und Identitätsfälle bleiben offen; D1–D7 werden nicht als abgeschlossen markiert.
+
+### Gemeinsames Update ohne Adminauswahl auf f098f43
+
+Beta bleibt als normaler Benutzer angemeldet und beantragt `linux package update
+--scope all`. Der Plan nennt jq/libjq1 `1.7.1-6+deb13u3` → `1.7.1-6+deb13u4`,
+libpcre2-8-0 `10.46-1~deb13u2` → `10.46-1~deb13u3` sowie libssl3t64 und
+openssl-provider-legacy `3.5.7-1~deb13u2` → `3.5.7-1~deb13u3`.
+Eine leere Adminauswahl beendet den Auftrag. Die CLI bestätigt keine Veröffentlichung;
+Beta ist anschließend weiterhin gültig angemeldet.
+
+Die neuen vollständigen Aufnahmen vor/nach diesem Abbruch sind in allen
+Identitäts-, CE-, Auswahl-, Paket- und Kontextfeldern identisch. Alphas privates
+u4 und Betas gemeinsames u3 bleiben in ihren bisherigen Kontexten aktiv;
+Gamma bleibt gesperrt. Beleg: `out/phase1-dod/f098f439/update-all-cancel-proof.json`,
+SHA-256 `5d6531948a7feb12d258029d7dbcfa8ad39974e860149530c5bbe534abbe4bc3`.
+Dies ist ein Planabbruch vor Freigabe, kein Abbruch der laufenden Installation
+und noch keine vollständige Update-Autorisierungsmatrix.
+
+Das versionierte Werkzeug `scripts/qemu-package-denial-proof.py` prüft einen
+einzelnen aufgezeichneten Aktions-/Bereichs-/Ablehnungsfall offline. Es verlangt
+den konkreten CLI-Plan, die passende Ablehnung, eine anschließende gültige Sitzung
+und exakte Gleichheit der vollständigen Zustandsfelder. Ausgabe und unveränderlicher
+Ereignispräfix werden mit Prüfsummen gebunden; bestehende Belege werden nicht ersetzt.
+Kontrollen mit ausdrücklich künstlich geändertem CE-Zustand beziehungsweise
+Kontextstart werden verweigert. Ihr lokales Ergebnis
+`denial-verifier-checks/result.json` hat SHA-256
+`9fd0d36d52d70370c2871e39df1deae12a00e156fa6958fec5147d7a6347a919`.
+
+Ein erster Vergleich älterer Installationsaufnahmen wurde wegen unterschiedlicher
+Schemas verweigert: `residual_packages` fehlte in der damaligen Vorher-Aufnahme
+und war danach als leeres Objekt enthalten. Diese Ablehnung bleibt dokumentiert.
+Der Prüfer lockert den Vergleich nicht; die aktuelle Updateprüfung verwendet
+das einheitliche vollständige Format. Die künstlichen Verifikatorkontrollen
+zählen nicht als zusätzliche Produkt-Abnahmetests.
