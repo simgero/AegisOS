@@ -404,6 +404,39 @@ SHA-256 `8766c6d38f4573de3b07cba1667e5fb097e5c751c370d8afa8bac3ef68b63412`.
 Dies ist ein Basisimage-Nachweis; der passende Produktbuild und Gastnachweis
 bleiben erforderlich.
 
+## Kandidat b832d6c mit korrigierter Factory-Basis
+
+Der lokale Vollbuild
+`local-20261003T231351Z-b832d6c0-TSVmQp` für
+`b832d6c077baeee4324e00d00dc3618372f3e9d9` ist mit
+`LOCAL_BUILD_VERIFIED` abgeschlossen. Die getrennte Vorbereitung unter
+`/srv/aegis/runs/phase1-b832d6c0` prüft alle 20 Image-Prüfsummen, die
+AVB-Kette sowie die ausgewählte Kernel- und Runtime-Basis. Nachweis
+`build-validation.json`, SHA-256
+`975920cf850003b22f452b0e8956dba08482d140bc867a0b7e4bde88b346cd93`;
+AVB-Digest `7a2e84e79ce4e6ab23346ec7e128481bc4fa6c8446cb66e09c93fb7a1bc09470`.
+Der passende Komponentenbau ist abgeschlossen; Quellen und Artefaktprüfsummen
+sind lokal in `out/phase1-dod/b832d6c-base/native-build-receipt.json` gebunden,
+SHA-256 `6b3fd6673d04a3e8b2388c0460ce9cb9f98d6664a717e0d934aa953bc887d0a6`.
+
+Das neue Profil `1943dcb7-d438-48de-8e62-d9967b32b9b2` liegt auf dem
+Build-Datenträger. Sein erster Lauf wurde vor Bootabschluss im Host-Launcher
+unterbrochen. Android fährt danach normal herunter; der Helfer bestätigt
+sauberen Shutdown. Die erste Bildschirmaufnahme zeigt noch keine aktive
+Anzeige. Dieser Versuch ist ausdrücklich kein bestandener Boot-, Bildschirm-
+oder ADB-Test. Beleg `out/phase1-dod/b832d6c-base/boot-1-interruption.json`,
+SHA-256 `e1c6680dcb55b554af40b758ef5144bfb793f7ecdaa1c70164360fef737e5305`.
+Der Auslöser des Hostsignals ist nicht geklärt. Dienstbeendigungen während
+dieses angeforderten Shutdowns werden nicht als dessen ursprüngliche Ursache
+ausgegeben.
+
+Der zweite Lauf verwendet dasselbe erhaltene Profilpaar als transienten
+lokalen `systemd`-Dienst `aegis-qemu-b832d6c-boot2.service`. `Restart=no`
+verhindert verdeckte Neustarts; `KillMode=mixed` und 120 Sekunden Stopzeit
+lassen zunächst den Launcher Android vor KeyMint geordnet beenden. Boot,
+Eingabe, ADB und die eigentliche Paketregression sind noch nachzuweisen.
+Die vollständige DoD bleibt offen; es wurden keine Buildartefakte hochgeladen.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
