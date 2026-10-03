@@ -165,15 +165,18 @@ bei vorhandenem geprüftem Plan; die exakte Prüfung der simulierten Änderungen
 bleibt erhalten. Der Korrekturstand `f098f43` ist inzwischen vollständig lokal
 gebaut; 20 Images, Kernel-/Runtime-Eingaben, AVB und die neue Basisdisk sind
 geprüft. Boot und alle sechs gezielten Executor-Tests sind inzwischen bestanden,
-einschließlich derselben zuvor roten Regression. Der echte private CLI-Ablauf
-auf dem Korrekturimage bleibt erforderlich.
+einschließlich derselben zuvor roten Regression. Auch der echte private
+CLI-Versionsrückgang ist inzwischen auf dem Korrekturimage bestanden; sein
+gesonderter Nachweis steht in der folgenden Tabelle. Die übrige Abnahme bleibt offen.
 
 ## Zusätzlicher Korrekturstand f098f43
 
 Image und native Tests stammen aus
 `f098f439f051c34e92fb1be0b4d908cc542358ea`. Das neue Profil ist
-`535c2e93-df64-445b-b9e2-b71e6b403db7`, Boot-ID
+`535c2e93-df64-445b-b9e2-b71e6b403db7`. Der erste Boot hat ID
 `33e0e0e8-3896-4c42-a19d-270d4665153c`, SystemServer `1404/40097`.
+Die späteren, jeweils im Beleg gebundenen Prüfungen nach gepaartem Neustart
+laufen im zweiten Boot `17a75d6e-75f2-4f18-bf02-ec3d093e57b8`, SystemServer `1124/21865`.
 Die folgenden Belege liegen lokal unter `out/phase1-dod/f098f439/`.
 
 | Nachweis | Ergebnis und Grenze | Beleg / SHA-256 |
@@ -207,6 +210,7 @@ Die folgenden Belege liegen lokal unter `out/phase1-dod/f098f439/`.
 | Private Beta-Installation ohne Adminauswahl, T13.2-Teilfall | jq/libjq1-u3-Plan bei gemeinsamem u4 ohne Freigabe abgebrochen. Betas komplette Zustandsfelder unverändert; Alpha und Gamma CE-gesperrt, deren private Stores nicht gelesen | `private-beta-cancel-proof.json`, `ed2f532b01bd8cf175b1322be03efbbac08264721a30d90829d7b8df51adf6fb` |
 | Private Beta-Installation mit falschem Adminpasswort, T13.2-Teilfall | Identischer Plan, ausdrückliche AOSP-Passwortablehnung; vollständiger Vergleich unverändert und Beta weiterhin gültig angemeldet. Keine Veröffentlichung oder private Versionsausführung behauptet | `private-beta-wrong-proof.json`, `51cf29a728e834f1c5d78ac6815bc75ddd9147de9e26ec4fe4b5ad2560a6b81b` |
 | Private Beta-Installation mit Nicht-Adminfreigabe, T13.2-Teilfall | Betas korrektes Passwort darf den identischen Plan nicht freigeben; alle Zustandsfelder bleiben exakt gleich, Beta bleibt angemeldet. Alpha/Gamma weiterhin gesperrt. Generischer Anmeldehinweis bleibt als CLI-Fehler dokumentiert | `private-beta-nonadmin-proof.json`, `c106fa34d1e4bb382be42910073606ad1d100a9ceada0cee3836088126fd2c07` |
+| Private Beta-Installation mit Alpha-Freigabe und echter Versionsrückgang, T13.2 / T15-Teilfall | Frische Alpha-Freigabe veröffentlicht ausschließlich Betas private Auswahl; vorheriger Kontext zunächst unverändert. Nach Neustart privates jq/libjq1 u3 gegen gemeinsame u4-Basis tatsächlich ausgeführt, alle 81 Pakete und ursprüngliche Daten geprüft, Status aktuell. Alpha/Gamma in den Zustandsaufnahmen gesperrt. Zwei fehlgeschlagene Live-Worker-Aufnahmen explizit erhalten; keine lückenlose CE-Zeitreihe behauptet | `private-beta-downgrade-activation-proof.json`, `e04b127f05db4e84025d693f6c829d684d4a180bf3b79bab8e932a2859bd8811` |
 | Zweiter Boot, Dienstbeobachtung | Ein SystemServer-Start und keine geprüften Fatal-/ANR-/FORTIFY-/Watchdog-Meldungen bis zu den Datenreadbacks. Zusätzliche einmalige Altbestand-Aufräumrückgabe quellen-/zustandsgebunden eingeordnet, nicht als behoben behauptet | `boot2-health-classification.json`, `46ac763c50fe95c3bd5447692022c7dd2efdf1e7f4b64ac639833b9b33394002` |
 | Passworttransport-Quellbindung | Neun Dateien bytegleich zu Imagecommit und gespeichertem Buildmanifest; separate interaktive Eingabe, Echo-Abschaltung, Pufferbereinigung und sensible Binderdeklarationen statisch geprüft. Keine umfassende Laufzeit-Offenlegungsprüfung behauptet | `credential-transport-source-binding.json`, `88e84b5de6d37cd48f6b73683f77800d157c8a2ff279084daa823855e793037d` |
 | Aktuelle Verschlüsselungskonfiguration | FBE/Metadatenverschlüsselung und XTS/HCTR2 beobachtet; vier Quellen gegen Upstream beziehungsweise gespeicherte AEGIS-Buildvorbereitung gebunden. Anfänglicher zu pauschaler Upstream-Vergleich erhalten; keine Schlüssel gelesen | `crypto-current-observation.json`, `e154e92235a2d07baf6c6f60d9fbe87eb5156dce5e31c93ae9f457f8da296c6c` |

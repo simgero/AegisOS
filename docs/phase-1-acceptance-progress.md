@@ -2960,3 +2960,51 @@ T01-Prüfung aller Argumente, Dateien und History-Pfade.
 Gültige Veröffentlichung und tatsächliche private Versionsausführung sind damit
 noch nicht nachgewiesen. Die drei verweigerten Varianten für `install user`
 sind auf diesem Image belegt; andere Aktionen und Bereiche bleiben getrennt.
+
+### Betas privater Versionsrückgang auf f098f43 tatsächlich ausgeführt
+
+Der vierte identische Plan erhält um 12:17:20 UTC eine gültige frische
+Alpha-Adminfreigabe. Um 12:19:01 UTC bestätigt die CLI die erfolgreiche private
+Veröffentlichung. Der Auswahleintrag gehört ausdrücklich Beta 11/11; seine
+Generation `f38859959a4fcfd655b73c5c9f2e89505a24e76083c893561c0f51a43cea2095`
+ist an die unveränderte gemeinsame Basis `53e5fddf…23bc34` gebunden.
+
+Betas vollständiger aktiver Kontext bleibt bis zum bewussten Neustart exakt
+unverändert. Er meldet ausstehende Aktivierung, führt weiterhin gemeinsames
+jq/libjq1 `u4` aus und behält den ursprünglichen Hintergrundprozess 30976/852342.
+Die unabhängigen Aufnahmen vor und nach der Veröffentlichung zeigen CE `[0,11]`;
+Alphas und Gammas gesperrte Stores werden nicht gelesen. Alphas zuvor bekannte
+persönliche Datei liefert nach der Freigabe weiterhin keine Bytes.
+
+Nach eigenem `linux stop` bleibt Beta gültig angemeldet. Der neue Start bestätigt
+um 12:24:48 UTC eine bereite Runtime. Kontext 9084/1222438 verwendet tatsächlich
+das private Image unter `/data/misc_ce/11/aegis/packages/store/`. Seine explizite
+jq-Auswahl ist `1.7.1-6+deb13u3`. Der vollständige Bestand umfasst weiterhin 81
+Pakete: Ausschließlich jq und libjq1 wechseln von `u4` auf `u3`, alle anderen
+Versionen bleiben erhalten, insbesondere die neuen PCRE2-/OpenSSL-Versionen.
+Die rohe Paketdatenbank hat SHA-256
+`73d64ac8c7a9e0f018ee59c2b21965a5aa5c9e8e7aef5bb4187340f39b4ed03e`.
+
+Die gewöhnliche GNU-Shell bestätigt Versionen und Bibliotheksauflösung und
+berechnet mit jq das erwartete Ergebnis. Beide ursprünglichen persönlichen
+Dateien und die Konfiguration bleiben bytegleich. Zwei unmittelbar vor dem
+Stopp positiv gelesene temporäre Dateien sind danach verschwunden. Erst nach
+belegtem Ende der alten Probe und erneutem Originaldaten-Readback entsteht die
+neue begrenzte Probe 9255/1238958. Der Status meldet `packages=current`.
+
+Die versuchte Live-Worker-Beobachtung besitzt ausdrücklich keinen Erfolgsbeleg:
+Beim ersten Versuch endete PID 8145 zwischen Gruppen- und Prozesslesung, beim
+zweiten war die Veröffentlichung bereits beendet und die Gruppe entfernt.
+Beide Beobachtungsfehler sind lokal festgehalten. Der Auftrag wurde nicht neu
+gestartet; ein vollständiger Live-Worker-Nachweis oder eine lückenlose CE-Zeitreihe
+wird daraus nicht behauptet.
+
+Beleg: `out/phase1-dod/f098f439/private-beta-downgrade-activation-proof.json`, SHA-256
+`e04b127f05db4e84025d693f6c829d684d4a180bf3b79bab8e932a2859bd8811`.
+Er bindet die drei Ablehnungsfälle, frische Freigabe, Veröffentlichung,
+vollständige Zustandsaufnahmen und tatsächliche GNU-Ausführung an denselben
+Image-/Profil-/Bootstand. Der zuvor auf `209278de` fehlgeschlagene gewöhnliche
+private CLI-Versionsrückgang ist damit auf dem Korrekturimage `f098f43` bestanden.
+Beide privaten Bestände gleichzeitig entsperrt auf gegenseitige Isolation zu
+prüfen, die neue Auswahl über einen gepaarten Neustart nachzuweisen sowie die
+übrigen Entfernungs-, Update-, Konflikt- und Parallelitätsfälle bleiben erforderlich.
