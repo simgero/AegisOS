@@ -2883,3 +2883,41 @@ Die Metadatenaufnahmen sind sequenzielle Beobachtungen bei stabilem Zustand.
 Dies belegt beide Runtime-Stopprichtungen und die gemeinsame Updateaktivierung
 mit erhaltener privater Auswahl. Der private Beta-Versionsrückgang gegen die
 neuere gemeinsame Basis und die übrigen Pflichtfälle bleiben offen.
+
+### Nicht bestätigter Alpha-Logout und reguläre Wiederherstellung auf f098f43
+
+Beim folgenden regulären Alpha-Logout tritt ein neuer Fehler auf: Um 11:31:03 UTC
+meldet die CLI „Aktion nicht bestätigt“. AOSP hat Alpha gestoppt und zum
+Systembenutzer gewechselt, bestätigt aber die CE-Sperrung nicht. Die Terminalsitzung
+ist widerrufen. Das Kernel-Log meldet drei noch belegte Inodes, darunter 4589;
+StorageManagerService meldet ausdrücklich eine ausstehende CE-Schlüsselsperrung.
+Dieser ursprüngliche Logout zählt **nicht als bestanden**.
+
+Die gesonderte Zustandsaufnahme bestätigt den unveränderten SystemServer, Alphas
+entfernte Runtime-Gruppe und den entfernten Hintergrundprozess. In der späteren
+Loop-Aufnahme ist kein Alpha-privates Image mehr vorhanden. Betas ursprünglicher
+Prozess 30976/852342 läuft bei Systembenutzer 0 weiter. Welche Referenz die drei
+Inodes zum Fehlerzeitpunkt festhielt und wann sie freigegeben wurde, ist damit
+nicht geklärt. Die spätere Abwesenheit darf nicht als Erklärung der Ursache gelten.
+
+Die nächste reguläre Anmeldevorbereitung schließt die ausstehende CE-Sperrung ab,
+bevor ein Passwort übertragen wird: CE ist `[0,11]`, Alphas Kontext fehlt, und
+seine bekannte ursprüngliche Datei liefert keine Bytes. Erst ein frisch von AOSP
+geprüftes Passwort entsperrt ihn wieder. Nach Runtime-Start werden die ursprüngliche
+Datei und Konfiguration bytegleich gelesen und privates jq/libjq1 `u4` erfolgreich
+ausgeführt. Alle 81 Pakete, der rohe Datenbankhash, die private Auswahl und das
+Backing-Image stimmen mit dem Stand vor dem Fehler überein. Betas kompletter
+Kontextdatensatz ist unverändert.
+
+Beleg: `out/phase1-dod/f098f439/alpha-pending-logout-recovery-proof.json`, SHA-256
+`c7e75df4adbcb90ad9e4b97b2a325dca50b8e07514e43d2bc7523ce2cbfb0f38`.
+Ein erster Offline-Vergleich wies die geänderte CE-Reihenfolge zurück. Der
+Wiederherstellungsnachweis verlangt jetzt ausdrücklich `[0,11,10]` nach der
+erneuten Alpha-Anmeldung; beide Originalaufnahmen bleiben erhalten. Es wurden
+keine Produktänderung, kein Framework-Neustart, kein manueller Schlüsseleingriff
+und kein Cache-Leeren zur Wiederherstellung eingesetzt.
+
+Dies belegt die sichtbare Ablehnung eines tatsächlichen unvollständigen Logout
+und die anschließende reguläre Wiederherstellung. Es ersetzt weder die noch
+offene Ursachenklärung noch sämtliche absichtlich ausgelösten Fehler-,
+Parallelitäts- und Paketvarianten von T11.
