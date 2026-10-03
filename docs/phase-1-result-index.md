@@ -1,4 +1,4 @@
-# Phase 1 – Ergebnisindex des aktuellen Images
+# Phase 1 – Ergebnisindex der Referenzläufe
 
 Stand: 3. Oktober 2026. **Unvollständig; keine Gesamtfreigabe.**
 Verbindlich bleiben sämtliche Anforderungen der [DoD](architecture/phase-1-dod.md)
@@ -8,7 +8,7 @@ weder eine ganze T-Zeile noch ein D-Kriterium. Historische Ergebnisse stehen im
 [Arbeitsprotokoll](phase-1-acceptance-progress.md); sie gelten hier nicht
 automatisch für das aktuelle Image.
 
-## Bindung und Statusregeln
+## Bisheriger Referenzlauf und Statusregeln
 
 - Produkt-/Image-Commit: `209278def7d5bc5612eeb397bdd8ee20ccb16d86`.
 - Profil: `2366ca04-d587-4170-8c56-a63c8a8e1774`.
@@ -26,6 +26,9 @@ automatisch für das aktuelle Image.
 dass der nötige aktuelle Nachweis noch nicht vollständig erhoben/zugeordnet ist.
 Komponententests ersetzen keine geforderten Benutzerabläufe. D1–D7 und alle
 T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
+Die folgende T01–T17-Tabelle bezieht sich auf den bisherigen Referenzlauf
+`209278de`. Die zusätzlichen Ergebnisse des Korrekturimages `f098f43` stehen
+im gesonderten Abschnitt unten; sein persönlicher CLI-Lauf steht noch aus.
 
 ## Pflichtvarianten T01–T17
 
@@ -160,9 +163,36 @@ bleiben unverändert. Die vorbereitete Korrektur erlaubt den Versionsrückgang
 bei vorhandenem geprüftem Plan; die exakte Prüfung der simulierten Änderungen
 bleibt erhalten. Der Korrekturstand `f098f43` ist inzwischen vollständig lokal
 gebaut; 20 Images, Kernel-/Runtime-Eingaben, AVB und die neue Basisdisk sind
-geprüft. Boot und erfolgreicher Wiederholungstest auf diesem Stand stehen noch
-aus. Dieser Index bleibt an das bisherige Referenzimage gebunden, bis die
-aktuellen Laufzeitnachweise vorliegen.
+geprüft. Boot und alle sechs gezielten Executor-Tests sind inzwischen bestanden,
+einschließlich derselben zuvor roten Regression. Der echte private CLI-Ablauf
+auf dem Korrekturimage bleibt erforderlich.
+
+## Zusätzlicher Korrekturstand f098f43
+
+Image und native Tests stammen aus
+`f098f439f051c34e92fb1be0b4d908cc542358ea`. Das neue Profil ist
+`535c2e93-df64-445b-b9e2-b71e6b403db7`, Boot-ID
+`33e0e0e8-3896-4c42-a19d-270d4665153c`, SystemServer `1404/40097`.
+Die folgenden Belege liegen lokal unter `out/phase1-dod/f098f439/`.
+
+| Nachweis | Ergebnis und Grenze | Beleg / SHA-256 |
+| --- | --- | --- |
+| Bootkonfiguration | Boot abgeschlossen, authentifiziertes ADB, Enforcing, FBE/Metadatenverschlüsselung, passender AVB-Digest, CE nur `[0]`; begrenzte Beobachtung | `boot-observation.json`, `6178275cc63b98a851415842911019042b72d62e4394e649fbbd676318cf9255` |
+| Paketkorrektur | 6/6 Executor-Tests bestanden: gewöhnliche Installation/Aktualisierung/Entfernung; geprüfter Ablauf mit Konfiguration/Abhängigkeitsmarken; gewöhnlicher privater Versionsrückgang; Abgleich mit älterer Basis; private Entfernung mit Rückfall; abweichende Simulation vor Paketskripten verweigert | `native-downgrade-controls/result.json`, `e004cf92be2c70defd8e90998ec3bb1e0c2abb83a28a08c290b7d000edfd55e8` |
+| Bildschirm und Eingabe | Einstellungen sichtbar; QMP-TAB/Enter öffnet Netzwerkseite, ein Maus-Klick in unabhängig beobachteten Zurück-Koordinaten führt zur Startseite; Systemidentität unverändert | `qmp-ui-proof.json`, `d6997661ac4a1a639c00af0ea084894f422191f809c7f7bb1fabfaf89425ec9e` |
+| Binäres ADB | 262144 synthetische Bytes identisch übertragen/zurückgelesen; eigene temporäre Gastdatei entfernt | `adb-binary-proof.json`, `6c29af2f7ef997b27db191ed58ebffcdad7ba448418b9a2cae8d75eeff78b7b9` |
+
+Vor/nach den sechs Tests bleiben Boot-ID, SystemServer-Startzeit, Enforcing
+und CE `[0]` exakt gleich. Die UI-Prüfung erhält drei fehlgeschlagene anfängliche
+Automationsabfragen mit leerem Root-Knoten während Seitenübergängen; nur die
+Beobachtung wurde wiederholt, die Eingaben wurden jeweils einmal gesendet.
+Die erste Bildschirmaufnahme zeigte noch den normalen System-Sperrbildschirm.
+Die später bestätigten Einstellungsseiten sind separat erfasst.
+
+Diese Ergebnisse schließen den Executor-Regressionsfall und die bezeichneten
+Bedienungsvarianten. Der vollständige persönliche CLI-Referenzablauf,
+Paketautorisierung, Persistenz, Isolation und die übrigen D1–D7-/T01–T17-Fälle
+des Korrekturstands bleiben erforderlich.
 
 ## Abschlusskriterien und Referenzablauf
 

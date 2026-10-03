@@ -2286,3 +2286,22 @@ Installation/Aktualisierung/Entfernung, Konfigurationserhalt, abweichende
 Simulation, Abgleich und private Entfernung ausgewählt. Der frische Gaststart
 läuft; keiner dieser Wiederholungstests wird bereits als bestanden gewertet.
 Buildartefakte bleiben ausschließlich lokal.
+
+### Wiederholung der Paketkorrektur und Bedienung auf f098f43 bestanden
+
+Der frische Gast bootet mit Enforcing, authentifiziertem ADB, passendem
+AVB-Digest und ausschließlich System-CE. Alle sechs ausgewählten nativen Tests
+bestehen auf dem passenden vollständigen Image. Besonders der mit unveränderten
+Testbytes ausgeführte private Versionsrückgang, der vorher APT-Status 100
+lieferte, erhält nun App/Bibliothek in der angeforderten älteren Version sowie
+Konfiguration, private Auswahl und Abhängigkeitsmarken. Der Kontrollfall mit
+abweichender Simulation verweigert weiterhin die Ausführung vor Paketskripten.
+
+Beleg: `out/phase1-dod/f098f439/native-downgrade-controls/result.json`, SHA-256
+`e004cf92be2c70defd8e90998ec3bb1e0c2abb83a28a08c290b7d000edfd55e8`.
+Boot-ID und SystemServer-Identität bleiben vor/nach den Tests unverändert.
+Bildschirm, normale QMP-Tastatur-/Mausnavigation und ein binärer ADB-Rundlauf
+sind ebenfalls auf diesem Stand bestätigt und im
+[Ergebnisindex](phase-1-result-index.md#zusätzlicher-korrekturstand-f098f43)
+mit Grenzen und Prüfsummen erfasst. Der persönliche CLI-Lauf muss die Korrektur
+und die vollständigen Pflichtfälle anschließend auf diesem Image nachweisen.
