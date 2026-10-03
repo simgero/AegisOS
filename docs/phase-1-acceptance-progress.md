@@ -3374,6 +3374,22 @@ vor und nach dem Abbruch stimmen überein. Beleg unter
 `out/phase1-dod/f098f439/update-user-cancel-proof.json`, SHA-256
 `b50b868a4e14d9f94e1d83fcfe6686c1e8804f187934a5c966175eb1ffeb135c`,
 Ereignisse 697 bis Präfix 700. Das belegt nur den Abbruch vor Freigabe;
-falsche und Nicht-Adminfreigabe sowie erfolgreiche private Updateaktivierung
-bleiben für diesen Ablauf offen. Kein Abbruch während der Ausführung wird
-daraus abgeleitet.
+kein Abbruch während der Ausführung wird daraus abgeleitet.
+
+Auch ein einzelnes falsches Alpha-Passwort und Betas korrektes aktuelles
+Passwort ohne Adminrolle verhindern die Veröffentlichung. AOSP weist das
+falsche Passwort ausdrücklich zurück. Nach beiden Versuchen bleibt Betas
+Sitzung gültig; vollständige Aufnahmen von Identität, CE, ausgewählten
+Generationen, laufenden Kontexten und Paketbeständen sind unverändert.
+Die missverständliche generische Aufforderung zur erneuten Anmeldung nach
+Nicht-Adminfreigabe bleibt als Bedienungsfehler erhalten.
+
+Weitere Belege im selben lokalen Verzeichnis:
+
+- `update-user-wrong-proof.json`, Ereignisse 700 bis Präfix 704, SHA-256
+  `5b306c5147db7b697ef6d62b082329ade431e845cd28736b627cc6e363117ba3`.
+- `update-user-nonadmin-proof.json`, Ereignisse 704 bis Präfix 707, SHA-256
+  `9e9fc7e573fef34902216c38998ab9fa810570b4949b5d98ae673af04e832322`.
+
+Die erfolgreiche private Updateaktivierung und die übrigen Paketvarianten
+bleiben offen.

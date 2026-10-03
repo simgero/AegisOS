@@ -248,10 +248,16 @@ jq/libjq1 `u3` → `u4` bei leerer Adminauswahl geprüft. Die vollständigen
 Zustandsaufnahmen bleiben gleich und die Antragstellersitzung gültig.
 `out/phase1-dod/f098f439/update-user-cancel-proof.json`, SHA-256
 `b50b868a4e14d9f94e1d83fcfe6686c1e8804f187934a5c966175eb1ffeb135c`,
-bindet Ereignisse 697 bis Präfix 700. Der vorausgehende reguläre private
-Installationslauf stellt nur den Update-Ausgangsbestand her. Die drei weiteren
-Autorisierungsfälle für dieses private Update und dessen Aktivierung bleiben
-offen; Einzelheiten im [Abnahmeabgleich](phase-1-acceptance-progress.md).
+bindet Ereignisse 697 bis Präfix 700. Zusätzlich sind falsches Adminpasswort
+und Nicht-Adminfreigabe mit unverändertem vollständigem Zustand belegt:
+`update-user-wrong-proof.json`, SHA-256
+`5b306c5147db7b697ef6d62b082329ade431e845cd28736b627cc6e363117ba3`,
+und `update-user-nonadmin-proof.json`, SHA-256
+`9e9fc7e573fef34902216c38998ab9fa810570b4949b5d98ae673af04e832322`.
+Der vorausgehende reguläre private Installationslauf stellt nur den
+Update-Ausgangsbestand her. Gültige Freigabe und erfolgreiche Aktivierung
+bleiben offen; Einzelheiten im
+[Abnahmeabgleich](phase-1-acceptance-progress.md).
 
 | Kriterium | Noch erforderliche vollständige Abnahme |
 | --- | --- |
