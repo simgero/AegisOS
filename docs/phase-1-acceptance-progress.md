@@ -3787,3 +3787,26 @@ bindet Ereignispräfix 123 und die Veröffentlichungs-/Aktivierungsaufnahmen.
 Dies ist ein weiterer bestandener expliziter Versionsfall mit anderer
 freigebender Adminperson. Die gesamte Autorisierungsmatrix sowie der
 ursprüngliche Startfehler nach gemeinsamer Entfernung bleiben offen.
+
+### Diagnoseimage: private Alpha-Wahl ohne Versionswechsel aufgehoben
+
+Alpha entfernt anschließend seine private jq-Wahl über die reguläre CLI.
+Der angezeigte Plan nennt ausdrücklich die aufgehobene private u4-Wahl,
+die danach verfügbare gemeinsame u4-Version und unveränderte Paketversionen.
+Nach Adminfreigabe ist eine neue private Generation veröffentlicht. Die
+gemeinsame Auswahl, Betas private u3-Auswahl und beide laufenden Kontexte
+bleiben dabei unverändert; Alpha meldet ausstehende Aktivierung.
+
+Nach ausdrücklichem Stopp/Start ist Alphas private Versionsliste tatsächlich
+leer. Alle 81 installierten Paketversionen und der sonstige Paketstatus sind
+gegenüber seinem bisherigen Kontext unverändert. jq/libjq1 u4 und die
+übrigen geprüften Bibliotheken funktionieren in der normalen GNU-Shell mit
+sauberer Paketdateiprüfung. Ursprüngliche Datei und Konfiguration bleiben
+bytegleich. Beta behält seinen u3-Kontext einschließlich Prozessidentität;
+Alpha meldet abschließend `packages=current`.
+
+Beleg `out/phase1-dod/3fdb058-diagnostics/alpha-unpin-activation-proof.json`,
+SHA-256 `5a334210620c48241aa51669addb677a94fc644bfca321456d3b44c5e04d5088`,
+bindet Ereignispräfix 139. Dies bestätigt die private Entfernung bei gleicher
+gemeinsamer Version. Die spätere gemeinsame Entfernung, bei der der
+ursprüngliche Startfehler auftrat, ist damit noch nicht geprüft oder behoben.

@@ -362,6 +362,12 @@ GNU-Ausführung, unveränderte übrige 79 Pakete und ursprüngliche Beta-Daten
 sind bestätigt; Alphas Kontext und Auswahl bleiben unverändert. Beleg
 `out/phase1-dod/3fdb058-diagnostics/beta-private-u3-activation-proof.json`,
 SHA-256 `57f6a22cea2a0a76cc8e62967aaebd72ed7c214c8b1b64acc2fe28fb9ede36d1`.
+Alphas anschließende private Entfernung bei weiterhin gemeinsamer u4-Version
+ist ebenfalls aktiviert und geprüft: private Versionsliste leer, alle 81
+Paketversionen unverändert, ursprüngliche Alpha-Daten erhalten, Betas
+u3-Kontext unverändert. Beleg
+`out/phase1-dod/3fdb058-diagnostics/alpha-unpin-activation-proof.json`, SHA-256
+`5a334210620c48241aa51669addb677a94fc644bfca321456d3b44c5e04d5088`.
 Die eigentliche CLI-Fehlerreproduktion steht noch aus. Die früheren f098f439-Ergebnisse
 werden dadurch nicht automatisch zu bestandenen Abläufen auf diesem Image;
 der ursprüngliche Alpha-Fehler und die vollständige DoD bleiben offen.
