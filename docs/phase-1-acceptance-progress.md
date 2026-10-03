@@ -2921,3 +2921,42 @@ Dies belegt die sichtbare Ablehnung eines tatsächlichen unvollständigen Logout
 und die anschließende reguläre Wiederherstellung. Es ersetzt weder die noch
 offene Ursachenklärung noch sämtliche absichtlich ausgelösten Fehler-,
 Parallelitäts- und Paketvarianten von T11.
+
+### Private Beta-Paketfreigabe bei gesperrtem Alpha auf f098f43
+
+Nach dem Wiederanlauf wird Alphas Runtime separat gestoppt. Der folgende neue
+Logout bestätigt um 11:45:04 UTC tatsächlich die CE-Sperrung; eine unabhängige
+Prüfung zeigt nur `[0,11]`. Dieser zweite erfolgreiche Ablauf erklärt den zuvor
+fehlgeschlagenen Logout nicht. Beta meldet sich frisch an und behält seinen
+laufenden gemeinsamen u4-Kontext; Alpha und Gamma bleiben gesperrt.
+
+Beta beantragt `linux package install --scope user jq=1.7.1-6+deb13u3`.
+Der tatsächliche Plan enthält genau jq und libjq1 von `u4` auf `u3`.
+Eine leere Adminauswahl bricht den ersten Plan ab. Beim zweiten identischen Plan
+weist AOSP ein einzelnes falsches Alpha-Adminpasswort ausdrücklich ab. Beide
+anschließenden Statusabfragen bestätigen Betas gültige Sitzung.
+
+Die vollständigen Aufnahmen vor und nach jeder Ablehnung stimmen in allen
+Identitäts-, CE-, Auswahl-, Paket- und Kontextfeldern exakt überein. Beta besitzt
+weiterhin keinen privaten Store. Die gesperrten Alpha-/Gamma-Stores werden vom
+Beobachter nicht geöffnet; er behauptet für sie keinen direkten Inhaltsvergleich.
+Belege unter `out/phase1-dod/f098f439/`:
+
+- `private-beta-cancel-proof.json`, SHA-256
+  `ed2f532b01bd8cf175b1322be03efbbac08264721a30d90829d7b8df51adf6fb`.
+- `private-beta-wrong-proof.json`, SHA-256
+  `51cf29a728e834f1c5d78ac6815bc75ddd9147de9e26ec4fe4b5ad2560a6b81b`.
+
+Auch der dritte identische Plan wird mit Betas korrektem Passwort als
+Nicht-Adminfreigabe abgewiesen. Sein vollständiger Zustandsvergleich ist erneut
+exakt gleich, und Beta bleibt gültig angemeldet. Der generische erneute
+Anmeldehinweis der CLI ist weiterhin ein Bedienungsfehler. Beleg:
+`private-beta-nonadmin-proof.json`, SHA-256
+`c106fa34d1e4bb382be42910073606ad1d100a9ceada0cee3836088126fd2c07`.
+Der Treiber findet anschließend in allen sechs Lauf-Logs beider Boots kein
+vollständiges synthetisches Testpasswort. Das ersetzt weiterhin keine vollständige
+T01-Prüfung aller Argumente, Dateien und History-Pfade.
+
+Gültige Veröffentlichung und tatsächliche private Versionsausführung sind damit
+noch nicht nachgewiesen. Die drei verweigerten Varianten für `install user`
+sind auf diesem Image belegt; andere Aktionen und Bereiche bleiben getrennt.
