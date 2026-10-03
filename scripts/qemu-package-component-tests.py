@@ -43,6 +43,10 @@ GROUPS = {
     "publication": ("RuntimeReconciliationPlanning", [
         "SignedTriplePlanExecutesAndPublishesPreservingPrivateFilesAndOwner",
         "SignedPrivateVersionOverridePublishesNewBaseWithoutPackageChanges"]),
+    "reconciliation-removal": ("RuntimeReconciliationPlanning", [
+        "RemovedSharedRootsAreAutoremovedWhenNoPrivateRootNeedsThem",
+        "PrivateRootSurvivesSharedRemovalWithItsDependency",
+        "RemovedSharedRootsExecutePublishAndReopenWithoutPrivateChoice"]),
 }
 BUNDLE = {"AegisRuntimeNativeTests", "aegis-package-execute",
           "aegis-package-execute-probe", "aegis-package-network", "aegis-package-plan",
@@ -69,7 +73,8 @@ def test_only_sources(base, components):
     check(base.get("version") == 1 and components.get("version") == 1, "Unknown source receipt schema")
     check(base["files"].keys() == components["files"].keys(), "Source inventory changed")
     changed = sorted(name for name in base["files"] if base["files"][name] != components["files"][name])
-    check(changed == ["runtime/package_executor_tests.cpp"], "Expected only the executor test correction")
+    allowed = {"runtime/package_executor_tests.cpp", "runtime/package_planner_test_cases.inc"}
+    check(changed and set(changed) <= allowed, "Expected only named package test changes")
     return changed
 
 
@@ -228,7 +233,7 @@ if __name__ == "__main__":
     parser.add_argument("--test-only-reference", type=Path,
                         help="Original component receipt from the image commit; requires --component-sources")
     parser.add_argument("--component-sources", type=Path,
-                        help="Source inventory from the corrected native build; only executor test source may differ")
+                        help="Source inventory from the test build; only named executor/planner test sources may differ")
     try:
         run(parser.parse_args())
     except (ValueError, OSError, subprocess.SubprocessError) as error:

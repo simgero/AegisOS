@@ -1451,6 +1451,51 @@ TEST_F(RuntimeReconciliationPlanning, SignedPrivateVersionOverridePublishesNewBa
     ASSERT_EQ(0,PrepareOwned(digest));Prepared(selection_job,digest);ASSERT_FALSE(HasFatalFailure());
     aegis::PackageExecutionResult result;ExecuteOwned(&result);ASSERT_FALSE(HasFatalFailure());VerifyReopened(result,"1");
 }
+TEST_F(RuntimeReconciliationPlanning, RemovedSharedRootsExecutePublishAndReopenWithoutPrivateChoice) {
+    Configure("AEGIS-PRIVATE-CHOICES1\n",true);ASSERT_FALSE(HasFatalFailure());
+    ExecutionSource();ASSERT_FALSE(HasFatalFailure());
+    TransferOwner();ASSERT_FALSE(HasFatalFailure());OwnerReview(2);ASSERT_FALSE(HasFatalFailure());
+    for(const auto& change:owner_bound.reviewed.changes) {
+        EXPECT_FALSE(change.before_version.empty());EXPECT_TRUE(change.after_version.empty());
+    }
+    const auto digest=owner_bound.preparation.execution.plan_sha256;
+    ASSERT_EQ(0,PrepareOwned(digest));Prepared(selection_job,digest);ASSERT_FALSE(HasFatalFailure());
+    aegis::PackageExecutionResult result;ExecuteOwned(&result);ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(aegis::PackageExecutionOutcome::Published,result.outcome)<<result.error<<" "<<result.status;
+    EXPECT_EQ(current_generation.image_sha256,result.generation.shared_base_sha256);
+    {
+        std::unique_ptr<aegis::PackageStore> own(aegis::PackageStore::Open(private_store.get(),{true,10,1234},false));ASSERT_TRUE(own);
+        aegis::PackageGeneration actual;Fd found(own->Current(&actual));ASSERT_TRUE(found.ok());
+        EXPECT_EQ(result.generation.image_sha256,actual.image_sha256);
+        std::unique_ptr<aegis::PackageStore> common(aegis::PackageStore::Open(shared_store.get(),{false,0,0},false));ASSERT_TRUE(common);
+        Fd shared(common->Current(&actual));ASSERT_TRUE(shared.ok());EXPECT_EQ(current_generation.image_sha256,actual.image_sha256);
+    }
+    Fd factory(open("/system_ext/etc/aegis/runtime/base.ext4",O_RDONLY|O_CLOEXEC)),prepare(Program("aegis-package-prepare"));
+    aegis::PackageRuntimeSelection selection;selection.requester=10;selection.serial=1234;selection.job=902;
+    selection.factory={image->original.bytes,image->original.sha256};
+    ASSERT_EQ(0,aegis::PackageRuntimeSelectionStart(parent.get(),shared_store.get(),private_store.get(),factory.get(),prepare.get(),selection,&readback));
+    aegis::PackagePreparationResult selected_result;int fd=-1;
+    ASSERT_EQ(0,ObserveOwned([&] { return aegis::PackagePreparerFinish(&readback,false,1000,&selected_result,&fd); },ETIMEDOUT))<<strerror(errno);
+    readback_view.reset(fd);
+    ASSERT_EQ(aegis::PackagePreparationOutcome::Prepared,selected_result.outcome)<<selected_result.error;
+    ASSERT_TRUE(readback_view.ok());EXPECT_EQ(result.generation.image_sha256,selected_result.generation.image_sha256);
+    aegis::PackageInstalledRegistry expected,actual;
+    ASSERT_EQ(0,aegis::PackageReadInstalledRegistry(initial,&expected));
+    ASSERT_EQ(1u,expected.erase("aegis-probe-app"));ASSERT_EQ(1u,expected.erase("aegis-probe-lib"));
+    ASSERT_EQ(0,aegis::PackageReadInstalledRegistry(Read(fd,"var/lib/dpkg/status"),&actual));
+    EXPECT_EQ(expected,actual);
+    struct stat st;
+    for(const char* path:{"usr/bin/aegis-probe-app","usr/share/aegis-probe/library"}) {
+        EXPECT_EQ(-1,fstatat(fd,path,&st,AT_SYMLINK_NOFOLLOW));EXPECT_EQ(ENOENT,errno);
+    }
+    EXPECT_EQ("AEGIS-PRIVATE-CHOICES1\n",Read(fd,"var/lib/aegis/private-choices"));
+    EXPECT_EQ("personal=keep\n",Read(fd,"etc/aegis-reconcile-test.conf"));
+    EXPECT_EQ("technical-owner\n",Read(fd,"var/lib/aegis-reconcile-owned"));
+    ASSERT_EQ(0,fstatat(fd,"var/lib/aegis-reconcile-owned",&st,AT_SYMLINK_NOFOLLOW));
+    EXPECT_EQ(42u,st.st_uid);EXPECT_EQ(42u,st.st_gid);
+    EXPECT_EQ(owner_bound.reviewed.reconciliation_evidence.result_registry_sha256,Hash(aegis::PackageCanonicalInstalled(actual)));
+    readback_view.reset();
+}
 TEST_F(RuntimeReconciliationPlanning, CommonSelectionChangeAfterSignedPreparationPreventsPrivatePublication) {
     Configure("AEGIS-PRIVATE-CHOICES1\n");ASSERT_FALSE(HasFatalFailure());ExecutionSource();ASSERT_FALSE(HasFatalFailure());
     TransferOwner();ASSERT_FALSE(HasFatalFailure());OwnerReview(2);ASSERT_FALSE(HasFatalFailure());

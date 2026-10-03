@@ -3443,6 +3443,47 @@ Lokale Belege unter `out/phase1-dod/f098f439/`:
 - `remove-all-wrong-proof.json`, Ereignisse 736 bis Präfix 739, SHA-256
   `35485f9621a15105c515e9a30f5bd91cc3ab39166227151ad86a3c456e0b0d83`.
 
-Nicht-Adminfreigabe und gültige gemeinsame Entfernung mit anschließender
-Aktivierung bleiben offen. Die Abbrüche vor Freigabe ersetzen keine
-Ausführungsabbrüche aus T17.
+Auch Nicht-Adminfreigabe ist anschließend mit unverändertem vollständigem
+Zustand geprüft: `remove-all-nonadmin-proof.json`, Ereignisse 739 bis Präfix 742,
+SHA-256 `f7b6c35c7374da7ab656c52004c9ff55c2115a4ae964c8fc721fb6c1a155c62f`.
+Die Abbrüche vor Freigabe ersetzen keine Ausführungsabbrüche aus T17.
+
+### Gemeinsame Entfernung: Veröffentlichung, Beta erhalten, Alpha-Start fehlgeschlagen
+
+Frische Alpha-Freigabe um 17:12:13 UTC erlaubt die Veröffentlichung der
+gemeinsamen jq-Entfernung um 17:13:25 UTC. Beide laufenden Kontexte und privaten
+Auswahlen bleiben zunächst unverändert. Betas eigener Stopp/Start gleicht seine
+private Generation erfolgreich ab: jq/libjq1 `u4` und libonig5 funktionieren
+weiterhin, alle 81 Versionen und seine ausdrückliche private Wahl bleiben
+erhalten. Originaldatei und Einstellungen stimmen bytegleich; neue temporäre
+Dateien fehlen. Beta meldet `packages=current`; neuer Init 11320/1295664.
+Alphas Kontext bleibt währenddessen vollständig unverändert.
+
+Alpha meldet sich regulär an und liest vor seinem Stopp noch jq `u4` sowie die
+Originaldaten. Sein geordneter Stopp entfernt Init 8016/700474 und die
+Kontextgruppe; Betas vollständiger neuer Kontext bleibt erhalten. Der folgende
+Alpha-Start meldet um 17:30:07 UTC jedoch **„Aktion nicht bestätigt“**.
+Die anschließenden Statusabfragen zeigen eine gültige AOSP-Sitzung mit
+entsperrtem CE, aber `runtime=stopped packages=not-active`. Eine vollständige
+Zustandsaufnahme stimmt in allen beobachteten Feldern mit dem Stand vor diesem
+Startversuch überein: keine neue private Auswahl, kein Alpha-Kontext, keine
+verbliebenen Paketarbeitsprozesse; Beta unverändert. Kein erneuter Startversuch
+oder Framework-Neustart wurde zum Verdecken des Fehlers ausgeführt.
+
+Beleg: `out/phase1-dod/f098f439/shared-removal-alpha-failure-proof.json`, SHA-256
+`1d5ffac286d8766897491c8962b07afc461108a9ae3012873a27d9b18038eb3f`,
+Ereignisse 742 bis Präfix 785. Dies ist ausdrücklich **keine erfolgreiche
+gemeinsame Entfernung mit vollständiger Aktivierung**. Der interne Fehlercode
+und die Ursache sind in den vorhandenen öffentlichen Ausgaben nicht verfügbar
+und noch ungeklärt.
+
+Der zusätzliche native Test
+`RuntimeReconciliationPlanning.RemovedSharedRootsExecutePublishAndReopenWithoutPrivateChoice`
+erweitert die bisherige reine Planungsprüfung um tatsächliche Ausführung,
+Veröffentlichung und erneute Auswahl samt Datei-/Paket- und Konfigurationstest.
+Er ist zunächst ergänzt; Kompilierung und Gastlauf stehen noch aus. Die neue
+Gruppe `reconciliation-removal` im Komponententreiber verbindet ihn mit zwei
+bestehenden Planungsfällen. Neun Hosttests bestätigen die eingegrenzte
+Quellbindung: Nur die benannten Testdateien dürfen abweichen; Produkt-,
+Builddefinition- und Inventaränderungen bleiben abgewiesen. Das laufende
+Abnahmeimage und seine Produktionshelfer sind unverändert.

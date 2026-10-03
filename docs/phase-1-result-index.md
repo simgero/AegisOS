@@ -272,8 +272,17 @@ Zustand belegt: `remove-all-cancel-proof.json`, SHA-256
 `44aafe8667cd25b6ad7d45af5f74fdf8f5cdd41d81ae657f3a5fa2113a66c1c8`,
 und `remove-all-wrong-proof.json`, SHA-256
 `35485f9621a15105c515e9a30f5bd91cc3ab39166227151ad86a3c456e0b0d83`.
-Die beiden weiteren Freigabevarianten und die tatsächliche gemeinsame
-Entfernung bleiben offen.
+Nicht-Adminfreigabe ist ebenfalls unverändert abgewiesen:
+`remove-all-nonadmin-proof.json`, SHA-256
+`f7b6c35c7374da7ab656c52004c9ff55c2115a4ae964c8fc721fb6c1a155c62f`.
+Gültige Alpha-Freigabe veröffentlicht die gemeinsame Entfernung, und Betas
+private Aktivierung erhält alle 81 Pakete sowie Originaldaten. **Alphas
+anschließender Start scheitert jedoch ohne bestätigte Aktivierung.** Er bleibt
+bei gültiger AOSP-Sitzung gestoppt; ausgewählte Generationen und Betas Kontext
+bleiben unverändert. Fehlerbeleg `shared-removal-alpha-failure-proof.json`,
+SHA-256 `1d5ffac286d8766897491c8962b07afc461108a9ae3012873a27d9b18038eb3f`,
+Ereignisse 742 bis Präfix 785. Die vollständige gemeinsame Entfernung und die
+Gesamtfreigabe bleiben damit ausdrücklich offen; Ursache noch ungeklärt.
 
 | Kriterium | Noch erforderliche vollständige Abnahme |
 | --- | --- |
