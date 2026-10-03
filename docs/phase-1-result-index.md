@@ -56,7 +56,7 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T06.7 IPC A→B und B→A | Gleicher Queue-Name bleibt privat, fremde Queue unzugänglich | Bestanden für POSIX-Mqueues; keine Aussage über beliebige weitere IPC-Schnittstellen | E07 |
 | T07.1 Daten nach Runtime-Neustart | Originaldatei, Konfiguration und private Software erhalten | Bestanden für beide Benutzer: Originalbytes, Konfiguration, tatsächliche jq-Versionen und unveränderte Paketgenerationen | E03, E04, E17 |
 | T07.2 Flüchtige Daten nach Kontextneustart | Alte `/tmp`- und `/run`-Proben fehlen, persistente Bytes bleiben | Bestanden für beide Benutzer mit unmittelbar vorher neu angelegten flüchtigen Proben | E17 |
-| T07.3 Daten/Pakete nach VM-Neustart | Beide Originaldateien/Konfigurationen und A-private/B-gemeinsame Version erhalten | Bestanden: Originalbytes, getrennte Konfiguration, jq/libjq1 u4/u3, unveränderte Paketgenerationen/-datensätze; alte flüchtige Proben fehlen | E13, E15, E16 |
+| T07.3 Daten/Pakete nach VM-Neustart | Beide Originaldateien/Konfigurationen und A-private/B-gemeinsame Version erhalten | Bestanden: Originalbytes, getrennte Konfiguration, jq/libjq1 u4/u3, unveränderte Paketgenerationen/-datensätze; alte flüchtige Proben fehlen. Originaldaten und unterschiedliche Versionen auch nach zweitem gepaarten Neustart mit Beta-Passwortwechsel bestätigt | E13, E15, E16, E24, E27 |
 | T08.1 Wechsel beider Richtungen | Alten Terminalkanal widerrufen, zulässigen Hintergrundprozess erhalten | Bestanden, frische Anmeldung über zweite CLI | E08 |
 | T08.2 Bildschirmsperre | Terminal widerrufen, zulässige Arbeit weiterführen; kein behaupteter CE-Entzug | Bestanden: Keyguard/Asleep unabhängig bestätigt, beide Originalprozesse laufen, CE bleibt entsperrt | E09 |
 | T08.3 AOSP-Ressourcenstopp | Gestoppten Hintergrundbenutzer samt Runtime-Ressourcen abbauen | Bestanden für den beobachteten AOSP-Limitfall: Beta-Prozess/Kontext entfernt, CE gesperrt, anschließend frische Anmeldung und bytegleiche Originaldaten; Alpha-Prozess bleibt erhalten. Vorzeitige fehlgeschlagene Endzustandsprüfung bleibt dokumentiert | E20, E22 |
@@ -136,6 +136,7 @@ ihre Aussage ein. Keine Profile, Passwörter oder Buildartefakte werden hochgela
 | E24 | `beta-password-reboot-proof.json` | `31db67c68b1fcbbc1bd64480edb2e53abea325290c8aa5fef0dccd2d3b167964` |
 | E25 | `boot2-pre-shutdown-health.json` | `580f1d6e32b6507fb56803f7dd38b4e43d9746773bb96ab8f51be839058035a1` |
 | E26 | `boot-migration-cleanup-classification.json` | `c798664aeeebb93514bc66de8927ea754d9dede938598f6792618b758dcce877` |
+| E27 | `alpha-second-reboot-readback-proof.json` | `b3b4b958c2ff1f32d057290627e3ebd76dd9f420df00b3fb775510cb0873b212` |
 
 ## Abschlusskriterien und Referenzablauf
 

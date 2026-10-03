@@ -2090,3 +2090,21 @@ Belege: `boot2-pre-shutdown-health.json`, SHA-256
 `boot-migration-cleanup-classification.json`, SHA-256
 `c798664aeeebb93514bc66de8927ea754d9dede938598f6792618b758dcce877`,
 jeweils unter `out/phase1-dod/209278de/`. D1 und die Gesamtfreigabe bleiben offen.
+
+## Alpha-private Version und beide Originaldatensätze auch in Boot 3 erhalten
+
+Nach Betas abgeschlossenem Passwort-Neustartnachweis meldet sich Alpha korrekt
+an. Seine ursprüngliche 1024-Byte-Datei und beide persistenten Konfigurationsproben
+behalten ihre bisherigen SHA-256-Werte; alte `/tmp`-/`/run`-Proben fehlen.
+jq/libjq1 `1.7.1-6+deb13u4` wird tatsächlich ausgeführt und seine Bibliothek
+behält den ursprünglichen privaten Hash. Gemeinsame und Alpha-private
+Paketgeneration entsprechen weiterhin dem Ausgangsbestand. Boot-ID und
+SystemServer 1177/20364 bleiben während dieser Prüfung unverändert.
+
+Beleg: `out/phase1-dod/209278de/alpha-second-reboot-readback-proof.json`, SHA-256
+`b3b4b958c2ff1f32d057290627e3ebd76dd9f420df00b3fb775510cb0873b212`.
+Er bindet Betas separaten Neustartbeleg mit ursprünglichen Daten und gemeinsamer
+u3-Version ein. Die Benutzer wurden in diesem Boot nacheinander geprüft;
+gleichzeitige Entsperrung wird damit nicht behauptet. Paketautorisierung,
+gemeinsame Aktualisierung bei privaten Versionen, Entfernung, Parallelität und
+die weiteren offenen Lebenszyklusvarianten bleiben erforderlich.
