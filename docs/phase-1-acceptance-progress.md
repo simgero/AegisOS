@@ -3763,3 +3763,27 @@ keinen Startfehler. Dies bestätigt diesen gemeinsamen Updatefall; es ist
 kein vollständiger T13-/T16-Abschluss und keine Behebung des ursprünglichen
 Startfehlers nach gemeinsamer Entfernung. Logout und VM-Neustart wurden in
 diesem Abschnitt nicht ausgeführt.
+
+### Diagnoseimage: Beta verwendet privat u3 auf gemeinsamer u4-Basis
+
+Beta beantragt ausdrücklich `jq=1.7.1-6+deb13u3` für seine persönlichen
+Pakete. Der geprüfte Plan wechselt genau jq und libjq1 von u4 zurück auf u3;
+Alpha erteilt dafür die reguläre AOSP-Adminfreigabe. Die veröffentlichte
+private Auswahl gehört Beta `11/11`. Gemeinsamer Bestand, Alphas private
+Auswahl und beide laufenden Kontexte bleiben bei der Veröffentlichung
+unverändert. Betas Status meldet ausstehende Aktivierung.
+
+Nach ausdrücklichem Stopp und neuem Start führt Beta jq u3 mit libjq1 u3
+tatsächlich aus. Paketdateiprüfung und jq-Funktionstest bestehen. Die übrigen
+79 installierten Pakete bleiben unverändert, einschließlich der zuvor
+gemeinsam aktualisierten Bibliotheken. Betas ursprüngliche Datei und
+Konfiguration bleiben bytegleich; seine alten flüchtigen Proben fehlen
+weiterhin. Der Status meldet `packages=current`. Alpha bleibt mit derselben
+Prozessidentität und privater u4-Auswahl aktiv.
+
+Beleg `out/phase1-dod/3fdb058-diagnostics/beta-private-u3-activation-proof.json`,
+SHA-256 `57f6a22cea2a0a76cc8e62967aaebd72ed7c214c8b1b64acc2fe28fb9ede36d1`,
+bindet Ereignispräfix 123 und die Veröffentlichungs-/Aktivierungsaufnahmen.
+Dies ist ein weiterer bestandener expliziter Versionsfall mit anderer
+freigebender Adminperson. Die gesamte Autorisierungsmatrix sowie der
+ursprüngliche Startfehler nach gemeinsamer Entfernung bleiben offen.

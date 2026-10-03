@@ -356,6 +356,12 @@ jq-u4-Wahl auf der neuen gemeinsamen Basis. Exakte Versionen, unveränderter
 übriger Paketbestand und ursprüngliche Daten beider Benutzer sind geprüft.
 Beleg `out/phase1-dod/3fdb058-diagnostics/shared-u4-activation-proof.json`,
 SHA-256 `c3ac11be9163c989fbaef9f60e6e6f72dc8ca923359bdd6b61b591b9fcd71e47`.
+Beta installiert anschließend privat jq/libjq1 u3 mit Alphas Adminfreigabe
+und aktiviert diese abweichende Version auf der gemeinsamen u4-Basis.
+GNU-Ausführung, unveränderte übrige 79 Pakete und ursprüngliche Beta-Daten
+sind bestätigt; Alphas Kontext und Auswahl bleiben unverändert. Beleg
+`out/phase1-dod/3fdb058-diagnostics/beta-private-u3-activation-proof.json`,
+SHA-256 `57f6a22cea2a0a76cc8e62967aaebd72ed7c214c8b1b64acc2fe28fb9ede36d1`.
 Die eigentliche CLI-Fehlerreproduktion steht noch aus. Die früheren f098f439-Ergebnisse
 werden dadurch nicht automatisch zu bestandenen Abläufen auf diesem Image;
 der ursprüngliche Alpha-Fehler und die vollständige DoD bleiben offen.
