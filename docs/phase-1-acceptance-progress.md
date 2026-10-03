@@ -3661,3 +3661,29 @@ den Ereignispräfix 27 und die unverändert beobachtete Ausgangsaufnahme
 Dies ist noch kein Zwei-Benutzer-Isolations-, Paketaktivierungs- oder
 Neustartnachweis auf dem Diagnoseimage. Die gemeinsame jq-u3-Planung für die
 Reproduktion ist anschließend begonnen; Veröffentlichung noch nicht bestätigt.
+
+### Diagnoseimage: gemeinsame jq-u3-Installation und Aktivierung bestätigt
+
+Der regulär angezeigte gemeinsame Installationsplan enthält `jq` und `libjq1`
+in `1.7.1-6+deb13u3` sowie `libonig5` in `6.9.9-1+b1`. Nach Alphas regulärer
+Adminprüfung ist die gemeinsame Generation veröffentlicht. Der vorhandene
+Runtime-Kontext bleibt dabei unverändert und meldet `activation-pending`.
+Erst Alphas ausdrücklicher Runtime-Stopp und anschließender Start aktivieren
+die Auswahl; der alte Prozess ist beendet, der neue Kontext meldet
+`packages=current`.
+
+Die tatsächliche GNU-Ausführung bestätigt die drei genauen Paketversionen,
+eine saubere `dpkg -V`-Prüfung und einen erfolgreichen jq-Funktionstest.
+Das Paketinventar enthält genau die bisherigen 78 Pakete und diese drei
+Ergänzungen. Alphas ursprüngliche 1024-Byte-Datei und Konfigurationsproben
+bleiben bytegleich; die zuvor angelegten flüchtigen Proben unter `/tmp` und
+`/run` fehlen nach dem Runtime-Neustart. Beta bleibt bei diesen Kontrollen
+gesperrt. Ein Android-Neustart oder ein Zwei-Benutzer-Ablauf wurde hierbei
+nicht geprüft.
+
+Beleg `out/phase1-dod/3fdb058-diagnostics/shared-u3-activation-proof.json`,
+SHA-256 `97ccef9f03226b7f45ceca8bff2b3bc8defc391e14c19449976a180703119644`,
+bindet Ereignispräfix 41, die Aufnahmen vor/nach Veröffentlichung und
+Aktivierung sowie die ursprünglichen Daten. Dies ist ein bestandener
+gemeinsamer Installationsfall; der ursprüngliche Startfehler nach gemeinsamer
+Entfernung und die vollständige Abnahme bleiben offen.
