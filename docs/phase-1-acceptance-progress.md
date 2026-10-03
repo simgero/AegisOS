@@ -3725,3 +3725,41 @@ SHA-256 `e864f7691bc6caf7f7481065068ce192812e6bed19b6d257c2b2c957acc472bc`,
 bindet Ereignispräfix 79. Die gegenseitige Zugriffs-/Prozess-/IPC-Testmatrix,
 Logout und VM-Neustart sind damit auf diesem Image noch nicht vollständig
 geprüft. Der ursprüngliche Startfehler nach gemeinsamer Entfernung bleibt offen.
+
+### Diagnoseimage: gemeinsames Update und Aktivierung beider Kontexte bestanden
+
+Beta beantragt ein gemeinsames Update; Alpha erteilt die reguläre
+AOSP-Adminfreigabe. Der geprüfte Plan aktualisiert genau fünf Pakete:
+`jq`/`libjq1` von `1.7.1-6+deb13u3` auf `1.7.1-6+deb13u4`,
+`libpcre2-8-0` von `10.46-1~deb13u2` auf `10.46-1~deb13u3` sowie
+`libssl3t64`/`openssl-provider-legacy` von `3.5.7-1~deb13u2` auf
+`3.5.7-1~deb13u3`. Die Veröffentlichung verändert die laufenden Kontexte
+und privaten Zuordnungen nicht. Beide melden vor ihrem nächsten Start
+korrekt ausstehende Aktivierung.
+
+Beta aktiviert den neuen gemeinsamen Stand durch ausdrücklichen Stopp/Start.
+Alpha führt danach denselben Ablauf mit seiner bestehenden privaten
+jq-u4-Wahl aus: Die private Auswahl wird an die neue gemeinsame Generation
+gebunden, ihre explizite Versionswahl bleibt erhalten. Die alten Prozess-
+identitäten sind jeweils beendet; der andere Kontext und SystemServer
+bleiben bei den beobachteten Übergängen erhalten. Abschließend sind Alpha
+`9671/607609` und Beta `9112/523767` aktiv (PID/Startzeit im selben Boot).
+
+Beide normalen GNU-Shells bestätigen alle vorgesehenen Versionen, saubere
+Paketdateiprüfungen und erfolgreiche jq-Ausführung. Beide Paketdatenbanken
+enthalten weiterhin exakt 81 Pakete; abgesehen von den vorgesehenen Updates
+bleibt der installierte Bestand unverändert. Die ursprünglichen Dateien und
+Konfigurationen beider Benutzer sind bytegleich. Betas vor seinem ersten
+Runtime-Neustart vorhandene flüchtige Proben fehlen anschließend. Alphas
+alte flüchtige Proben waren bereits zuvor verschwunden. Beide abschließenden
+CLI-Statusabfragen melden `packages=current`.
+
+Beleg `out/phase1-dod/3fdb058-diagnostics/shared-u4-activation-proof.json`,
+SHA-256 `c3ac11be9163c989fbaef9f60e6e6f72dc8ca923359bdd6b61b591b9fcd71e47`,
+bindet Ereignispräfix 107, die unveränderten laufenden Kontexte nach
+Veröffentlichung und beide abgeschlossenen Aktivierungen. Die getrennt
+gesicherten tatsächlichen Brokerdiagnosen vor/nach Alphas Start enthalten
+keinen Startfehler. Dies bestätigt diesen gemeinsamen Updatefall; es ist
+kein vollständiger T13-/T16-Abschluss und keine Behebung des ursprünglichen
+Startfehlers nach gemeinsamer Entfernung. Logout und VM-Neustart wurden in
+diesem Abschnitt nicht ausgeführt.

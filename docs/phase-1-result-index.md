@@ -349,6 +349,13 @@ Beleg `out/phase1-dod/3fdb058-diagnostics/beta-first-common-u3-proof.json`,
 SHA-256 `e864f7691bc6caf7f7481065068ce192812e6bed19b6d257c2b2c957acc472bc`.
 Diese Fälle ersetzen weder die vollständige gegenseitige Isolation noch
 Logout-, Reboot-, Autorisierungs- und Fehlerfallmatrix.
+Ein anschließendes gemeinsames Fünf-Paket-Update ist einschließlich beider
+ausdrücklichen Kontextneustarts bestanden. Die laufenden Kontexte bleiben
+bei Veröffentlichung unverändert; Alpha behält seine explizite private
+jq-u4-Wahl auf der neuen gemeinsamen Basis. Exakte Versionen, unveränderter
+übriger Paketbestand und ursprüngliche Daten beider Benutzer sind geprüft.
+Beleg `out/phase1-dod/3fdb058-diagnostics/shared-u4-activation-proof.json`,
+SHA-256 `c3ac11be9163c989fbaef9f60e6e6f72dc8ca923359bdd6b61b591b9fcd71e47`.
 Die eigentliche CLI-Fehlerreproduktion steht noch aus. Die früheren f098f439-Ergebnisse
 werden dadurch nicht automatisch zu bestandenen Abläufen auf diesem Image;
 der ursprüngliche Alpha-Fehler und die vollständige DoD bleiben offen.
