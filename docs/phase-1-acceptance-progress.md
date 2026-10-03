@@ -1723,3 +1723,54 @@ nach Kontextneustart bleibt belegt; die ursprünglichen persistenten Dateien
 werden nicht neu erzeugt. Die getrennte Belegkette liegt in
 `out/phase1-dod/209278de/alpha-ephemeral-renewal.json`, SHA-256
 `c291061086d23432dbcfbade2ae57d7e4a07abae0f61783a6ab2194c86cde147`.
+
+## Persönliche Konfiguration, flüchtige Dateien und IPC getrennt
+
+Beide gewöhnlichen GNU-Kontexte können die geprüften persönlichen
+Konfigurations-/Testdateien und flüchtigen Dateien des anderen Benutzers weder
+lesen noch verändern. Der Beobachter bestätigt jeweils die ursprünglichen
+Bytes und den fortschreitenden ursprünglichen Peer-Prozess nach dem Versuch.
+Beta zu Alpha umfasst zusätzlich Alphas tatsächlich vorhandenen privaten
+Paketstore-Eintrag. Beta besitzt zu diesem Zeitpunkt keinen privaten Store;
+dessen fehlender Gegenrichtungsnachweis bleibt offen.
+
+Beleg: `out/phase1-dod/209278de/reciprocal-private-state-proof.json`, SHA-256
+`b09a95151346b9c1dc27c94a4516e48be02f8a77d6cc553b57751bb7e7c8c256`.
+
+Die POSIX-Nachrichtenwarteschlangen sind ebenfalls in beiden Richtungen
+geprüft: Beide GNU-Benutzer legen den gleichen Queue-Namen an und empfangen
+daraus ausschließlich ihre jeweils eigene Nachricht. Die benannte Queue des
+anderen Kontexts ist mit ENOENT nicht zugänglich. Beleg:
+`out/phase1-dod/209278de/reciprocal-mqueue-proof.json`, SHA-256
+`c6761a190c94640c5452d79db494ebdb3a6263e4a47b367ba9f9a2fe859470c3`.
+Dies behauptet weder jede mögliche IPC-Schnittstelle noch bereits den
+Ressourcenabbau bei Logout.
+
+Der externe Wechsel ist inzwischen auch Alpha zu Beta bestanden: Der jeweils
+alte aktive GNU-Kanal wird widerrufen, sein ursprünglicher Hintergrundprozess
+läuft weiter. Beide Richtungen sind gebunden in
+`out/phase1-dod/209278de/reciprocal-external-switch-proof.json`, SHA-256
+`2c6bd123b9b3eff2185562d756644513c022c9701b6f6ccba7a7b9a871982f66`.
+Die gesamte T06-/T08-Abnahme bleibt bis zu ihren weiteren Pflichtvarianten offen.
+
+## Bildschirmsperre mit fortlaufender Hintergrundarbeit bestätigt
+
+Der normale Android-Power-Eingang sperrt Betas Bildschirm und widerruft sein
+offenes GNU-Terminal. Unabhängige Android-Beobachtung bestätigt `Asleep`,
+sicheren angezeigten Keyguard, gesperrte Eingabe und `SCREEN_STATE_OFF` für
+Benutzer 11. Das Terminal ist anschließend unauthentifiziert. CE bleibt
+ausdrücklich `[0, 10, 11]`; dies ist kein Logout.
+
+Alphas Prozess `10172/748802` und Betas Prozess `12013/791922` behalten ihre
+Identität und schreiten bei weiterhin bestätigtem Schlafzustand fort. Boot-ID,
+SystemServer und SELinux bleiben unverändert. Belege:
+
+- `out/phase1-dod/209278de/screen-lock-observation/result.json`, SHA-256
+  `24d1843bf3f7bb9545308b1aeda62afe61d292c6db2d865789f6923d95527998`,
+  mit gehashten Power-/Keyguard-Ausgaben.
+- `out/phase1-dod/209278de/screen-lock-background-proof.json`, SHA-256
+  `9b100ec38351394a93667898655c346f82eef3b313af1f7004a3cdc02af0f283`,
+  mit Terminal-, CE- und beiden Prozessbeobachtungen.
+
+Der Bildschirm ist danach regulär wieder eingeschaltet. Frische Anmeldung und
+ausdrücklicher Logout werden als eigene Folgeschritte geprüft.
