@@ -3181,6 +3181,19 @@ Der Offline-Nachweis bindet den unveränderten gestarteten Treiber, Ereignisse
 Damit ist die zuvor ausstehende zusätzliche Ablehnung nach diesem Neustart
 belegt. Die übrigen Pflichtfälle und die Gesamtfreigabe bleiben offen.
 
+Nach diesem Negativfall gelingt die frische Anmeldung mit dem neuen Passwort
+um 14:33:58 UTC. Der reguläre Runtime-Start erzeugt Beta-Kontext 5565/294246;
+Alphas Kontext bleibt vollständig unverändert. Gewöhnliche GNU-Prozesse lesen
+die ursprüngliche Datei und beide Einstellungen bytegleich, bestätigen die
+Abwesenheit der alten temporären Dateien und führen privates jq/libjq1 `u3`
+unter UID/GID 1000 aus. Der vollständige Vergleich erhält alle 81 Paketversionen,
+den Datenbankhash, private Auswahl, Imagepfad und UID-Mapping. Betas neue sechs
+Namespaces sind von Alpha getrennt. Nachweis mit Ereignispräfix 603:
+`boot3-beta-recovery-proof.json`, SHA-256
+`33a866cf464e6d07eb06b3870cf4da7b44e8a2513585f6ce9fe02492bf00d064`;
+vollständige Aufnahme `boot3-beta-recovery-before-private-removal.json`, SHA-256
+`bbea33b11a93f22d738ae2fb43b2298fe8816a5b03ac26b9fb4a24795e88f56f`.
+
 ### Offline-Paketnachweise nach Passwortwechsel
 
 Der laufende Testtreiber benennt Betas Freigabeereignis nach einem Passwortwechsel
