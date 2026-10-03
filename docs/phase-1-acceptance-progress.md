@@ -2108,3 +2108,31 @@ u3-Version ein. Die Benutzer wurden in diesem Boot nacheinander geprüft;
 gleichzeitige Entsperrung wird damit nicht behauptet. Paketautorisierung,
 gemeinsame Aktualisierung bei privaten Versionen, Entfernung, Parallelität und
 die weiteren offenen Lebenszyklusvarianten bleiben erforderlich.
+
+## Gemeinsamer Updateplan ohne Freigabe abgebrochen
+
+Vor dem geplanten gemeinsamen Update laufen Alpha und Beta mit ihren
+ursprünglichen 81-Paket-Beständen: Alpha privat jq/libjq1 u4, Beta gemeinsam u3.
+Der tatsächliche Updateplan enthält jq/libjq1 u4 sowie neuere Revisionen von
+PCRE2, libssl3t64 und openssl-provider-legacy. Die erste Freigabeabfrage wird
+mit leerer Adminauswahl abgebrochen; weder Adminname noch Passwort werden
+übermittelt. Die CLI bestätigt keine erfolgreiche Veröffentlichung.
+
+Die unabhängige Aufnahme danach ist für beide Kontexte exakt gleich zur
+Ausgangslage: Runtime-PID/Startzeit, Namespaces, Root-Mount und Image, gesamte
+Paketliste, Hash der dpkg-Datenbank sowie Alphas private Versionsfestlegung.
+Gemeinsame/private Auswahlmetadaten, CE `[0, 10, 11]`, Vordergrund und
+SystemServer-Identität bleiben unverändert.
+
+Beleg: `out/phase1-dod/209278de/update-all-cancel-proof.json`, SHA-256
+`45770e57849e8820b745bc47b06f7a9ad3abaefad14acce93921013e1c91fcc8`.
+Die falsche, die Nicht-Admin- und die erlaubte Freigabe sind damit noch nicht
+geprüft; ebenso wenig ein Abbruch während der Ausführung.
+
+Eine separate CLI-Schwäche bleibt sichtbar: `linux package status` verlangt
+nach dem Abbruch eine erneute Anmeldung, obwohl das allgemeine `status`
+Alpha weiterhin als authentifiziert bestätigt. Die Quellprüfung zeigt, dass
+die Paketstatusabfrage den bereits gesperrten Auftrag ablehnt. Der Hinweis
+auf erneute Anmeldung ist daher irreführend; ein tatsächlicher Sitzungsverlust
+oder eine Fristüberschreitung wird nicht behauptet. Die Formulierung ist noch
+nicht korrigiert und darf nicht als erledigt gelten.

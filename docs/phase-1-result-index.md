@@ -77,7 +77,7 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T12.5 Neue Identität und ID-Wiederverwendung | Kein Zugriff auf alte Daten/Zuordnungen, Seriennummer/Lebenszyklus korrekt | Offen; kontrolliertes zusätzliches Profil zulässig | — |
 | T13.1 `install all` | Gültige Freigabe erlaubt; fehlende/falsche/Nicht-Adminfreigabe verweigert | Teilbelegt: gültige Alpha-Freigabe und tatsächliche Installation; drei Ablehnungsarten offen | E03 |
 | T13.2 `install user` | Gleiche vollständige Autorisierungsmatrix | Teilbelegt: gültige Alpha-Freigabe und tatsächliche Installation; drei Ablehnungsarten offen | E04 |
-| T13.3 `update all` | Erlaubte Aktion und alle drei Ablehnungsarten | Offen | — |
+| T13.3 `update all` | Erlaubte Aktion und alle drei Ablehnungsarten | Teilbelegt: leere Adminauswahl beendet Plan ohne Veröffentlichung; beide aktiven Kontexte und Paketbestände unverändert. Falsche/Nicht-Adminfreigabe und erlaubte Ausführung noch offen | E28 |
 | T13.4 `update user` | Erlaubte Aktion und alle drei Ablehnungsarten | Offen | — |
 | T13.5 `remove all` | Erlaubte Aktion und alle drei Ablehnungsarten | Offen | — |
 | T13.6 `remove user` | Erlaubte Aktion und alle drei Ablehnungsarten | Offen | — |
@@ -98,7 +98,7 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T16.3 Private Version bleibt | Keine stille Überschreibung privater Festlegungen beim Abgleich | Offen | — |
 | T17.1 Gleichzeitig gemeinsam/privat | Serialisierung oder sichtbare Ablehnung, kein Teilbestand als Erfolg | Offen | — |
 | T17.2 Aktionen verschiedener Benutzer | Eigentum/Autorisierung und konsistenter Bestand bleiben erhalten | Offen | — |
-| T17.3 Abbruch | Letzter konsistenter Bestand bleibt erhalten/wird wiederhergestellt | Offen: relevante Plan-/Ausführungsphasen zuordnen | — |
+| T17.3 Abbruch | Letzter konsistenter Bestand bleibt erhalten/wird wiederhergestellt | Teilbelegt: Abbruch des gemeinsamen Updateplans vor Freigabe erhält beide Kontexte und Paketbestände; Ausführungsphasen bleiben offen | E28 |
 | T17.4 Installationsfehler | Fehler sichtbar, keine teilweise aktivierte Umgebung als Erfolg | Offen | — |
 | T17.5 Logout während Transaktion | Kein persönlicher Restzugriff, sichtbarer Abschluss/Abbruch/Reparaturbedarf | Offen | — |
 
@@ -137,6 +137,7 @@ ihre Aussage ein. Keine Profile, Passwörter oder Buildartefakte werden hochgela
 | E25 | `boot2-pre-shutdown-health.json` | `580f1d6e32b6507fb56803f7dd38b4e43d9746773bb96ab8f51be839058035a1` |
 | E26 | `boot-migration-cleanup-classification.json` | `c798664aeeebb93514bc66de8927ea754d9dede938598f6792618b758dcce877` |
 | E27 | `alpha-second-reboot-readback-proof.json` | `b3b4b958c2ff1f32d057290627e3ebd76dd9f420df00b3fb775510cb0873b212` |
+| E28 | `update-all-cancel-proof.json` | `45770e57849e8820b745bc47b06f7a9ad3abaefad14acce93921013e1c91fcc8` |
 
 ## Abschlusskriterien und Referenzablauf
 
