@@ -1774,3 +1774,34 @@ SystemServer und SELinux bleiben unverändert. Belege:
 
 Der Bildschirm ist danach regulär wieder eingeschaltet. Frische Anmeldung und
 ausdrücklicher Logout werden als eigene Folgeschritte geprüft.
+
+## Beide persönlichen Benutzer regulär abgemeldet
+
+Beta meldet sich nach der Bildschirmsperre mit frischer AOSP-Prüfung an und
+anschließend ausdrücklich ab, ohne vorgeschalteten Runtime-Stopp. Sein
+ursprünglicher Prozess `12013/791922` und Kontext sind danach entfernt, CE ist
+`[0, 10]`, und seine zuvor geschriebene Datei liefert keine Bytes. Alphas
+ursprünglicher Prozess `10172/748802` läuft währenddessen weiter.
+Beleg: `out/phase1-dod/209278de/beta-logout-proof.json`, SHA-256
+`deba29150aa6e9f3f9e244d4e9ef0cbb7f5beabf1ac76a059d618fe3a5cbaa88`.
+
+Nach frischer Alpha-Anmeldung liest die gewöhnliche GNU-Shell dessen
+ursprüngliche Datei und beide persistenten Konfigurations-/Testdateien mit
+unveränderten Bytes. Auch Alpha meldet sich anschließend ohne vorherigen
+Runtime-Stopp ab. Sein ursprünglicher Prozess und Kontext sind entfernt,
+CE ist `[0]`, und der Zugriff auf die bekannte persönliche Datei liefert keine
+Bytes. Beide Prozessbeobachtungen liegen vor dem natürlichen Ablauf der
+begrenzten Hintergrundproben.
+Beleg: `out/phase1-dod/209278de/alpha-logout-proof.json`, SHA-256
+`1947ad2d2c8f912e579d747ab4d39acd1b87f19a8e669fc6ad940c425a00578e`.
+
+Dies belegt die regulären Abmeldungen dieses Referenzablaufs. Der gemeinsame
+Neustart von Android und KeyMint-Hilfssystem, anschließendes Lesen der
+ursprünglichen Daten und weitere T10-/T11-Pflichtvarianten bleiben offen.
+
+Der abgeschlossene Prüfpunkt vor dem Neustart bestätigt zusätzlich ausschließlich
+Systembenutzer 0 als gestartet und leere persönliche Runtime-Cgroups. Er bindet
+Profil-ID, Image-Commit, bisherigen Boot und ursprüngliche Dateihashes:
+`out/phase1-dod/209278de/identity-test/reboot-checkpoint.json`, SHA-256
+`40df7073677cda4cf824cec36ecbab9fe5aaa193e254664a140517b5eb2e684a`.
+Der Passworttreiber bleibt für die anschließende Anmeldung am Leben.
