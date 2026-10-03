@@ -2773,3 +2773,60 @@ und war danach als leeres Objekt enthalten. Diese Ablehnung bleibt dokumentiert.
 Der Prüfer lockert den Vergleich nicht; die aktuelle Updateprüfung verwendet
 das einheitliche vollständige Format. Die künstlichen Verifikatorkontrollen
 zählen nicht als zusätzliche Produkt-Abnahmetests.
+
+Ein zweiter tatsächlicher Plan mit denselben fünf Updates erhält anschließend
+ein einzelnes synthetisches falsches Alpha-Adminpasswort. AOSP weist es ausdrücklich
+ab; die CLI bestätigt keine Veröffentlichung. Beta bleibt angemeldet, und alle
+vollständigen Zustandsfelder der beiden Aufnahmen sind exakt gleich. Beleg:
+`out/phase1-dod/f098f439/update-all-wrong-proof.json`, SHA-256
+`ee220317ebdc6c832065165f024b30f500d86d38b5b53bc5abe6e4ef78166f6d`.
+
+Der dritte Plan erhält Betas korrektes Passwort als Nicht-Adminfreigabe und wird
+ebenfalls abgewiesen. Auch hier bleiben alle vollständigen Zustandsfelder
+unverändert und die anschließende Statusabfrage bestätigt Betas gültige Sitzung.
+Der zusätzliche Hinweis, sich erneut anzumelden, ist weiterhin ungenau; er wird
+nicht als tatsächlicher Sitzungsverlust ausgegeben. Beleg:
+`out/phase1-dod/f098f439/update-all-nonadmin-proof.json`, SHA-256
+`e87848ce3d11c6957398962eb7a7bc3bdde7dda812ae3a1eaae62e45270e899b`.
+Damit sind die drei verweigerten Freigabevarianten für `update all` auf diesem
+Image belegt. Gültige Veröffentlichung und anschließende Aktivierung werden
+separat geprüft.
+
+### Gemeinsames Update veröffentlicht, laufende Kontexte auf f098f43 erhalten
+
+Der vierte Updateplan enthält dieselben fünf Änderungen. Beta stellt weiterhin
+den Antrag; Alpha erteilt mit seinem frischen AOSP-Passwort die Adminfreigabe.
+Die tatsächliche Worker-Gruppe wird nach der Freigabe unabhängig beobachtet.
+Um 10:41:16 UTC bestätigt die CLI die erfolgreiche Veröffentlichung und nennt
+ausdrücklich den nötigen eigenen Linux-Neustart zur Aktivierung.
+
+Der gemeinsame Auswahleintrag wechselt von Generation
+`13629e83de8896bf52e5695a071abd67b4232300791fa0f6c3ed484c19f9007e`
+auf `53e5fddf27e7b22607a60bad9e28a1ad77128d009cb31d0b698329eb1c23bc34`.
+Die beiden vollständigen aktiven Kontextdatensätze einschließlich Paketdatenbanken,
+Backing-Images und Namespaces bleiben dagegen exakt identisch. Alphas private
+Festlegung und ihre Bindung an die bisherige gemeinsame Basis werden nicht
+still verändert; Beta besitzt weiterhin keinen privaten Store. CE bleibt
+`[0,10,11]`, Gamma bleibt gesperrt, und es ist kein Paketworker mehr vorhanden.
+
+Beta meldet `packages=activation-pending` und führt weiterhin jq/libjq1 `u3`
+sowie die bisherigen PCRE2-/OpenSSL-Versionen aus. Nach frischer Alpha-Anmeldung
+zeigt auch Alpha die ausstehende Aktivierung und führt weiterhin sein privates
+jq/libjq1 `u4` mit den bisherigen übrigen Bibliotheken aus. Beide Berechnungen
+und Bibliotheksprüfsummen sind tatsächlich aus GNU-Prozessen erfasst. Die
+ursprünglichen Hintergrundproben 13555/331098 und 3660/89824 schreiten weiter.
+
+Beleg: `out/phase1-dod/f098f439/shared-update-publication-proof.json`, SHA-256
+`b746d1189753e8df3d83fec3be6ce0b4b95bc743904550a8c15ec8d87a7c5bcc`.
+Er verknüpft alle drei Ablehnungsbelege, die gültige Freigabe, Veröffentlichung,
+vollständige Zustandsaufnahme und beide bisherigen GNU-Ausführungen. Der
+ursprüngliche SystemServer bleibt erhalten; eine zusätzliche begrenzte Logprüfung
+enthält keine geprüften Fatal-/ANR-/FORTIFY-/Watchdog-Meldungen. Der Treiber findet
+in allen sechs Lauf-Logs weiterhin kein vollständiges synthetisches Testpasswort.
+
+Damit sind die vier Freigabevarianten und die Veröffentlichung für `update all`
+sowie der Erhalt laufender Kontexte belegt. Die tatsächliche Aktivierung der
+neuen vollständigen Paketstände ist noch erforderlich. Ebenso bleiben der
+private Beta-Versionsrückgang mit Alpha-Freigabe und die übrigen Pflichtfälle
+offen. Alpha war vor dieser Freigabe bereits CE-entsperrt; Verhalten bei einem
+gesperrten freigebenden Administrator wird hier nicht zusätzlich behauptet.
