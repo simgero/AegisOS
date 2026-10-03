@@ -3643,3 +3643,21 @@ vor und nach dem Test keine Startfehlermeldung. Dies bestätigt die begrenzte
 Diagnose und die geprüften Fehlerkontrollen; **Alphas ursprünglicher
 Aktivierungsfehler ist noch nicht erklärt oder behoben**. Ein neuer
 interaktiver CLI-Treiber ist ausschließlich für dieses frische Profil gestartet.
+
+Die neue CLI legt Alpha `10/10` als AOSP-Administrator und anschließend Beta
+`11/11` als normalen persönlichen Benutzer an. Alpha besteht seinen ersten
+korrekten Login ohne Aufwärmversuch: Zielauswahl allein lässt CE gesperrt,
+danach bleiben Sitzung und tatsächliche GNU-Ausführung bestätigt. UID/GID 1000,
+eigenes HOME, private Ordner, GNU-Werkzeuge, schreibgeschützte Basis sowie
+beobachtete Namespace-/Prozessbeschränkungen sind geprüft. Eine ursprüngliche
+1024-Byte-Datei und getrennte Konfigurations-/flüchtige Proben sind angelegt;
+nach Shell-Ende bleibt Alphas Kontext vorhanden. Beta bleibt gesperrt.
+
+Beleg `out/phase1-dod/3fdb058-diagnostics/initial-alpha-proof.json`, SHA-256
+`c8459054840d21f084dab72f412fd96d660c3a9ac2a7a907bb4de3826c3e0d4e`, bindet
+den Ereignispräfix 27 und die unverändert beobachtete Ausgangsaufnahme
+`initial-alpha-active.json`, SHA-256
+`553c82583ca7c4eec7fa4c17eeb8b1829e550c906c0ca0b65cdf865d9aa66977`.
+Dies ist noch kein Zwei-Benutzer-Isolations-, Paketaktivierungs- oder
+Neustartnachweis auf dem Diagnoseimage. Die gemeinsame jq-u3-Planung für die
+Reproduktion ist anschließend begonnen; Veröffentlichung noch nicht bestätigt.

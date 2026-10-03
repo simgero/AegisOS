@@ -326,7 +326,12 @@ Drei bestehende Startfehler-Kontrollen bestehen auf den exakt passenden
 Komponenten, ohne übersprungene Tests und mit identischem Ausgangs-/Endzustand.
 Beleg `out/phase1-dod/3fdb058-diagnostics/start-failure/result.json`, SHA-256
 `7833c12c26c93e449d650fcaa963acbd045b672b92d3a874f2a9d8109449868d`.
-Die persönliche CLI-Reproduktion steht noch aus. Die früheren f098f439-Ergebnisse
+Der neue CLI-Anfang mit zwei angelegten AOSP-Benutzern, Alphas erstem korrekten
+Login und echter GNU-Ausführung ist belegt; Beta bleibt dabei gesperrt.
+Originaldatei und Konfiguration sind erfasst, noch keine Paketaktivierung oder
+Persistenzprüfung. Beleg `out/phase1-dod/3fdb058-diagnostics/initial-alpha-proof.json`,
+SHA-256 `c8459054840d21f084dab72f412fd96d660c3a9ac2a7a907bb4de3826c3e0d4e`.
+Die eigentliche CLI-Fehlerreproduktion steht noch aus. Die früheren f098f439-Ergebnisse
 werden dadurch nicht automatisch zu bestandenen Abläufen auf diesem Image;
 der ursprüngliche Alpha-Fehler und die vollständige DoD bleiben offen.
 
