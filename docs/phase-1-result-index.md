@@ -292,6 +292,23 @@ Nur die Testquelldatei weicht ab; zehn produktive Hilfsprogramme sind bytegleich
 mit dem Referenzbuild. Dies ist kein bestandener T13-/T16-Fall und kein Nachweis
 einer Fehlerbehebung.
 
+Die sechs vorhandenen Auswahlfälle sind im separaten Profil
+`3ce0c9c7-364f-4523-a496-7c785fc2d255` inzwischen bestanden, mit identischer
+Boot-ID, SystemServer-Startzeit, Enforcing und System-CE vor/nach dem Lauf.
+Beleg `out/phase1-dod/5975256-removal/selection/result.json`, SHA-256
+`2c2b21d80782a4422cc27bb0631998ba623ec215976c71b003b32c72e2666723`.
+Die danach gestarteten Entfernungsfälle sind noch nicht abgeschlossen.
+
+### Historische Restliste des Referenzlaufs 209278de
+
+Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
+gehören zum früheren Image `209278de`; ihre E-Nummern verweisen auf dessen
+Belegkatalog. Sie sind keine aktuelle Restliste für `f098f439`. Insbesondere
+sind Betas späterer privater Paketbestand, zusätzliche Autorisierungsfälle und
+der dritte Benutzer in den f098f439-Belegen oben dokumentiert. Ein vollständiger
+aktueller Variantenabgleich bleibt erforderlich; Alphas fehlgeschlagene
+Aktivierung nach gemeinsamer Entfernung bleibt dabei ausdrücklich offen.
+
 | Kriterium | Noch erforderliche vollständige Abnahme |
 | --- | --- |
 | D1 | Build-/Versionsinventar, Bedienung/ADB und Schutzmechanismen vollständig indexieren; weitere Läufe prüfen. E14 bestätigt den ersten Referenzboot, E25 die begrenzte Boot-2-Beobachtung vor Shutdown. Zusätzlicher Migrations-Aufräumstatus ist in E26 eingeordnet, nicht als behoben behauptet. |

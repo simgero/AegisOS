@@ -3501,3 +3501,16 @@ Quellinventar `native-sources.json`, SHA-256
 Ein gesondertes frisches Android-/KeyMint-Profil wird für den Gasttest gestartet;
 das persönliche Abnahmeprofil bleibt erhalten. Kein Build wurde hochgeladen.
 Dieser Buildnachweis erklärt oder behebt Alphas Startfehler noch nicht.
+
+Die sechs vorhandenen nativen Auswahlfälle sind anschließend im separaten
+Profil `3ce0c9c7-364f-4523-a496-7c785fc2d255` bestanden, ohne übersprungene Fälle.
+Boot-ID `e15326ef-e8f3-45f5-b496-1ad2eaca72d6`, SystemServer `1386/37931`,
+SELinux Enforcing und ausschließlich System-CE `[0]` stimmen vor und nach dem
+Lauf exakt überein. Der Lauf prüft die Auswahl alter/aktueller gemeinsamer und
+privater Generationen, die Ablehnung eines unnötigen oder veralteten Abgleichs,
+den Rückfall auf die Werksbasis sowie Abbruch und Ressourcenabschluss.
+Beleg: `out/phase1-dod/5975256-removal/selection/result.json`, SHA-256
+`2c2b21d80782a4422cc27bb0631998ba623ec215976c71b003b32c72e2666723`;
+Testlog SHA-256 `c379ea8aa47f3a9f07a1b363897b73a431aede2644659a53f922410382b6ec60`.
+Der gezielte Lauf `reconciliation-removal` beginnt erst danach; sein Ergebnis
+steht noch aus. Die Auswahltests erklären Alphas fehlgeschlagenen Start nicht.
