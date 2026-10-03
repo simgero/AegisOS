@@ -2350,3 +2350,35 @@ Beide Momentaufnahmen erfolgten nach abgeschlossener Planung und zeigen keine
 Paketarbeitsgruppe. Eine anfängliche zusätzliche Vergleichsannahme, vor dem
 Abbruch müsse diese Gruppe noch vorhanden sein, schlug fehl und ist im Beleg
 erhalten. Ein Entfernen der Gruppe durch den Abbruch ist damit nicht bewiesen.
+
+### Gemeinsame Installation mit falscher Adminbestätigung abgewiesen
+
+Ein erneut vollständig geplanter gemeinsamer jq-u3-Auftrag erreicht die
+Adminabfrage. AOSP weist das absichtlich falsche Testpasswort ausdrücklich
+zurück. Die CLI bestätigt anschließend weiterhin Alphas bestehende Anmeldung.
+Vorher/nachher stimmen ausgewählte Generationen, sämtliche ursprünglichen
+Runtime-Metadaten, Paketdatenbank-Bytes, Boot und CE `[0,10]` exakt überein.
+Betas persönlicher Speicher bleibt gesperrt.
+
+Beleg: `out/phase1-dod/f098f439/shared-install-wrong-proof.json`, SHA-256
+`698f71f2a92aea4decaf6f196c084b5c19f604273be9cec5a4fefe90b5ce3534`.
+Die zweite Beobachterfassung erfasst zusätzlich verbleibende
+Konfigurationsdatensätze (hier leer) und prüft die ausgewählten Generationen
+nochmals am Ende; alle bereits vorhandenen Felder werden exakt verglichen.
+
+Der daraus abgeleitete versionierte Beobachter
+`scripts/qemu-package-state.py` und seine
+[Aufrufanleitung](runtime-gnu-test-driver.md#paketbestand-vor-und-nach-einer-aktion-beobachten)
+binden zukünftige Aufnahmen an Image, Profil und Boot. Die Nachaufnahme mit
+dieser Fassung bestand im tatsächlichen Gast; Syntax und Hilfetext sind geprüft.
+Sie ersetzt keine Programmausführung oder Zwei-Benutzer-Isolationsprüfung.
+
+Für `install`, `update` und `remove` wurden außerdem jeweils die fehlende
+Bereichsangabe und eine unzulässige `--owner 11`-Option über die echte CLI
+geprüft. Alle sechs Befehle werden vor einer Planfreigabe abgewiesen;
+anschließend stimmen Paketbestand, Kontext, ausgewählte Generationen und CE
+exakt mit der vorherigen Aufnahme desselben Beobachters überein.
+Beleg: `package-argument-denials-proof.json`, SHA-256
+`2551b8fb3f5ef23a35e2ecac4b934bafa06c48df785378baa26947c3401e6939`.
+Dies belegt diese CLI-Eingabevarianten von T13.7; beliebige direkte
+Binder-Aufrufer sind dadurch nicht geprüft.

@@ -299,6 +299,40 @@ prüfen. Ein Benutzerwechsel kann den ersten Kanal widerrufen. Der Treiber
 behauptet deshalb aus dem zweiten CLI-Erfolg allein keine erfolgreiche
 Parallelitätsprüfung.
 
+## Paketbestand vor und nach einer Aktion beobachten
+
+`scripts/qemu-package-state.py` erfasst ausschließlich Metadaten im eigenen
+lokalen Entwicklungsprofil. Es verlangt authentifiziertes ADB, Enforcing,
+passendes Image/Profil, die festgehaltene Boot-/SystemServer-Identität und den
+explizit erwarteten CE-Zustand. Beispiel aus dem Korrekturlauf:
+
+```sh
+python3 scripts/qemu-package-state.py \
+  --run /srv/aegis/runs/phase1-f098f439/boot-1 \
+  --prepared /srv/aegis/runs/phase1-f098f439 \
+  --baseline out/phase1-dod/f098f439/baseline.json \
+  --expected-ce 0 10 \
+  --output out/phase1-dod/f098f439/neuer-paketstatus.json
+```
+
+Ausgabenamen müssen neu sein. Die Basisaufnahme enthält `boot_id`,
+`system_server` und `system_server_starttime`. Nach einem absichtlichen Neustart
+ist eine separat verifizierte neue Basisaufnahme erforderlich.
+Der Beobachter liest ausgewählte gemeinsame/eigene Paketgenerationen,
+Paketdatenbank-Prüfsummen, installierte Versionen, verbleibende
+Konfigurationsdatensätze, Namespaces und Startzeiten der persönlichen
+Init-Prozesse. Gesperrte persönliche Stores werden nicht geöffnet. Gruppen
+`u<ID>-s<Serial>` sind Benutzerlaufzeiten; `p<ID>-s<Serial>` werden separat als
+Paketarbeitsgruppen erfasst. Andere Gruppennamen werden abgewiesen.
+
+Nur an ruhenden Prüfpunkten ausführen und beobachtete Änderungen als Fehler
+erhalten. Die Aufnahme ist keine atomare Transaktion; vor/nach einer geprüften
+Aktion sind beide Belege samt CLI-Ergebnis zu vergleichen. Paketgruppen können
+schon nach der Planung verschwunden sein. Aus zwei leeren Gruppenlisten folgt
+kein Nachweis, dass der spätere Abbruch sie entfernt hat. Die Beobachtung mit
+Entwickler-root ersetzt weder Programmausführung noch Isolationstests aus den
+gewöhnlichen GNU-Kontexten. Rohbelege bleiben lokal.
+
 ## Paketkomponenten vor dem Referenzablauf
 
 `scripts/qemu-package-component-tests.py` führt die ausgewählten Java- und

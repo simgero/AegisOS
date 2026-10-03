@@ -183,6 +183,8 @@ Die folgenden Belege liegen lokal unter `out/phase1-dod/f098f439/`.
 | Binäres ADB | 262144 synthetische Bytes identisch übertragen/zurückgelesen; eigene temporäre Gastdatei entfernt | `adb-binary-proof.json`, `6c29af2f7ef997b27db191ed58ebffcdad7ba448418b9a2cae8d75eeff78b7b9` |
 | Erster persönlicher CLI-Ablauf | Zwei Benutzer angelegt; Alpha erstmals angemeldet, GNU-Befehle und Home-Struktur geprüft, 1024-Byte-Datei geschrieben; ursprünglicher Hintergrundprozess überlebt Shell-Ende. Beta bleibt gesperrt. Noch kein Zwei-Benutzer-/Persistenznachweis | `initial-personal-flow.json`, `53ca89bcd135f6b9856448d89692eadae41d46edb370805d9029f38be4c5cdee` |
 | Gemeinsamen Installationsplan abbrechen | Leere Adminauswahl beendet den jq-Plan; Laufzeit, Paketdatenbank, Auswahl und CE unverändert. Generische Fehlermeldung der CLI bleibt ungenau; keine Installation bewiesen | `shared-install-cancel-proof.json`, `e440ef7c69b981fd7b2a72c9e9608a485259554541820a96a78291f42a7959e1` |
+| Gemeinsame Installation, falsche Freigabe | AOSP verweigert falsches Adminpasswort; Paketdatenbank, Auswahl, Laufzeit und CE unverändert, Anmeldung weiterhin gültig | `shared-install-wrong-proof.json`, `698f71f2a92aea4decaf6f196c084b5c19f604273be9cec5a4fefe90b5ce3534` |
+| Paketbereich und Eigentümerargument | Je drei CLI-Ablehnungen für fehlenden Bereich und unzulässiges Eigentümerargument bei install/update/remove; Paket-/Laufzeit-/CE-Zustand exakt unverändert | `package-argument-denials-proof.json`, `2551b8fb3f5ef23a35e2ecac4b934bafa06c48df785378baa26947c3401e6939` |
 
 Vor/nach den sechs Tests bleiben Boot-ID, SystemServer-Startzeit, Enforcing
 und CE `[0]` exakt gleich. Die UI-Prüfung erhält drei fehlgeschlagene anfängliche
