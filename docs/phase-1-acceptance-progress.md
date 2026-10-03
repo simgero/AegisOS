@@ -42,8 +42,26 @@ um 04:53:44 UTC ohne Veröffentlichung ab (E33); ein einzelnes falsches
 Alpha-Adminpasswort wird um 05:00:58 UTC von AOSP abgewiesen (E34).
 Beide vollständigen aktiven Kontexte, gemeinsame und Alpha-private Auswahl
 bleiben unverändert; Beta hat weiterhin keine ausgewählte private Generation.
-Die Nicht-Adminfreigabe und der anschließende erlaubte Beta-Auftrag mit
-frischer Alpha-Freigabe sind an diesem Zwischenstand noch offen.
+Um 05:07:31 UTC wird auch die Freigabe durch Beta abgewiesen (E35); seine
+Rolle bleibt normal und die bestehende CLI-Sitzung gültig. Die generische
+Fehlermeldung verlangt trotzdem irreführend eine erneute Anmeldung.
+
+Der anschließende Beta-Auftrag erhält um 05:17:14 UTC eine gültige frische
+Alpha-Adminfreigabe. Die Ausführung scheitert jedoch um 05:17:40 UTC vor
+Veröffentlichung. E36 bestätigt beide unveränderten vollständigen Kontexte
+und Auswahlen; Beta hat weiterhin keine private Generation. Dieser Auftrag
+ist ausdrücklich kein erfolgreicher Installationsnachweis. Sein inaktiver
+Staging-Kandidat wurde regulär bereinigt; der genaue APT-Fehlertext ist aus
+diesem CLI-Lauf nicht erhalten.
+
+Der Quellvergleich zeigt einen Unterschied: Explizite Versionsplanung erlaubt
+APT den angeforderten Versionsrückgang; die Ausführung übergibt diese Option
+bisher nur bei internen Abgleichs-/privaten Entfernungsaktionen. Ein neuer
+gewöhnlicher Archive-Regressionstest mit geprüfter 2→1-Auswahl, passender
+Bibliothek, privater Auswahl und erhaltener Konfiguration soll den Fehler
+zunächst gegen unveränderten Ausführungscode reproduzieren. Die Ursache und
+Korrektur sind damit noch nicht durch einen ausgeführten Regressionstest
+bestätigt. Das aktive persönliche Profil bleibt unverändert erhalten.
 
 Der Ergebnisindex ordnet außerdem die vorhandenen abgewiesenen Runtime-Starts
 aus E23/E24 T04.1 zu. Sie belegen den konkreten CLI-Fall bei gesperrtem CE,

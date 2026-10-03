@@ -370,6 +370,28 @@ TEST_F(RuntimePackageExecutor, ReviewedInstallUpgradeRemovePreservesConffilesAnd
     EXPECT_EQ("<unavailable>",ControlFile(candidate.get(),"usr/bin/aegis-exec-app"));
     EXPECT_EQ("local=preserved\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));
 }
+TEST_F(RuntimePackageExecutor, ReviewedArchiveDowngradePreservesPrivateChoiceConfigurationAndDependency) {
+    const std::string header="AEGIS-PRIVATE-CHOICES1\n";
+    const std::string one=header+"aegis-exec-app\tall\t1\n";
+    const std::string two=header+"aegis-exec-app\tall\t2\n";
+    Archives(2);Review(0,2);ASSERT_FALSE(HasFatalFailure());
+    strcpy(plan.review.result_choices,two.c_str());
+    Completed();ASSERT_FALSE(HasFailure());Remount();ASSERT_FALSE(HasFatalFailure());
+    ASSERT_EQ(0,WriteAt(candidate.get(),"etc/aegis-exec.conf","private-setting=kept\n",O_TRUNC));
+    Archives(1);Review(2,1);ASSERT_FALSE(HasFatalFailure());
+    strcpy(plan.review.initial_choices,two.c_str());strcpy(plan.review.result_choices,one.c_str());
+    ASSERT_EQ(AEGIS_PACKAGE_ARCHIVES,plan.kind);
+    Completed();ASSERT_FALSE(HasFailure());Remount();ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ("#!/bin/sh\necho app-1\n",ControlFile(candidate.get(),"usr/bin/aegis-exec-app"));
+    EXPECT_EQ("1\n",ControlFile(candidate.get(),"usr/share/aegis-exec-library"));
+    EXPECT_EQ("private-setting=kept\n",ControlFile(candidate.get(),"etc/aegis-exec.conf"));
+    EXPECT_EQ(one,ControlFile(candidate.get(),"var/lib/aegis/private-choices"));
+    auto automatic=ControlFile(candidate.get(),"var/lib/apt/extended_states");
+    EXPECT_NE(std::string::npos,automatic.find("Package: aegis-exec-lib\n"));
+    EXPECT_EQ(std::string::npos,automatic.find("Package: aegis-exec-app\n"));
+    struct stat owner;ASSERT_EQ(0,fstatat(candidate.get(),"var/lib/aegis-exec-owned",&owner,0));
+    EXPECT_EQ(42u,owner.st_uid);EXPECT_EQ(42u,owner.st_gid);
+}
 TEST_F(RuntimePackageExecutor, PrivateChoicesSurviveRealAptUpgradeRemovalAndImageRemount) {
     const std::string empty="AEGIS-PRIVATE-CHOICES1\n",one=empty+"aegis-exec-app\tall\t1\n",two=empty+"aegis-exec-app\tall\t2\n";
     Archives(1);Review(0,1);ASSERT_FALSE(HasFatalFailure());strcpy(plan.review.result_choices,one.c_str());
