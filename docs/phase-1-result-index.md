@@ -312,6 +312,24 @@ Beleg `out/phase1-dod/c1663c3-orphan/tests/result.json`, SHA-256
 Auch diese Variante reproduziert den tatsächlichen Alpha-Fehler nicht.
 Kein T13-/T16-Gesamtabschluss wird daraus abgeleitet.
 
+## Diagnoseimage 3fdb058
+
+Das Diagnoseimage `3fdb058310b75922b17819d47c985bc4eecd09c4` ergänzt feste
+Startphasen und numerische Fehlercodes im Brokerlog. Vollbuild, 20 Images,
+AVB und Basisdisk sind lokal geprüft; die Einzelbelege stehen im
+[Arbeitsprotokoll](phase-1-acceptance-progress.md#diagnoseimage-erster-boot-und-drei-startfehler-kontrollen-bestanden).
+Profil `88e1d3da-7d80-443f-be3f-8f2a8717b0c9` bootet mit Enforcing,
+authentifiziertem ADB und allein System-CE. Boot-ID
+`68ec879a-f27d-4bef-b8d5-a41c44c2e061`, SystemServer `1339/37416`.
+
+Drei bestehende Startfehler-Kontrollen bestehen auf den exakt passenden
+Komponenten, ohne übersprungene Tests und mit identischem Ausgangs-/Endzustand.
+Beleg `out/phase1-dod/3fdb058-diagnostics/start-failure/result.json`, SHA-256
+`7833c12c26c93e449d650fcaa963acbd045b672b92d3a874f2a9d8109449868d`.
+Die persönliche CLI-Reproduktion steht noch aus. Die früheren f098f439-Ergebnisse
+werden dadurch nicht automatisch zu bestandenen Abläufen auf diesem Image;
+der ursprüngliche Alpha-Fehler und die vollständige DoD bleiben offen.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte

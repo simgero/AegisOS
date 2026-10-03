@@ -3618,3 +3618,28 @@ Der Launcher für ein neues gepaartes Profil unter
 `out/phase1-dod/3fdb058-diagnostics/` ist gestartet. Bootabschluss, die drei
 Startfehler-Kontrollen und der reguläre CLI-Versuch sind zu diesem Zeitpunkt
 noch nicht bestätigt. Keine Buildartefakte wurden hochgeladen.
+
+### Diagnoseimage: erster Boot und drei Startfehler-Kontrollen bestanden
+
+Das neue Profil `88e1d3da-7d80-443f-be3f-8f2a8717b0c9` erreicht den Bootabschluss
+mit authentifiziertem ADB, passendem AVB-Digest, SELinux Enforcing und allein
+System-CE `[0]`. Boot-ID `68ec879a-f27d-4bef-b8d5-a41c44c2e061`,
+SystemServer `1339/37416`. Der Connector verwendet nach einem zunächst
+fehlgeschlagenen Handshake den normalen zweiten Verbindungsversuch; die
+ADB-Authentifizierung bleibt eingeschaltet.
+
+`start-failure` besteht alle drei vorhandenen Kontrollen ohne übersprungene
+Tests: kein Wiederanlauf einer fehlgeschlagenen Auswahl, keine Fortsetzung
+gestoppter/ersetzter Starts und kein fortsetzbarer Start nach einem Stopp ohne
+Wartebudget. Image und Komponenten stammen beide aus `3fdb058`; Boot-ID,
+SystemServer, Enforcing und CE sind vor/nachher gleich. Beleg
+`out/phase1-dod/3fdb058-diagnostics/start-failure/result.json`, SHA-256
+`7833c12c26c93e449d650fcaa963acbd045b672b92d3a874f2a9d8109449868d`;
+Testlog SHA-256 `1e5224693fe3c89c1b7bd08208fca0268b98b6175eaf66b1ac584e838dabf70e`.
+
+Die synthetische Fehlermeldung zeigt einmal `phase=selecting errno=116`.
+Der nach PID und Startzeit getrennt beobachtete tatsächliche Broker enthält
+vor und nach dem Test keine Startfehlermeldung. Dies bestätigt die begrenzte
+Diagnose und die geprüften Fehlerkontrollen; **Alphas ursprünglicher
+Aktivierungsfehler ist noch nicht erklärt oder behoben**. Ein neuer
+interaktiver CLI-Treiber ist ausschließlich für dieses frische Profil gestartet.
