@@ -59,7 +59,7 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T07.3 Daten/Pakete nach VM-Neustart | Beide Originaldateien/Konfigurationen und A-private/B-gemeinsame Version erhalten | Bestanden: Originalbytes, getrennte Konfiguration, jq/libjq1 u4/u3, unveränderte Paketgenerationen/-datensätze; alte flüchtige Proben fehlen | E13, E15, E16 |
 | T08.1 Wechsel beider Richtungen | Alten Terminalkanal widerrufen, zulässigen Hintergrundprozess erhalten | Bestanden, frische Anmeldung über zweite CLI | E08 |
 | T08.2 Bildschirmsperre | Terminal widerrufen, zulässige Arbeit weiterführen; kein behaupteter CE-Entzug | Bestanden: Keyguard/Asleep unabhängig bestätigt, beide Originalprozesse laufen, CE bleibt entsperrt | E09 |
-| T08.3 AOSP-Ressourcenstopp | Gestoppten Hintergrundbenutzer samt Runtime-Ressourcen abbauen | Teilbelegt: AOSP-Limit stoppt Beta, Originalprozess/Kontext entfernt und CE gesperrt; erneute Anmeldung und Originaldatenvergleich noch offen. Vorzeitige fehlgeschlagene Endzustandsprüfung bleibt dokumentiert | E20 |
+| T08.3 AOSP-Ressourcenstopp | Gestoppten Hintergrundbenutzer samt Runtime-Ressourcen abbauen | Bestanden für den beobachteten AOSP-Limitfall: Beta-Prozess/Kontext entfernt, CE gesperrt, anschließend frische Anmeldung und bytegleiche Originaldaten; Alpha-Prozess bleibt erhalten. Vorzeitige fehlgeschlagene Endzustandsprüfung bleibt dokumentiert | E20, E22 |
 | T09.1 Eigener Runtime-Stopp A/B | Nur eigener Kontext/flüchtige Ressourcen enden, Sitzung/CE korrekt | Bestanden in beiden Richtungen: Originalprozess/Kontext weg, Sitzung und CE erhalten; anschließende Daten-/Tmp-/Run-/Mqueue-Prüfungen bestanden | E17 |
 | T09.2 Runtime-Stopp mit aktivem Peer | Peer bleibt unverändert arbeitsfähig | Bestanden in beiden Richtungen mit gleicher Peer-PID/Startzeit und fortschreitendem Zähler | E17 |
 | T10.1 Regulärer Logout Beta mit Alpha aktiv | Beta-Prozess/Kontext weg, CE gesperrt, bekannte Datei unlesbar; Alpha unverändert aktiv | Bestanden | E10 |
@@ -85,7 +85,7 @@ T-Gesamtzeilen bleiben bis zum vollständigen Audit offen.
 | T13.8 Antragsteller ≠ Admin | Privater Bestand gehört Antragsteller; Freigabe gewährt Admin keinen persönlichen Lesezugriff | Offen: Beta-Antrag mit frischer Alpha-Freigabe erforderlich | — |
 | T13.9 Unbeteiligtes CE | Freigabe entsperrt keinen unbeteiligten Benutzer | Offen: für aktuelle vollständige Aktionsmatrix zuordnen | — |
 | T14.1 Gemeinsame Software bestehender Benutzer | Gemeinsames Programm tatsächlich ausführen | Bestanden Alpha vor privater Aktivierung und Beta | E03, E02 |
-| T14.2 Nachträglicher Benutzer | C erhält gemeinsame Software ohne A/B-private Daten/Versionen | Offen | — |
+| T14.2 Nachträglicher Benutzer | C erhält gemeinsame Software ohne A/B-private Daten/Versionen | Teilbelegt: Gamma erhält frisches HOME und führt gemeinsame jq/libjq1 u3 aus, mit passendem Bibliotheks-Hash und gemeinsamer Paketgeneration; eigene Konfigurationsordner leer. Explizite Zugriffsprüfung auf A/B-private Daten aus Gamma noch offen | E21 |
 | T14.3 Persönliche Einstellungen | Unterschiedliche private Konfiguration trotz gemeinsamer Basis | Bestanden für erfasste A/B-Proben, einschließlich bytegleicher Wiederherstellung nach Reboot | E02, E06, E16 |
 | T15.1 Dasselbe Paket in V1/V2 | Beide Versionen samt passenden Abhängigkeiten tatsächlich ausführen | Bestanden: jq/libjq1 u4 bei A, u3 bei B, gleicher Programmauftrag | E02, E04 |
 | T15.2 Vorrang privater Version | Private V2 bestimmt tatsächlichen Programmlauf | Bestanden Alpha | E04 |
@@ -130,6 +130,8 @@ ihre Aussage ein. Keine Profile, Passwörter oder Buildartefakte werden hochgela
 | E18 | `private-state-hash-verifier-check.json` | `ed64a678635800422ce3d7e00cb512a7acfa21bb2ca95858fa3f55680e1f0239` |
 | E19 | `before-third-user.json` | `645ee4ccaccbcd3e04ffa97b5699e1b8c2f940a766f58768a51ed80adea41e6c` |
 | E20 | `beta-aosp-resource-stop-proof.json` | `1c65561ea6a2461714261f7fe0b709174c20e5c2acc4162c8ccb9a0e25da6ae4` |
+| E21 | `gamma-shared-program-proof.json` | `76b162a64cd6ea9962e9bda60d5f9412f6da79e927eda4c8ed08e9bffbf0f9a9` |
+| E22 | `beta-aosp-resource-recovery-proof.json` | `4283d6658f6ca6e6b94cd0422caeed23b8b9931d45ec117e1e364728ec0f1d82` |
 
 ## Abschlusskriterien und Referenzablauf
 
@@ -138,7 +140,7 @@ ihre Aussage ein. Keine Profile, Passwörter oder Buildartefakte werden hochgela
 | D1 | Build-/Versionsinventar, Bedienung/ADB und Schutzmechanismen vollständig indexieren; weitere Läufe prüfen. E14 bestätigt nur den abgeschlossenen ersten Referenzboot. |
 | D2 | Gesamte Benutzerverwaltung, Ablehnungen, Identitätsbindung und Passworttransport einschließlich T01/T02/T12 vervollständigen. |
 | D3 | Passwortpersistenz, Logoutfehler und Löschung vollständig belegen; aktueller regulärer Reboot ist mit E13/E15/E16 nachgewiesen. |
-| D4 | Wiederanmeldung und Datenvergleich nach AOSP-Ressourcenstopp ergänzen (Teilnachweis E20); Runtime-Stopp mit aktivem Peer ist in beiden Richtungen mit E17 belegt. |
+| D4 | Abschließende Zuordnung aller Runtime-Lebenszyklusanforderungen prüfen. AOSP-Ressourcenstopp samt Wiederanmeldung/Datenvergleich ist mit E20/E22 belegt; Runtime-Stopp mit aktivem Peer in beiden Richtungen mit E17. |
 | D5 | Fehlende Startvoraussetzungen und Betas privaten Paketbestand prüfen; Rechte-/Adminbegrenzung vollständig zuordnen. |
 | D6 | Sechs vollständige Autorisierungskombinationen, Entfernung, Updates, Konflikte und Parallelität nachweisen. |
 | D7 | Sämtliche offenen Varianten schließen; Source-/Build-/CLI-/Architektur-/Threat-Model-/Kryptographieübergabe gegen den Entwicklerauftrag prüfen. |

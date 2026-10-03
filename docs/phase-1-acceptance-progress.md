@@ -1951,3 +1951,52 @@ Ressourcenstopp bleiben offen.
 Beleg: `out/phase1-dod/209278de/beta-aosp-resource-stop-proof.json`, SHA-256
 `1c65561ea6a2461714261f7fe0b709174c20e5c2acc4162c8ccb9a0e25da6ae4`.
 Die vollständige Phase-1-Abnahme bleibt ausstehend.
+
+## Gemeinsame Software beim nachträglich angelegten Gamma ausgeführt
+
+Gamma öffnet seine GNU-Shell und erhält vor eigenen HOME-Schreibzugriffen
+genau die zehn vorgesehenen Verzeichnisse mit UID/GID 1000 und Modus 0700.
+Die tatsächliche Host-Zuordnung ist 1207500, getrennt von Alpha und Beta.
+Die GNU-Basisprüfung bestätigt Werkzeuge, Mountlayout, schreibgeschützte Basis
+und die vorgesehenen Prozessbeschränkungen.
+
+Am 3. Oktober 2026 um 02:29:22 UTC führt Gamma jq erfolgreich aus. jq/libjq1
+haben die gemeinsame Version `1.7.1-6+deb13u3`, libonig5 `6.9.9-1+b1`.
+Binary- und Bibliotheks-Hashes entsprechen der bereits nachgewiesenen
+gemeinsamen Variante. Das zugrunde liegende Root-Image gehört zu derselben
+Paketgeneration wie Betas gemeinsamer Kontext. Alphas private u4-Version wird
+nicht übernommen. Gammas `.config` und `.local` sind leer; seine HOME-Struktur
+enthält keine ursprünglichen A/B-Dateiproben.
+
+Beleg: `out/phase1-dod/209278de/gamma-shared-program-proof.json`, SHA-256
+`76b162a64cd6ea9962e9bda60d5f9412f6da79e927eda4c8ed08e9bffbf0f9a9`.
+Dies belegt noch keine expliziten fremden Dateizugriffe aus Gamma. Beta war
+dabei nach dem AOSP-Ressourcenstopp gesperrt; eine gleichzeitige Entsperrung
+aller drei Benutzer wird nicht behauptet. T14.2 bleibt deshalb teilbelegt.
+
+## Wiederanmeldung nach Betas AOSP-Ressourcenstopp bestätigt
+
+Nach Gammas regulärem Logout bestätigt AOSP CE `[0, 10]`. Beta meldet sich
+mit seinem ursprünglichen Passwort erneut an. Vor dessen Übermittlung bleiben
+CE gesperrt und der Runtime-Kontext abwesend. Nach erfolgreicher Anmeldung
+bestätigt die verzögerte Statusabfrage die Sitzung; der neue GNU-Kontext startet.
+
+Die ursprüngliche 1024-Byte-Datei sowie beide persistenten Konfigurationsproben
+stimmen mit ihren ursprünglichen SHA-256-Werten überein. Die Hashzeilen wurden
+im Belegsammler ausdrücklich verglichen, zusätzlich zur Prüfung des laufenden
+älteren Treibers. jq/libjq1 u3 wird tatsächlich ausgeführt und seine Bibliothek
+hat weiterhin den ursprünglichen Hash. Gemeinsame und Alpha-private
+Paketgeneration bleiben unverändert.
+
+Alphas Hintergrundprozess behält PID 10354, Startzeit 288155, Host-UID und
+Namespaces; sein Zähler schreitet weiter fort. Boot-ID und SystemServer
+1159/20411 bleiben ebenfalls erhalten. Betas alte temporäre Dateien und
+Mqueues fehlen weiterhin; sie waren schon beim vorausgegangenen Runtime-Stopp
+entfernt worden. Dieser Nachweis behauptet deshalb keinen zusätzlichen
+IPC-Abbauversuch während des AOSP-Stoppfalls.
+
+Beleg: `out/phase1-dod/209278de/beta-aosp-resource-recovery-proof.json`, SHA-256
+`4283d6658f6ca6e6b94cd0422caeed23b8b9931d45ec117e1e364728ec0f1d82`.
+Er bindet den ursprünglichen Stoppbeleg und dessen fehlgeschlagene verfrühte
+Assertion ein. T08.3 ist für diesen beobachteten AOSP-Limitfall nachgewiesen;
+die vollständige Phase-1-Abnahme bleibt offen.
