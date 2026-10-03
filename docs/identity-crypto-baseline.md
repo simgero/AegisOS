@@ -18,7 +18,42 @@ den neuen AEGIS-Adapter nicht. Ein separater [Persistenztest](persistent-qemu.md
 bestätigt inzwischen den Erhalt passwortgeschützter Daten nach einem geordneten
 vollständigen Neustart.
 
-## Aktuelle Konfiguration auf 209278d
+## Quellbindung für die nächste Prüfung auf f098f43
+
+Für das lokal gebaute Korrekturimage `f098f43` sind acht relevante Quelldateien
+gegen die tatsächlich gespeicherten Image-/Runtime-Buildbelege geprüft.
+`out/phase1-dod/f098f439/identity-source-binding.json` hat SHA-256
+`e5bcd26a334d45c6043d61a8758636156a38f7e27c093f7807db0a93ac8b168f`.
+Die sechs Identitäts-/Runtime-Dateien stimmen mit dem Image-Buildmanifest
+überein; die beiden Basisgenerator-Dateien sind bytegleich zum festgehaltenen
+Runtime-Buildercommit `178cbb6e`.
+
+Die gelesene Implementierung ordnet die Verantwortlichkeiten wie folgt zu:
+
+- `AospIdentityBackend` legt persönliche Benutzer über AOSPs `UserManager`
+  an und prüft die Anmeldung über `ILockSettings`. Die aufgelöste Identität
+  enthält Benutzer-ID und Seriennummer; ein ersetzter oder gelöschter Benutzer
+  wird bei erneuter Prüfung abgewiesen. Namen dienen der Auswahl, nicht der
+  Speicherzuordnung.
+- `RuntimeUidMap` bildet diese AOSP-Identität auf reservierte Hostbereiche ab.
+  Sein Speicherschlüssel enthält ID und Seriennummer. Die interne normale
+  GNU-Identität bleibt UID/GID 1000.
+- Der Basisgenerator ergänzt ausschließlich das gemeinsame technische Konto
+  `runtime` mit HOME `/home/user` und gesperrtem lokalen Anmeldeeintrag.
+  Die Namensauflösung verwendet lokale technische Kontometadaten. Es entstehen
+  dadurch keine nach persönlichen AOSP-Benutzern benannten Linux-Konten.
+- Der native Shellstart wechselt vor der Programmausführung zu UID/GID 1000,
+  entfernt die verbleibenden Capabilities und setzt das feste technische HOME.
+  Er führt keine weitere Linux-Anmeldung aus.
+- Die Paketvalidierung verlangt weiterhin das feste technische Konto,
+  zulässige ID-Bereiche, gesperrte lokale Anmeldeeinträge und konsistente
+  Kontometadaten. Diese Prüfung ist Bestandteil der Kandidatenvalidierung.
+
+Dieser Beleg bestätigt Quellbindung und die gelesenen Zuständigkeiten.
+T01.4 benötigt zusätzlich die Zuordnung zu den tatsächlichen persönlichen
+Gastkontexten; T01.5 zur Offenlegungsprüfung ist damit ebenfalls nicht erledigt.
+
+## Beobachtete Konfiguration auf 209278d
 
 Der erste Boot des neuen Profils `2366ca04-d587-4170-8c56-a63c8a8e1774`
 mit Boot-ID `44dbff5f-3a76-4e97-9334-beb437fcd461` bestätigt FBE, den Zustand
