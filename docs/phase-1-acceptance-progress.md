@@ -2000,3 +2000,35 @@ Beleg: `out/phase1-dod/209278de/beta-aosp-resource-recovery-proof.json`, SHA-256
 Er bindet den ursprünglichen Stoppbeleg und dessen fehlgeschlagene verfrühte
 Assertion ein. T08.3 ist für diesen beobachteten AOSP-Limitfall nachgewiesen;
 die vollständige Phase-1-Abnahme bleibt offen.
+
+## Passwortwechsel mit erneutem Login und unveränderten Originaldateien
+
+Beta ändert am 3. Oktober 2026 um 02:40:33 UTC sein Passwort über `aegis passwd`.
+Die CLI bestätigt den AOSP-Passwortwechsel. Nach regulärem Logout ist CE wieder
+gesperrt. Ein einzelner Anmeldeversuch mit dem bisherigen Passwort wird von
+AOSP abgewiesen; CE bleibt gesperrt, der persönliche Kontext fehlt, und
+`linux start` verlangt eine erneute Anmeldung. Das neue Passwort erlaubt
+anschließend eine bestätigte Sitzung und einen neuen GNU-Kontext.
+
+Die ursprüngliche 1024-Byte-Datei und beide persistenten Konfigurationsproben
+werden aus Betas GNU-Shell gelesen und behalten ihre ursprünglichen SHA-256-
+Werte. Inode, Größe, mtime, ctime, Eigentümer und Modus sind gegenüber der
+Beobachtung unmittelbar vor dem Passwortwechsel identisch. Die Dateien wurden
+nicht neu erzeugt. Boot-ID und SystemServer 1159/20411 bleiben unverändert.
+
+Beleg: `out/phase1-dod/209278de/beta-password-change-proof.json`, SHA-256
+`551d7d9f268a4a3f3c05aed474e5f949f50fe4b25320334b2f4edb61ba54eac1`.
+Er bindet die Dateimetadaten vor dem Wechsel, die unabhängige Beobachtung nach
+der Passwortablehnung und die ergänzende Quellprüfung ein.
+
+Die gelesenen AOSP-Methoden `setLockCredentialInternal` und
+`setLockCredentialWithSpLocked` sind gegenüber dem ausgecheckten AOSP-Basisstand
+unverändert. Sie verwenden das bestehende Synthetic Password beim Erstellen
+des neuen Passwort-Protectors weiter. Der AEGIS-Adapter ist bytegleich mit dem
+getesteten Image-Commit und delegiert an `setLockCredential`. Dies erklärt die
+Architektur ohne vollständige Dateineuverschlüsselung; die Metadatenprüfung
+allein wäre kein Nachweis sämtlicher kryptographischer Interna. Es wurden
+keine geheimen Schlüssel ausgelesen.
+
+T02.1 ist damit belegt. T02.2 bleibt offen, bis der vollständige gepaarte
+VM-Neustart mit dem geänderten Passwort und erneutem Datenvergleich erfolgt ist.
