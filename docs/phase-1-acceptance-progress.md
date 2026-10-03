@@ -1586,3 +1586,32 @@ Der eingefrorene Beleg enthält die Ereignisse, Eingabenbindung und Hashes:
 Die originalen Dateien und der laufende Treiber bleiben für spätere
 Persistenz-/Lebenszyklusprüfungen erhalten. Paketinstallation, Beta, Logout,
 Neustart und die ergänzenden Pflichtvarianten sind damit nicht abgenommen.
+
+## Gemeinsames jq u3 veröffentlicht, aktiviert und ausgeführt
+
+Der echte CLI-Plan fordert gemeinsam `jq` und `libjq1` jeweils
+`1.7.1-6+deb13u3` sowie `libonig5` `6.9.9-1+b1` an. Alphas frische
+AOSP-Adminprüfung erlaubt die Veröffentlichung. Die gemeinsame Generation
+lautet `9d6005a520d3d932fd2fe7664a405da75d00d06716d60ac060992967ac388cc4`.
+Währenddessen bleibt Alphas ursprünglicher Hintergrundprozess mit derselben
+Startzeit auf der Werksbasis aktiv; die CLI meldet `activation-pending`.
+
+Nach regulärem `linux stop`/`linux start` zeigt die CLI `packages=current`.
+Der tatsächliche Root-Mount gehört jetzt zur veröffentlichten Generation.
+Eine echte GNU-Ausführung bestätigt beide u3-Versionen, die passende geladene
+Bibliothek und die jq-Berechnung `[1,2,3] | add == 6`. Der vollständige
+installierte Bestand mit 81 Paketen ist als Vergleichsbasis eingefroren.
+Alphas ursprüngliche Datei und Konfiguration bleiben bytegleich, die alten
+persönlichen `/tmp`-/`/run`-Proben sind verschwunden. Der Runtime-Stopp wird
+ausdrücklich nicht als Logout gewertet: CE bleibt entsperrt.
+
+Lokale Belege:
+
+- `out/phase1-dod/209278de/shared-u3-before-activation.json`, SHA-256
+  `1d746ddd84e61c910c96f323eb05a27b77fb4056e78f575a2bee2096bc7cedd9`.
+- `out/phase1-dod/209278de/shared-u3-activation/result.json`, SHA-256
+  `2c1029a6d2a63a64aeb3a5440524802e1d0ef7911f53d67da61dc10e129601f9`,
+  einschließlich gehashtem Ereignissnapshot und vollständigem dpkg-Status.
+
+Die private u4-Installation für Alpha ist anschließend angefordert. Ihr Plan
+und ihre tatsächliche Ausführung bleiben bis zu deren Ergebnis offen.
