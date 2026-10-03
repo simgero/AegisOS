@@ -3580,3 +3580,25 @@ ein Stopp ohne Wartebudget hinterlässt keinen fortsetzbaren Start. Die Gruppe
 ist vorbereitet, aber noch nicht auf dem Diagnoseimage ausgeführt. Weil die
 Diagnose Produktcode ändert, gilt die Ausnahme für reine Testquelländerungen
 hier ausdrücklich nicht; die bestehende Image-/Quellprüfung bleibt erforderlich.
+
+Der Diagnosecommit `3fdb058310b75922b17819d47c985bc4eecd09c4` ist anschließend
+im Komponentenlauf `identity-20261003T190854Z-3fdb0583-Ba2NhF` erfolgreich
+kompiliert (`IDENTITY_COMPILED_NOT_INSTALLED`). Der lokal gesicherte Beleg
+`out/phase1-dod/3fdb058-diagnostics/native-build-receipt.json` hat SHA-256
+`c7736352d9f7ff0e1e721c6c7e403f7c5117e0d0a86d5a713825879f14c2bab2`.
+Gegenüber dem f098f439-Inventar unterscheiden sich `Android.bp`,
+`runtime/broker_owner.cpp` und die neue Testdatei; alle zehn Hilfsprogramme
+im Testbundle bleiben bytegleich. Das bedeutet ausdrücklich nicht, dass der
+geänderte Broker bereits im laufenden Abnahmeimage enthalten wäre.
+
+Das separate System-Testprofil `3ce0c9c7-364f-4523-a496-7c785fc2d255`
+ist nach Abschluss seiner Tests regulär heruntergefahren: Android bestätigt
+`Power down`, der KeyMint-Helfer seinen sauberen Abschluss, der Launcher
+Exitcode 0. Profil und Belege bleiben erhalten. Lokaler Abschaltbeleg
+`out/phase1-dod/3fdb058-diagnostics/previous-test-profile-shutdown.json`,
+SHA-256 `d01387968db006c71c8c6e2b56a2db2900a9b5705c6248f6288d107a6ef9f48c`.
+
+Der lokale Vollbuild `local-20261003T191808Z-3fdb0583-RnRAcC` ist mit demselben
+Quellcommit und den vorhandenen verifizierten Kernel-/Runtime-Eingaben
+gestartet. Bei diesem Eintrag läuft er noch; ein neues gebootetes Image und
+die tatsächliche CLI-Reproduktion sind damit weiterhin ausstehend.
