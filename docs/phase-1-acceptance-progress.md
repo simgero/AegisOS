@@ -1700,3 +1700,26 @@ Beleg: `out/phase1-dod/209278de/beta-to-alpha-file-process-proof.json`, SHA-256
 Der Beleg umfasst diese Richtung und diese Datei-/Prozessfälle. Gegenrichtung,
 Konfiguration, Paketstore, temporäre Dateien und IPC bleiben gesondert zu
 prüfen; T06 ist noch nicht vollständig abgenommen.
+
+## Gegenrichtung und externer Benutzerwechsel bestätigt
+
+Auch Alpha zu Beta besteht den gewöhnlichen Datei-/Prozessfall. Die benannten
+fremden Dateipfade liefern keine Bytes; Betas Prozess ist nicht zugänglich,
+und der ursprüngliche Prozess `12013/791922` schreitet vor und nach dem
+versuchten Signal fort. Beide Richtungen sind zusammen gebunden in
+`out/phase1-dod/209278de/reciprocal-file-process-proof.json`, SHA-256
+`6b288f84c2af9d8bb3d9c83de80b9f0c29fbdc536bb6b5709f5e0eb121942bc7`.
+
+Der zuvor über eine zweite echte CLI ausgeführte Wechsel Beta zu Alpha ist
+ebenfalls eingefroren: frische AOSP-Anmeldung, Widerruf des offenen Beta-GNU-
+Terminals und fortbestehender ursprünglicher Beta-Hintergrundprozess.
+Beleg: `out/phase1-dod/209278de/external-switch-beta-to-alpha.json`, SHA-256
+`006c80836422da783e008346593c4976f61245118a3249b2e4432f498ce770b9`.
+Dies ist kein Logout- oder CE-Schlüsselentzugsnachweis.
+
+Für die noch folgenden Temporärdatei-Zugriffstests sind ausschließlich Alphas
+flüchtige Proben im aktuellen Kontext neu angelegt. Ihre vorherige Entfernung
+nach Kontextneustart bleibt belegt; die ursprünglichen persistenten Dateien
+werden nicht neu erzeugt. Die getrennte Belegkette liegt in
+`out/phase1-dod/209278de/alpha-ephemeral-renewal.json`, SHA-256
+`c291061086d23432dbcfbade2ae57d7e4a07abae0f61783a6ab2194c86cde147`.
