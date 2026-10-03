@@ -3248,3 +3248,19 @@ Dies schließt zwei Varianten von `remove --scope user`. Nicht-Adminfreigabe,
 gültige Freigabe und die tatsächliche Aktivierung der gemeinsamen Variante
 bleiben in dieser Kombination noch offen. Ein vor der Ausführung abgebrochener
 Plan ist kein Nachweis für Abbruch während einer laufenden Installation.
+
+Der dritte gleichartige Plan wird um 15:02:06 UTC mit Betas korrektem **neuem**
+Passwort bestätigt. AOSP verweigert die Adminaktion; es handelt sich nicht um
+eine Ablehnung des Passworts. Der anschließende Status bestätigt Beta weiterhin
+als angemeldeten Nicht-Admin. Alle vollständig verglichenen Zustandsfelder
+bleiben gegenüber dem zweiten Ablehnungsfall exakt identisch. Alpha und seine
+private Auswahl bleiben erhalten, Gamma bleibt gesperrt.
+
+Beleg: `private-remove-beta-nonadmin-proof.json`, SHA-256
+`32855c9cb2a4e9ed4320b72330b61e7af68564b7550dbeadfc41e26bd0018323`,
+Ereignisintervall `[610,613)`. Der korrigierte Offline-Prüfer verarbeitet hier
+erstmals den tatsächlichen Gastnachweis `package-approve-newbeta`; seine
+Zustands- und Rollenanforderungen bleiben unverändert. Der generische
+Anmeldehinweis der CLI ist weiterhin irreführend und wird nicht als tatsächlicher
+Sitzungsverlust gewertet. Damit sind alle drei verweigerten Freigabevarianten
+für private Entfernung belegt; gültige Ausführung und Aktivierung bleiben offen.
