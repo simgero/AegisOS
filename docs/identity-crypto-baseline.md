@@ -65,7 +65,68 @@ Es wurden nur öffentliche technische Kontometadaten gelesen, keine
 Shadow-Einträge, Passwörter oder Schlüssel. T01.5 zur umfassenden
 Offenlegungsprüfung bleibt davon getrennt und weiterhin offen.
 
-## Beobachtete Konfiguration auf 209278d
+### Ergänzende Quellprüfung des Passworttransports
+
+Neun CLI-, JNI-, AIDL-, Dienst- und Testdateien sind zusätzlich bytegleich zum
+Imagecommit `f098f43` und zum gespeicherten Identitäts-Buildmanifest geprüft.
+Beleg: `out/phase1-dod/f098f439/credential-transport-source-binding.json`,
+SHA-256 `88e84b5de6d37cd48f6b73683f77800d157c8a2ff279084daa823855e793037d`.
+
+Die CLI erwartet bei Anmeldung/Wechsel nur die Zielidentität als Argument;
+das Passwort liest sie anschließend separat aus dem interaktiven Terminal.
+Der native Passwortmodus deaktiviert `ECHO` und `ECHONL`. Die Implementierung
+versucht die Terminalwiederherstellung bei Abschluss sowie in ihren Signal-
+und Exitpfaden. Console und CLI löschen ihre verwendeten Byte-/Zeichenpuffer;
+der gelesene Kommandoeingabepfad enthält keine persistente History.
+
+Die persönlichen und Paket-AIDL-Schnittstellen sind als `SensitiveData`
+deklariert. Der zusätzliche LockSettings-Transport markiert Parcels als sensibel
+und setzt `FLAG_CLEAR_BUF`; dadurch bleibt auch beim dienstinternen Aufruf
+die Kopier-/Besitzsemantik der AIDL-Übergabe erhalten. Die gelesenen Dienstpfade
+schließen `LockscreenCredential` und löschen empfangene Passwortarrays in
+Aufräumblöcken. Die betrachteten CLI-Fehlerausgaben verwenden feste Meldungen
+und geben keine Passwortwerte oder unerwarteten Argumente aus.
+
+Das ist ein an den Build gebundener **statischer Teilnachweis**. Tatsächliche
+Argument-, History-, Datei-/Logbeobachtungen, generierte AIDL-Proxys und relevante
+Laufzeitfehlerpfade bleiben gesondert zu prüfen. Für den mitgelesenen
+`CredentialTransportTest` wird keine neue Ausführung behauptet. Explizite
+Löschaufrufe beweisen außerdem nicht, dass zu keinem Zeitpunkt weitere Kopien
+im verwalteten Speicher existierten. T01.5 bleibt offen.
+
+## Beobachtete Konfiguration auf f098f43
+
+Der zweite Boot desselben aktuellen Profils bestätigt erneut FBE, den Zustand
+`encrypted` und aktivierte Metadatenverschlüsselung. Die installierte
+`/vendor/etc/fstab.cf.f2fs.hctr2` hat weiterhin SHA-256
+`50ff9f6fa265b68b4e392e892e98f4eafe3574e656f92ecd8856b74c83a71677`;
+die Kernelbeobachtung enthält AES-256-HCTR2 und AES-256-XTS.
+Beleg: `out/phase1-dod/f098f439/crypto-current-observation.json`, SHA-256
+`e154e92235a2d07baf6c6f60d9fbe87eb5156dce5e31c93ae9f457f8da296c6c`.
+
+Die vier unten beschriebenen Quelldateien sind seit der früheren Aufnahme
+bytegleich. Ihre genaue Herkunft ist jetzt zusätzlich gegen das gespeicherte
+Buildmanifest geprüft: `SP800Derive` und `SecureRandomUtils` entsprechen direkt
+der gepinnten AOSP-Revision. `SyntheticPasswordCrypto` und
+`SyntheticPasswordManager` enthalten bereits vorhandene AEGIS-Erweiterungen
+für bestätigte Protector-/Benutzerlöschung. Bei diesen beiden stimmen sowohl
+die Upstream-Eingangsprüfsummen als auch die vorbereiteten Ausgangsprüfsummen
+mit `runtime-storage-source.json` des tatsächlichen Builds überein.
+
+Ein erster Vergleich, der für alle vier Dateien vollständige Upstream-Gleichheit
+erwartete, scheiterte an diesen beiden Ergänzungen. Er bleibt in
+`crypto-source-pin-comparison.json` erhalten und ist im aktuellen Beleg verlinkt.
+Die beschriebenen kryptographischen Verfahren werden dadurch nicht als eigene
+AEGIS-KDF oder zweite Passwortverwaltung ausgegeben. Konfigurationsbeobachtung
+und Quellbindung ersetzen keine vollständige Einzelprüfung jeder CE-Inode-Policy
+oder aller Metadatenschutzpfade. Es wurden keine Schlüssel gelesen.
+
+Der tatsächliche gepaarte Neustart mit zunächst gesperrtem persönlichem CE,
+anschließend frischen Anmeldungen und bytegleichen Originaldaten ist separat in
+`paired-reboot-readback-proof.json` belegt, SHA-256
+`aad3626470a13b33ceb4bcac84725d30c2cdc288ae769d921fa9d50b95773683`.
+
+## Frühere beobachtete Konfiguration auf 209278d
 
 Der erste Boot des neuen Profils `2366ca04-d587-4170-8c56-a63c8a8e1774`
 mit Boot-ID `44dbff5f-3a76-4e97-9334-beb437fcd461` bestätigt FBE, den Zustand

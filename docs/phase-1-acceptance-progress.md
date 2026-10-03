@@ -2598,3 +2598,61 @@ seine Logs liegen separat unter `boot-2`. Bootabschluss, anfängliche CE-Sperrun
 sowie Daten-/Versionsreadback nach frischer Anmeldung sind noch nachzuweisen.
 Auch Logoutfehler, konkurrierender Start und die übrigen Matrixvarianten bleiben
 offen; dieser reguläre Ablauf schließt T10–T12 nicht insgesamt ab.
+
+### Originaldaten und abweichende Versionen nach Paar-Neustart auf f098f43
+
+Der zweite Boot desselben Profils besitzt die neue Boot-ID
+`17a75d6e-75f2-4f18-bf02-ec3d093e57b8` und SystemServer 1124/21865.
+Vor jeder persönlichen Anmeldung sind nur System-CE und Systembenutzer aktiv,
+die persönlichen Runtime-Kontexte fehlen, und beide ursprünglichen Testdateien
+liefern keine Bytes. Image-/Profilbindung, authentifiziertes ADB, Enforcing,
+FBE und Metadatenverschlüsselung stimmen mit dem ersten Boot überein.
+Beleg: `postboot-locked-baseline.json`, SHA-256
+`d6e739a9cd01a3e4dd1a287677876a495332c62037b65cf5b68c959670f602c0`.
+
+Alpha und Beta melden sich jeweils beim ersten korrekten Versuch dieses Boots
+an; es gibt keinen vorangehenden falschen Versuch zum Aufwärmen. Die verzögerte
+Statusprüfung bleibt gültig. Die bloße Zielauswahl entsperrt zuvor weder das
+jeweilige CE noch erzeugt sie einen GNU-Kontext. Nach Anmeldung und Runtime-Start
+liest jeder Benutzer seine ursprüngliche 1024-Byte-Datei sowie Konfiguration und
+synthetische persönliche Testdaten bytegleich. Die alten Proben unter `/tmp`
+und `/run/user/1000` und die alten POSIX-Nachrichtenwarteschlangen fehlen.
+
+Die tatsächliche GNU-Ausführung bestätigt bei Alpha weiterhin privates jq/libjq1
+`1.7.1-6+deb13u4`, bei Beta gemeinsames `1.7.1-6+deb13u3`, jeweils mit passender
+Bibliotheksauflösung, unverändertem libonig5 und erfolgreicher Berechnung.
+Beide vollständigen Datenbanken enthalten dieselben jeweils 81 Pakete und exakt
+dieselben Rohdaten-Prüfsummen wie vor dem Shutdown; keine Whitespace-Normalisierung
+ist erforderlich. Gemeinsame/private Auswahlen, private Versionsfestlegung und
+Backing-Image-Pfade sind ebenfalls unverändert. Die beiden neuen Kontexte behalten
+getrennte Host-UID/GID-Zuordnungen und Namespaces bei interner UID/GID 1000.
+
+Für spätere Lebenszyklustests werden erst nach Originaldatenreadback neue begrenzte
+Hintergrundproben erzeugt. Alphas neue Probe 3660/89824 überlebt den Wechsel zu
+Beta; Betas neue Probe ist 5139/121459. Das behauptet kein Überleben der alten
+Prozesse über den VM-Neustart.
+
+Zusammenhängender Beleg: `paired-reboot-readback-proof.json`, SHA-256
+`aad3626470a13b33ceb4bcac84725d30c2cdc288ae769d921fa9d50b95773683`.
+Er bindet die ursprünglichen Daten, erste Anmeldungen, tatsächlichen GNU-Befehle,
+vollständigen Paketaufnahmen, GID-Beobachtung und beide Bootidentitäten ein.
+Die begrenzte zweite Dienstbeobachtung enthält einen SystemServer-Start und keine
+geprüften Java-/Native-Absturz-, ANR-, FORTIFY- oder Watchdog-Meldungen:
+`boot2-health-classification.json`, SHA-256
+`46ac763c50fe95c3bd5447692022c7dd2efdf1e7f4b64ac639833b9b33394002`.
+Eine zusätzliche einmalige Rückgabe der alten VirtualizationService-Aufräumaktion
+bleibt sichtbar und ist mit unveränderter init-Quelle sowie tatsächlichem
+Verzeichniszustand eingeordnet; sie wird nicht als repariert behauptet.
+
+Die ergänzende [Passwort-/Kryptographiegrundlage](identity-crypto-baseline.md)
+enthält neue, ausdrücklich begrenzte Quell- und Konfigurationsbelege. Ein anfänglich
+zu pauschaler Vergleich aller Kryptographie-Dateien mit unverändertem Upstream
+scheitert an zwei bestehenden AEGIS-Erweiterungen für bestätigte Benutzerlöschung.
+Der erhaltene Vergleich wird durch die genaue Bindung ihrer Originaleingänge und
+vorbereiteten Ausgänge an den gespeicherten Buildbeleg erklärt; kein Produktcode
+und keine Berechtigung wurden dafür geändert.
+
+Damit ist der reguläre Paar-Neustart mit Originaldaten und unterschiedlichen
+Paketversionen auf diesem Image nachgewiesen. Passwortwechsel, dritter Benutzer,
+vollständige Paketautorisierung, Updates/Entfernung/Konflikte/Parallelität und die
+übrigen Pflichtvarianten bleiben offen. Die Phase-1-Gesamtfreigabe bleibt ausstehend.
