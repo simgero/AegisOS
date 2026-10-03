@@ -3687,3 +3687,41 @@ bindet Ereignispräfix 41, die Aufnahmen vor/nach Veröffentlichung und
 Aktivierung sowie die ursprünglichen Daten. Dies ist ein bestandener
 gemeinsamer Installationsfall; der ursprüngliche Startfehler nach gemeinsamer
 Entfernung und die vollständige Abnahme bleiben offen.
+
+### Diagnoseimage: Alpha privat u4, Beta beim ersten Login gemeinsam u3
+
+Alphas persönlicher Installationsplan aktualisiert nur `jq` und `libjq1`
+von `1.7.1-6+deb13u3` auf `1.7.1-6+deb13u4`. Die reguläre Adminfreigabe
+veröffentlicht eine an Benutzer/Seriennummer `10/10` gebundene private Auswahl;
+gemeinsame Auswahl und laufender Kontext bleiben unverändert. Der Status
+meldet ausstehende Aktivierung. Nach ausdrücklichem Runtime-Stopp, bestätigtem
+Ende der alten Prozessidentität und neuem Start führt Alpha die private
+u4-Version mit passender Bibliothek tatsächlich aus. `dpkg -V` und jq-Test
+bestehen; die übrigen 79 installierten Pakete bleiben unverändert.
+
+Alphas ursprüngliche Datei und Konfiguration bleiben bytegleich. Die alten
+flüchtigen Proben fehlen weiterhin; sie waren bereits nach dem vorigen
+Neustart verschwunden, weshalb dies keinen weiteren Test mit unmittelbar
+zuvor vorhandenen flüchtigen Dateien belegt. Beleg
+`out/phase1-dod/3fdb058-diagnostics/private-u4-activation-proof.json`, SHA-256
+`d51975698692b5fd486f0952c9da27eac2f409dba5dcdcf0d9c828a1d974f5d6`,
+bindet Ereignispräfix 55 und sämtliche zugehörigen Zustandsaufnahmen.
+
+Beta `11/11` besteht anschließend seinen ersten korrekten Login ohne früheren
+Anmeldeversuch. Die Zielauswahl vor Passworteingabe lässt seinen CE-Speicher
+gesperrt; danach bleiben AOSP-Sitzung und tatsächliche GNU-Ausführung gültig.
+Beta verwendet die gemeinsame u3-Version von jq/libjq1 mit passender
+Abhängigkeit, sauberer Paketdateiprüfung und erfolgreichem jq-Test. Seine
+ursprüngliche 1024-Byte-Datei und eigenen Konfigurations-/flüchtigen Proben
+werden über normale GNU-Prozesse angelegt.
+
+Nach Shell-Ende sind beide Kontexte vorhanden: Alpha `7364/400265`, Beta
+`7968/430482` (PID/Startzeit im bereits festgehaltenen Boot). Alphas Kontext,
+gemeinsame und private Auswahl bleiben gegenüber dem Zustand vor Betas Login
+unverändert. Beide enthalten 81 Pakete, Beta besitzt keine private Auswahl;
+Host-UID-Zuordnungen und alle sechs beobachteten Namespaces unterscheiden sich.
+Beleg `out/phase1-dod/3fdb058-diagnostics/beta-first-common-u3-proof.json`,
+SHA-256 `e864f7691bc6caf7f7481065068ce192812e6bed19b6d257c2b2c957acc472bc`,
+bindet Ereignispräfix 79. Die gegenseitige Zugriffs-/Prozess-/IPC-Testmatrix,
+Logout und VM-Neustart sind damit auf diesem Image noch nicht vollständig
+geprüft. Der ursprüngliche Startfehler nach gemeinsamer Entfernung bleibt offen.

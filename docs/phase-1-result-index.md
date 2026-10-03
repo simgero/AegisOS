@@ -337,6 +337,18 @@ bytegleichem Erhalt der ursprünglichen Alpha-Daten bestätigt. Beleg
 `out/phase1-dod/3fdb058-diagnostics/shared-u3-activation-proof.json`, SHA-256
 `97ccef9f03226b7f45ceca8bff2b3bc8defc391e14c19449976a180703119644`.
 Beta bleibt dabei gesperrt; dies belegt keinen Android-Neustart.
+Danach aktiviert Alpha privat jq/libjq1 u4 bei unverändertem gemeinsamen
+u3-Bestand und bytegleichem Erhalt seiner ursprünglichen Daten. Beleg
+`out/phase1-dod/3fdb058-diagnostics/private-u4-activation-proof.json`, SHA-256
+`d51975698692b5fd486f0952c9da27eac2f409dba5dcdcf0d9c828a1d974f5d6`.
+Beta besteht seinen ersten korrekten Login und führt die gemeinsame u3-Version
+tatsächlich aus; eigene Originaldatei und Konfiguration sind angelegt.
+Beide Kontexte besitzen verschiedene Namespaces/Host-Zuordnungen, während
+Alphas ursprüngliche Prozessidentität und private Auswahl erhalten bleiben.
+Beleg `out/phase1-dod/3fdb058-diagnostics/beta-first-common-u3-proof.json`,
+SHA-256 `e864f7691bc6caf7f7481065068ce192812e6bed19b6d257c2b2c957acc472bc`.
+Diese Fälle ersetzen weder die vollständige gegenseitige Isolation noch
+Logout-, Reboot-, Autorisierungs- und Fehlerfallmatrix.
 Die eigentliche CLI-Fehlerreproduktion steht noch aus. Die früheren f098f439-Ergebnisse
 werden dadurch nicht automatisch zu bestandenen Abläufen auf diesem Image;
 der ursprüngliche Alpha-Fehler und die vollständige DoD bleiben offen.
