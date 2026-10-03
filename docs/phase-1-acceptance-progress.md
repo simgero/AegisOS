@@ -177,7 +177,7 @@ nicht, dass die ganze Zeile der DoD bereits geschlossen ist.
 | T03 | UID/GID, sechs getrennte Namespaces, zwei fortlaufende Prozesse | Nachweise zum finalen Versions-/Referenzablauf zuordnen |
 | T04 | Admission-/Namespace-/Mapping-Komponententests | Gezielte Gasttests für alle fehlenden Voraussetzungen und fehlende Berechtigung zuordnen/ausführen |
 | T05 | GNU-Shell, Exit und Zugriff auf eigene Datei | Ablehnungen für gesperrte/fremde Kontexte und Exit-Lebenszyklus zum finalen Stand binden |
-| T06 | Gegenseitige Dateien, Konfiguration, Test-Secrets, temporäre Dateien, Prozesse und POSIX-Mqueues | Zusätzliche Gegenrichtung für Betas inzwischen vorhandenen privaten Paketbestand; alle Varianten zum finalen Image binden |
+| T06 | Gegenseitige Dateien, Konfiguration, Test-Secrets, temporäre Dateien, Prozesse und POSIX-Mqueues; zusätzlich beide tatsächlich vorhandenen privaten Paketauswahlen auf f098f43 | Alle Varianten zum finalen Image binden; die Prüfung der Auswahldateien belegt nicht sämtliche privaten Paketdateien |
 | T07 | Beide ursprünglichen Dateien/Konfigurationen, private Version und getrennte gemeinsame Version nach Reboot; alte `/tmp`-/`/run`-Proben fehlen | In den finalen Ergebnisindex übernehmen; bei betroffenen Produktänderungen erneut prüfen |
 | T08 | Bildschirmsperre bei weiterlaufender Arbeit; tatsächlicher AOSP-Stopp Betas beim Start Gammas; spätere Datenwiederherstellung | Einzelne Wechsel-/Hintergrundvarianten vollständig zum finalen Ergebnisindex zuordnen |
 | T09 | Eigener Kontext gestoppt, Sitzung/CE und ursprünglicher Peer-Prozess erhalten | Belege zum finalen Image zuordnen; kein allgemeiner Logout-Nachweis |
@@ -3005,6 +3005,50 @@ Er bindet die drei Ablehnungsfälle, frische Freigabe, Veröffentlichung,
 vollständige Zustandsaufnahmen und tatsächliche GNU-Ausführung an denselben
 Image-/Profil-/Bootstand. Der zuvor auf `209278de` fehlgeschlagene gewöhnliche
 private CLI-Versionsrückgang ist damit auf dem Korrekturimage `f098f43` bestanden.
-Beide privaten Bestände gleichzeitig entsperrt auf gegenseitige Isolation zu
-prüfen, die neue Auswahl über einen gepaarten Neustart nachzuweisen sowie die
-übrigen Entfernungs-, Update-, Konflikt- und Parallelitätsfälle bleiben erforderlich.
+Die folgenden Prüfungen ergänzen die gegenseitige Isolation bei gleichzeitig
+entsperrten privaten Beständen. Die neue Auswahl über einen gepaarten Neustart
+nachzuweisen sowie die übrigen Entfernungs-, Update-, Konflikt- und
+Parallelitätsfälle bleiben erforderlich.
+
+### Beide vorhandenen privaten Paketauswahlen gegenseitig geschützt
+
+Am 3. Oktober 12:34–13:04 UTC wird Alpha frisch authentifiziert und sein privater
+u4-Kontext gestartet, während Betas privater u3-Kontext erhalten bleibt. Vor der
+Passworteingabe bleibt Alphas CE gesperrt. Danach liest Alpha seine ursprüngliche
+Datei und Konfiguration unverändert und führt jq/libjq1 u4 tatsächlich aus.
+Für die temporären Isolationsproben kopiert jeder Benutzer ausschließlich seine
+eigene vorhandene Testkonfiguration in die zuvor fehlenden `/tmp`- und
+`/run/user/1000`-Testdateien. Persistente Testdaten werden nicht neu geschrieben.
+
+In beiden gewöhnlichen GNU-Kontexten werden Lese- und Schreibzugriffe auf sieben
+positiv vorhandene Gegenstellen abgewiesen: Konfiguration, Test-Secret und zwei
+temporäre Dateien über den Peer-Prozess, die beiden persistenten CE-Pfade sowie
+die private `packages/store/current`-Auswahldatei. Die separate Entwicklerbeobachtung
+bestätigt Existenz und bytegleichen Inhalt vor und nach den Versuchen. Beide
+privaten Auswahldateien sind tatsächlich vorhanden; ihre rohen SHA-256-Werte sind
+`ac864c4be1ea536636fc10bbb59cc1be79545158e0771637a6139db39b53c883`
+(Alpha) und `70819a1f2f7a74e767826c1b0d4bd49c0f98869b33566acd85048eb394543f53`
+(Beta). Die Beobachtung mit Entwicklerrechten ersetzt dabei keinen GNU-Zugriffstest.
+
+Zusätzlich verweigern beide GNU-Kontexte den Zugriff auf die bekannte ursprüngliche
+Peer-Datei über drei Pfade und ein SIGSTOP an den bekannten Peer-Prozess.
+Alphas Probe 11600/1317468 und Betas Probe 9255/1238958 behalten jeweils ihre
+Identität und schreiten nach den Versuchen fort. Alle sechs Namespaces sind
+getrennt. Beide ursprünglichen 1024-Byte-Dateien und Konfigurationen bleiben
+unverändert lesbar im eigenen Kontext.
+
+Die vollständigen Aufnahmen vor und nach beiden Richtungen stimmen außer dem
+Erfassungszeitpunkt exakt überein: beide 81-Paket-Bestände samt rohen Datenbankhashes,
+Auswahlen, Kontextidentitäten, Mappings, Namespaces, Boot und SystemServer.
+CE bleibt `[0,11,10]`, Gamma gesperrt; Paketarbeitsgruppen fehlen. Der lokale
+Verifier bindet die Ereignisse ab Index 446 bis einschließlich Präfix 503 und
+den vorherigen Beta-Aktivierungsnachweis. Beleg unter
+`out/phase1-dod/f098f439/two-private-contexts-isolation-proof.json`, SHA-256
+`fd37f26f8b072c53880b4babf9e145d593608e5a329a895fd243d996e0ba58b4`.
+
+Dieser Abschnitt ergänzt T06 um beide vorhandenen privaten Auswahldateien;
+er behauptet weder sämtliche Paketdateien/Syscalls noch neue IPC-Abdeckung.
+Der frühere POSIX-Mqueue-Beleg bleibt separat. Die Zustandsaufnahmen sind
+sequenziell, keine atomare oder lückenlose CE-Beobachtung. Der anschließende Scan
+aller sechs Lauf-Logs findet kein vollständiges Testpasswort; die übrigen
+T01-Prüfungen und die vollständige Phase-1-Abnahme bleiben offen.
