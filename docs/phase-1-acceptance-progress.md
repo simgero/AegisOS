@@ -2,7 +2,16 @@
 
 Beginn: 1. Oktober 2026. Ziel ist die vollständige
 [DoD](architecture/phase-1-dod.md), einschließlich aller Varianten T01–T17.
-**Status: aktiv, keine vollständige Abnahme.** Aktueller Prüfstand:
+**Status: aktiv, keine vollständige Abnahme.** Aktueller Prüfstand ist das
+Korrekturimage `f098f439f051c34e92fb1be0b4d908cc542358ea`, Profil
+`535c2e93-df64-445b-b9e2-b71e6b403db7`, zweiter Boot
+`17a75d6e-75f2-4f18-bf02-ec3d093e57b8`. Seine Ergebnisse sind im Abschnitt
+„Zusätzlicher Korrekturstand f098f43“ des [Ergebnisindex](phase-1-result-index.md)
+gesondert zugeordnet. Die folgenden älteren Ergebnisse ersetzen keine offenen
+Prüfungen auf diesem Korrekturimage.
+
+## Historischer Prüfstand 209278d
+
 Image `209278def7d5bc5612eeb397bdd8ee20ccb16d86`, Profil
 `2366ca04-d587-4170-8c56-a63c8a8e1774`, dritter Boot mit ID
 `e720d2bf-faef-4af8-87b9-709112eb3c41`.
@@ -2830,3 +2839,47 @@ neuen vollständigen Paketstände ist noch erforderlich. Ebenso bleiben der
 private Beta-Versionsrückgang mit Alpha-Freigabe und die übrigen Pflichtfälle
 offen. Alpha war vor dieser Freigabe bereits CE-entsperrt; Verhalten bei einem
 gesperrten freigebenden Administrator wird hier nicht zusätzlich behauptet.
+
+### Gemeinsames Update auf f098f43 bei beiden Benutzern aktiviert
+
+Alpha und danach Beta stoppen jeweils über ihre eigene CLI ausschließlich ihre
+Linux-Runtime. Vor jedem Stopp werden zwei neue temporäre Dateien in `/tmp` und
+`/run/user/1000` angelegt und aus der gewöhnlichen GNU-Shell positiv gelesen.
+Beide Stopps entfernen den eigenen ursprünglichen Kontext und Hintergrundprozess,
+erhalten aber die gültige AOSP-Sitzung und CE `[0,10,11]`. Der jeweilige andere
+Hintergrundprozess behält PID, Startzeit und Namespaces und schreitet weiter.
+
+Alphas anschließender Start bestätigt um 11:07:44 UTC eine bereite Runtime.
+Seine private Generation wechselt auf
+`7203ccdcf8b90c0226b6cdff7414e53b20bf8f942215201be56730b64b1fb1dc`,
+gebunden an die veröffentlichte gemeinsame Basis `53e5fddf…23bc34`.
+Die explizite private jq-Festlegung `1.7.1-6+deb13u4` bleibt bytegleich.
+Betas kompletter alter Kontextdatensatz bleibt dabei unverändert. Betas Start
+bestätigt um 11:19:58 UTC ebenfalls eine bereite Runtime; er verwendet direkt
+das neue gemeinsame Image und besitzt weiterhin keinen privaten Paketstore.
+Alphas kompletter neuer Kontextdatensatz bleibt währenddessen unverändert.
+
+Beide führen jq/libjq1 `u4` und die geplanten neuen PCRE2-/OpenSSL-Versionen
+tatsächlich aus; jq berechnet das erwartete Ergebnis, die Bibliotheken werden
+aufgelöst, UID/GID und getrennte Zuordnungen stimmen. Die vollständigen
+81-Paket-Bestände entsprechen exakt dem veröffentlichten Plan, ohne verbliebene
+Paketreste. Beide rohen Paketdatenbanken haben SHA-256
+`6bcb23b8377daad330bdfe6a0c5595da8989ef5c567581223c608cede0fb6f9b`.
+Beide Statusabfragen melden `packages=current`.
+
+Die ursprünglichen persönlichen Dateien und Konfigurationen werden vor und nach
+dem jeweiligen Neustart bytegleich gelesen. Die frisch vorbereiteten temporären
+Dateien sind danach verschwunden. Ersatz-Hintergrundproben werden erst nach
+belegtem Ende der alten Prozesse und Originaldaten-Readback gestartet; sie zählen
+nicht als Überleben der beendeten Prozesse. Gamma bleibt CE-gesperrt. Der
+SystemServer bleibt 1124/21865, und der Treiber findet in allen sechs Lauf-Logs
+kein vollständiges synthetisches Testpasswort.
+
+Beleg: `out/phase1-dod/f098f439/shared-update-activation-proof.json`, SHA-256
+`f812ec421300f35c27a2683431fb3e3536d932053f7182b093972e5a0158df13`.
+Er bindet den Ereignispräfix, die Veröffentlichung, beide vollständigen
+Zustandsaufnahmen, Originaldaten-Prüfungen und tatsächlichen GNU-Ausführungen.
+Die Metadatenaufnahmen sind sequenzielle Beobachtungen bei stabilem Zustand.
+Dies belegt beide Runtime-Stopprichtungen und die gemeinsame Updateaktivierung
+mit erhaltener privater Auswahl. Der private Beta-Versionsrückgang gegen die
+neuere gemeinsame Basis und die übrigen Pflichtfälle bleiben offen.
