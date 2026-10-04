@@ -148,6 +148,65 @@ die weiteren Terminalfälle. Es ist kein Logout-, VM-Reboot-, Paket- oder
 vollständiger IPC-Abbaunachweis. Sämtliche offenen D1–D7/T01–T17-Anforderungen
 bleiben bestehen; ältere fehlgeschlagene b832d6c-Ereignisse bleiben unverändert.
 
+## ec01e5fa: zwei persönliche Kontexte und Identität bei Benutzerwechseln
+
+Beta wurde im selben frischen Profil über die CLI als normaler AOSP-Benutzer
+11/11 angelegt; Alpha 10/10 erteilte die Adminfreigabe. Vor Betas erstem
+Passwort blieben dessen CE gesperrt und Kontext abwesend. Seine erste korrekte
+Anmeldung, der ausdrückliche Runtime-Start und tatsächliche GNU-Ausführung
+bestanden ohne vorangegangenen Fehlversuch. Auch Betas anfängliche zehn
+HOME-Verzeichnisse, GNU-Werkzeuge, schreibgeschützte Basis, Mountlayout,
+SELinux-Domäne, leere Capabilities, NoNewPrivs und Seccomp sind geprüft.
+APT/Dpkg wurden dabei als vorhandene Befehle aufgelöst, noch nicht als
+Paketverwaltung abgenommen.
+
+**T03 ist auf ec01e5fa zugeordnet und bestanden.** Tatsächliche GNU-Prozesse
+beider Benutzer melden intern UID/GID 1000 und HOME `/home/user`. UID- und
+GID-Maps sind jeweils identisch und umfassen je 1002 Kennungen:
+
+| Benutzer | Interne Kennungen → Host-Kennungen | Runtime-Init PID/Startzeit |
+| --- | --- | --- |
+| Alpha 10/10 | 0–999 → 1005000–1005999; 1000 → 1007500; 65534 → 1007501 | 6745/269408 |
+| Beta 11/11 | 0–999 → 1105000–1105999; 1000 → 1107500; 65534 → 1107501 | 7786/375190 |
+
+Die vollständigen Bereiche überschneiden sich nicht und enthalten weder
+Host-Root noch Host-UID/GID 1000. User-, Mount-, PID-, IPC-, UTS- und
+Netzwerk-Namespaces unterscheiden sich zwischen beiden Benutzern. Beide
+Kontexte verwenden dieselbe unveränderte Debian-Basis.
+
+Beim Wechsel Alpha → Beta bleibt Alphas ursprünglicher GNU-Hintergrundprozess
+`6797/343464` mit interner PID 17 erhalten. Nach Betas Shell-Exit und regulärer
+AOSP-Anmeldung zurück zu Alpha bleibt Betas ursprünglicher Prozess
+`9362/429323`, intern PID 60, erhalten. Positive Fortschrittszähler sowie
+unveränderte Eigentümer, Cgroups, SELinux-Domänen und Namespaces belegen die
+beiden Beobachtungen. Die gemeinsamen Zustandsaufnahmen vor/nach Beta → Alpha
+bestätigen identische Runtime-Inits, Zuordnungen und Paketmetadaten; CE bleibt
+`[0, 10, 11]`. Boot-ID `7017e5d9-6542-416f-9878-eabf40aa9640` und
+SystemServer `1397/38796` bleiben gleich. Die Hintergrundproben sind begrenzt;
+daraus folgt keine Zusage unbegrenzter Laufzeit.
+
+Beide Benutzer haben aus GNU eigene 1024-Byte-Dateien sowie getrennte
+synthetische Konfigurations- und flüchtige Proben angelegt. Nach Rückkehr zu
+Alpha werden dessen Originaldatei und persistente Konfiguration bytegleich
+gelesen. Betas Datei hat SHA-256
+`c0f83e390480f013da473f2b806d2d55ac79fbce3edb4d29f1bc6d76840965d9`;
+Alphas zuvor dokumentierter Dateihash bleibt unverändert.
+
+Der lokale Nachweis `out/phase1-dod/ec01e5fa-verity-base/two-user-identity/result.json`,
+SHA-256 `d5b2ebd5e4962ea153cc4714cb32260f69b0706e5a80abc5320fade20480d1d4`,
+bindet 81 eingefrorene Treiberereignisse, beide Zustandsaufnahmen und die
+Quellprüfsummen des Treibers, Beobachters und lokalen Auswerters.
+Die Aufnahmen heißen `two-user-before-switch.json` und
+`two-user-after-switch.json` mit SHA-256
+`7862415068f5bc70180843bd0ac8019a3fbea3b5c69f3022f12c14340558946e` und
+`8091dea20214f9681154eba834f916fbd0c9f13351b6cbcae7f6bdec3e249511`.
+
+Dieser Nachweis schließt weder die vollständige gegenseitige Zugriffsmatrix
+T06 noch Paketverwaltung, Bildschirmsperre, Ressourcenstopp, Logout oder
+gepaarten VM-Neustart ab. **D1–D7 und alle übrigen offenen Pflichtfälle bleiben
+erforderlich.** Testpasswörter bleiben ausschließlich im ursprünglichen
+Treiberprozess; Profile und Rohprotokolle werden nicht veröffentlicht.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256

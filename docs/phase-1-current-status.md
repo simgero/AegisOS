@@ -35,7 +35,13 @@ belegt tatsächliche Navigation in den Android-Einstellungen. Alphas erste
 AOSP-Anmeldung mit GNU-Ausführung und der eigene Stopp-/Shell-/Neustartfall
 sind inzwischen ebenfalls auf ec01e5fa bestanden: Shell nach Stopp abgewiesen,
 erst ausdrücklicher Start erlaubt wieder GNU und erhält die Originaldatei.
-Die übrigen T05-Varianten, vollständigen Benutzerabläufe und D1–D7 bleiben offen.
+Inzwischen sind auch Betas erste Anmeldung/GNU-Ausführung und T03 auf ec01e5fa
+bestanden: beide internen UID/GID 1000, vollständig getrennte Host-Bereiche,
+sechs getrennte Namespaces und erhaltene Prozessidentitäten bei beiden
+Wechselrichtungen. Zwei gemeinsame Zustandsaufnahmen bestätigen unveränderte
+Kontexte und CE `[0, 10, 11]`; Alphas ursprüngliche Dateien/Konfiguration sind
+nach Rückkehr bytegleich. Die übrigen T05-Varianten, vollständige gegenseitige
+Zugriffsmatrix T06, Paket-/Logout-/Neustartabläufe und D1–D7 bleiben offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.
