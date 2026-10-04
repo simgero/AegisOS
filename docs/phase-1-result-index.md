@@ -71,7 +71,10 @@ Der unveränderte Dienstprüfer zählt einen SystemServer-Start, keine seiner
 sechs Fatal-/ANR-Kategorien, keine rückläufige Zeitmarke und keine Signal-
 Beendigung ohne passende unmittelbar vorausgehende Steueranweisung.
 Sein Ergebnis bleibt `REVIEW_REQUIRED`: `recovery-refresh=254` und
-`system_aconfigd_mainline_init=1` bleiben erhalten. Die spätere Gastbeobachtung
+`system_aconfigd_mainline_init=1` bleiben im ursprünglichen Audit erhalten.
+Die nachfolgende individuelle Quell-/Logprüfung ordnet ausschließlich den
+zweiten Befund als beabsichtigte Mainline-Übergabe ein (siehe unten).
+Die spätere Gastbeobachtung
 findet pstore eingehängt, aber weder `pmsg-ramoops-0` noch `/dev/pmsg0`.
 Das grenzt den Recovery-Befund ein, beweist jedoch nicht rückwirkend dessen
 genauen Zustand beim frühen Dienstaufruf.
@@ -99,6 +102,33 @@ Belege unter `out/phase1-dod/ec01e5fa-verity-base/`:
 **D1–D7 bleiben offen.** Vollständige Dienststabilität, Neustartverhalten
 und die vollständigen persönlichen Abläufe sind auf diesem Image noch nötig.
 Historische T01–T17-Ergebnisse werden nicht automatisch übernommen.
+
+## ec01e5fa: individuelle Prüfung der aconfigd-Initialisierung
+
+Der Befund `system_aconfigd_mainline_init`, PID 883, Status 1 ist für diesen
+Boot erklärt. Das zum Vollbuild gehörende Manifest pinnt
+`system/server_configurable_flags` auf
+`3df6afddea58e802591487bba79b362611dafa89`. Die gespeicherten Dateien
+`aconfigd/src/main.rs` und `aconfigd/aconfigd.rc` stimmen bytegleich mit diesem
+Commit und dem lokalen Buildquellbaum überein. Im Zweig `MainlineInit` führt
+`enable_aconfigd_from_mainline()` ausdrücklich zur Meldung
+`aconfigd_mainline is enabled, skipping mainline init` und unmittelbar zu
+`std::process::exit(1)`.
+
+Genau PID 883 protokolliert diese Meldung, bevor Init ihren Status 1 meldet.
+Anschließend startet `mainline_aconfigd_init` als PID 886, initialisiert die
+Mainline-Flags und endet mit Status 0. Diese konkrete Folge ist damit eine
+beabsichtigte Übergabe und kein ungeklärter Dienstabsturz. Andere Status-1-
+Rückgaben werden dadurch nicht freigegeben; weder allgemeine Socket-Gesundheit
+noch vollständige Dienststabilität ist damit nachgewiesen.
+
+Der lokale Beleg
+`out/phase1-dod/ec01e5fa-verity-base/aconfigd-init-review/result.json`, SHA-256
+`6f28a15a34eb396ff9fabae9373f1795cc7cc6366286def7054b39bc5187be27`,
+bindet Manifest, Quellprüfsummen, konkrete PID-/Zeilenbezüge und unveränderte
+Bootlogs an Image, Profil und Boot-ID. Der ursprüngliche Dienstprüfer und sein
+`REVIEW_REQUIRED`-Bericht wurden nicht geändert. `recovery-refresh=254` und
+die übrigen D1-Anforderungen bleiben offen.
 
 ## ec01e5fa: erste Anmeldung und eigener Shell-Zugang nach Runtime-Stopp
 

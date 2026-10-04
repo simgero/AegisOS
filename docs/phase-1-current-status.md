@@ -25,6 +25,10 @@ Die Recovery-Refresh-Quellprüfung grenzt Status 254 ein, kann aber einen leeren
 Logbestand nicht von verdeckten Lesefehlern unterscheiden. Der Dienstbefund
 bleibt deshalb offen. Im neuen Gast ist pstore eingehängt, aber Quellpuffer
 und `/dev/pmsg0` fehlen; dies beweist nicht dessen historischen Bootzustand.
+Die separate aconfigd-Prüfung erklärt auf ec01e5fa ausschließlich PID 883 mit
+Status 1: gepinnter Quellzweig und PID-genaue Meldung bestätigen die beabsichtigte
+Übergabe an Mainline; deren Initialisierung als PID 886 endet mit 0.
+Der ursprüngliche Audit bleibt unverändert, Recovery-Refresh und D1 bleiben offen.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
 Mit dieser Vorbereitung ist ec01e5fa inzwischen im eigenen Profil gebootet:
