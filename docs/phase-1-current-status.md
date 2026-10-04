@@ -6,6 +6,30 @@ und der [Entwicklerauftrag](architecture/phase-1-developer-brief.md).
 Diese Übersicht ersetzt deren Detailanforderungen nicht. Sie verhindert,
 dass bestandene Fälle älterer Images als aktuelle Ergebnisse erscheinen.
 
+## Erneut gemeldete Security-Unterbrechung
+
+Der Nutzer meldet erneut eine Security-Unterbrechung. Der genaue Auslöser ist
+nicht belegt. Der letzte lokale Treibereintrag vom 4. Oktober 2026,
+22:49:04 UTC, bestätigt Betas erfolgreichen regulären `linux start` nach
+Anmeldung. Er enthält keine Plattform-Ablehnung und beweist keinen ursächlichen
+Zusammenhang mit der Meldung. Die gleichzeitige Ausführung der unterschiedlichen
+Paketversionen ist weiterhin nicht nachgewiesen.
+
+Der unterbrochene Schritt wird nicht automatisch wiederholt. Zunächst werden
+vorhandene Belege und Quelltexte geprüft; bestehende Testtreiber, Zugangsdaten
+und Gastzustände bleiben erhalten. Ein tatsächlich abgelehnter Vorgang wird
+nicht durch Umformulierung, einen anderen Ausführungsweg oder abgeschwächte
+Schutzmechanismen erneut versucht. Unabhängige zulässige Arbeiten können
+fortgesetzt werden. Eine ausbleibende künftige Plattformmeldung kann nicht
+garantiert werden.
+
+Ein beim anschließenden Lesen aufgetretener Sandbox-Startfehler betrifft einen
+schreibgeschützten Mountpunkt. Die erforderlichen reinen Lesezugriffe wurden
+über die konfigurierte automatische Freigabeprüfung genehmigt. Dieser lokale
+Fehler wird getrennt von der gemeldeten Security-Unterbrechung geführt;
+Schutzkonfigurationen wurden nicht verändert. Die Abnahmekriterien bleiben
+vollständig bestehen, offene Prüfungen erhalten keinen Erfolgsstatus.
+
 ## Aktuelles Image cacbf0d: vollständige Restmatrix
 
 Image: `cacbf0d4ccf400155254ed84d0045244a1e4f6a2`, Profil:
