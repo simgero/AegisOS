@@ -8,6 +8,33 @@ weder eine ganze T-Zeile noch ein D-Kriterium. Historische Ergebnisse stehen im
 [Arbeitsprotokoll](phase-1-acceptance-progress.md); sie gelten hier nicht
 automatisch für das aktuelle Image.
 
+## Aktueller Lauf b832d6c: Paketautorisierung
+
+Der aktuelle Image-Commit ist
+`b832d6c077baeee4324e00d00dc3618372f3e9d9`, das Profil
+`1943dcb7-d438-48de-8e62-d9967b32b9b2`. Seine Nachweise liegen unter
+`out/phase1-dod/b832d6c-base/`. Die folgende Übersicht betrifft ausschließlich
+T13 auf diesem Image; sie übernimmt keine bestandenen Varianten aus älteren
+Images. T13 als Ganzes sowie D1–D7 bleiben offen.
+
+| Aktion/Bereich | Gültige Freigabe und Ausführung | Ohne Adminauswahl | Falsches Adminpasswort | Nicht-Adminfreigabe |
+| --- | --- | --- | --- | --- |
+| `install all` | belegt | belegt | belegt | belegt |
+| `install user` | belegt für Alpha | offen | offen | offen |
+| `update all` | offen | offen | offen | offen |
+| `update user` | offen | offen | offen | offen |
+| `remove all` | belegt, beide Benutzer aktiviert | offen | offen | offen |
+| `remove user` | belegt für Alpha, expliziter Rückfall | offen | offen | offen |
+
+Die gültigen Varianten sind an `shared-u3-activation-proof.json`,
+`private-u4-activation-proof.json`, `shared-remove-both-proof.json` und
+`private-remove-fallback-proof.json` gebunden; die jeweiligen vollständigen
+Prüfsummen und Grenzen stehen in den b832d6c-Abschnitten unten. Die drei
+Installationsablehnungen bindet `install-all-denials-proof.json`, SHA-256
+`a1f4ec9b17bebf4a8d343545ddf8bea70c22d59d16d51ca1ec40b71e1c6ed915`.
+Die Eigentümerzuordnung bei abweichendem Antragsteller/Admin und die übrigen
+T13-Varianten müssen gesondert vervollständigt werden.
+
 ## Bisheriger Referenzlauf und Statusregeln
 
 - Produkt-/Image-Commit: `209278def7d5bc5612eeb397bdd8ee20ccb16d86`.
@@ -986,6 +1013,43 @@ tritt auf diesem geprüften Startpfad mit erhaltenen Werkswurzeln nicht auf.
 Verweigerte Freigaben, Updates, Transaktionsfehler und die übrigen Pflichtfälle
 bleiben eigenständig offen; D6 und die gesamte Phase 1 sind weiterhin nicht
 abgenommen.
+
+### b832d6c: drei verweigerte Freigaben für gemeinsame Installation
+
+Beta beantragte jeweils einen neuen konkreten Plan für die gemeinsame
+Installation von jq 1.7.1-6+deb13u3. Leere Adminauswahl, ein falsches
+Alpha-Passwort und Betas korrektes Nicht-Adminpasswort führten jeweils zu
+einer ausdrücklich fehlgeschlagenen Veröffentlichung. Die falsche
+Passwortbestätigung wurde ausdrücklich von AOSP abgewiesen.
+
+Nach jedem Fall wurde Betas gültige Sitzung unabhängig abgefragt. Die
+vollständigen Zustandsaufnahmen vor/nach jedem Versuch zeigen identische
+Paketgenerationen, Paketdatenbanken, Kontexte, Benutzer, Vordergrund und
+CE-Zustände; keine Paketgruppe bleibt aktiv. Gamma ist weiterhin CE-gesperrt.
+Der Nicht-Adminfehler enthält weiterhin den generischen Hinweis auf erneute
+Anmeldung. Dieser Hinweis wird nicht als tatsächlicher Sitzungsverlust
+interpretiert: Die anschließende Statusabfrage bestätigt Beta als angemeldet.
+
+| Variante | Lokaler Nachweis | SHA-256 |
+| --- | --- | --- |
+| Ohne Adminauswahl | `install-all-cancel-proof.json` | `1b57a33595cbf46f52a61d4abef05b72969fca059c074b6e12728dc1e19e67fb` |
+| Falsches Adminpasswort | `install-all-wrong-proof.json` | `24474aed23810926b82c5f36c0ec4e2ada984a3c2610e8182c211d776e8ccb16` |
+| Nicht-Adminfreigabe | `install-all-nonadmin-proof.json` | `512cce099e8b62a860c86216929241208b1271927e9dbcf1e431efe08a32245a` |
+
+Der Sammelnachweis `install-all-denials-proof.json` bindet alle 396 bisherigen
+Ereignisse, die drei Einzelbelege und die zum Image bytegleichen Prüfstellen
+für CLI-Argumente, einmalige Planfreigabe und AOSP-Adminprüfung. Sein SHA-256
+ist `a1f4ec9b17bebf4a8d343545ddf8bea70c22d59d16d51ca1ec40b71e1c6ed915`.
+Die Ereignisse sind zusätzlich unverändert als
+`install-all-denials-events-original.json` gesichert.
+
+Die drei CLI-Aktionen ohne Bereich und ein zusätzlicher `--owner 10`-Parameter
+wurden jeweils unmittelbar vor einer Planerstellung abgewiesen. Diese vier
+konkreten Parserfälle sind ebenfalls gebunden; ihre Zustandsaufnahmen umfassen
+zusätzlich den ersten abgebrochenen Plan. Das unbekannte CLI-Eigentümerargument
+ersetzt keinen vollständigen Test fremder Binder-Aufrufer oder manipulierter
+Identitäten. Die anderen fünf Aktions-/Bereichskombinationen benötigen weiterhin
+ihre eigenen fehlenden Ablehnungsvarianten.
 
 ### Historische Restliste des Referenzlaufs 209278de
 
