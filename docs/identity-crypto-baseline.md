@@ -1,15 +1,23 @@
 # Passwort- und Verschlüsselungsgrundlage
 
-Stand: 3. Oktober 2026. Der aktuelle Korrekturlauf verwendet das Image
+Stand: 4. Oktober 2026. Der unten dokumentierte frühere Korrekturlauf verwendet das Image
 `f098f439f051c34e92fb1be0b4d908cc542358ea`, AOSP `android-16.0.0_r1` und den
 gepinnten Android-16-Kernel 6.12.18 mit dokumentierten AEGIS-Anpassungen.
 Die AEGIS-Anbindung delegiert Authentifizierung und Schlüsselverwaltung an
 AOSP. Sie implementiert keine eigene KDF, Passwortdatenbank oder CE-Schlüsselablage.
 
+Der aktuelle Abnahmelauf verwendet inzwischen
+`b832d6c077baeee4324e00d00dc3618372f3e9d9`; seine Teilnachweise stehen im
+[Ergebnisindex](phase-1-result-index.md). Die folgenden Quell- und
+Konfigurationsbelege behalten ihre ausdrücklich angegebenen Imagebindungen.
+Ihre vollständige Zuordnung zum aktuellen Image bleibt vor D7-Abschluss zu
+prüfen; frühere Beobachtungen werden nicht automatisch als aktuelle übernommen.
+
 Die [Server-Teilabnahme](server-acceptance.md) belegt Anmeldung, Passwortwechsel,
 CE-Fehlerwiederanlauf und gepaarte Persistenz bereits im Image `c526571`.
-Die unten beschriebenen AOSP-Dateien sind im aktuellen Checkout gelesen und
-mit SHA-256 dokumentiert; die aktuelle Gastkonfiguration ist separat beobachtet.
+Die unten beschriebenen AOSP-Dateien sind im jeweils bezeichneten Checkout
+gelesen und mit SHA-256 dokumentiert; die zugehörige Gastkonfiguration ist
+separat beobachtet.
 Die [vollständige Phase-1-Abnahme](phase-1-acceptance-progress.md) bleibt offen.
 
 Ein lokaler [Plattformtest](identity-platform-test.md) bestätigt Passwortprüfung,
@@ -17,6 +25,28 @@ Passwortwechsel und CE-Sperre für einen persönlichen AOSP-Benutzer. Er prüft
 den neuen AEGIS-Adapter nicht. Ein separater [Persistenztest](persistent-qemu.md#tatsächlicher-neustarttest)
 bestätigt inzwischen den Erhalt passwortgeschützter Daten nach einem geordneten
 vollständigen Neustart.
+
+## Aktuelle statische Quellbindung auf b832d6c
+
+Die vier unten beschriebenen AOSP-Dateien `SP800Derive`, `SecureRandomUtils`,
+`SyntheticPasswordCrypto` und `SyntheticPasswordManager` sind nun gegen den
+gespeicherten Build von `b832d6c` geprüft. Das Buildmanifest pinnt
+`frameworks/base` auf `99b01a65cc4c104933788b3143285ab6bae65827`.
+Die ersten beiden Dateien stimmen unmittelbar mit dieser Revision überein;
+bei den beiden vorbereiteten Synthetic-Password-Dateien stimmen sowohl die
+Upstream-Eingangsprüfsummen als auch die gespeicherten Build-Ausgangsprüfsummen.
+Alle vier Dateien sind bytegleich zum nachfolgend dokumentierten f098f43-Stand.
+
+`out/phase1-dod/b832d6c-base/crypto-source-continuity.json`, SHA-256
+`ebdd238a56a9189ea3c02bedd5610f372c65871ee5e81024d0b8fb74f9ac8774`,
+bindet diese Vergleiche an das gepinnte Manifest, das vorbereitete
+Quellmanifest, den erfolgreich verifizierten Build und den AVB-Beleg des
+aktuellen vorbereiteten Images. Das bestätigt die Kontinuität der beschriebenen
+kryptographischen Implementierungen. Es ist ein statischer Teilnachweis ohne
+Gastaktion; Passwörter oder Schlüssel wurden nicht gelesen. Historische
+Gastkonfigurationen, Passwort-, Lösch- oder Neustarttests werden dadurch nicht
+zu aktuellen Integrationsnachweisen. Die übrigen Identitäts- und
+Passworttransportdateien benötigen ihre eigene aktuelle Zuordnung.
 
 ## Quellbindung und Gastzuordnung auf f098f43
 
@@ -96,7 +126,7 @@ im verwalteten Speicher existierten. T01.5 bleibt offen.
 
 ## Beobachtete Konfiguration auf f098f43
 
-Der zweite Boot desselben aktuellen Profils bestätigt erneut FBE, den Zustand
+Der zweite Boot desselben f098f43-Profils bestätigt erneut FBE, den Zustand
 `encrypted` und aktivierte Metadatenverschlüsselung. Die installierte
 `/vendor/etc/fstab.cf.f2fs.hctr2` hat weiterhin SHA-256
 `50ff9f6fa265b68b4e392e892e98f4eafe3574e656f92ecd8856b74c83a71677`;
