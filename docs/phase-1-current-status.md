@@ -65,8 +65,15 @@ privater u4-Kontext und ursprünglicher Prozess unverändert erhalten bleiben.
 Betas Originaldatei/Konfiguration bleiben bytegleich; seine alten flüchtigen
 Testdateien und POSIX-Queues fehlen. Damit ist der gültige Versionsfall in
 beiden gleichzeitig bestehenden Kontexten belegt. Ungültige Versionen und
-private Entfernung in T15, Paketautorisierungsmatrix, Logout/VM-Neustart,
-übrige T05-Varianten und D1–D7 bleiben offen.
+private Entfernung in T15 und die Paketautorisierungsmatrix bleiben offen.
+Die Bildschirmsperre ist inzwischen separat geprüft: offener GNU-Kanal
+widerrufen, Start/Shell auch nach Aufwecken abgewiesen, beide ursprünglichen
+Kontexte und CE erhalten. Erst frische AOSP-Anmeldung erlaubt wieder GNU.
+Betas anschließender direkter Logout beendet seinen ursprünglichen Prozess
+und Init, entfernt den Kontext und sperrt CE; seine Originaldatei liefert
+keine Bytes, während Alpha unverändert weiterläuft. Rücklesung nach erneuter
+Anmeldung, vollständige Logout-Ressourcen-/Konkurrenzfälle, AOSP-Ressourcenstopp,
+VM-Neustart, übrige T05-Varianten und D1–D7 bleiben offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.

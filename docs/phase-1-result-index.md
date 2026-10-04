@@ -425,6 +425,54 @@ Entfernung bleiben erforderlich. Private Paketzugriffe, vollständiger
 Ressourcenabbau, Logout, VM-Neustart und die übrige Matrix bleiben offen.
 Alle D1–D7 bleiben offen.
 
+## ec01e5fa: Bildschirmsperre und direkter Beta-Logout
+
+Bei offener Beta-GNU-Shell widerruft die angeforderte Bildschirmsperre den
+Terminalkanal. Die CLI meldet `terminal=unauthenticated`; `linux start` und
+`linux shell` werden abgewiesen. Beide ursprünglichen Hintergrundprozesse
+schreiten bei `mWakefulness=Asleep` mit unveränderten Identitäten und
+Namespaces fort. Die vollständige Zustandsaufnahme bestätigt unveränderte
+Kontexte, Paketbestände, Generationszuordnungen, Boot-ID, SystemServer und
+CE `[0, 10, 11]`. Die Bildschirmsperre wird ausdrücklich nicht als
+CE-Schlüsselentzug gewertet.
+
+Nach dem Aufwecken bleiben Terminalstatus und beide Zugangsablehnungen gleich.
+Erst Betas frische AOSP-Anmeldung erlaubt wieder eine GNU-Shell im bestehenden
+Kontext, ohne `linux start`. Originaldatei und persistente Konfiguration sind
+bytegleich. Nach Shell-Exit ist derselbe Beta-Prozess `28430/933379`, intern
+PID 51, weiterhin aktiv und Android meldet `Awake`.
+
+Der direkte `logout` ohne vorherigen Runtime-Stopp meldet am 4. Oktober um
+16:58:02 UTC bestätigten Benutzerstopp, CE-Sperrung und Runtime-Freigabe.
+Unabhängige Leseprüfungen bestätigen das Ende dieses ursprünglichen Prozesses,
+des Init `28080/916284` und der Kontext-Cgroup. AOSP meldet CE `[0, 10]` und
+Vordergrundbenutzer 0. Genau die zuvor aus GNU gelesene Originaldatei ist
+nicht mehr lesbar: Exitcode 1, null Ausgabebytes und `ENOENT` beim bekannten
+CE-Pfad. Eine spätere positive Rücklesung bleibt erforderlich, um den
+vollständigen Persistenzfall abzuschließen.
+
+Alphas ursprünglicher Prozess `24890/832130` schreitet danach weiter fort;
+die abschließende Aufnahme bestätigt seinen vollständig unveränderten
+privaten u4-Kontext und unveränderte gemeinsame/private Zuordnungen. Boot-ID
+und SystemServer `1397/38796` bleiben gleich. Betas gesperrte Paketmetadaten
+werden in dieser Aufnahme nicht gelesen.
+
+Belege unter `out/phase1-dod/ec01e5fa-verity-base/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `screen-beta-logout/result.json` | `cc6bf2493c3f6aafe7ab0897bb0042729564073cea4908d12658079f1f5b6546` |
+| `screen-locked-contexts.json` | `b0f89822f5baccc42e1600ec91fae1e8ddff8a9fb61217dba51c388f35d86edc` |
+| `beta-logout-state.json` | `c38c6383531b69274f8550cfbeac00057d4455425cfb8b98c2556248915fb16d` |
+| `beta-logged-out-contexts.json` | `1a85a4edc6a166fd62683713097866931754e75385bde158ac1c56aece5c2258` |
+
+Der Offline-Prüfer bindet 239 eingefrorene Ereignisse einschließlich des
+identischen vorherigen 213-Ereignis-Stands. Belegt sind die Bildschirmsperr-
+Variante und dieser direkte Beta-Logout. Vollständiger Abbau offener Zugriffe,
+Mounts und IPC, Konkurrenzfälle, AOSP-Ressourcenstopp sowie erneute Anmeldung
+und gepaarter VM-Neustart bleiben erforderlich. T08/T10 insgesamt und alle
+D1–D7 bleiben offen.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
