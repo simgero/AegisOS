@@ -6,7 +6,42 @@ und der [Entwicklerauftrag](architecture/phase-1-developer-brief.md).
 Diese Übersicht ersetzt deren Detailanforderungen nicht. Sie verhindert,
 dass bestandene Fälle älterer Images als aktuelle Ergebnisse erscheinen.
 
-Die folgende vollständige T01–T17-Tabelle gehört weiterhin zum umfangreichen
+## Aktuelles Image cacbf0d: vollständige Restmatrix
+
+Image: `cacbf0d4ccf400155254ed84d0045244a1e4f6a2`, Profil:
+`de23866c-db95-46ed-8bbb-748c399262ca`. **T02 und T03 sind bestanden;
+D1–D7 sind weiterhin offen.** Die Varianten aus der DoD bleiben vollständig
+verbindlich. Die folgende Tabelle zählt nur Nachweise dieses Images;
+ältere Integrationsläufe werden nicht übernommen.
+
+| Bereich | Auf diesem Image belegt | Noch offen |
+| --- | --- | --- |
+| T01 | Zwei AOSP-Benutzer, getrennte Rollen, erste korrekte Logins vor/nach Reboot; altes Beta-Passwort abgewiesen; begrenzter Logscan. | Vollständiger Passwortaudit für Transport, Argumente, History, Dateien, Logs und Fehlerpfade; gesamte Identitätszuordnung. |
+| T02 | Passwortwechsel, erneute Sperrung, neues Passwort vor/nach VM-Reboot, altes abgewiesen; Originalbytes und Metadaten erhalten, AOSP-Quellpfad gebunden. | Bestanden. |
+| T03 | Interne UID/GID 1000, getrennte Host-Bereiche und sechs Namespaces; beide Wechselrichtungen erhalten die Zuordnungen. | Bestanden. |
+| T04 | Runtime-Start nach fehlgeschlagener Anmeldung bei gesperrtem CE verweigert. | Fehlende Namespaces, ungültige Mappings und weitere fehlende Sicherheitsvoraussetzungen. |
+| T05 | GNU-Zugang im eigenen HOME; Shell-Ende erhält Kontext und Sitzung. Gestoppter eigener Kontext verweigert Shell ohne impliziten Neustart. | Vollständige Ablehnung fremder/gesperrter Kontexte und Variantenabgleich. |
+| T06 | Identitäts- und Namespacebelege aus T03. | Gegenseitige Datei-, Paket-, Prozess- und IPC-Zugriffsfälle auf diesem Image; T03 ersetzt diese Tests nicht. |
+| T07 | Originaldateien und Konfiguration beider Benutzer nach gepaartem Reboot; Betas Daten nach Passwortwechsel/Kontextneustart; alte flüchtige Proben abwesend. | Private Paketpersistenz und vollständiger Vergleich aller Kontext-/VM-Neustartvarianten. |
+| T08 | Beide gewöhnlichen Wechselrichtungen mit fortschreitenden ursprünglichen Hintergrundprozessen. | Bildschirmsperre, Wechsel bei offener GNU-PTY, AOSP-Ressourcenstopp und Wiederanmeldung. |
+| T09 | Eigener Stopp beendet ursprünglichen Init und Kontextgruppe; AOSP-Sitzung/CE bleiben erhalten. Beta war dabei bereits abgemeldet. | Eigener Ressourcenabbau, erhaltene AOSP-Sitzung/CE und unbeeinträchtigter anderer Kontext in beiden Richtungen. |
+| T10 | Direkte Abmeldungen beider Benutzer, ursprüngliche Prozesse/Kontexte beendet, CE gesperrt und bekannte Dateien ohne Bytes. | Offene Zugriffe, Mount-/IPC-Abbau sowie konkurrierender Start und Vordergrundwechsel. |
+| T11 | Erfolgreiche Abmeldungen sind T10 zugeordnet. | Ausstehende/fehlgeschlagene CE-Sperrung, Wiederherstellung und Paketaktionen beim Logout. |
+| T12 | Sauberer gepaarter Stop/Start, gesperrter Startzustand und erhaltene Originaldateien. | Benutzerlöschung, Ende alter Schlüssel-/Runtime-Zuordnung und kontrollierte ID-Wiederverwendung. |
+| T13 | Gemeinsames jq u3 nach frischer Adminfreigabe veröffentlicht und bei Alpha aktiviert; Beta bleibt CE-gesperrt. | Alle sechs Aktionen/Bereiche mit erlaubter und verweigerter Freigabe sowie Aufrufer-/Eigentümer-/CE-Bindung. |
+| T14 | Gemeinsame jq-Version bei Alpha tatsächlich ausgeführt, Originaldaten erhalten. | Gemeinsame Software bei Beta/neuen Benutzern, private Änderungen und getrennte Programmeinstellungen. |
+| T15 | Gemeinsames jq/libjq1 u3 mit libonig5 tatsächlich ausgeführt; abweichender privater Versionsfall vorbereitet. | Tatsächliche unterschiedliche Versionen/Abhängigkeiten, ungültige Versionen und private Entfernung mit Rückfall. |
+| T16 | Gemeinsame Erstinstallation lässt laufenden Kontext unverändert und meldet ausstehende Aktivierung; ausdrücklicher neuer Start aktiviert exakt drei Ergänzungen. | Gemeinsames Update bei privaten Versionen, konsistente laufende/neue Kontexte und Konflikte. |
+| T17 | Noch kein vollständiger Fehler-/Parallelitätsfall auf diesem Image. | Gemeinsame/private und verschiedene Antragsteller, laufender Abbruch, Installationsfehler und Logout während Transaktion. |
+
+Der aktuelle D1-Befund bleibt insbesondere wegen des nicht vollständig
+erklärten VirtualizationService-Migrations-Aufräumstatus offen. Details und
+lokale Belegprüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
+Einzelne erfolgreiche Paketaktionen schließen keine vollständige Matrixzeile.
+
+## Einordnung der bisherigen Läufe
+
+Die weiter unten stehende ausführliche T01–T17-Tabelle gehört zum umfangreichen
 Lauf auf Image `b832d6c077baeee4324e00d00dc3618372f3e9d9`.
 Profil: `1943dcb7-d438-48de-8e62-d9967b32b9b2`.
 
@@ -118,6 +153,19 @@ Mikrosekunden betrifft verschiedene Threads. Offen bleibt Status 1 des
 VirtualizationService-Migrations-Aufräumschritts, dessen ursprüngliche
 Fehlerausgabe nicht aufgezeichnet ist. Private Paketpersistenz und die
 vollständige Abnahme des zweiten Boots bleiben ebenfalls offen.
+Die erste gemeinsame jq-Installation ist inzwischen auf cacbf0d veröffentlicht
+und in Alpha aktiviert. Der tatsächliche Plan und die GNU-Ausführung bestätigen
+jq/libjq1 `1.7.1-6+deb13u3` und libonig5 `6.9.9-1+b1`. Der laufende Kontext
+blieb bei Veröffentlichung unverändert und meldete ausstehende Aktivierung.
+Nach eigenem regulärem Stopp waren ursprünglicher Init und Kontextgruppe weg,
+während AOSP-Sitzung und CE erhalten blieben. Shell-Zugang zum gestoppten
+Kontext wurde ohne impliziten Neustart abgewiesen. Erst der ausdrückliche
+Start aktivierte genau die drei Ergänzungen zu den unveränderten 78
+Basispaketen. Originaldatei und Konfiguration bleiben bytegleich; Beta bleibt
+CE-gesperrt. Die erste reine Quellen-Leseprüfung hatte fälschlich den alten
+Pfad `sources.list` angenommen; ihr Fehler bleibt erhalten. Die spätere
+Deb822-Leseprüfung und die eigene gepinnte HTTPS-Policy des AEGIS-Planers
+sind getrennt dokumentiert. Private u4-Version und übrige Paketfälle bleiben offen.
 D1 und die vollständige DoD bleiben offen.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.

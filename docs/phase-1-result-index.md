@@ -1027,6 +1027,66 @@ Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
 | `boot2-after-readback-audit.json` | `93f2d3b1df588a3a8db10f7a359e411a82a42247afb06711a087a1c72dbc65fe` |
 | `boot2-service-review/result.json` | `c6464ce9739931d3d79468c451a4e35c162c323bbad5e3a3d9892b2190ae8879` |
 
+## cacbf0d: Gemeinsames jq u3 veröffentlicht und in Alpha aktiviert
+
+Der ursprüngliche Treiber beantragt am 4. Oktober um 22:10 UTC über Alphas
+angemeldete CLI `linux package install --scope all jq=1.7.1-6+deb13u3`.
+Vorher fehlen gemeinsame/private Paketgenerationen; Alpha besitzt unverändert
+78 Basispakete, Beta ist CE-gesperrt. Die bytegleich zum Image-Commit gebundene
+AEGIS-Paketpolicy verwendet die drei offiziellen HTTPS-Quellen für trixie,
+trixie-updates und trixie-security mit festem `signed-by`. Der tatsächliche
+Plan enthält ausschließlich jq/libjq1 `1.7.1-6+deb13u3` und libonig5
+`6.9.9-1+b1`; er ist vor der frischen AOSP-Adminfreigabe gespeichert.
+
+Die Veröffentlichung erzeugt die gemeinsame Generation
+`9eeef520c0366e2aeeb7302cab2ecd8f55e1cc88ee5d9b37d481066cf8b57236`.
+Der Vorher-/Nachhervergleich bestätigt denselben laufenden Alpha-Init
+`4492/117553`, dieselbe vollständige Paketdatenbank, Namespaces und
+private Zuordnungen. Nur die gemeinsame Auswahl ändert sich.
+`linux status` meldet ausdrücklich `packages=activation-pending`.
+Beta bleibt während des gesamten Falls CE-gesperrt.
+
+Der reguläre eigene Stopp beendet die ursprüngliche Init-Identität und
+entfernt ihre Kontextgruppe. Alpha bleibt angemeldet und CE `[0, 10]`
+entsperrt. Der anschließende Shell-Aufruf wird abgewiesen; Status vor/nachher
+bestätigt weiterhin einen gestoppten Kontext und dieselbe AOSP-Sitzung.
+Erst `linux start` erzeugt Init `5417/246350` auf dem veröffentlichten
+gemeinsamen Image. Der vollständige Paketbestand umfasst exakt die alten
+78 Pakete plus die drei geplanten Ergänzungen, ohne unvollständige oder
+verbliebene Konfigurationsdatensätze. Als automatische Pakete sind genau
+libjq1 und libonig5 aufgezeichnet.
+
+Aus dem gewöhnlichen GNU-Kontext mit UID/GID 1000 werden alle drei Versionen
+geprüft und mit jq die JSON-Berechnung 41 → 42 ausgeführt. Programm- und
+Bibliothekshashes sind gespeichert. Alphas ursprüngliche 1024-Byte-Datei und
+persistente Konfigurationsproben bleiben bytegleich. Bereits zuvor fehlende
+flüchtige Dateien belegen hier keinen zusätzlichen Bereinigungsfall.
+
+Ein Fehler der vorgeschalteten Leseprüfung bleibt ausdrücklich erhalten:
+Ereignis 151 folgt auf `cat /etc/apt/sources.list`, obwohl die geprüfte
+Debian-Basis `/etc/apt/sources.list.d/debian.sources` verwendet. Der reine
+Leseaufruf scheitert vor `apt-cache`; es gab keine Paketänderung. Der spätere
+korrekte Deb822-Read liefert keine Paketlisten für jq und wird daher nicht
+als Versionsverfügbarkeitsbeleg verwendet. Dafür gelten der konkrete
+AEGIS-Plan und die tatsächliche Programmausführung. Seit Beginn des Paketplans
+enthält der eingefrorene Abschnitt keinen neuen Treiberfehler.
+
+Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `before-shared-install.json` | `22a235e294a5f7dd20aa9b4759de61c6e4f195d01dd0e6eb323923342dfda575` |
+| `shared-jq-u3/plan-before-approval.json` | `ccabb9ff6ad72b07b4f9540f1c23a3259d709c8ab2cfefa7e556a8c972a94116` |
+| `after-shared-publish.json` | `3836a64128d54f2e62a4ec425744c4fd469ff93fc8ce2004cefcaeb2428d550c` |
+| `shared-jq-u3/stopped-context.json` | `fa5b894b26c2849aee28840847d811dd42a3630e19f0f71530066c21714f4c85` |
+| `shared-jq-alpha-active.json` | `599799f0e1af6366829409b73f1b07cef2d9619165a7180e9a398ecd36840afb` |
+| `shared-jq-u3/activation-events.json` (173 Ereignisse) | `8ec9a46a67215df1d1bf83e062ceedf1fdf4d786fc8509c1051bb1b0ef725e5a` |
+| `shared-jq-u3/result.json` | `359d5107402f62188399e6a6af545779bf3fd922f974908d3ed0255c9bbfb298` |
+
+Dies belegt nur die erlaubte gemeinsame Erstinstallation samt Aktivierung
+bei Alpha. Ein gleichzeitig laufender Peer, Betas GNU-Ausführung, die private
+u4-Version, weitere T13–T17-Varianten und D1–D7 bleiben offen.
+
 ## ec01e5fa: Originaldaten und Paketversionen nach gepaartem Neustart erhalten
 
 Der zweite Boot ist mit derselben Profil-ID und demselben Image bestätigt.
