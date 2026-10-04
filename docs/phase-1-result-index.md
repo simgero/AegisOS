@@ -622,6 +622,42 @@ Passwortversuch; ein Erfolg ohne vorherigen Fehlversuch wird hier für Beta
 nicht behauptet. Gegenseitige Zugriffsprüfungen, Logout und VM-Neustart sind
 eigene, weiterhin erforderliche Nachweise.
 
+### b832d6c: gegenseitige GNU-Datei-, Prozess- und IPC-Prüfungen
+
+Bei gleichzeitig entsperrtem Alpha und Beta werden die vorhandenen synthetischen
+Testobjekte aus beiden gewöhnlichen GNU-Kontexten geprüft. Die bekannten
+HOME-Dateien liefern über die geprüften fremden Pfade keine Bytes. Der jeweilige
+fremde Prozess ist im persönlichen Prozessraum nicht sichtbar und lässt sich
+darüber nicht anhalten. Positive Beobachtungen vor und nach jedem Versuch
+bestätigen dieselben ursprünglichen Hintergrundprozesse mit weiterlaufenden
+Zählern, unveränderten Startzeiten, Host-Zuordnungen und Namespaces.
+
+Lese- und Schreibversuche auf Konfiguration, synthetisches Test-Secret sowie
+flüchtige Dateien des jeweils anderen Benutzers werden abgewiesen. Die
+Beobachtung vergleicht die tatsächlich vorhandenen Zielbytes vorher/nachher.
+Alpha hatte seine flüchtigen Proben nach dem früheren Runtime-Neustart neu aus
+seiner unveränderten eigenen Konfiguration angelegt; dieser Schritt ist als
+neues Testsetup dokumentiert und kein Überleben der alten flüchtigen Dateien.
+Zusätzlich kann Beta Alphas vorhandene private Paketauswahl weder lesen noch
+verändern. Beta besitzt selbst keinen privaten Paketstore, weshalb dafür kein
+umgekehrter Paketnachweis behauptet wird.
+
+Beide GNU-Kontexte erzeugen eigene POSIX-Nachrichtenwarteschlangen, darunter
+eine mit identischem Namen. Jeder empfängt daraus ausschließlich seine eigene
+Nachricht; die separate Warteschlange des anderen bleibt unsichtbar.
+Die abschließende Zustandsaufnahme bestätigt gegenüber dem vorherigen
+Zwei-Kontext-Nachweis identische Benutzer-, CE-, Paket-, Kontext-, Boot- und
+Framework-Daten. Beide ursprünglichen Runtime-Kontexte bleiben aktiv.
+
+Beleg `out/phase1-dod/b832d6c-base/two-user-isolation-proof.json`, SHA-256
+`bbd0d8315cc127ca7fed6a9bb26f846af3e60d400327668ad333ea47534fd0bc`,
+bindet Ereignispräfix 151, Zielprüfsummen, Prozessbeobachtungen und die
+Zustandsaufnahme `two-user-isolation-state.json`, SHA-256
+`cf0d62dcff81e27978f3a38e7db4d137980f761ac0495ca752de9ba13d6921df`.
+Das sind konkrete gegenseitige Zugriffsprüfungen, keine vollständige Prüfung
+aller Syscalls, fehlender Startvoraussetzungen oder sämtlicher Paketvarianten.
+Logout, Reboot und die übrigen Pflichtfälle bleiben offen.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
