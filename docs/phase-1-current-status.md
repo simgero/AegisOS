@@ -59,8 +59,13 @@ bisherigen Kontext. Alpha hat anschließend eine eigene jq/libjq1-Version
 Runtime-Neustart tatsächlich ausgeführt. Sein privater Store ist an Benutzer
 10/Seriennummer 10 und die unveränderte gemeinsame Generation gebunden;
 Originaldatei und persistente Konfiguration bleiben bytegleich. Betas bisheriger
-Kontext und Prozess bleiben erhalten. Die gleichzeitige Ausführung verschiedener
-Versionen bei beiden Benutzern, Paketautorisierungsmatrix, Logout/VM-Neustart,
+Kontext und Prozess bleiben erhalten. Inzwischen hat auch Beta die gemeinsame
+u3-Version nach eigenem Stopp/Start tatsächlich ausgeführt, während Alphas
+privater u4-Kontext und ursprünglicher Prozess unverändert erhalten bleiben.
+Betas Originaldatei/Konfiguration bleiben bytegleich; seine alten flüchtigen
+Testdateien und POSIX-Queues fehlen. Damit ist der gültige Versionsfall in
+beiden gleichzeitig bestehenden Kontexten belegt. Ungültige Versionen und
+private Entfernung in T15, Paketautorisierungsmatrix, Logout/VM-Neustart,
 übrige T05-Varianten und D1–D7 bleiben offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände

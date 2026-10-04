@@ -374,6 +374,57 @@ erneuten Nachweis ihrer Bereinigung. Private Paketzugriffe, ungültige Versionen
 Entfernung, Updates, Logout und VM-Neustart bleiben erforderlich. T15 insgesamt
 und alle D1–D7 bleiben offen.
 
+## ec01e5fa: Beta führt gemeinsame u3 neben Alphas privater u4 aus
+
+Nach erneuter AOSP-Anmeldung als Beta 11/11 meldet dessen noch ursprünglicher
+Kontext `packages=activation-pending`. Der eigene reguläre Stopp beendet
+Init `7786/375190` und Hintergrundprozess `9362/429323`; eine separate
+Leseprüfung bestätigt das Ende des alten Init und der Kontext-Cgroup.
+Betas Anmeldung, Vordergrund und CE `[0, 10, 11]` bleiben erhalten. Alphas
+Prozess `24890/832130` schreitet vor und nach diesem Stopp unter derselben
+Identität und Namespace-Zuordnung fort.
+
+Betas ausdrücklicher Neustart erzeugt Init `28080/916284` und meldet
+`packages=current`. Die tatsächliche GNU-Prüfung bestätigt jq/libjq1
+`1.7.1-6+deb13u3`, libonig5 `6.9.9-1+b1` und die korrekte JSON-Berechnung
+41 → 42. Der vollständige Bestand enthält exakt die vorherigen 78 Pakete
+plus diese drei Ergänzungen: 79 manuelle Pakete, zwei automatische
+Abhängigkeiten und keine unvollständigen Restpakete. Paketdatenbank und
+Backing-Datei stimmen mit der zuvor unter Alpha geprüften gemeinsamen
+Generation überein; Beta besitzt keine private Auswahl.
+
+Alphas privater u4-Kontext bleibt in der abschließenden Zustandsaufnahme
+vollständig unverändert, einschließlich Init, Namespaces, Paketdatenbank,
+CE-Backing-Datei und privater Versionsauswahl. Gemeinsame und private
+Generationszuordnungen, Boot-ID, SystemServer und CE-Zustände bleiben gleich.
+Die beiden installierten libjq-Dateien unterscheiden sich auch tatsächlich:
+u3 hat SHA-256 `58a6c82e3cc0b55f2e11e85ffa487bd2381c4cd30068874504c639c76a3e59d6`,
+u4 `92012c8c198ed5f8e44042a124c3271e89a0a2867fc3344642d9ed391ef75f50`.
+Die GNU-Aufrufe erfolgten nacheinander in den gleichzeitig bestehenden
+persönlichen Kontexten; ein gemeinsamer Programmname oder Versionsbanner
+allein dient nicht als Versionsnachweis.
+
+Betas ursprüngliche 1024-Byte-Datei und persistente Konfigurationsproben sind
+bytegleich. Seine vor dem Stopp nachweislich vorhandenen `/tmp`-/`/run`-Proben
+und beide alten POSIX-Queue-Namen fehlen im neuen Kontext. Der neue begrenzte
+Hintergrundprozess `28430/933379`, intern PID 51, wird ausdrücklich als neue
+Probe erfasst und macht messbaren Fortschritt.
+
+Belege unter `out/phase1-dod/ec01e5fa-verity-base/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `both-versions/result.json` | `9bb954b5e7cb81cc3ea1c6aa0454bdabcb2f74496a40fd1dcec1c5fb4811aeb2` |
+| `both-versions-active.json` | `9f55e48f1b8b55e8d45f52283404638ce65d6e9146993a2db97fd89e85b9981f` |
+| `shared-u3-beta-stopped.json` | `de87f67fbbda8f3fe1f62f3ce489edd68463e2608aa98b891985ddc7ff576b02` |
+
+Der Offline-Abgleich bindet 213 eingefrorene Ereignisse einschließlich des
+unveränderten vorherigen 185-Ereignis-Stands. Dieser gültige Versionsfall
+schließt T15 nicht ab: nicht verfügbare/unauflösbare Versionen und private
+Entfernung bleiben erforderlich. Private Paketzugriffe, vollständiger
+Ressourcenabbau, Logout, VM-Neustart und die übrige Matrix bleiben offen.
+Alle D1–D7 bleiben offen.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
