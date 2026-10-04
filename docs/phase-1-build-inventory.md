@@ -148,3 +148,32 @@ Der dokumentierte Entwicklungsstart mit AOSP-Testschlüsseln und Software-TPM
 behauptet keine Hardware-Vertrauenswurzel. Ungeklärte Starthelfer-Ursachen,
 vollständige Dienststabilität über alle Pflichtfälle und sämtliche übrigen
 offenen DoD-Varianten bleiben Anforderungen. Builds und Rohbelege bleiben lokal.
+
+## Neuer Build mit misctrl-Korrektur ec01e5fa
+
+Der saubere Checkout `/srv/aegis/work/misctrl-ec01e5f-e69witqg` steht auf
+`ec01e5fa5f2822da5763ab54c644bc5c5c5ab413`. Er enthält zusätzlich die Shell-
+und misctrl-Korrekturen. Sein lokaler Vollbuild ist
+`/srv/aegis/runs/local-20261004T132131Z-ec01e5fa-Hp0Ctv`; die geprüfte
+Vorbereitung liegt unter `/srv/aegis/runs/phase1-ec01e5fa0`. Ein Profil wurde
+dort noch nicht erzeugt. Das oben dokumentierte AOSP-Manifest, Kernelbundle
+und die Debian-Basisgeneration gelten unverändert für diese Eingaben.
+
+Der konkrete Buildbefehl im genannten sauberen Checkout als `aegis-build`:
+
+```sh
+AEGIS_SCRIPT_COMMIT=ec01e5fa5f2822da5763ab54c644bc5c5c5ab413 \
+AEGIS_KERNEL_RUN=/srv/aegis/runs/kernel-20260928T170624Z-64e66d77-qW9h9L \
+AEGIS_RUNTIME_RUN=/srv/aegis/runs/runtime-base-20261003T230204Z-b832d6c0-TCF6AT \
+bash scripts/aosp/build-local.sh
+```
+
+Alle 20 Images sowie nun 18 Buildbelege einschließlich `misctrl-source.json`
+sind geprüft. Die GPT-Basis hat SHA-256
+`7f942befb9b9f0302f0d3bfb194648359d5953121c890187bcc461926611cbc0`;
+der neue AVB-Digest lautet
+`8dfbc2ec43f84eb24db0fe6d5eee09cf36315a7235ec6d664f0a374899f00af6`.
+Die tatsächliche misctrl-Binärdatei aus `system_a` des ausgelieferten
+`super.img` wurde bytegenau mit dem neu kompilierten Buildprodukt verglichen.
+Belege, Prüfsummen und Grenzen stehen im [Ergebnisindex](phase-1-result-index.md).
+Dies ist weiterhin **Build-/Imagevalidierung ohne Boot oder Gastabnahme**.

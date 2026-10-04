@@ -88,7 +88,7 @@ korrigierten Android-Service. Der folgende neue Build ist abgeschlossen;
 sein Gastnachweis bleibt erforderlich. Der b832d6c-Befund und die vollständige
 Restliste bleiben gültig.
 
-## misctrl: Exitcode-Korrektur im Quelltext, Gastnachweis ausstehend
+## misctrl: Exitcode-Korrektur gebaut, Gastnachweis ausstehend
 
 Der unveränderte AOSP-Quelltext `bootable/recovery/bootloader_message/misctrl_main.cpp`
 aus Commit `80fbea7e9af1dd883f2046e9b299d6fe45a0f693` hat SHA-256
@@ -116,10 +116,42 @@ anderen genannten Fehlerpfade bleiben nichtnullig. 4-KiB-/16-KiB-Verhalten,
 historisches Flag und ungültiger Header bleiben erhalten. Zusätzlich werden
 Quellbindung, Wiederholung und Erhalt lokaler Änderungen geprüft.
 
-Dies sind Hosttests ohne Android-Property- oder Gerätezugriff. Die Änderung
-ist noch nicht in einem neuen Android-Image gebaut oder im Gast geprüft.
-Historische Exit-1-Belege werden nicht als nachträglich bestanden umgedeutet;
-die übrigen Dienstursachen und D1 bleiben offen.
+Dies sind Hosttests ohne Android-Property- oder Gerätezugriff. Der anschließende
+ARM64-Vollbuild aus `ec01e5fa5f2822da5763ab54c644bc5c5c5ab413` liegt unter
+`/srv/aegis/runs/local-20261004T132131Z-ec01e5fa-Hp0Ctv` und endete mit
+`LOCAL_BUILD_VERIFIED`. Das Protokoll enthält tatsächliche neue Kompilierung,
+Linken und Installation von misctrl. Alle 20 Factory-Images bestanden die
+Prüfsummenprüfung. AOSP-Manifest, Kernelbundle und Debian-Basis blieben
+gegenüber dedd1da unverändert; die bestehende RAM-Prüfung bestand mit
+51,9 GiB verfügbar. Bestehende VMs mussten dafür nicht gestoppt werden.
+
+Die neue Vorbereitung `/srv/aegis/runs/phase1-ec01e5fa0` bestätigt
+AVB, Kernel-/Runtime-Eingaben, 18 Buildbelege und die GPT-Basisdisk. Ihr Status
+ist `LOCAL_BUILD_AVB_AND_DISK_VERIFIED_NOT_BOOTED`; ein neues Profil oder ein
+Gaststart gehören nicht zu diesem Nachweis. Der AVB-Digest lautet
+`8dfbc2ec43f84eb24db0fe6d5eee09cf36315a7235ec6d664f0a374899f00af6`.
+
+Die statische Prüfung extrahiert Slot-A-Partition `system_a` aus dem tatsächlich
+ausgelieferten `super.img`, ohne Mounten oder Ausführen von Android-Programmen.
+`system/bin/misctrl` und seine Init-Datei sind bytegleich zum Buildprodukt.
+Das ARM64-ELF enthält die neue Property-Fehlermeldung; sein SHA-256 lautet
+`d2b38ad21d26ffb060f42f3f5da59cdcd14b0143bc895595ddf0c5cb2b926337`.
+Quellbeleg, Image-Prüfsumme und Buildcommit sind gegeneinander abgeglichen.
+
+Die folgenden bytegleichen Kopien der Buildbelege bleiben lokal unter
+`out/phase1-dod/misctrl-status-fix/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `build-validation.json` | `62d0962fa24e675312f2c3383a813e8cb6f93182f19acf320340a5ecc5b15a1c` |
+| `misctrl-source.json` | `6f7d05667353104dc22390fcb3ed523f17bc52a65348704d817810d20709e150` |
+| `misctrl-packaged-image-proof.json` | `a9836fd430647ffbd45ddf36ceb667a53725c9c908c3ae9c3f56c45b2cd0a38c` |
+| `verification-summary.json` | `81cd47f726ff595ecae0ab56f4e4cb6f917d5f11892c9e00cd77b58e30493005` |
+
+Der Gastnachweis der Korrektur bleibt ausstehend. Historische Exit-1-Belege
+werden nicht als nachträglich bestanden umgedeutet; die übrigen Dienstursachen,
+die Shell-Regression und D1–D7 bleiben offen. Es wurden keine weiteren Gasttests
+ausgeführt und keine Builds, Profile oder Rohprotokolle hochgeladen.
 
 ## Shell-Korrektur dedd1da: gebaut und erster Systembenutzer-Boot belegt
 
@@ -187,6 +219,50 @@ Integritätsschutzes im laufenden Gast abgeleitet; der D1-Nachweis bleibt nötig
 Die Bildschirmaufnahme zeigt Hintergrund und Batterieanzeige, belegt aber
 noch keine funktionierende Eingabe. Die Zustandsaufnahme ist kein Nachweis
 langfristiger Dienststabilität oder eines vollständigen Framework-Verlaufs.
+
+### Offline-Prüfung der vorhandenen ersten Bootlogs
+
+Am 4. Oktober um 13:26 UTC wurden die vom Launcher bereits geschriebenen
+Android-/Logcat-Dateien unverändert als lokale Präfixkopien gesichert. Dafür
+wurden keine weiteren Gastbefehle ausgeführt. Die vorherige Zustandsaufnahme
+von 13:05 UTC ist gebunden, aber keine zeitgleiche neue Prozessbeobachtung.
+
+Der unveränderte Dienstprüfer findet einen SystemServer-Start mit PID 1310,
+keine Treffer seiner sechs Fatal-/ANR-Kategorien und neun Signal-Beendigungen
+mit unmittelbar vorausgehender passender Stop-/Restart-Anweisung: odsign,
+hwservicemanager, adbd und sechs idmap2d-Vorgänge. Die drei nichtnulligen
+Rückgaben bleiben `recovery-refresh=254`, `system_aconfigd_mainline_init=1`
+und `misctrl=1`. Der System-Initializer meldet ausdrücklich das Überspringen;
+der tatsächlich zuständige Mainline-Initializer endet mit 0. Der alte
+VirtualizationService-Aufräumhelfer endet auf diesem frischen Profil mit 0;
+dies erklärt den früheren Fehler auf dem anderen Profil nicht.
+
+Zusätzlich meldet der Prüfer eine rückläufige Zeitmarke. Die konkrete Stelle
+sind zwei EXT4-Mountmeldungen verschiedener Tasks, T623 und T622, in der
+Reihenfolge `216.215320` und `216.215319`: eine Mikrosekunde Differenz und
+keine Init-Dienstmeldung. Der ursprüngliche Befund bleibt erhalten. Wegen
+dieser Meldung und der drei nichtnulligen Exits lautet das Ergebnis weiterhin
+`REVIEW_REQUIRED` mit Exitcode 2; die Logs werden nicht umsortiert oder bereinigt.
+
+Die Integritätslektüre ordnet acht erzeugte dm-verity-Tabellen den erfolgreichen
+Mounts von system, system_ext, product, vendor, odm und ihren drei dlkm-Partitionen
+zu. Die Tabellen enthalten `restart_on_corruption`. Fehlgeschlagene Versuche,
+unsignierte eigenständige Footer zu laden, und der anschließende Rückgriff auf
+die vorhandenen Hashtrees für system/system_dlkm bleiben sichtbar. Der gepinnte
+`system/core`-Code liefert ohne Bootparameter `veritymode` beim Statuslesen
+`false`; der Parameter fehlt sowohl in der Vendor-Bootkonfiguration als auch
+in Zusatzkonfiguration und Kommandozeile. Die Launcherquellen stimmen mit
+dem Imagecommit überein und setzen diese Eingaben zusammen. Dies erklärt
+den protokollierten `fs_mgr_load_verity_state()`-Fehler, ersetzt aber weder eine
+aktuelle Device-Mapper-Abfrage noch einen vollständigen Integritätsnachweis.
+
+Lokale Belege unter `out/phase1-dod/dedd1da-base/offline-boot-review/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `capture.json` | `67237bbb5ccad434db18fcff77291c45a739f683ceae59d302d015897929b5d7` |
+| `service-audit.json` | `595b7ff516d7ede79c08fb62e5e675033760dc525311b23d0d8e13c8388d700c` |
+| `integrity-and-clock-review-v2.json` | `0b788814dc9a18e78af6f1be6cfae5557b2402faff15958ee826f3179ea438d5` |
 
 **Build, statische Imagevalidierung und dieser erste Boot sind Teilnachweise.**
 `shell-stopped` sowie der anschließende ausdrückliche Start und echte

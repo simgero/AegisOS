@@ -16,7 +16,11 @@ authentifiziertes ADB, SELinux Enforcing und eine Bildschirmaufnahme sind belegt
 Eingabefunktion, vollständige Dienststabilität und die Shell-Regression sind
 auf diesem Image noch nicht abgenommen. Die untenstehenden Gastbelege werden
 dadurch nicht ersetzt. Eine zusätzliche misctrl-Exitcode-Korrektur besteht
-die Hosttests, ist aber noch nicht in einem neuen Android-Image enthalten.
+die Hosttests und ist im neuen Vollbuild `ec01e5fa` enthalten. Die ausgelieferte
+Binärdatei wurde aus `super.img` bytegenau geprüft; dieses weitere Image ist
+noch nicht gebootet. Die vorhandenen dedd1da-Bootlogs sind außerdem offline
+ausgewertet, mit weiterhin prüfpflichtigen Dienstrückgaben und ausdrücklich
+begrenztem Integritätsnachweis.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 
 Die genannten Belege liegen lokal unter `out/phase1-dod/b832d6c-base/`.
