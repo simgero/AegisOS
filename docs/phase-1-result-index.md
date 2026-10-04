@@ -8,6 +8,11 @@ weder eine ganze T-Zeile noch ein D-Kriterium. Historische Ergebnisse stehen im
 [Arbeitsprotokoll](phase-1-acceptance-progress.md); sie gelten hier nicht
 automatisch für das aktuelle Image.
 
+Die [aktuelle Restliste für alle 17 Pflichtbereiche](phase-1-current-status.md)
+ordnet den Stand von `b832d6c` einschließlich seiner verbleibenden Lücken zu.
+Die weiter unten stehende ältere T01–T17-Tabelle gehört weiterhin zum
+historischen Referenzimage `209278de`.
+
 ## Aktueller Lauf b832d6c: Paketautorisierung
 
 Der aktuelle Image-Commit ist
