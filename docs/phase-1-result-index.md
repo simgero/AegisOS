@@ -597,6 +597,31 @@ ihres Entfernens. Gleichzeitiger Betrieb beider Benutzer, Hintergrundprozesse,
 Logout, Reboot, vollständige Autorisierungsmatrix und die tatsächliche
 Entfernungsregression sind hiermit nicht abgenommen. Phase 1 bleibt offen.
 
+### b832d6c: Beta mit gemeinsamer Version, Alpha im Hintergrund
+
+Nach dem regulären Wechsel mit AOSP-Passwortprüfung startet Beta seinen eigenen
+GNU-Kontext und führt die gemeinsame jq/libjq1-Version `1.7.1-6+deb13u3` aus.
+Alphas privater u4-Kontext bleibt vollständig unverändert. Beide Bestände
+umfassen 81 Pakete; Beta besitzt keine private Paketauswahl. Seine ursprüngliche
+Datei und Konfiguration werden erstmals aus der eigenen GNU-Shell angelegt.
+
+Alphas vorher gestarteter, auf 7200 Sekunden begrenzter GNU-Hintergrundjob
+behält über den Wechsel Host-PID `8209`, Startzeit `560968`, Host-UID `1007500`
+und alle sechs Namespace-Identitäten. Sein Zähler steigt nach dem Wechsel
+weiter. Betas eigener Job läuft unter Host-PID `9681`, Startzeit `596231`
+und Host-UID `1107500`, mit anderen Namespace-Identitäten. Beide Kontexte
+verwenden intern UID/GID 1000. Nach Betas Shell-Ende meldet seine Runtime
+weiterhin `ready` und `packages=current`.
+
+Beleg `out/phase1-dod/b832d6c-base/beta-common-u3-two-contexts-proof.json`,
+SHA-256 `afaee50ca23c9b12a6afe747a0a657a5212b6f6839b8fc0ad8f617793ede7e6d`,
+bindet Ereignispräfix 100, die positiven Prozessbeobachtungen und die
+Zustandsaufnahme mit unveränderter Boot-/Framework-Identität und CE `[0,10,11]`.
+Betas erste korrekte Anmeldung folgt dem früheren ausdrücklich falschen
+Passwortversuch; ein Erfolg ohne vorherigen Fehlversuch wird hier für Beta
+nicht behauptet. Gegenseitige Zugriffsprüfungen, Logout und VM-Neustart sind
+eigene, weiterhin erforderliche Nachweise.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
