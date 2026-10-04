@@ -237,6 +237,40 @@ gepaarten VM-Neustart ab. **D1–D7 und alle übrigen offenen Pflichtfälle blei
 erforderlich.** Testpasswörter bleiben ausschließlich im ursprünglichen
 Treiberprozess; Profile und Rohprotokolle werden nicht veröffentlicht.
 
+## ec01e5fa: gegenseitige Datei-, Prozess- und POSIX-Queue-Prüfungen
+
+Im selben Profil bestehen die folgenden konkreten T06-Teilfälle aus den
+gewöhnlichen GNU-Prozessen beider Benutzer, bei gleichzeitig entsperrtem CE
+`[0, 10, 11]`:
+
+| Prüfumfang | Beobachtetes Ergebnis in beiden Richtungen |
+| --- | --- |
+| Originaldatei über CE-, HOME- und Prozesswurzelpfad | Lesezugriffe abgewiesen, keine fremden Bytes; eigener Originalinhalt weiterhin bytegleich |
+| Fremder Testprozess | Im persönlichen `/proc` nicht erreichbar; SIGSTOP abgewiesen; derselbe Peer mit gleicher PID/Startzeit vor und nach dem Versuch fortschreitend |
+| Konfiguration, synthetische Test-Secret-Datei, `/tmp`, `/run/user/1000` | Je sechs vorhandene Peer-Pfade über Prozesswurzel beziehungsweise CE geprüft; Lesen und Anhängen abgewiesen; sämtliche ursprünglichen Peer-Bytes unverändert |
+| POSIX-Mqueues | Beide Benutzer legen denselben Queue-Namen mit unterschiedlichen Nachrichten sowie eigene benannte Queues an; jeder liest seine eigene Nachricht, Öffnen der fremden Queue scheitert mit ENOENT |
+
+Die persönlichen Proben wurden zuvor aus GNU angelegt. Entwicklungs-root
+bestätigt ausschließlich Existenz, Inhalt und Prozessfortschritt der positiven
+Kontrollen; die tatsächlich abgewiesenen Zugriffe stammen jeweils aus dem
+anderen gewöhnlichen GNU-Kontext. Die beiden ursprünglichen Hintergrundjobs
+bleiben `6797/343464` und `9362/429323`. Die abschließende unabhängige Aufnahme
+bestätigt identische Runtime-Inits, Namespaces, Host-Zuordnungen, CE-Liste,
+Paketmetadaten, Boot-ID und SystemServer gegenüber dem Ausgangsstand.
+
+Der lokale Nachweis
+`out/phase1-dod/ec01e5fa-verity-base/reciprocal-isolation/result.json`, SHA-256
+`ba5d77e12a8df6364b7099076ee5641cbf973cae9f4fc4f050e38b456233306a`,
+bindet 127 eingefrorene Treiberereignisse sowie die Prüfer- und Belegquellen.
+Die Nachheraufnahme `two-user-after-isolation.json` hat SHA-256
+`62d7f4d62154474b92a80259ff6c8c3351fa62012c82d885b8633f90a6218afb`.
+
+**T06 und D5 insgesamt bleiben offen.** Private Paketstores fehlen auf diesem
+Image noch und zählen nicht als geprüfte Paketisolation. Die IPC-Aussage gilt
+für die ausgeführten POSIX-Queue-Fälle, nicht pauschal für jede Schnittstelle.
+Logout, Schlüsselentzug, Ressourcenabbau und VM-Neustart wurden in diesem
+Durchgang nicht geprüft. Sämtliche weiteren DoD-Pflichtfälle bleiben bestehen.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256

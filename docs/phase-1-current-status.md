@@ -44,8 +44,12 @@ bestanden: beide internen UID/GID 1000, vollständig getrennte Host-Bereiche,
 sechs getrennte Namespaces und erhaltene Prozessidentitäten bei beiden
 Wechselrichtungen. Zwei gemeinsame Zustandsaufnahmen bestätigen unveränderte
 Kontexte und CE `[0, 10, 11]`; Alphas ursprüngliche Dateien/Konfiguration sind
-nach Rückkehr bytegleich. Die übrigen T05-Varianten, vollständige gegenseitige
-Zugriffsmatrix T06, Paket-/Logout-/Neustartabläufe und D1–D7 bleiben offen.
+nach Rückkehr bytegleich. Gegenseitige Zugriffe auf Originaldateien,
+Konfiguration, synthetische Test-Secrets, flüchtige Dateien, Testprozesse und
+POSIX-Mqueues sind inzwischen aus beiden gewöhnlichen GNU-Kontexten geprüft:
+abgewiesen, Peer-Inhalte unverändert, ursprüngliche Prozesse weiter aktiv.
+Private Paketstores fehlen noch; T06 insgesamt bleibt deshalb offen.
+Die übrigen T05-Varianten, Paket-/Logout-/Neustartabläufe und D1–D7 bleiben offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.
