@@ -719,6 +719,48 @@ Profil-ID bleibt `1943dcb7-d438-48de-8e62-d9967b32b9b2`. Der anschließende
 erneute Boot und bytegleiche Datenzugriff nach frischer Anmeldung sind gesondert
 nachzuweisen; der Shutdown allein erfüllt den Persistenzfall noch nicht.
 
+### b832d6c: gemeinsamer Neustart und ursprüngliche Benutzerdaten
+
+Android und KeyMint-Helfer starten mit demselben bestehenden Profil erneut.
+Profil-ID und Zuordnung beider Datenträger bleiben erhalten; die Boot-ID wechselt
+auf `588a5da9-c117-4953-973a-36eda11ebb0d`. Vor der ersten Anmeldung ist
+ausschließlich CE-Benutzer 0 entsperrt. Beide persönlichen Runtime-Kontexte
+fehlen und die bekannten ursprünglichen Benutzerdateien liefern keine Bytes.
+ADB verwendet die bestehende Host-Autorisierung; der erste Verbindungsversuch
+scheitert, der zweite authentifiziert sich ohne neue Hostfreigabe.
+
+Alpha und anschließend Beta melden sich jeweils beim ersten korrekten
+Passwortversuch nach diesem Neustart erfolgreich an. Vor der jeweiligen
+Passwortprüfung bleibt der Zielbenutzer gesperrt und ohne Runtime-Kontext.
+Nach regulärem Linux-Start lesen beide ihre ursprünglichen Dateien,
+Konfigurationen und synthetischen privaten Testdaten bytegleich. Die früheren
+temporären Dateien und POSIX-Warteschlangen fehlen wie erwartet.
+
+Alpha führt weiterhin seine private jq-Version `1.7.1-6+deb13u4` aus, Beta
+die gemeinsame Version `1.7.1-6+deb13u3`. Tatsächliche Programmausführung,
+Paketprüfung und der vollständige Vergleich aller jeweils 81 installierten
+Pakete bestätigen die früheren Bestände und unveränderten Paketdatenbanken.
+Beide GNU-Shells verwenden intern UID/GID 1000 bei getrennten Host-Zuordnungen
+und sechs getrennten Namespaces. Neue begrenzte Hintergrundjobs starten erst
+nach nachgewiesenem Ende der alten Prozesse; Alphas neuer Job läuft während
+des Benutzerwechsels zu Beta weiter. Ein Überleben von Prozessen über den
+VM-Neustart wird nicht behauptet.
+
+Beleg `out/phase1-dod/b832d6c-base/paired-reboot-readback-proof.json`, SHA-256
+`a058b0beba2e1ae52c6fc16f7499907cd16ddacc230767452be9931c46f7ef1f`,
+bindet Ereignispräfix 249, den geordneten Profilstopp, den gesperrten Zustand
+vor Anmeldung und beide Zustandsaufnahmen nach Anmeldung. Die abschließende
+Aufnahme `boot3-both-restored-state.json` hat SHA-256
+`3594a89d26443e5e036c05bda5a67ecf508b4c4b57167f06d42a6adf857043eb`.
+
+Damit ist für diesen Lauf die Persistenz mit unveränderten Originalpasswörtern
+belegt. Passwortwechsel, dritter Benutzer, vollständige Paket- und
+Autorisierungsvarianten einschließlich der tatsächlichen gemeinsamen
+Entfernungsregression sowie die übrigen Lebenszyklusfälle bleiben offen.
+Die Ursache des früheren f098-Logoutfehlers und die vollständige Einordnung
+der Dienstabbrüche sind weiterhin ungeklärt. Phase 1 ist nicht vollständig
+abgenommen.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
