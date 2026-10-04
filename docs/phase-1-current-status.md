@@ -62,8 +62,23 @@ und UI-Struktur bestätigen beide Schritte. Bis nach diesem Test bleiben
 Boot-ID und SystemServer unverändert, ohne neue auffällige Dienst-Rückgaben
 oder Treffer der sechs geprüften Fatal-/ANR-Marker. Der vollständige
 Referenzablauf und dessen Dauerstabilität sind damit noch nicht abgenommen.
-Die bisherigen Benutzerbelege bleiben an ec01e5fa
-gebunden. D1 und die vollständige DoD bleiben offen.
+Auf cacbf0d sind inzwischen auch zwei persönliche Benutzer über die echte CLI
+angelegt und erstmals korrekt angemeldet: Alpha `10/10` als Administrator,
+Beta `11/11` als normaler Benutzer. Beide ersten Anmeldungen gelingen ohne
+vorgeschalteten Fehlversuch und führen anschließend echte GNU-Befehle aus.
+Debian 13.7/glibc 2.41, private HOME-Strukturen und ursprüngliche Testdateien
+sind geprüft. Bei gleichzeitig entsperrtem CE besitzen beide Kontexte
+getrennte Host-Zuordnungen und sechs getrennte Namespaces. Alphas Kontext
+bleibt beim Shell-Ende und beim Wechsel zu Beta unverändert. Ein Timeout bei
+Betas zusätzlicher Hintergrundbeobachtung bleibt als unvollständige Messung
+dokumentiert; eine spätere reine Beobachtung desselben Testprozesses gelingt
+ohne Neustart. Alphas ursprünglicher Hintergrundprozess macht auch unter
+Beta weiter Fortschritt. Die Dienstaufnahme bis nach diesem Abschnitt enthält
+weiterhin dieselben drei einzeln erklärten Rückgaben und keinen zusätzlichen
+SystemServer-Start oder Treffer der sechs geprüften Fatal-/ANR-Marker.
+Die umfangreicheren Paket-, Logout- und Neustartbelege des
+älteren Laufs bleiben an ec01e5fa gebunden; sie werden nicht übernommen.
+D1 und die vollständige DoD bleiben offen.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
 Mit dieser Vorbereitung ist ec01e5fa inzwischen im eigenen Profil gebootet:

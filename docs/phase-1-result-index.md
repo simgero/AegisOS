@@ -753,6 +753,84 @@ Plattform-Sicherheitswarnung hat keinen belegten Auslöser in diesen Belegen.
 Der zuvor unterbrochene Socket-Test wird nicht automatisch wiederholt;
 unvollständige Nachweise bleiben offen und Schutzmechanismen unverändert.
 
+## cacbf0d: Zwei erste Anmeldungen und persönliche GNU-Kontexte
+
+Auf demselben zuvor ausschließlich mit Systembenutzer 0 aufgenommenen Profil
+`de23866c-db95-46ed-8bbb-748c399262ca` ist ein neuer, separater Testtreiber
+gestartet. Image bleibt `cacbf0d4ccf400155254ed84d0045244a1e4f6a2`, Boot-ID
+`f357b68f-d5ea-4168-806e-c55037daf501`, SystemServer `1299/41148`.
+Der ältere ec01e5fa-Lauf wurde dafür nicht verändert. Der Treiberquelltext
+hat SHA-256 `6c2325afc20f94cd9f4a2c99f646ff38ae46d46068f1378d931c4c8bf7daf074`.
+
+Die echte CLI legt Alpha `10/10` als ersten Administrator und mit erneuter
+AOSP-Adminfreigabe Beta `11/11` als normalen Benutzer an. Nach jeder Anlage
+bleibt der betreffende CE-Speicher gesperrt. Bei beiden ersten Anmeldungen
+ist noch vor der Passwortübermittlung getrennt beobachtet: Ziel im Vordergrund,
+CE weiterhin gesperrt, kein GNU-Kontext. Danach gelingen jeweils der erste
+korrekte Login ohne vorherigen Fehlversuch, verzögerte Sitzungsprüfung,
+ausdrücklicher Runtime-Start und tatsächliche GNU-Ausführung.
+
+Beide führen Debian 13.7/glibc 2.41 mit bash, apt, dpkg und GNU-Werkzeugen aus.
+Die anfänglichen zehn HOME-Verzeichnisse gehören intern `1000:1000` und haben
+Modus 0700. Die Basis ist schreibgeschützt; Mountsicht, SELinux-Domäne,
+leere Capability-Sätze, `NoNewPrivs=1` und Seccomp sind tatsächlich geprüft.
+Die Benutzerlisten zeigen Alpha als Administrator und Beta ohne Adminrolle.
+
+Bei CE `[0,10,11]` besitzen beide intern UID/GID 1000, aber je 1002 disjunkte
+Host-IDs ohne Host-ID 0 oder 1000 und sechs verschiedene Namespaces.
+Alphas Kontext `6156/301392` bleibt nach seinem Shell-Ende und dem Wechsel
+zu Beta unverändert; Betas Kontext lautet `8046/357440`. Der Shell-Exitcode 7
+beendet die Shell, während Alphas AOSP-Sitzung und CE erhalten bleiben.
+Alphas ursprünglicher Testprozess `6544/311909` macht auch mit Beta im
+Vordergrund Fortschritt (erste Aufnahme 16→20, spätere 655→659).
+
+Die aus den eigenen GNU-Shells erzeugten 1024-Byte-Dateien sind verschieden:
+Alpha SHA-256 `19a41a7777f8ddf48c06c3b9eb633638029fc3a8223b42d7dd33f07238f63827`,
+Beta `5dfe1ebda013056b5c66d4bc53ff1c446386cde09e9ebbb6ccff79e3e5332104`.
+Separate persönliche Konfigurationen und flüchtige Testdateien sind angelegt.
+Diese ursprünglichen Daten sind Ausgangspunkte künftiger Persistenzprüfungen;
+ihre Erzeugung allein beweist noch keinen Dateierhalt nach Neustart.
+
+Ereignis 57: Die erste zusätzliche Beta-Hintergrundbeobachtung überschritt
+ein Zeitlimit. Der Treiber nennt nur `TimeoutExpired`; genauer Unterbefehl
+und Ursache sind unbekannt. Dieser Befund ist mit dem ursprünglichen
+58-Ereignis-Präfix eingefroren und zählt nicht als bestandene Messung.
+Nach Ende der parallelen Zustandsaufnahme gelingt die reine Beobachtung
+des bereits vorhandenen Beta-Prozesses `8545/369467`, Fortschritt 194→197.
+Kein Prozess-, Treiber- oder VM-Neustart und keine Zeitlimitänderung erfolgten.
+Die zeitliche Abfolge beweist keine Ursache des ersten Timeouts.
+
+Die Offline-Auswertung friert 61 Ereignisse ein und prüft GNU-Erfolgsmarker,
+Image-/Profilbindung, Zuordnungen und Prozesskontinuität. Eine separate
+Fortschreibung der Dienstlogs enthält dieselben drei bereits einzeln
+erklärten Rückgaben, einen SystemServer-Start und keine Treffer der sechs
+Fatal-/ANR-Marker. Frühere Logaufnahmen sind bytegleiche Präfixe. Ein Scan
+findet keines der vollständigen generierten Testpasswörter in drei lokalen
+Bootlogs; dies ersetzt keinen vollständigen T01-Offenlegungsnachweis.
+
+Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `initial-users/result.json` | `b774cf0bbcf90db872ef6afd198cc42ef73020e1d82015d778888f06a2d2c018` |
+| `initial-users/events.json` | `bcceae22f651d5fe85a4979781d6cb7ae04f9edb17ed284ca8dcaeb81495fc2b` |
+| `alpha-initial-state.json` | `c3549976ad28c1c1029c726e2512c594fe6953816d19632d63a6ffd5869ec687` |
+| `both-initial-state.json` | `5b98c08e5dbc8d95698ed29fa8d612f5ac747935a959916b1e761c7e58b8f3d8` |
+| `beta-observer-timeout/result.json` | `74a950b1b386c3f8cf0024f5c87cf31b038ff6eae56dce25fb87c5564f3905b7` |
+| `beta-observer-timeout/later-observation.json` | `dd2792ad972354a0c88e34e9f0f6a294d4a600d59c3677508d63d439dc3380eb` |
+| `initial-users/system-continuity.json` | `19db6132f8c80cfbbfcb365027c605ad7a92890fdfee56e9c4c0782f17a506f0` |
+| `initial-users/service-audit.json` | `06a2d77565310f72e5a00284d43b07fd5f4a0335a9e4e7460cb758290be98cd9` |
+
+Die Befehlsfolge entspricht den dokumentierten Erstzugängen in
+[runtime-gnu-test-driver.md](runtime-gnu-test-driver.md), ergänzt um die
+festgehaltenen persönlichen Dateiproben und Zustandsaufnahmen. Der lokale
+Offline-Verifier `record-initial-users.py` ist im Ergebnis mit Prüfsumme gebunden.
+Vollständiges T03 einschließlich Rückwechsel sowie übrige T01–T17-Varianten
+bleiben offen. Dieser Boot verwendet weiterhin Netzwerk `none`; reguläre
+Paketdownloads benötigen einen dokumentierten Start mit `--network user`.
+Paket-, Logout- und VM-Neustartbelege älterer Images werden nicht übernommen.
+D1–D7 und der vollständige Referenzablauf bleiben offen.
+
 ## ec01e5fa: Originaldaten und Paketversionen nach gepaartem Neustart erhalten
 
 Der zweite Boot ist mit derselben Profil-ID und demselben Image bestätigt.
