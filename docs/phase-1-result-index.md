@@ -21,8 +21,8 @@ Images. T13 als Ganzes sowie D1–D7 bleiben offen.
 | --- | --- | --- | --- | --- |
 | `install all` | belegt | belegt | belegt | belegt |
 | `install user` | belegt für Alpha und Beta | belegt | belegt | belegt |
-| `update all` | offen | offen | offen | offen |
-| `update user` | offen | offen | offen | offen |
+| `update all` | offen | belegt | belegt | belegt |
+| `update user` | offen | belegt | belegt | belegt |
 | `remove all` | belegt, beide Benutzer aktiviert | offen | offen | offen |
 | `remove user` | belegt für Alpha, expliziter Rückfall | offen | offen | offen |
 
@@ -35,6 +35,8 @@ Installationsablehnungen bindet `install-all-denials-proof.json`, SHA-256
 Die drei persönlichen Installationsablehnungen bindet
 `install-user-denials-proof.json`, SHA-256
 `bb052a68caf3fe05bfa0d61c76439ca976ac79385ed2ff6ce5ad978778e7b839`.
+Die sechs Update-Ablehnungen bindet `update-denials-proof.json`, SHA-256
+`bcebb573e054eb898396b122b087325f69ccb6d08d88b85556f6c3b7aaf5df35`.
 Betas gültige private Installation mit Alpha als abweichendem Administrator
 ist zusätzlich an `install-user-beta-activation-proof.json` gebunden, SHA-256
 `e03a29d00213a56fe3b280e5159f59e9aa99489881a18852d623587c5d6008ba`.
@@ -1055,8 +1057,8 @@ wurden jeweils unmittelbar vor einer Planerstellung abgewiesen. Diese vier
 konkreten Parserfälle sind ebenfalls gebunden; ihre Zustandsaufnahmen umfassen
 zusätzlich den ersten abgebrochenen Plan. Das unbekannte CLI-Eigentümerargument
 ersetzt keinen vollständigen Test fremder Binder-Aufrufer oder manipulierter
-Identitäten. Die Ablehnungsvarianten für persönliche Installation stehen im
-folgenden Abschnitt; jene für Updates und Entfernungen bleiben offen.
+Identitäten. Die Ablehnungsvarianten für persönliche Installation und Updates
+stehen in den folgenden Abschnitten; jene für Entfernungen bleiben offen.
 
 ### b832d6c: drei verweigerte Freigaben für persönliche Installation
 
@@ -1159,6 +1161,42 @@ private Pakete. Entwicklungs-root dient nur als Existenz-/Zustandsbeobachter.
 Die Image-Dateimetadaten wurden verglichen, nicht ihr vollständiger Inhalt
 gehasht. Weitere Datei-, Prozess- und IPC-Varianten haben gesonderte Belege;
 dieser Fall ersetzt weder ihre Prüfung noch die gesamte T13-Abnahme.
+
+### b832d6c: sechs verweigerte Updatefreigaben
+
+Beta beantragte jeweils einen neuen konkreten Updateplan für `all` und `user`.
+In beiden Bereichen verhinderten leere Adminauswahl, falsches Alpha-Passwort
+und Betas korrektes Nicht-Adminpasswort die Veröffentlichung. AOSP wies die
+falschen Passwörter ausdrücklich ab. Nach jeder Ablehnung bestätigte `status`
+Betas weiterhin gültige Sitzung; der generische erneute Anmeldehinweis bei
+Nicht-Adminfreigabe wird nicht als tatsächlicher Sitzungsverlust ausgegeben.
+
+Jeder gemeinsame Plan enthielt libjq1 u3 → u4 sowie je ein PCRE2-, libssl3t64-
+und OpenSSL-Provider-Update. Jeder persönliche Plan enthielt zusätzlich
+jq u3 → u4. Es waren damit tatsächlich ausstehende Paketänderungen, keine
+leeren Erfolgspläne. Keine dieser Änderungen wurde freigegeben oder veröffentlicht.
+
+| Bereich | Variante | Lokaler Nachweis | SHA-256 |
+| --- | --- | --- | --- |
+| `all` | Ohne Adminauswahl | `update-all-cancel-proof.json` | `dbe70c0dd26d73848120d5b0829e1793d4e97321832b5cc47acba988b01da5da` |
+| `all` | Falsches Adminpasswort | `update-all-wrong-proof.json` | `58bdf0a3d4c5068d5acc90baf870979228dccac78aac2aca6da4f9c433542fd0` |
+| `all` | Nicht-Adminfreigabe | `update-all-nonadmin-proof.json` | `e6ecd2e1e358f58b9e108813a4c60e9e778e93294e25587746c2a39dd9714ca5` |
+| `user` | Ohne Adminauswahl | `update-user-cancel-proof.json` | `b90907f8a200e60717a804845f2547c4ee5a11eeee882fd857d600be1fc00033` |
+| `user` | Falsches Adminpasswort | `update-user-wrong-proof.json` | `a7c8a86fbe50c75a433053db8526767454ecccf874245d6eca56b29c14909430` |
+| `user` | Nicht-Adminfreigabe | `update-user-nonadmin-proof.json` | `6eab2e5c96fe802d9d4226ef282a63544b59a42ea9edef3faeb02d0698f164da` |
+
+Der Sammelbeleg `update-denials-proof.json`, SHA-256
+`bcebb573e054eb898396b122b087325f69ccb6d08d88b85556f6c3b7aaf5df35`,
+bindet 486 Ereignisse, alle sechs Einzelbelege, deren konkrete Pläne und die
+vollständigen Zustandsaufnahmen. Elf Felder einschließlich Paketdatenbanken,
+Auswahlen, beiden Kontexten, Benutzer-/CE-Zustand und Paketgruppen sind nach
+jedem Fall identisch zum Ausgangszustand. Gamma blieb CE-gesperrt. Die Rohkopie
+liegt lokal in `update-denials-events-original.json`.
+
+Diese sechs Fälle belegen ausschließlich verweigerte Updatefreigaben vor
+Veröffentlichung. Gültige Updateausführung und Aktivierung, Abbruch während
+der Ausführung, Konflikte und Parallelität bleiben eigene offene Prüfungen.
+T13, D6 und Phase 1 sind weiterhin nicht vollständig abgenommen.
 
 ### b832d6c: begrenzte Boot-3-Dienstbeobachtung bis 07:27 UTC
 
