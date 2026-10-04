@@ -472,6 +472,60 @@ Ihre vollständige Zuordnung zum aktuellen Image und die weiteren
 Lebenszyklusfälle bleiben erforderlich. Diese Teilbelege schließen weder
 D1 noch den persönlichen Referenzablauf oder die Paketkorrektur ab.
 
+### b832d6c: zwei Benutzer und falsches Beta-Passwort
+
+Alpha `10/10` wird über `setup` als AOSP-Administrator angelegt, zunächst mit
+gesperrtem CE. Seine erste Anmeldung gelingt ohne vorherigen Fehlversuch;
+vor der Passwortübermittlung wechseln lediglich Vordergrund und Zielauswahl.
+CE bleibt bis dahin `[0]`, ein GNU-Kontext fehlt. Nach der Passwortprüfung
+bleibt die Sitzung auch in der verzögerten Statusprüfung angemeldet.
+
+Alpha legt Beta `11/11` mit eigener frischer Adminbestätigung als normalen
+Benutzer an. Die CLI listet beide Identitäten korrekt auf. Ein einzelner
+falscher Passwortversuch für Beta wird von AOSP abgewiesen; dessen Vorbereitung
+entsperrt ebenfalls nichts. CE bleibt vor und nach dem Versuch `[0,10]`.
+Anschließende `linux start`- und `linux shell`-Aufrufe werden abgewiesen und
+verlangen erneute Anmeldung. Eine unabhängige Aufnahme bestätigt fehlende
+Runtime-/Paketkontexte, keine veröffentlichten Paketgenerationen sowie dieselbe
+Boot-/Framework-Identität. Dies isoliert noch nicht die CE-Startvoraussetzung,
+weil zugleich eine authentifizierte CLI-Sitzung fehlt.
+
+Beleg `out/phase1-dod/b832d6c-base/two-users-auth-proof.json`, SHA-256
+`f56c1e18ee4a39d952acedac8834d04e77cad1027e72f311ab969c574d92e071`,
+bindet Ereignispräfix 15 und die unabhängige Zustandsaufnahme. Eine Prüfung
+findet keines der vollständigen generierten Passwörter in den sechs lokalen
+Bootlogs. Der umfassende T01-Datei-/History-/Argumentaudit bleibt offen;
+dieser Beleg enthält noch keine GNU-Ausführung oder Paketregression.
+
+### b832d6c: GNU-Ausführung und korrigierte Basispaketmarkierungen
+
+Nach erneuter regulärer Alpha-Anmeldung startet die Runtime erfolgreich.
+Die echte GNU-Shell bestätigt Debian 13.7, glibc 2.41, UID/GID 1000, HOME,
+die zehn ursprünglichen privaten Verzeichnisse und die vorgesehenen Mounts,
+Namespaces, SELinux-Domäne, fehlenden Capabilities, `NoNewPrivs=1` und
+Seccomp-Modus 2. Die gemeinsame Basis verweigert einen normalen Schreibversuch.
+
+`apt-mark showmanual` liefert genau dieselben 78 Paketnamen wie die installierte
+dpkg-Datenbank; `apt-mark showauto` bleibt leer. Damit ist die Rezeptkorrektur
+erstmals auch aus der laufenden gewöhnlichen GNU-Umgebung beobachtet. Dies
+beweist noch nicht den späteren Abgleich nach gemeinsamer Paketentfernung.
+
+Alpha erzeugt seine ursprüngliche 1024-Byte-Testdatei und getrennte Proben für
+Konfiguration, synthetisches Test-Secret sowie `/tmp` und `/run/user/1000`.
+Nach `exit 7` bleibt die AOSP-Sitzung gültig und die Runtime bereit. Unabhängige
+Aufnahmen vor und nach dem Shell-Ende stimmen in allen Feldern außer dem
+Erfassungszeitpunkt überein, einschließlich Init-PID/Startzeit `6857/241726`,
+78 Paketen, Namespaces, CE `[0,10]` und fehlenden veröffentlichten
+Paketgenerationen. Beta bleibt gesperrt. Es wurde noch kein Hintergrundjob
+gestartet; daraus folgt kein Nachweis seiner Lebensdauer.
+
+Beleg `out/phase1-dod/b832d6c-base/initial-alpha-proof.json`, SHA-256
+`ec1ce281b4fbe5721af6eade24e5b5da0b3ff6282574d6c37f9cf68845d58fc1`,
+bindet Ereignispräfix 39, beide unabhängigen Aufnahmen, ursprüngliche
+Datei-/Konfigurationsprüfsummen und den Basisbuildbeleg. Pakettransaktionen,
+Betas GNU-Kontext, gegenseitige Isolation, Logout und Reboot sind auf diesem
+Image noch auszuführen. Die vollständige DoD bleibt offen.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
