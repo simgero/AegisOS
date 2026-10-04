@@ -629,6 +629,50 @@ der Originaldaten nach diesem Ressourcenstopp stehen noch aus. Dieser Fall
 ersetzt weder gegenseitige Prüfungen zweier vorhandener privater Paketstores
 noch die vollständigen T06-/T08-/T14-Varianten. D1–D7 bleiben offen.
 
+## ec01e5fa: Beta nach dem Ressourcenstopp mit Originaldaten wieder angemeldet
+
+Nach regulärem Gamma-Logout bestätigt eine unabhängige Abfrage das Ende von
+Gammas Init `9778/214259`, den entfernten Kontext und CE `[0, 10]`. Auch Beta
+hat zu diesem Zeitpunkt keinen Kontext. Alphas Init und ursprünglicher Prozess
+bleiben erhalten. Bei Betas Auswahl als Vordergrundbenutzer bleibt sein CE
+bis zur Passwortprüfung gesperrt; die Auswahl erzeugt keine Runtime.
+
+Betas erste korrekte Anmeldung mit seinem unveränderten Passwort gelingt und
+bleibt in der verzögerten Statusprüfung gültig. Erst sein ausdrücklicher
+Runtime-Start erzeugt den neuen Init `13022/338454`. Die ursprüngliche
+1024-Byte-Datei sowie Konfiguration und synthetische Test-Secret-Datei werden
+aus der gewöhnlichen GNU-Shell bytegleich rückgelesen. jq/libjq1 u3 und libonig5
+werden mit den erwarteten Versionen geprüft, jq tatsächlich ausgeführt und
+die libjq-Prüfsumme bestätigt. Der vollständige Bestand mit 81 Paketen,
+Dpkg-Status, gemeinsamem Basisimage und privater Auswahl entspricht Betas
+Zustand vor dem Ressourcenstopp. Die gemeinsamen und Alpha-privaten
+Generationszuordnungen sind ebenfalls unverändert; Gamma bleibt gesperrt.
+
+Der neue Beta-Testprozess `13241/341788` wird erst nach bestätigtem Ende seines
+Vorgängers und positiver Originaldatenrücklesung ausdrücklich erzeugt. Dies ist
+kein Überlebensnachweis des alten Beta-Prozesses. Alpha behält dagegen seinen
+vollständigen Kontext und denselben fortschreitenden Prozess `3690/86539`.
+Boot-ID und SystemServer bleiben unverändert.
+
+| Beleg unter `out/phase1-dod/ec01e5fa-verity-base/` | SHA-256 |
+| --- | --- |
+| `beta-resource-recovery/result.json` | `961c657db93faf42997cb6b6ea7a35bf2980cd622a8f7bd83b772fab57e03214` |
+| `beta-resource-recovered-contexts.json` | `c8bf753e7349b9958c0e66f1e6b21d4858c57c41164a83d41b10bc28f93fb303` |
+| `gamma-logout-state.json` | `b588fc4dff29afac94296e68cdeb9f92edc5e6d8e3528fbd2aef2805b00eb43e` |
+
+Der Nachweis friert 347 Ereignisse ein; die ersten 324 stimmen unverändert mit
+dem Gamma-Nachweis überein. Der erste Offline-Prüfer scheiterte daran, die
+vollständigen AOSP-Benutzerlisten einschließlich `running` gleichzusetzen.
+Die Identitäten sind unverändert, aber korrekt läuft jetzt Beta statt Gamma.
+Originalprüfer und Fehlerbeleg bleiben erhalten und hashgebunden. Der korrigierte
+Abgleich prüft Identitäten sowie beide erwarteten Laufzustände ausdrücklich;
+Gastaktionen und Rohbelege wurden nicht wiederholt oder verändert.
+
+Damit ist dieser AOSP-Ressourcenstopp samt Wiederanmeldung und Originaldaten-
+rücklesung belegt. Alte flüchtige Dateien und Queues fehlten bereits vorher;
+hier entsteht kein neuer Bereinigungsnachweis. Vollständige T08-Zuordnung und
+die übrigen offenen T01–T17-/D1–D7-Anforderungen bleiben erforderlich.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
