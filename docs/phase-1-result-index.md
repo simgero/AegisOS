@@ -38,8 +38,8 @@ Kontext hat eine neue Init-Identität (PID/Startzeit `25397/3465417` statt
 Boot-ID, SystemServer, CE-Zustand, Vordergrundbenutzer, Benutzermetadaten,
 Paketauswahlen und Paketgruppen stimmen mit der Vorheraufnahme überein.
 Im an das Image gebundenen Servicecode ruft `linuxShell` vor dem Shell-Zugang
-`awaitRuntime` auf; dieser Pfad kann den Kontext starten. Eine Korrektur und
-deren Regressionstest stehen aus. **T05 ist in diesem Teilfall fehlgeschlagen.**
+`awaitRuntime` auf; dieser Pfad kann den Kontext starten.
+**T05 ist auf diesem Image in diesem Teilfall fehlgeschlagen.**
 
 Der lokale Beleg `shell-after-stop-failure-proof.json`, SHA-256
 `0d7bb898d1596118b9504a3978a9317a843bb98f79813028c9f24e352d4d2766`,
@@ -49,6 +49,17 @@ Gastaktion. Frische IPC-/Dateirücklesungen und das Ende einzelner alter
 Hintergrundprozesse sind für diesen zusätzlichen Fall nicht nachgewiesen.
 Der technische Fehler erklärt keine gemeldete Plattform-Sicherheitswarnung;
 ein solcher Zusammenhang ist nicht belegt. Rohprotokolle bleiben lokal.
+
+Die anschließende Quellkorrektur entfernt Start und Startfortsetzung aus
+`linuxShell`. Sie verlangt `READY` durch eine reine Statusabfrage unter
+derselben Zugriffssperre wie `EXEC` und prüft Zulassung und Sitzungsbindung
+erneut vor der Programmausführung. `linux start` behält seinen ausdrücklichen
+Startablauf. Der Treiber erhält den gezielten Befehl `shell-stopped` samt
+sofortiger Erkennung eines unerwarteten GNU-Prompts. Elf isolierte Hosttests
+prüfen diesen Treiberablauf; drei bestehende Ereignisaufzeichnungstests
+bestehen ebenfalls. Das ist noch kein ausgeführter Regressionstest des
+korrigierten Android-Service. Neuer Build und Gastnachweis bleiben erforderlich;
+der b832d6c-Befund und die vollständige Restliste bleiben gültig.
 
 ## Aktueller Lauf b832d6c: Paketautorisierung
 

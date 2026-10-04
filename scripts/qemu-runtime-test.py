@@ -245,13 +245,14 @@ def probe_file(operation, key):
                               'scope':'Developer-root CE test; no Linux runtime isolation claim'})
 
 
-def start_shell():
+def enter_shell():
     global shell_active
     assert not shell_active
+    assert client and client.poll() is None, 'Open the CLI first'
     os.write(master, b'linux shell\n')
-    # Read the actual initial Bash prompt; returning to aegis> is a failure.
-    # linux shell can start the same bounded reconciliation as linux start.
-    deadline = time.monotonic()+960
+    # Shell entry must not start/reconcile a stopped context. Observe both
+    # prompts so a failed negative test retains the actual terminal mode.
+    deadline = time.monotonic()+180
     while not re.search(rb'(?:\$ |# |aegis> )$', pending):
         assert time.monotonic()<deadline, 'No shell prompt observed'
         ready, _, _ = select.select([master], [], [], 1)
@@ -261,13 +262,40 @@ def start_shell():
             pending.extend(chunk)
         assert len(pending)<1024*1024
     data=bytes(pending);pending.clear();record('shell-entry',data)
-    assert not data.endswith(b'aegis> '), 'Runtime did not enter Bash'
-    shell_active=True
+    shell_active = not data.endswith(b'aegis> ')
+    return clean(data)
+
+
+def start_shell():
+    enter_shell()
+    assert shell_active, 'Runtime did not enter Bash'
     # The complete expected marker does not occur in echoed input.
     half=len(GNU_PROMPT)//2
     line="bind 'set enable-bracketed-paste off'; PS1="+shlex.quote(GNU_PROMPT[:half])+shlex.quote(GNU_PROMPT[half:])
     os.write(master,line.encode()+b'\n')
     record('gnu-prompt',until(GNU_PROMPT,20))
+
+
+def check_stopped_shell():
+    """Authenticated own-context regression; no login, STOP or START is sent."""
+    assert not shell_active and held_login is None
+    action('shell-stopped-session-before', 'status')
+    before = re.findall(r'^user=.*$', events[-1]['output'], re.M)
+    assert len(before) == 1 and 'foreground=true running=true ce=unlocked' in before[0], 'Expected an authenticated foreground session'
+    identity = re.match(r'user=(\d+) serial=(\d+) ', before[0])
+    assert identity, 'Missing personal identity'
+    stopped = f'user={identity[1]} serial={identity[2]} runtime=stopped ce=unlocked packages=not-active'
+    action('shell-stopped-runtime-before', 'linux status')
+    assert stopped in events[-1]['output'].splitlines(), 'Expected a stopped own runtime'
+    output = enter_shell()
+    assert not shell_active, 'Shell unexpectedly entered a stopped runtime'
+    assert 'Aktion nicht bestätigt. Tatsächlichen Benutzer-/Speicherzustand prüfen.' in output, 'Expected a runtime state rejection'
+    action('shell-stopped-runtime-after', 'linux status')
+    assert stopped in events[-1]['output'].splitlines(), 'Shell changed the runtime state'
+    action('shell-stopped-session-after', 'status')
+    assert re.findall(r'^user=.*$', events[-1]['output'], re.M) == before, 'Shell changed the AOSP session'
+    record('shell-stopped-rejected', {'user': int(identity[1]), 'serial': int(identity[2]),
+           'scope': 'Own authenticated stopped runtime rejected; CLI session/CE unchanged. No START sent.'})
 
 def gnu(label, command):
     assert shell_active
@@ -1167,6 +1195,7 @@ try:
                 assert not shell_active and held_login is None
                 action('cli-check',cmd[4:])
             elif cmd == 'shell': start_shell()
+            elif cmd == 'shell-stopped': check_stopped_shell()
             elif cmd == 'basic-runtime': basic_runtime()
             elif cmd == 'home-initial':
                 dirs=['Desktop','Documents','Downloads','Pictures','Videos','Music','Books','.config','.local','.cache']

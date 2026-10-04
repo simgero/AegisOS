@@ -105,6 +105,7 @@ Beendigung. Die tatsächlich gewählte Grenze steht im Startbeleg.
 | `home-change-a`, `home-retained-a` | Alpha ändert Ordner und Konfigurationsbytes; Readback nach Kontextneustart, Wechsel oder Reboot darf sie nicht zurücksetzen. |
 | `resize`, `ctrl-c` | Tatsächliche PTY-Größe mit explizitem Host-SIGWINCH sowie überlebende Shell nach Unterbrechung. Ctrl-C allein beweist nicht sämtliche Prozessgruppen-Semantik. |
 | `shell-exit`, `exit-receipt` | GNU-Exitcode 7 erreicht die CLI. Kein Benutzer-Logout. |
+| `shell-stopped` | Bei weiterhin angemeldetem Benutzer und bereits gestopptem eigenen Kontext: Shell-Zugang muss mit Zustandsfehler abgelehnt werden; Runtime bleibt gestoppt, AOSP-Sitzung und CE-Anzeige bleiben unverändert. Sendet weder Anmeldung noch `linux start` oder `linux stop`. |
 | `scan` | Suche der kompletten generierten Passwörter in den lokalen Bootlogs. Dies ist kein umfassender Informationsflussbeweis. |
 
 `gnu-checked BEFEHL` führt eine zusätzliche Prüfung im angemeldeten GNU-Kontext
@@ -149,6 +150,22 @@ Prozess und Kontext auf Abbau, fortbestehende AOSP-Sitzung und unveränderte
 CE-Liste sowie den Fortschritt des ursprünglichen anderen Jobs. Danach sind
 `linux-start`, `shell`, Persistenz-/Ephemeral-Prüfungen und gegebenenfalls
 `gnu-bg-renew-a/b` gesondert auszuführen. Das ist kein Logout-Nachweis.
+
+Vor dem erneuten `linux-start` prüft `shell-stopped` die getrennte Bedeutung
+von Start und Shell-Zugang. Der Befehl prüft zuerst die angemeldete Sitzung
+und den gestoppten Kontext, anschließend die Ablehnung und beide Zustände
+erneut. Eine fehlende Anmeldung oder eine beliebige CLI-Fehlermeldung zählt
+nicht als bestandener Fall. Öffnet sich wider Erwarten Bash, wird dies sofort
+als Fehler erfasst; der Treiber merkt sich den tatsächlichen GNU-Modus und
+sendet keine weiteren AEGIS-Statusbefehle in diese Shell. `shell-exit` kann sie
+anschließend regulär beenden. Dieser Befehl ersetzt keine Prüfung der
+flüchtigen Ressourcen oder des anderen Benutzers.
+
+Die Hosttests `tests/test_qemu_shell_entry.py` führen die tatsächlichen
+Treiberfunktionen mit künstlichen Terminalantworten aus, einschließlich der
+Promptform des dokumentierten b832d6c-Fehlers. Sie prüfen die Testauswertung,
+nicht den Android-Service. Dessen Fehlerkorrektur benötigt einen neuen Build
+und den tatsächlichen Gastlauf; der alte Abnahmefall bleibt fehlgeschlagen.
 
 ## Nachträglich angelegter dritter Benutzer
 

@@ -860,16 +860,17 @@ public final class AegisIdentityService extends SystemService {
                 if (binding == null || !binding.matches(user.id, user.serial)) {
                     throw new SecurityException("Fresh personal runtime admission is required");
                 }
-                RuntimeBrokerProtocol.StartReply started = awaitRuntime(user, binding);
-                if (requireAuthenticated() != user) throw new SecurityException("Runtime login changed");
                 try (RuntimeAdmission.Access access = admission.existing(binding)) {
                     requireRuntimeBinding(user, binding);
-                    // Recheck the same selection under the EXEC gate. Never
-                    // create a replacement if a STOP happened after await.
-                    boolean ready = started.job != 0
-                            ? runtime.start(user.id, user.serial, started.job, access.deadlineNanos()).ready
-                            : runtime.state(user.id, user.serial, access.deadlineNanos()) == RuntimeBrokerProtocol.READY;
-                    if (!ready) throw new IllegalStateException("Runtime is no longer ready");
+                    // Shell entry observes an existing context. Only linuxStart
+                    // may create/reconcile one. Keep STATUS and EXEC under the
+                    // same admission gate so a concurrent STOP cannot slip in.
+                    if (runtime.state(user.id, user.serial, access.deadlineNanos())
+                            != RuntimeBrokerProtocol.READY) {
+                        throw new IllegalStateException("Runtime is not ready; use linux start first");
+                    }
+                    access.checkCurrent();
+                    requireRuntimeBinding(user, binding);
                     // Another caller may have opened a terminal while this
                     // request waited outside admission. Recheck before EXEC.
                     if (currentTerminal.get() != null || terminals.size() >= MAX_SESSIONS) {
