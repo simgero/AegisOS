@@ -21,6 +21,9 @@ Binärdatei wurde aus `super.img` bytegenau geprüft; dieses weitere Image ist
 noch nicht gebootet. Die vorhandenen dedd1da-Bootlogs sind außerdem offline
 ausgewertet, mit weiterhin prüfpflichtigen Dienstrückgaben und ausdrücklich
 begrenztem Integritätsnachweis.
+Die Recovery-Refresh-Quellprüfung grenzt Status 254 ein, kann aber einen leeren
+Logbestand nicht von verdeckten Lesefehlern unterscheiden. Der Dienstbefund
+bleibt deshalb offen; es gibt dafür noch keinen zusätzlichen Gastnachweis.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
 Diese Vorbereitung besitzt noch kein Profil und keinen Gastnachweis.

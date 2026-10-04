@@ -317,6 +317,35 @@ Lokale Belege unter `out/phase1-dod/dedd1da-base/offline-boot-review/`:
 | `service-audit.json` | `595b7ff516d7ede79c08fb62e5e675033760dc525311b23d0d8e13c8388d700c` |
 | `integrity-and-clock-review-v2.json` | `0b788814dc9a18e78af6f1be6cfae5557b2402faff15958ee826f3179ea438d5` |
 
+### Recovery-Refresh: Rückgabecode eingegrenzt, Ursache weiter offen
+
+Die zusätzliche Quellprüfung bindet vier unveränderte AOSP-Dateien an das
+Manifest des dedd1da-Builds: Recovery-Commit
+`80fbea7e9af1dd883f2046e9b299d6fe45a0f693` und Logging-Commit
+`d78b713380007d3c0dde14712cbcbec27f491ad9`. `recovery-refresh` liest gespeicherte
+Recovery-Logs über `__android_log_pmsg_file_read` und gibt einen negativen
+Bibliothekswert unmittelbar aus `main` zurück. `-ENOENT` entspricht dabei
+dem beobachteten Prozessstatus 254.
+
+Dieser Status beweist jedoch **keinen harmlosen leeren Erststart**:
+`PmsgRead` öffnet `/sys/fs/pstore/pmsg-ramoops-0` und liefert bei Fehlern
+`-errno`. Die aufrufende Leseschleife verwirft ihren abschließenden negativen
+Rückgabewert. Wenn kein passender Eintrag den Ergebniswert verändert, liefert
+die Funktion anschließend `-ENOENT`. Fehlende passende Logs, eine fehlende
+Quelldatei und andere Lesefehler können somit zum selben Ergebnis führen.
+Zusätzlich reicht der Rotationscallback Fehler beim Schreiben weiter.
+
+Der historische Zustand von pstore ist damit nicht nachgewiesen. Für die
+Ursachenklärung fehlen Beobachtungen von Backend, Mount und verfügbaren
+Quell-/Zielpfaden zur betreffenden Bootphase; gegebenenfalls sind getrennte
+Diagnosen des Lese- und Callbackfehlers nötig. Exit 254 bleibt prüfpflichtig.
+Es wurden weder Gastbefehle ausgeführt noch Dienstverhalten oder Fehlerfilter
+verändert. D1 bleibt offen.
+
+Der lokale Beleg mit Quellkopien und Prüfsummen liegt unter
+`out/phase1-dod/dedd1da-base/offline-boot-review/recovery-refresh-source/review.json`,
+SHA-256 `b36c8a88a74f3d69f294f917bcc061e37dd80f44f0f69e7ad3e484365dade8f9`.
+
 **Build, statische Imagevalidierung und dieser erste Boot sind Teilnachweise.**
 `shell-stopped` sowie der anschließende ausdrückliche Start und echte
 GNU-Zugang müssen auf dem neuen Image ausgeführt werden. Keine bestandene
