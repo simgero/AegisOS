@@ -843,6 +843,45 @@ Damit ist dieser natürliche AOSP-Ressourcenstopp samt frischer Anmeldung und
 Daten-/Paketerhalt belegt. Die tatsächliche Paketentfernungsregression und die
 weiteren Pflichtvarianten der Gesamt-DoD bleiben offen.
 
+### b832d6c: private Entfernung mit ausdrücklichem gemeinsamen Rückfall
+
+Alpha entfernt über die reguläre CLI seine private jq-Auswahl u4. Der Plan
+kündigt ausdrücklich die gemeinsame Version u3 und den passenden Wechsel von
+libjq1 an. Nach einer AOSP-Adminfreigabe wird die Änderung veröffentlicht.
+Beide laufenden Kontexte bleiben unverändert; Alphas Status meldet ausstehende
+Aktivierung. Gemeinsame Auswahl und Betas Zustand ändern sich nicht.
+
+Der reguläre `linux stop` beendet Alphas ursprünglichen Kontext samt
+Hintergrundjob. Init `3568/82596` ist nachweislich entfernt; AOSP-Anmeldung und
+CE-Freigabe bleiben erhalten. Betas ursprünglicher Job `14422/407466` macht
+vor und nach dem Stopp sowie nach Alphas neuem Start mit unveränderter
+Identität Fortschritt.
+
+Nach `linux start` führt Alpha jq u3 mit libjq1 u3 und libonig5 tatsächlich
+aus. Die Bibliotheksprüfsumme stimmt mit der gemeinsamen Version überein;
+Paketprüfung, 79 manuell gehaltene Pakete und die beiden automatischen
+Abhängigkeiten sind bestätigt. Alle 81 installierten Paketdatensätze entsprechen
+dem erwarteten Rückfall. Alphas private Auswahldatei enthält nur noch den
+Formatkopf ohne private Versionswahl; die neue private Generation
+`8837248f5da960aa110e08e1b1c9a03fa139b9fb09f84a2e93687ded4b702cb7`
+ist an die unveränderte gemeinsame Generation gebunden.
+
+Originaldatei, Konfiguration und synthetische private Testdaten bleiben
+bytegleich. Alpha erhält eine neue begrenzte Hintergrundprobe `21173/603495`;
+Betas vollständiger Kontext bleibt unverändert. Der abschließende Status
+meldet `packages=current`.
+
+Beleg `out/phase1-dod/b832d6c-base/private-remove-fallback-proof.json`, SHA-256
+`beee43d55e6b950b02318d8a4fe9fc79194d2f4351d2a00ea31d07201645c38a`,
+bindet Ereignispräfix 320, die Veröffentlichung, beide Kontextzustände und den
+separaten Nachweis des alten Prozessendes. Die aktive Zustandsaufnahme
+`private-remove-active.json` hat SHA-256
+`b1ca0173a580b95a1dbf74ac84f9bb3027b0faa91b905087bd91e5133af7a5ee`.
+Dies belegt einen gültig autorisierten privaten Entfernungsvorgang mit
+explizitem Rückfall. Verweigerte Entfernungsvarianten und die tatsächliche
+gemeinsame Entfernung einschließlich des früheren ENODATA-Startfehlers bleiben
+gesondert nachzuweisen.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
