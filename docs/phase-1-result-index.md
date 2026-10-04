@@ -96,9 +96,57 @@ Belege unter `out/phase1-dod/ec01e5fa-verity-base/`:
 | `capture-observer-termination.json` | `217386839b518b7e0524958f2af822acc543579cc57c2b07cea358342cd13f1d` |
 | `system-storage-observation.txt` | `28f313ee3a991321229ea21c8ec4dc540b544d4df0f64dd4737f4bf4e7980916` |
 
-**D1–D7 bleiben offen.** Vollständige Dienststabilität, Neustartverhalten, Shell-Regression
+**D1–D7 bleiben offen.** Vollständige Dienststabilität, Neustartverhalten
 und die vollständigen persönlichen Abläufe sind auf diesem Image noch nötig.
 Historische T01–T17-Ergebnisse werden nicht automatisch übernommen.
+
+## ec01e5fa: erste Anmeldung und eigener Shell-Zugang nach Runtime-Stopp
+
+Im selben neuen Profil wurde Alpha als AOSP-Administrator mit ID/Seriennummer
+10/10 über `setup` angelegt. Danach blieb CE `[0]`; die Ersteinrichtung wurde
+nicht als Anmeldung behandelt. Bei der ersten korrekten Anmeldung wechselte
+zunächst nur das Vordergrundziel zu 10: Vor Übermittlung des Passworts blieben
+Alphas CE gesperrt und sein Runtime-Kontext abwesend. Nach der Passwortprüfung
+war die Sitzung auch sechs Sekunden später gültig. Der ausdrücklich angeforderte
+Start und eine echte GNU-Ausführung mit UID/GID 1000 und HOME `/home/user`
+bestanden ohne vorherigen Anmelde- oder Fehlversuch.
+
+Die zehn vorgesehenen anfänglichen HOME-Verzeichnisse waren vorhanden und
+hatten jeweils Eigentümer 1000:1000 sowie Modus 700. Die GNU-Shell führte die
+Identitäts-, Datei- und Statusprüfungen aus und meldete glibc 2.41 und Debian
+13.7; Bash, APT, Dpkg und `ls` wurden als vorhandene Befehle aufgelöst. Die
+beobachtete gemeinsame Basis war schreibgeschützt; SELinux-Domäne,
+Namespace-Zuordnung, leere Capabilities, NoNewPrivs und Seccomp sind erfasst.
+Dies sind Einbenutzer-Teilprüfungen, keine vollständige gegenseitige Isolation.
+
+Der gezielte Regressionsablauf bestätigt die Shell-Korrektur:
+
+1. Eine eigene 1024-Byte-Datei wird aus GNU geschrieben und geprüft.
+2. Shell-Exit kehrt zur CLI zurück. `linux stop` beendet den ursprünglichen
+   Runtime-Init `6146/239891`; Prozess und Kontext-Cgroup sind unabhängig
+   beobachtet verschwunden. Alpha bleibt angemeldet, im Vordergrund und
+   CE-entsperrt (`[0, 10]`).
+3. `shell-stopped` sendet ausschließlich den Shell-Aufruf und Statusabfragen.
+   Der Aufruf wird abgewiesen; keine GNU-Shell und kein Kontext entstehen.
+   CLI-Sitzung und CE bleiben unverändert. Eine zusätzliche Gastbeobachtung
+   bestätigt weiterhin die fehlende Kontext-Cgroup.
+4. Erst `linux start` erzeugt den neuen Runtime-Init `6745/269408`.
+   Die folgende Shell öffnet regulär; GNU liest die ursprüngliche Datei
+   bytegleich. Die alte temporäre Probe unter `/tmp` ist verschwunden.
+
+Die Datei behält SHA-256
+`6bf04795ef31925c4798355d6aa7e286bd588fe72f9d60837546e196de1307ac`.
+Boot-ID und SystemServer `1397/38796` bleiben unverändert. Der Beleg unter
+`out/phase1-dod/ec01e5fa-verity-base/shell-regression/result.json`, SHA-256
+`dc2e760e0fb1541fa901c2ee3d9abdfa6dcb0ced04fd39ac0d06b55ba9a2f786`,
+bindet den eingefrorenen Präfix mit 37 Treiberereignissen, vier unabhängige
+Zustandsaufnahmen und den tatsächlich verwendeten Treiber-Quellhash.
+
+Damit ist **dieser eigene Stopp-/Shell-/Neustartfall auf ec01e5fa bestanden**.
+T05 insgesamt bleibt offen, insbesondere fremde/gesperrte Zielkontexte und
+die weiteren Terminalfälle. Es ist kein Logout-, VM-Reboot-, Paket- oder
+vollständiger IPC-Abbaunachweis. Sämtliche offenen D1–D7/T01–T17-Anforderungen
+bleiben bestehen; ältere fehlgeschlagene b832d6c-Ereignisse bleiben unverändert.
 
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
@@ -162,8 +210,9 @@ Startablauf. Der Treiber erhält den gezielten Befehl `shell-stopped` samt
 sofortiger Erkennung eines unerwarteten GNU-Prompts. Elf isolierte Hosttests
 prüfen diesen Treiberablauf; drei bestehende Ereignisaufzeichnungstests
 bestehen ebenfalls. Das ist noch kein ausgeführter Regressionstest des
-korrigierten Android-Service. Der folgende neue Build ist abgeschlossen;
-sein Gastnachweis bleibt erforderlich. Der b832d6c-Befund und die vollständige
+korrigierten Android-Service. Der neue Build ist abgeschlossen; der oben
+getrennt beschriebene ec01e5fa-Gastlauf bestätigt inzwischen genau den eigenen
+Stopp-/Shell-Fall. Der historische b832d6c-Befund und die übrige vollständige
 Restliste bleiben gültig.
 
 ## Verity-Status: expliziter Modus für die QEMU-Startvorbereitung

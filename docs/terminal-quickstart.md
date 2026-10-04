@@ -1,8 +1,9 @@
 # AEGIS im Terminal verwenden
 
 Diese Anleitung gilt für das lokale ARM64-Entwicklungsimage mit `managed-v1`.
-Der konkrete Start unten verwendet den am 4. Oktober 2026 geprüften Image-Commit
-`b832d6c077baeee4324e00d00dc3618372f3e9d9`. Builds und Profile bleiben auf dem
+Der konkrete Start unten verwendet Image-Commit
+`ec01e5fa5f2822da5763ab54c644bc5c5c5ab413` mit Startrezept `d9a0d30`.
+Builds und Profile bleiben auf dem
 Server. Den aktuellen Abnahmestand und seine offenen Pflichtfälle dokumentiert
 der [Ergebnisindex](phase-1-result-index.md); Phase 1 ist noch nicht vollständig
 abgenommen. Der chronologische Buildverlauf steht in
@@ -10,12 +11,11 @@ abgenommen. Der chronologische Buildverlauf steht in
 Buildartefakte und lokale Neubau-Befehle stehen im
 [Build- und Startinventar](phase-1-build-inventory.md).
 
-Das Startbeispiel ist ein historisch geprüfter Stand, nicht das neueste Image.
-Der neue Build ec01e5fa und das Startrezept d9a0d30 sind separat vorbereitet,
-aber noch nicht im Gast abgenommen; ihre Pfade und Quellbindungen stehen im
-Buildinventar. Insbesondere besitzt b832d6c einen bekannten Fehler: `linux shell`
-kann nach `linux stop` selbst wieder einen Kontext starten. Der neue Build
-enthält die Korrektur; der tatsächliche Regressionsnachweis steht noch aus.
+Auf diesem Stand sind Boot, aktive Verity-Mounts, Bildschirm, QMP-Eingabe und
+authentifiziertes ADB geprüft. Alphas erste AOSP-Anmeldung und GNU-Ausführung
+sowie der eigene Stopp-/Shell-/Neustartfall sind ebenfalls belegt. Die
+vollständige persönliche Abnahme bleibt offen. Pfade, Quellbindungen und
+Nachweisgrenzen stehen im Buildinventar und Ergebnisindex.
 
 ## QEMU und Zugang
 
@@ -47,8 +47,8 @@ Images für ein **neues eigenes Profil** verwendet werden. Im Repository
 `/home/simeongerodetti/AegisOS`:
 
 ```sh
-AEGIS_PREPARED=/srv/aegis/runs/phase1-b832d6c0
-AEGIS_PROFILE=out/qemu-profiles/server-personal-b832d6c
+AEGIS_PREPARED=/srv/aegis/runs/phase1-ec01e5fa-verity0
+AEGIS_PROFILE=out/qemu-profiles/server-personal-ec01e5fa
 AEGIS_RUN="out/phase1-interactive/$(date -u +%Y%m%dT%H%M%SZ)"
 AEGIS_UNIT="aegis-personal-$(date -u +%Y%m%dT%H%M%SZ)"
 sudo systemd-run --unit "$AEGIS_UNIT" --uid simeongerodetti \
@@ -75,8 +75,9 @@ zeigt `systemctl status "$AEGIS_UNIT"`. Für ADB den tatsächlichen Run-Pfad
 verwenden; nur beim allerersten Zugang zum neuen Profil
 `--authorize-this-host` ergänzen.
 
-Das synthetische Abnahmeprofil unter `/srv/aegis/runs/phase1-b832d6c0/profile` bleibt als
-Beleg erhalten. Seine Zufallspasswörter werden nicht ausgegeben. Das eigene
+Das synthetische Abnahmeprofil unter
+`/srv/aegis/runs/phase1-ec01e5fa-verity0/profile` und die älteren Profile bleiben
+als Belege erhalten. Ihre Zufallspasswörter werden nicht ausgegeben. Das eigene
 Profil startet ohne persönliche Benutzer; dort `setup` verwenden und eigene
 Passwörter interaktiv setzen. Gemeinsame und private Testpakete gehören zum
 Abnahmeprofil, nicht zum unveränderlichen Factory-Image.

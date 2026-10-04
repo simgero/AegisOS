@@ -1,4 +1,4 @@
-# Phase 1 – aktueller Abnahmestand b832d6c
+# Phase 1 – Abnahmestände und offene Pflichtfälle
 
 Stand: 4. Oktober 2026. **Teilabnahme; keine Gesamtfreigabe.**
 Maßgeblich bleiben die vollständige [DoD](architecture/phase-1-dod.md)
@@ -6,7 +6,8 @@ und der [Entwicklerauftrag](architecture/phase-1-developer-brief.md).
 Diese Übersicht ersetzt deren Detailanforderungen nicht. Sie verhindert,
 dass bestandene Fälle älterer Images als aktuelle Ergebnisse erscheinen.
 
-Getestetes Image: `b832d6c077baeee4324e00d00dc3618372f3e9d9`.
+Die folgende vollständige T01–T17-Tabelle gehört weiterhin zum umfangreichen
+Lauf auf Image `b832d6c077baeee4324e00d00dc3618372f3e9d9`.
 Profil: `1943dcb7-d438-48de-8e62-d9967b32b9b2`.
 
 Die Shell-Korrektur `dedd1dabc45efe080a499b3657b7ee09d2fda5a7` ist inzwischen
@@ -30,13 +31,18 @@ Mit dieser Vorbereitung ist ec01e5fa inzwischen im eigenen Profil gebootet:
 misctrl endet mit 0, alle acht aktiven Verity-Geräte samt schreibgeschützten
 Mounts sind geprüft, der authentifizierte binäre ADB-Rundlauf besteht und
 die 720-×-1280-Anzeige ist angesehen. Die separate QMP-Tastatur-/Mausprüfung
-belegt tatsächliche Navigation in den Android-Einstellungen. Persönliche
-Benutzerabläufe, Shell-Regression und vollständige Abnahme bleiben offen.
+belegt tatsächliche Navigation in den Android-Einstellungen. Alphas erste
+AOSP-Anmeldung mit GNU-Ausführung und der eigene Stopp-/Shell-/Neustartfall
+sind inzwischen ebenfalls auf ec01e5fa bestanden: Shell nach Stopp abgewiesen,
+erst ausdrücklicher Start erlaubt wieder GNU und erhält die Originaldatei.
+Die übrigen T05-Varianten, vollständigen Benutzerabläufe und D1–D7 bleiben offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.
 
-Die genannten Belege liegen lokal unter `out/phase1-dod/b832d6c-base/`.
+Die Belege der folgenden T01–T17-Tabelle liegen lokal unter
+`out/phase1-dod/b832d6c-base/`; die neuen ec01e5fa-Teilnachweise getrennt unter
+`out/phase1-dod/ec01e5fa-verity-base/`.
 Der [Ergebnisindex](phase-1-result-index.md) beschreibt Abläufe, Grenzen,
 Prüfsummen und erhaltene Fehlversuche. Seine ältere T01–T17-Tabelle gehört
 zum Image `209278de`; sie ist keine aktuelle Freigabeliste.

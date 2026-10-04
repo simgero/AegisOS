@@ -12,7 +12,7 @@ einschließlich T01–T17 und Referenzablauf bleibt verbindlich.
 | --- | --- |
 | `b832d6c077baeee4324e00d00dc3618372f3e9d9` | Letzter umfangreicher persönlicher Gastlauf. T03, T07, T08 und T14 sind diesem Image zugeordnet; weitere Bereiche besitzen Teilbelege. Bekannter Shell-Startfehler und weitere Pflichtfälle offen. |
 | `dedd1dabc45efe080a499b3657b7ee09d2fda5a7` | Shell-Korrektur gebaut; erster Boot ausschließlich mit Systembenutzer 0, ADB und Bildschirmaufnahme belegt. Vorhandene Bootlogs sind offline geprüft. Keine persönliche Abnahme dieses Images. |
-| `ec01e5fa5f2822da5763ab54c644bc5c5c5ab413` | Neuester Android-Vollbuild, zusätzlich mit misctrl-Korrektur. Erster Boot mit Systembenutzer 0, misctrl Exit 0, Bildschirm, tatsächliche QMP-Tastatur-/Mausnavigation und binärer ADB-Rundlauf belegt. Noch keine persönliche Abnahme. |
+| `ec01e5fa5f2822da5763ab54c644bc5c5c5ab413` | Neuester Android-Vollbuild, zusätzlich mit misctrl-Korrektur. Boot, misctrl Exit 0, Bildschirm, QMP-Eingabe und binärer ADB-Rundlauf belegt. Dazu Alphas erste Anmeldung/GNU-Ausführung und eigener Stopp-/Shell-/Neustartfall bestanden; persönliche Gesamtabnahme offen. |
 | `d9a0d30a48c1f745ffcc02dbcb6b4c15054e89e6` | Neueres Vorbereitungsrezept für unveränderte ec01e5fa-Images. Übergibt den bestehenden Verity-Modus ausdrücklich und lehnt deaktivierende AVB-Flags ab. Im neuen Gast sind Statusveröffentlichung und alle acht aktiven Verity-Mounts geprüft. |
 
 Die neueste Factory-Vorbereitung liegt unter
@@ -32,9 +32,9 @@ Abnahme aufgrund vorhandener Dateien oder erfolgreicher Kompilierung.
 | Nr. | Liefergegenstand und maßgebliche Ablage | Verbleibender Abschlussnachweis |
 | --- | --- | --- |
 | 1 | Projektquellen in Git; AOSP-/Kernel-/Runtime-Pins im [Buildinventar](phase-1-build-inventory.md) | Endgültigen Abnahmecommit samt Build-/Rezeptstand festlegen; bisherige Belege behalten ihre eigenen Commitbindungen. |
-| 2 | [Buildinventar](phase-1-build-inventory.md), [Terminalanleitung](terminal-quickstart.md), [Profilpaar](persistent-qemu.md) | Vollständigen Start-/Referenzablauf auf dem abschließenden Stand ausführen. Das konkrete interaktive Startbeispiel verwendet derzeit den älteren belegten b832d6c-Stand. |
+| 2 | [Buildinventar](phase-1-build-inventory.md), [Terminalanleitung](terminal-quickstart.md), [Profilpaar](persistent-qemu.md) | Startbeispiel auf ec01e5fa mit korrigiertem Startrezept aktualisiert; vollständigen Referenzablauf auf dem abschließenden Stand noch ausführen. |
 | 3 | Lokales ec01e5fa-Development-Image und separate geprüfte Vorbereitung | Erster Boot, Anzeige, Eingabe, ADB und aktive Verity-Mounts belegt; vollständige Dienststabilität und übrige D1-Anforderungen bleiben offen. |
-| 4 | [CLI-Quellen](../packages/aegis/identity/cli/org/aegisos/identity/Aegis.java), [Bedienung](terminal-quickstart.md) | Sitzungs-, Passwort-, Shell- und Paketvarianten aus T01–T17 auf dem endgültigen Image. Insbesondere die neue Shell-Korrektur ist noch nicht im Gast nachgewiesen. |
+| 4 | [CLI-Quellen](../packages/aegis/identity/cli/org/aegisos/identity/Aegis.java), [Bedienung](terminal-quickstart.md) | Eigener Shell-Zugang nach Stopp und ausdrücklichem Neustart auf ec01e5fa geprüft; übrige Sitzungs-, Passwort-, Shell- und Paketvarianten aus T01–T17 bleiben erforderlich. |
 | 5 | [AOSP-Backend](../packages/aegis/identity/src/org/aegisos/identity/AospIdentityBackend.java), [Speicherlebenszyklus](../runtime/aosp-storage-lifecycle.md) | Vollständige Anlage-/Lösch-/Seriennummern- und Wiederverwendungsfälle T01/T12; historische Löschbelege reichen nicht für ec01e5fa. |
 | 6 | [Anmelde-/Transportgrundlage](identity-crypto-baseline.md), AOSP-Backend und Terminalbindung | Alle Ziel-/Aufrufer-/Fehlerfälle und dynamischen Offenlegungsprüfungen T01; Passwortwechsel über Sperre und Neustart T02. |
 | 7 | [Persönlicher CE-Speicher](../runtime/personal-storage.md), [Kryptographie](identity-crypto-baseline.md) | Konkrete Speicherzustände, tatsächliche Datenzugriffe und bestätigter Schlüsselentzug im finalen Ablauf T07/T10–T12. |
@@ -87,8 +87,9 @@ keinen neuen Nachweis für Laufzeitkopien, Argumente, History oder Logs.
 Vor der Freigabe müssen alle sieben DoD-Kriterien, sämtliche T01–T17-Varianten
 und der zusammenhängende Referenzablauf auf dem endgültigen Stand belegt sein.
 Die [Abnahmeübersicht](phase-1-current-status.md) enthält die vollständige
-Restliste des letzten persönlichen Laufs. Zusätzlich benötigen die neueren
-Shell-/misctrl-/Startkorrekturen ihre jeweils betroffenen Gastnachweise.
+Restliste des umfangreichen b832d6c-Laufs und die neuen ec01e5fa-Teilnachweise.
+Eigene Shell-Regression, misctrl und Verity-Startkorrektur haben inzwischen
+Gastbelege; dadurch werden die übrigen Pflichtvarianten nicht abgeschlossen.
 Diese Übersicht schließt D7 nicht vorzeitig ab.
 
 GitHub enthält Quellen, Testwerkzeuge und Dokumentation. Images, mutable
