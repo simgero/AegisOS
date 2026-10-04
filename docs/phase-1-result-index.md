@@ -88,6 +88,36 @@ korrigierten Android-Service. Der folgende neue Build ist abgeschlossen;
 sein Gastnachweis bleibt erforderlich. Der b832d6c-Befund und die vollständige
 Restliste bleiben gültig.
 
+## Verity-Status: expliziter Modus für die QEMU-Startvorbereitung
+
+Die gepinnte `system/core`-Revision
+`68be0c2c0006a0740d0b1809abe4717308f90d15` behandelt einen fehlenden
+`androidboot.veritymode` unterschiedlich: `libfs_avb/avb_util.cpp` verwendet
+beim Tabellenaufbau bereits `enforcing` mit `restart_on_corruption`, während
+`fs_mgr_load_verity_state()` ohne Parameter fehlschlägt. Der Init-Aufruf
+`verity_update_state` kann dann die tatsächlichen Partitionsinformationen
+nicht veröffentlichen. Die vorhandenen dedd1da-Logs belegen beide Pfade.
+
+[prepare-server-qemu.py](../scripts/prepare-server-qemu.py) übergibt deshalb
+nach erfolgreicher AVB-Prüfung ausdrücklich `androidboot.veritymode=enforcing`.
+Zusätzlich müssen die Flags aller sechs VBMeta-Header null sein, einschließlich
+der über Footer referenzierten Boot-/Init-Boot-Header. Deaktivierte Hashtrees,
+deaktivierte Verifikation und unbekannte Flags verhindern die Vorbereitung,
+bevor Hilfsdisks oder Bootkonfiguration entstehen. Der Beleg hält gewünschten
+Modus und gelesene Flags fest. Die Signaturprüfung bleibt bei `avbtool`.
+Der Vorbereiter setzt keinen grünen Verified-Boot-Status und keinen gesperrten
+Hardware-Bootloader voraus; das dokumentierte Entwicklungs-Vertrauensmodell
+bleibt bestehen. Vorhandene Profile und ihre feste Bootconfig-Bindung werden
+nicht verändert.
+
+Fünf [Hosttests](../tests/test_server_qemu_prepare.py) bestehen, darunter
+24 Flag-/Header-Kombinationen, fehlgeschlagene Signaturprüfung, verkürzter
+Header und fehlerhafte Digest-Ausgaben. Die Fehlerfälle erzeugen keine
+Hilfsdisks oder startbare Konfiguration. Diese Tests verwenden lokale
+Attrappen und ersetzen keinen erneuten Gastnachweis: Nach künftigem Boot
+müssen Verity-Statusveröffentlichung und tatsächlich aktive dm-verity-Mounts
+gemeinsam geprüft werden. D1 bleibt offen.
+
 ## misctrl: Exitcode-Korrektur gebaut, Gastnachweis ausstehend
 
 Der unveränderte AOSP-Quelltext `bootable/recovery/bootloader_message/misctrl_main.cpp`
