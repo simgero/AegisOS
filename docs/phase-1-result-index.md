@@ -761,6 +761,61 @@ Die Ursache des früheren f098-Logoutfehlers und die vollständige Einordnung
 der Dienstabbrüche sind weiterhin ungeklärt. Phase 1 ist nicht vollständig
 abgenommen.
 
+### b832d6c: nachträglicher Benutzer und AOSP-Ressourcenstopp
+
+Gamma wird über die echte CLI mit frischer Adminprüfung als normaler Benutzer
+`12/12` angelegt. Vor der ersten Passwortübermittlung bleiben sein CE-Speicher
+gesperrt und sein Runtime-Kontext abwesend. Nach erfolgreicher Anmeldung und
+regulärem Linux-Start erhält er ein eigenes HOME mit den zehn vorgesehenen
+Verzeichnissen, jeweils Modus 0700, sowie intern UID/GID 1000 mit eigener
+Host-Zuordnung. Er führt die gemeinsame jq-Version `1.7.1-6+deb13u3` mit ihren
+passenden Abhängigkeiten aus; alle 81 Paketdatensätze entsprechen Betas zuvor
+bestätigtem gemeinsamen Bestand. Gamma besitzt keine private Paketauswahl.
+Sieben bekannte synthetische Datei-/Metadatenpfade von Alpha und Beta liefern
+aus Gammas gewöhnlicher GNU-Shell keine Bytes. Alphas private Version u4 und
+sein vollständiger Runtime-Kontext bleiben unverändert.
+
+Die ursprüngliche Erwartung von drei gleichzeitig laufenden persönlichen
+Benutzern trifft nicht zu: AOSP meldet um 02:59:23 UTC ausdrücklich vier
+laufende Benutzer einschließlich Systembenutzer und stoppt deshalb Beta.
+CE ist anschließend `[0,10,12]`; Betas ursprünglicher Hintergrundjob
+`5706/158018` und Kontext fehlen, seine Originaldatei ist unlesbar. Alphas
+Hintergrundjob `3753/102888` läuft im Hintergrund weiter. Die fehlgeschlagene
+erste Zustandsaufnahme ist in `third-user-observer-failure.json` erhalten,
+SHA-256 `9a6e85d430973cea0b51c44e28d86f8aa0001d4254ca4c297df67778c2cb1741`.
+Die nachfolgende Aufnahme verwendet den tatsächlich erklärten AOSP-Zustand.
+Aus diesem Ablauf wird kein gleichzeitiges Entsperrtsein von Beta und Gamma
+während der Zugriffsprüfungen abgeleitet. Betas erneuter Datenvergleich nach
+frischer Anmeldung steht an diesem Prüfpunkt noch aus.
+
+Beleg `out/phase1-dod/b832d6c-base/third-user-common-proof.json`, SHA-256
+`823d3554edb3a2d8a645411ee0d55d1ad76dd5e5ca616cb036796c0c32177bef`,
+bindet Ereignispräfix 268 und die Zustandsaufnahme
+`third-user-after-aosp-stop-state.json`, SHA-256
+`b679351dd4a9866bbe8cd202aa98acaeeca357b4873b465ce023f1d3a684812d`.
+
+### Korrektur der veränderlichen Testereignisse
+
+Die neue Auswertung erkannte, dass die Anlage von Gamma rückwirkend die
+Benutzerliste im Ereignis 203 (`reboot-checkpoint`) geändert hatte. Ursache ist
+eine Referenz auf das veränderliche `users`-Dictionary im Host-Testtreiber.
+Die separat gespeicherte Prüfpunktdatei ist unverändert. Der Treiber friert
+strukturierte Ereignisse nun beim Aufruf von `record` ein. Ein gezielter
+Regressionstest scheitert vor der Korrektur; danach bestehen alle drei Tests
+einschließlich Terminalbereinigung und Passwort-Echo-Abweisung. Diese Änderung
+betrifft den Host-Treiber; das getestete Gastimage bleibt `b832d6c`.
+
+Der bereits laufende Treiber wird nicht neu gestartet oder dynamisch verändert.
+Seine Originalereignisse sind in `third-user-events-original.json` eingefroren.
+`third-user-events-frozen-checkpoint.json` ist eine explizite Ableitung: Genau
+ein Ereignis verwendet den unabhängig gespeicherten, zuvor gehashten Prüfpunkt.
+Damit wird der ursprüngliche Präfix-Hash aus dem Neustartnachweis exakt
+wiederhergestellt. Der Nachweis `third-user-event-reconstruction.json`, SHA-256
+`9a5912c714203426e8728252cfdc094fd7711ce6ed152e4f66ae1d262ba740f4`,
+bindet Original, Ableitung, Änderung und frühere Prüfsumme. Der fehlgeschlagene
+erste Auswerter und sein Fehler bleiben ebenfalls erhalten. Diese Einordnung
+ersetzt keinen fehlenden Systemtest; Phase 1 bleibt teilabgenommen.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte

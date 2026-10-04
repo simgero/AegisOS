@@ -100,8 +100,11 @@ def clean(data):
     return data.decode('utf-8', errors='replace').replace('\r', '')
 
 def record(action, text):
+    # Freeze structured state now: later user creation or list updates must not
+    # retroactively change an earlier event and invalidate its evidence hash.
+    output = clean(text) if isinstance(text, (bytes, bytearray)) else json.loads(json.dumps(text))
     entry = {'action': action, 'utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-             'output': clean(text) if isinstance(text, (bytes, bytearray)) else text}
+             'output': output}
     events.append(entry)
     (OUT/'events.json').write_text(json.dumps(events, indent=2, ensure_ascii=False)+'\n')
     print(json.dumps(entry, ensure_ascii=False), flush=True)

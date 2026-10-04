@@ -46,6 +46,22 @@ Anmeldung nicht mehr verfügbar. Das synthetische Testprofil und seine
 verschlüsselten Daten bleiben trotzdem erhalten. `quit` schließt den Client
 und verwirft die Speicherpuffer; es ersetzt ausdrücklich keinen Logout.
 
+Strukturierte Ereignisse werden beim Erfassen als unabhängiger JSON-Wert
+gespeichert. Spätere Änderungen an Benutzerlisten dürfen frühere Ereignisse
+und deren Prüfsummen nicht verändern. Der Regressionstest
+`tests/test_qemu_runtime_event_snapshot.py` prüft diesen Fall einschließlich
+verschachtelter Änderungen sowie den unveränderten Umgang mit Terminalbytes
+und erkannten Passwort-Echos.
+
+Bereits laufende ältere Treiber übernehmen diese Korrektur nicht. Im
+b832d6c-Referenzlauf enthielt das frühere `reboot-checkpoint`-Ereignis eine
+Referenz auf die Benutzerliste; die spätere Anlage von Gamma änderte diese
+Liste rückwirkend. Die Originalereignisse bleiben erhalten. Eine ausdrücklich
+gekennzeichnete Ableitung verwendet den separat gespeicherten und schon vorher
+gehashten `reboot-checkpoint.json` und reproduziert damit exakt den alten
+Ereignispräfix-Hash. Das ist kein stilles Überschreiben eines Rohprotokolls;
+siehe den [Ergebnisindex](phase-1-result-index.md).
+
 ## Erster Zugang ohne Aufwärmversuch
 
 1. `open`, danach `setup`: Alpha wird über AOSP als erster persönlicher
