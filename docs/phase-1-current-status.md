@@ -82,8 +82,17 @@ Beide ersten korrekten Logins gelingen ohne vorherigen Fehlversuch; Originaldate
 und Konfiguration sind bytegleich. Alpha führt weiterhin private jq/libjq1 u4,
 Beta gemeinsame u3 aus. Vollständige Paketdatenbanken, Generationszuordnungen
 und private Auswahlen stimmen mit dem Zustand vor dem Neustart überein.
-Vollständige Logout-Ressourcen-/Konkurrenzfälle, AOSP-Ressourcenstopp,
-Benutzer C, übrige T05-Varianten und D1–D7 bleiben ebenfalls offen.
+Der nachträglich angelegte normale Benutzer Gamma führt inzwischen ebenfalls
+die gemeinsame u3-Version mit frischem privatem HOME aus. AOSP stoppt dabei
+Beta wegen des bestätigten Limits von drei laufenden Benutzern einschließlich
+Systembenutzer 0. Betas ursprünglicher Init und Testprozess enden, sein CE
+ist gesperrt; Alphas Kontext und ursprünglicher Prozess bleiben erhalten.
+Gammas geprüfte Lese- und schreibende Öffnungsversuche auf fremde Testpfade
+werden abgewiesen; Alphas Originaldateien und private Paketmetadaten bleiben
+unverändert. Beta ist während dieser Zugriffsprüfung bereits gesperrt.
+Betas Wiederanmeldung und Datenrücklesung nach diesem Ressourcenstopp,
+vollständige Logout-Ressourcen-/Konkurrenzfälle, übrige T05-Varianten und
+D1–D7 bleiben offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.

@@ -581,6 +581,54 @@ Bereinigung. Benutzer C, Passwortwechsel, Löschung/ID-Wiederverwendung,
 vollständige Logout-Ressourcen-/Konkurrenzfälle, Paketfehler-/Autorisierungsmatrix
 und sämtliche weiteren offenen Varianten bleiben erforderlich. D1–D7 bleiben offen.
 
+## ec01e5fa: Gamma nutzt gemeinsame Software; AOSP stoppt Beta wegen Benutzerlimit
+
+Am 4. Oktober wird Gamma nach erneuter AOSP-Anmeldung des Administrators Alpha
+regulär als Benutzer/Seriennummer `12/12` angelegt. Vor Gammas erster Anmeldung
+ist dessen CE noch gesperrt und kein Runtime-Kontext vorhanden. Nach erfolgreicher
+Anmeldung startet Gamma seine Runtime ausdrücklich und führt jq/libjq1
+`1.7.1-6+deb13u3` aus. Die vollständige Paketdatenbank mit 81 Paketen, das
+gemeinsame Basisimage und der libjq-Hash entsprechen Betas zuvor aktivem
+gemeinsamen Kontext. Gamma besitzt keine private Paketauswahl; sein HOME ist
+frisch. Seine UID/GID-Zuordnungen sind aus tatsächlichen GNU-Ausgaben geprüft.
+
+Der ActivityManager meldet um **17:44:05 UTC**, während der Vorbereitung des
+Vordergrundwechsels, vier laufende Benutzer und den Stopp von Benutzer 11.
+Die Zustandsabfrage bestätigt `mMaxRunningUsers:3`, einschließlich Systembenutzer
+0. Betas ursprünglicher Init `4455/104199` und Testprozess `4736/108339` sind
+danach beendet, sein Kontext fehlt und CE lautet `[0, 10, 12]`. Seine bekannte
+Originaldatei liefert im gesperrten Zustand keine Bytes. Dies ist ein
+AOSP-Ressourcenstopp; ein direkter Beta-Logout wurde hier nicht ausgeführt.
+Alphas vollständiger Kontext bleibt unverändert, sein ursprünglicher Prozess
+`3690/86539` macht vor und nach dem Wechsel weiter Fortschritt.
+
+Gamma prüft anschließend als gewöhnlicher GNU-Benutzer zwölf fremde Testpfade:
+Originaldateien, Konfigurationen und synthetische Test-Secrets, Alphas vorhandene
+private Paketmetadaten und Paketimage sowie ausgewählte Pfade über HOME und
+Prozesswurzel. Alle Leseversuche liefern keine Bytes und werden abgewiesen.
+Schreibende Öffnungen derselben Pfade sowie der gemeinsamen jq-Datei werden
+ebenfalls abgewiesen. Diese Öffnungen verwenden weder Erstellung noch Kürzung
+und schreiben keine Nutzdaten. Eigene Lese-/Öffnungskontrollen gelingen.
+Unabhängige Vorher-/Nachher-Aufnahmen bestätigen unveränderte Alpha-Testdateien
+und private Paketmetadaten. Alpha bleibt dabei entsperrt; Beta ist bereits
+gesperrt und hat in diesem Fall keinen privaten Paketstore.
+
+Belege unter `out/phase1-dod/ec01e5fa-verity-base/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `third-user/result.json` | `dcc97fee41f1c2faa17ba81decde095d27db76c16f36359ddacf209bd8102dee` |
+| `third-user-contexts.json` | `355c0e2b56d5e56e56394f5ca90417a2f75d07d9ff83aedd42f74293f22564fe` |
+| `gamma-resource-stop.json` | `f48f5eac595d574677af558d89d0dd90eba69174cee45207f8b4053caf723fc2` |
+| `gamma-peer-fixtures-before.json` | `c5e0709e31e9f1163e74159538e0df5121a7bab3d2f48928a8053a06c150621e` |
+| `gamma-peer-fixtures-after.json` | `abfe0781da5fddb3de542d8666eda233ecba670667dd4aaa9c8f031395ce053c` |
+
+Der Offline-Abgleich bindet 324 eingefrorene Ereignisse und den unveränderten
+vorherigen 302-Ereignis-Stand. Betas erneute Anmeldung und positive Rücklesung
+der Originaldaten nach diesem Ressourcenstopp stehen noch aus. Dieser Fall
+ersetzt weder gegenseitige Prüfungen zweier vorhandener privater Paketstores
+noch die vollständigen T06-/T08-/T14-Varianten. D1–D7 bleiben offen.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
