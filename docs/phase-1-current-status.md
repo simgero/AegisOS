@@ -92,6 +92,17 @@ Passwort erlaubt den Zugriff auf dieselben Dateien und Konfigurationen.
 Inhaltshashes und Dateimetadaten sind unverändert, alte flüchtige Dateien
 verschwunden. Der zu diesem Build gehörende AOSP-Quellpfad verwendet dasselbe
 Synthetic Password weiter. Der VM-Neustartteil von T02 ist noch offen.
+Android und KeyMint-Helfer sind anschließend gemeinsam sauber gestoppt.
+Profil-ID, Manifest und beide Datenträgerzuordnungen bleiben erhalten; die
+Prüfung des gestoppten Overlays meldet keine Fehler. Im vollständigen ersten
+Boot einschließlich Shutdown sind zusätzlich zu den drei erklärten Rückgaben
+nur `mdnsd` mit Status 4 und kontrollierte Signalbeendigungen aufgefallen.
+Der aktuelle Manifest-Quellstand erklärt Status 4 als reguläre EINTR-Rückgabe
+nach Shutdown-SIGTERM an genau diese Dienstinstanz. Alle 105 Signalbeendigungen
+haben einen zugeordneten Steuerungs- oder Shutdown-Vorgang; ein SystemServer-Start
+und keine Treffer der sechs geprüften Fatal-/ANR-Marker. Der zweite Boot mit
+demselben Profilpaar ist gestartet; seine Abnahme und der Dateirücklesetest
+stehen noch aus.
 D1 und die vollständige DoD bleiben offen.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.

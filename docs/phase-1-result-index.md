@@ -891,6 +891,47 @@ die übrigen Pflichtvarianten und D1–D7 bleiben offen. Das alte Passwort wird
 nicht mehr für einen erfolgreichen Beta-Zugang verwendet; der bestehende
 Testtreiber hält das neue ausschließlich im Arbeitsspeicher.
 
+## cacbf0d: Gepaarter Shutdown und vollständiger erster Dienstaudit
+
+Am 4. Oktober um 21:37 UTC sind Android und KeyMint-Helfer regulär beendet.
+Der Dienst ist inaktiv mit Ergebnis `success`; beide ursprünglichen
+QEMU-Prozessidentitäten sind verschwunden. Android meldet `Power down`,
+der Helfer `AEGIS_HELPER_SHUTDOWN_CLEAN`. Profil
+`de23866c-db95-46ed-8bbb-748c399262ca`, Profilmanifest und Zuordnung beider
+persistenten Datenträger bleiben erhalten. Die Prüfung bei gehaltenem
+Profil-Lock bestätigt die unveränderlichen Bindungen, Overlay-Markierung
+und Helfer-Dateisystem-UUID. `qemu-img check` meldet keine Fehler, beschädigten
+Cluster oder Leaks. Die Datenträger wurden nicht repariert oder neu angelegt.
+
+Der unveränderte abschließende Audit bleibt `REVIEW_REQUIRED`. Seine ersten
+drei Rückgaben stimmen mit den bereits einzeln geprüften Bootbefunden überein.
+Neu ist ausschließlich `mdnsd` PID 1026, Status 4, 4,452801 Sekunden nach dem
+an dieselbe Instanz gesendeten Shutdown-SIGTERM. Sechs Quelldateien aus
+mdnsresponder, init und bionic sind bytegleich mit den Git-Objekten des
+aktuellen Buildmanifests: `MainLoop` beendet sich bei SIGTERM/SIGINT mit
+`EINTR=4`, `main` reicht diesen Wert nach dem Aufräumen zurück. Dies erklärt
+diese konkrete Rückgabe; andere Status-4-Ereignisse werden nicht pauschal
+akzeptiert. Von 105 Signalbeendigungen besitzen 27 einen vorausgehenden
+Dienststeuerungsauftrag und 78 eine Shutdown-Zuordnung. Keine bleibt ohne
+Zuordnung. Der Mitschnitt enthält einen SystemServer-Start (PID 1299),
+keine Treffer der sechs geprüften Fatal-/ANR-Marker, keine ungeparsten
+Terminalereignisse und keine Zeitrücksprünge.
+
+Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `pre-shutdown-state.json` | `d118fd5effebb5870e5829514e4f19213d4b6f38de652c83332c55a40ddb6686` |
+| `paired-shutdown.json` | `57ed1ec12f6e41bf69cd59f71fd187bee0ce21969404d9a8f7068700e3ec9888` |
+| `boot1-final-service-audit.json` | `e2665e373fe149e07aa09fa650b2ed677d8a8c61ce6f37e2b234b292da675a6a` |
+| `shutdown-source-review/source-binding.json` | `c2f67eddf0aafc817a7b3612ddfbee841e6d26e26d99b902011d535cfc5af1cb` |
+| `shutdown-source-review/result.json` | `2593403a9f79e4edbd998700b9b4c1b64aa7b8d0fe8dda8d022215115008a544` |
+
+Der zweite Boot startet mit demselben Image und Profilpaar sowie regulärem
+ausgehendem QEMU-Netzwerk. Sein gesperrter Startzustand und die ursprünglichen
+Benutzerdateien sind separat zu prüfen. T02, D1–D7 und die gesamte
+Referenzabnahme werden durch diesen Shutdown-Nachweis nicht abgeschlossen.
+
 ## ec01e5fa: Originaldaten und Paketversionen nach gepaartem Neustart erhalten
 
 Der zweite Boot ist mit derselben Profil-ID und demselben Image bestätigt.
