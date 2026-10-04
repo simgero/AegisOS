@@ -20,7 +20,7 @@ Images. T13 als Ganzes sowie D1–D7 bleiben offen.
 | Aktion/Bereich | Gültige Freigabe und Ausführung | Ohne Adminauswahl | Falsches Adminpasswort | Nicht-Adminfreigabe |
 | --- | --- | --- | --- | --- |
 | `install all` | belegt | belegt | belegt | belegt |
-| `install user` | belegt für Alpha | belegt | belegt | belegt |
+| `install user` | belegt für Alpha und Beta | belegt | belegt | belegt |
 | `update all` | offen | offen | offen | offen |
 | `update user` | offen | offen | offen | offen |
 | `remove all` | belegt, beide Benutzer aktiviert | offen | offen | offen |
@@ -35,8 +35,12 @@ Installationsablehnungen bindet `install-all-denials-proof.json`, SHA-256
 Die drei persönlichen Installationsablehnungen bindet
 `install-user-denials-proof.json`, SHA-256
 `bb052a68caf3fe05bfa0d61c76439ca976ac79385ed2ff6ce5ad978778e7b839`.
-Die Eigentümerzuordnung bei abweichendem Antragsteller/Admin und die übrigen
-T13-Varianten müssen gesondert vervollständigt werden.
+Betas gültige private Installation mit Alpha als abweichendem Administrator
+ist zusätzlich an `install-user-beta-activation-proof.json` gebunden, SHA-256
+`e03a29d00213a56fe3b280e5159f59e9aa99489881a18852d623587c5d6008ba`.
+Alphas anschließender Datenvergleich und der Zugriffsschutz gegen Alpha für
+Betas nun vorhandenen privaten Paketspeicher bleiben gesondert offen, ebenso
+die übrigen T13-Varianten.
 
 ## Bisheriger Referenzlauf und Statusregeln
 
@@ -1051,8 +1055,8 @@ wurden jeweils unmittelbar vor einer Planerstellung abgewiesen. Diese vier
 konkreten Parserfälle sind ebenfalls gebunden; ihre Zustandsaufnahmen umfassen
 zusätzlich den ersten abgebrochenen Plan. Das unbekannte CLI-Eigentümerargument
 ersetzt keinen vollständigen Test fremder Binder-Aufrufer oder manipulierter
-Identitäten. Die anderen fünf Aktions-/Bereichskombinationen benötigen weiterhin
-ihre eigenen fehlenden Ablehnungsvarianten.
+Identitäten. Die Ablehnungsvarianten für persönliche Installation stehen im
+folgenden Abschnitt; jene für Updates und Entfernungen bleiben offen.
 
 ### b832d6c: drei verweigerte Freigaben für persönliche Installation
 
@@ -1076,8 +1080,44 @@ bindet die drei Einzelbelege, unveränderte Zustandsfelder und 405 Ereignisse.
 Die vollständige Ereigniskopie liegt in
 `install-user-denials-events-original.json`. Der generische Anmeldehinweis
 bei Nicht-Adminfreigabe bleibt als solcher erhalten; er ersetzt keine
-Sitzungsprüfung. Eine gültige private Beta-Installation und deren
-Eigentümer-/Zugriffsnachweis werden hier noch nicht behauptet.
+Sitzungsprüfung. Dieser Abschnitt belegt ausschließlich die drei Ablehnungen;
+die anschließende gültige Beta-Installation ist unten gesondert beschrieben.
+
+### b832d6c: private Beta-Installation mit abweichendem Administrator
+
+Nach Alphas regulärer Abmeldung beantragte Beta eine persönliche Installation
+von jq 1.7.1-6+deb13u3. Alphas einmalige Adminfreigabe führte zur Veröffentlichung
+für Antragsteller und Eigentümer 11/11. Die gemeinsame Auswahl blieb identisch.
+Die Zustandsaufnahmen vor und nach der Veröffentlichung sowie eine zusätzliche
+Worker-Beobachtung zeigen Alpha weiterhin CE-gesperrt. Dies ist keine
+kontinuierliche Aufzeichnung des CE-Zustands. Alphas ursprüngliche Testdatei war
+bei den Prüfungen im gesperrten Zustand nicht lesbar. Der Veröffentlichungsbeleg
+`install-user-beta-publication-proof.json` hat SHA-256
+`f2d1b5a3b5e026db6eb35de580f03bb31125c64d71f315738b5981b7851480ab`.
+
+Betas bisheriger Kontext verwendete bis zum regulären Runtime-Stopp unverändert
+den vorherigen Paketbestand. Die alten Init- und Hintergrundprozessidentitäten
+wurden danach als beendet bestätigt. Der erste anschließende Runtime-Start
+aktivierte die persönliche Generation
+`67ea9ded957194fca1350f5991dd10090aaf338f9bae641472ac8d0888022d3b`.
+Die gewöhnliche GNU-Ausführung prüfte jq, seine Bibliothek, sämtliche 81
+Paketversionen sowie 79 manuelle und zwei automatische Pakete erfolgreich.
+Betas ursprüngliche Datei und Konfiguration blieben bytegleich erhalten.
+
+`install-user-beta-activation-proof.json`, SHA-256
+`e03a29d00213a56fe3b280e5159f59e9aa99489881a18852d623587c5d6008ba`,
+bindet 440 Ereignisse, die Veröffentlichung, den Stopp, die Prozessablösung
+und den abschließenden Zustandsabzug `install-user-beta-active.json`, SHA-256
+`2e0ad282e7e20979f4221c8203d9d21992d9ce0503aae6608204df340a75f98c`.
+Der Paketstand wird als aktuell gemeldet. Alpha und Gamma bleiben in dieser
+Aufnahme CE-gesperrt. Die unveränderte Ereigniskopie bleibt lokal in
+`install-user-beta-activation-events-original.json`.
+
+Alphas ursprüngliche Daten und private Auswahl nach frischer Anmeldung sowie
+die gewöhnliche GNU-Zugriffsverweigerung für Betas nun vorhandenen privaten
+Paketspeicher sind noch zu prüfen. Bereits vorher fehlende temporäre Dateien
+belegen keine neue Bereinigung. Dieser Teilnachweis schließt weder T13 noch
+die Gesamtphase ab.
 
 ### Historische Restliste des Referenzlaufs 209278de
 
