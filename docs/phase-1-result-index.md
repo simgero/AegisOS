@@ -844,6 +844,53 @@ Paketdownloads benötigen einen dokumentierten Start mit `--network user`.
 Paket-, Logout- und VM-Neustartbelege älterer Images werden nicht übernommen.
 D1–D7 und der vollständige Referenzablauf bleiben offen.
 
+## cacbf0d: Direkter Logout und Passwortwechsel vor dem VM-Neustart
+
+Nach dem Identitätsnachweis wird Alpha ausdrücklich abgemeldet. Der ursprüngliche
+Prozess `6544/311909` und sein Kontext verschwinden; CE ist `[0,11]`, seine
+bekannte GNU-Datei liefert bei erneutem Leseversuch keine Bytes. Beta behält
+seinen ursprünglichen Prozess `8545/369467` und macht Fortschritt 1027→1030.
+Nach frischer Beta-Anmeldung ändert `aegis passwd` dessen Passwort über AOSP.
+Die folgende direkte Beta-Abmeldung beendet dessen ursprünglichen Kontext und
+Prozess; CE ist `[0]`, auch seine bekannte Datei liefert keine Bytes.
+Diese Kernfälle schließen offene Zugriffe, IPC, konkurrierende Starts und
+Fehlerfälle von T10/T11 noch nicht vollständig ab.
+
+Ein Versuch mit Betas altem Passwort wird abgewiesen. CE bleibt `[0]`, und
+`linux start` wird in diesem nicht authentifizierten Terminal verweigert.
+Die folgende Anmeldung mit dem neuen Passwort bleibt stabil und entsperrt
+ausschließlich Beta neben Systembenutzer 0. Nach ausdrücklichem Runtime-Start
+liest die echte GNU-Shell die ursprüngliche Datei und beide persönlichen
+Konfigurationsproben bytegleich. Alte Testdateien aus `/tmp` und `/run` fehlen.
+
+Für alle drei persistenten Dateien stimmen vor und nach Passwortwechsel,
+Logout und Runtime-Neustart Inhaltsprüfsumme, Inode, Größe, mtime, ctime,
+Eigentümer, Gruppe und Modus überein. Das ist ein konkreter Dateinachweis.
+Die zusätzliche Quellprüfung erklärt den Kryptographiepfad: Der erfolgreiche
+Buildbeleg `runtime-storage-source.json` bindet die tatsächlich angepassten
+LockSettingsService-/SyntheticPasswordManager-Dateien. Die Methoden
+`setLockCredentialInternal`, `setLockCredentialWithSpLocked` und
+`deriveFileBasedEncryptionKey` sind bytegleich zum gepinnten Framework-Commit
+`99b01a65cc4c104933788b3143285ab6bae65827`. Der Passwortwechsel ersetzt den
+LSKF-Protektor desselben Synthetic Password; die FBE-Ableitung verwendet dieses
+weiter. Eine vollständige Neuverschlüsselung persönlicher Dateien ist nicht
+Teil dieses normalen Passwort-zu-Passwort-Pfads. Die Klassen sind wegen der
+anderen AEGIS-Integrationen ausdrücklich nicht insgesamt unverändert.
+Es wurden keine Laufzeit-Schlüssel ausgelesen.
+
+Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `direct-logouts/result.json` (90 Ereignisse) | `88d0e9b5af57e243be383833998a49006d29f1c6ce98ab9288696dd28842c810` |
+| `password-source-review/result.json` | `e6763ab3018d6b9bd44b1fdbef4a7438db05fa3b4deef8b3590dc50227b17401` |
+| `password-pre-reboot/result.json` (106 Ereignisse) | `5c0f99abfcfb8c58ea96f7a46674e22194664ac84815ddb962ace7e96dde9290` |
+
+Beta ist danach erneut abgemeldet. Der vollständige VM-Neustartteil von T02,
+die übrigen Pflichtvarianten und D1–D7 bleiben offen. Das alte Passwort wird
+nicht mehr für einen erfolgreichen Beta-Zugang verwendet; der bestehende
+Testtreiber hält das neue ausschließlich im Arbeitsspeicher.
+
 ## ec01e5fa: Originaldaten und Paketversionen nach gepaartem Neustart erhalten
 
 Der zweite Boot ist mit derselben Profil-ID und demselben Image bestätigt.

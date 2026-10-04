@@ -83,6 +83,15 @@ Kontexte, Zuordnungen und sechs Namespaces bleiben unverändert, Betas
 ursprünglicher Hintergrundprozess läuft weiter, Alphas ursprüngliche Datei
 und Konfiguration sind bytegleich. Damit ist **T03 auf cacbf0d bestanden**;
 dies schließt die weiteren Isolations- und Lebenszyklusfälle nicht ab.
+Die direkten Abmeldungen beider Benutzer sind ebenfalls geprüft: ursprüngliche
+Prozesse und Kontexte beendet, CE-Sperrung bestätigt und bekannte Originaldateien
+ohne Bytes. Betas ursprünglicher Prozess bleibt bei Alphas Abmeldung erhalten.
+Beta hat anschließend sein Passwort über AOSP geändert. Nach erneuter Sperrung
+scheitert das alte Passwort ohne CE-Entsperrung oder Runtime-Start; das neue
+Passwort erlaubt den Zugriff auf dieselben Dateien und Konfigurationen.
+Inhaltshashes und Dateimetadaten sind unverändert, alte flüchtige Dateien
+verschwunden. Der zu diesem Build gehörende AOSP-Quellpfad verwendet dasselbe
+Synthetic Password weiter. Der VM-Neustartteil von T02 ist noch offen.
 D1 und die vollständige DoD bleiben offen.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
