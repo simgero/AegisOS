@@ -142,6 +142,22 @@ Hinweise zur künftig entfallenden Java-8-Zieloption, keine Kompilierungsfehler.
 **Installation, Ausführung und Bindung an die ausgelieferte Android-Bibliothek
 stehen aus.**
 
+Der vorbereitete Gastprüfer `scripts/qemu-terminal-input-test.py` bindet das
+Profil an die vorbereitete Disk, den AVB-Digest an den Image-Commit und die
+Java-Terminalklassen an den gespeicherten Buildbeleg. Vor und nach den Fällen
+prüft er die installierte JNI-Prüfsumme, Boot-ID, SystemServer-Startzeit,
+authentifiziertes ADB, SELinux Enforcing sowie ausschließlich Systembenutzer
+und System-CE. Die Fälle verwenden nur den öffentlichen Testtext: normale
+Eingabe, Maximallänge, Überlänge, EOF, fünf unterstützte Unterbrechungssignale
+und Ablehnung einer Pipe. Ein Signal richtet sich ausschließlich an den
+eigenen Prüfer-Kindprozess nach PID-/Startzeit-/Eltern-/UID-/Argumentprüfung.
+Der Folgeleser muss nach dem Abbruch exakt `AFTER` erhalten; Terminalzustand
+und fehlendes Eingabe-Echo werden ebenfalls geprüft. Ergebnis und Transkript
+bleiben pro Fall erhalten, ein Fehler beendet die Reihe.
+**Syntaxprüfung bestanden; Android-Ausführung weiterhin ausstehend.** Der
+ursprüngliche neue Gaststart und ADB-Beobachter laufen weiter; ein Timeout
+allein ist kein Anlass für einen Neustart.
+
 ```sh
 python3 scripts/build-terminal-input-probe.py --project /pfad/zum/commit-snapshot \
   --jdk /pfad/zum/jdk --r8 /pfad/zu/r8.jar --output /neues/lokales/pruefverzeichnis
