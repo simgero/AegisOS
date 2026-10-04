@@ -549,6 +549,54 @@ separat bestätigt. Keine dieser Auditmeldungen wird pauschal freigegeben.
 Bootabschluss, CE-Sperre vor Anmeldung und Originaldaten-/Versionsrücklesung
 bleiben ebenso erforderlich wie die übrige Matrix und alle D1–D7.
 
+### Ergänzende individuelle Shutdown-Prüfung dieses ersten Boots
+
+Der Offline-Audit erfasst zusätzlich die Zuordnung zum Shutdown: Dienstname,
+PID und Startgeneration, vorheriges tatsächlich gesendetes Signal sowie
+Reihenfolge und Zeitmarken. Diese Zusatzinformation unterdrückt keinen
+ursprünglichen Befund. Alle 103 Signalbeendigungen und drei nichtnull
+Rückgaben bleiben erhalten. Für sämtliche 78 bisher nicht durch einen
+kurzen Einzelstopp erklärten Signalbeendigungen liegt nun die passende
+Shutdown-Zuordnung vor; der größte Abstand zwischen Signal und protokolliertem
+Prozessende beträgt 6,242057 Sekunden. Die 14 Parsertests prüfen unter anderem
+falsche PID/Signale, fehlende Starts, veraltete Zuordnungen, PID-Wiederverwendung
+und die unverändert erforderliche Prüfung nichtnull Rückgaben.
+
+Für `mdnsd` PID 1139 folgen auf den Shutdown bei 10639,428324 Sekunden
+SIGTERM bei 10640,528488 und Status 4 bei 10645,692674. Die Quellen sind
+bytegleich mit dem Buildmanifest: `external/mdnsresponder` auf
+`6bebf38f17204fb543e41e8fd7c6444e72314ee5`, `system/core` auf
+`68be0c2c0006a0740d0b1809abe4717308f90d15` und Bionic auf
+`09a271af557444c9a6b3f3146d6d474156fd6cdb`.
+`PosixDaemon.c` beendet die Hauptschleife bei SIGTERM/SIGINT mit `EINTR`;
+`main` gibt diesen Wert nach der Bereinigung zurück. Bionic definiert ihn
+als 4. Dies erklärt diese einzelne langlebige Instanz nach regulärem
+Shutdown; andere Rückgaben von `mdnsd` werden dadurch nicht freigegeben.
+
+Die Zeitmarkenabweichung betrifft zwei Mikrosekunden zwischen `apexd`
+Thread 5954 und init Thread 1, also die Reihenfolge verschiedener Threads
+im gemeinsamen Log. Sie allein belegt keinen zurückgesetzten Gastzeitgeber.
+Der frühe Logcat-Auszug ist außerdem ein bytegleicher Präfix der größeren
+Bootaufnahme. Diese enthält genau einen SystemServer-Start für PID 1397;
+Boot-ID und Prozessstartzeit 38796 stimmen zwischen Anfang und unmittelbar
+vor dem Shutdown überein. Keine der sechs erfassten Crash-/ANR-Kategorien
+hat Treffer. Das ist kein Nachweis, dass jede mögliche Logmeldung erfasst wurde.
+
+Zusätzliche Belege unter `out/phase1-dod/ec01e5fa-verity-base/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `boot1-shutdown-correlated-service-audit.json` | `0d8bd6aff7ce45efe45b4210bb94f95750d9f05028384c6447ac828b15b84375` |
+| `boot1-complete-capture-service-audit.json` | `a05667d6c6bd8370b67adb736539c093f1818facf87fbece09025300be9a2edd` |
+| `shutdown-source-review/result.json` | `c5b4058960345a00f389f2485dde319ed25540e6fbaf7ca4be69496417cf1365` |
+| `shutdown-source-review/system-server-continuity.json` | `b68e658bc7c442ca9a8a3b914ddea63bb424e7d438e7add19a2de0fec0163801` |
+
+`recovery-refresh=254` bleibt ungeklärt: Sein Leseweg unterscheidet im
+Rückgabewert nicht zwischen fehlenden passenden Daten und bestimmten
+Lesefehlern. Der nächste D1-Schritt ist eine Fehlerdiagnose, die diese
+Ursachen getrennt sichtbar macht. Die ursprünglichen Audits, D1 und die
+Gesamtfreigabe bleiben offen. Diese Auswertung führte keine Gastaktion aus.
+
 ## ec01e5fa: Originaldaten und Paketversionen nach gepaartem Neustart erhalten
 
 Der zweite Boot ist mit derselben Profil-ID und demselben Image bestätigt.

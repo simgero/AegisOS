@@ -29,6 +29,15 @@ Die separate aconfigd-Prüfung erklärt auf ec01e5fa ausschließlich PID 883 mit
 Status 1: gepinnter Quellzweig und PID-genaue Meldung bestätigen die beabsichtigte
 Übergabe an Mainline; deren Initialisierung als PID 886 endet mit 0.
 Der ursprüngliche Audit bleibt unverändert, Recovery-Refresh und D1 bleiben offen.
+Für den vollständigen ersten ec01e5fa-Lauf sind inzwischen 78 zuvor nicht
+zugeordnete Signalbeendigungen einzeln an den protokollierten Shutdown und
+das jeweilige Signal an dieselbe Dienstinstanz gebunden. `mdnsd` PID 1139
+endet nach SIGTERM mit dem im gepinnten AOSP-Code vorgesehenen `EINTR=4`.
+Die einzelne rückläufige Zeitmarke beträgt zwei Mikrosekunden zwischen
+unterschiedlichen Threads. Die größere vorhandene Logaufnahme enthält genau
+den ursprünglichen SystemServer-Start; PID/Startzeit bleiben bis vor dem
+Shutdown `1397/38796`. Diese Einzelerklärungen ersetzen weder die offene
+Recovery-Diagnose noch die übrige D1-Abnahme. Der Audit behält seine Befunde.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
 Mit dieser Vorbereitung ist ec01e5fa inzwischen im eigenen Profil gebootet:

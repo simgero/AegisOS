@@ -84,6 +84,60 @@ class ServiceAuditTests(unittest.TestCase):
         report = self.audit("[ 4.0][ T1] init: event\n[ 1.0][ T1] init: event")
         self.assertIn("init_log_clock_regression", report["review_reasons"])
 
+    def shutdown_log(self, middle=None, terminal=None):
+        return "\n".join([
+            "[ 2.0][ T1] init: ... started service 'mdnsd' has pid 12",
+            "[ 10.0][ T1] init: Reboot start, reason: shutdown, reboot_target: ",
+            "[ 11.0][ T1] init: Sending signal 15 to service 'mdnsd' (pid 12) process group...",
+            middle or "[ 12.0][ T1] init: waiting for services",
+            terminal or "[ 17.0][ T1] init: Service 'mdnsd' (pid 12) received signal 15",
+        ])
+
+    def test_shutdown_correlation_retains_review_and_delayed_signal(self):
+        report = self.audit(self.shutdown_log())
+        signal = report["signal_exits"][0]
+        evidence = signal["shutdown_correlation"]
+        self.assertEqual(evidence["service_start_line"], 1)
+        self.assertEqual(evidence["send_line"], 3)
+        self.assertEqual(evidence["seconds_after_send"], 6)
+        self.assertEqual(evidence["shutdown"]["line"], 2)
+        self.assertIsNone(signal["preceding_control"])
+        self.assertIn("signal_exit_without_matching_recent_control", report["review_reasons"])
+
+    def test_shutdown_nonzero_exit_is_never_waived(self):
+        report = self.audit(self.shutdown_log(
+            terminal="[ 17.0][ T1] init: Service 'mdnsd' (pid 12) exited with status 4"))
+        exit_record = report["nonzero_exits"][0]
+        self.assertEqual(exit_record["status"], 4)
+        self.assertEqual(exit_record["shutdown_correlation"]["sent_signal"], 15)
+        self.assertIn("nonzero_service_exits_require_individual_review", report["review_reasons"])
+
+    def test_shutdown_requires_same_instance_signal_and_timeline(self):
+        original = self.shutdown_log()
+        cases = [
+            original.replace("init: Reboot start", "other: Reboot start"),
+            original.replace("reason: shutdown", "reason: reboot"),
+            original.replace("Sending signal 15", "Sending signal 9"),
+            original.replace("(pid 12) process group", "(pid 13) process group"),
+            original.replace("[ 11.0]", "[ 9.0]"),
+            original.replace("[ 17.0]", "[ 10.5]"),
+            original.replace("Sending signal", "Unparsed signal"),
+            original.replace("[ 2.0][ T1] init: ... started service 'mdnsd' has pid 12", ""),
+        ]
+        for text in cases:
+            with self.subTest(text=text):
+                self.assertIsNone(self.audit(text)["signal_exits"][0]["shutdown_correlation"])
+
+    def test_shutdown_does_not_reuse_send_after_restart_exit_or_new_episode(self):
+        for middle in (
+            "[ 12.0][ T1] init: ... started service 'mdnsd' has pid 12",
+            "[ 12.0][ T1] init: ... started service 'mdnsd' has pid 13",
+            "[ 12.0][ T1] init: Service 'mdnsd' (pid 12) exited with status 0",
+            "[ 12.0][ T1] init: Reboot start, reason: shutdown, reboot_target: ",
+        ):
+            with self.subTest(middle=middle):
+                self.assertIsNone(self.audit(self.shutdown_log(middle))["signal_exits"][0]["shutdown_correlation"])
+
 
 if __name__ == "__main__":
     unittest.main()
