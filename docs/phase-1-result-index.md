@@ -26,13 +26,13 @@ Images. T13 als Ganzes sowie D1–D7 bleiben offen.
 | --- | --- | --- | --- | --- |
 | `install all` | belegt | belegt | belegt | belegt |
 | `install user` | belegt für Alpha und Beta | belegt | belegt | belegt |
-| `update all` | offen | belegt | belegt | belegt |
+| `update all` | belegt, beide Benutzer aktiviert; private u3 bleibt | belegt | belegt | belegt |
 | `update user` | offen | belegt | belegt | belegt |
 | `remove all` | belegt, beide Benutzer aktiviert | offen | offen | offen |
 | `remove user` | belegt für Alpha, expliziter Rückfall | offen | offen | offen |
 
 Die gültigen Varianten sind an `shared-u3-activation-proof.json`,
-`private-u4-activation-proof.json`, `shared-remove-both-proof.json` und
+`private-u4-activation-proof.json`, `common-update-both-proof.json`, `shared-remove-both-proof.json` und
 `private-remove-fallback-proof.json` gebunden; die jeweiligen vollständigen
 Prüfsummen und Grenzen stehen in den b832d6c-Abschnitten unten. Die drei
 Installationsablehnungen bindet `install-all-denials-proof.json`, SHA-256
@@ -70,11 +70,60 @@ die ausstehende Aktivierung. Es wurde noch kein Kontext dafür neu gestartet.
 bindet die 492 Ereignisse, den unveränderten vorherigen Ereignispräfix und den
 Zustandsbeleg `common-update-preparation-published.json`, SHA-256
 `0560fa704e740c773629bc503db9b06b6980e11ee21dcb26c47eff1a1498fc3a`.
-Dies bereitet T16 vor: Das gemeinsame Update auf u4, seine Aktivierung und
-der dabei erforderliche Erhalt von Betas privater u3-Auswahl bleiben offen.
+Dies ist der Vorbereitungsnachweis für den anschließend unten belegten
+gemeinsamen Update- und Aktivierungsfall mit erhaltener privater u3-Auswahl.
 Ein neuer Fortschrittsnachweis der zeitlich begrenzten Hintergrundproben wird
 hier nicht behauptet. Alle Belege verbleiben lokal unter dem oben genannten
 Verzeichnis; Git enthält ausschließlich diese Ergebnisbeschreibung.
+
+### Gemeinsames Update bei beiden Benutzern, private u3 bleibt erhalten
+
+Beta beantragt `linux package update --scope all`; Alpha bestätigt den Plan
+über die reguläre AOSP-Adminprüfung. Der Plan enthält genau fünf Änderungen:
+jq/libjq1 von `1.7.1-6+deb13u3` auf u4, libpcre2-8-0 von
+`10.46-1~deb13u2` auf u3 sowie libssl3t64 und openssl-provider-legacy von
+`3.5.7-1~deb13u2` auf u3. Die Veröffentlichung gelingt um 08:24:04 UTC.
+Gemeinsame Generation:
+`a9e63e88614b4ddbce55c7710410e3bb1cb00770daed7dc18f21787a6e0489b4`.
+
+Beide bisherigen Kontexte bleiben nach Veröffentlichung vollständig unverändert,
+einschließlich Prozessidentität, Namespaces, Mounts und Paketmetadaten. Ihre
+gewöhnlichen GNU-Shells bestätigen die jeweiligen alten Bestände; die CLI
+meldet die ausstehende Aktivierung. Beta stoppt zuerst ausschließlich seinen
+Kontext. Der erste neue Start gelingt um 08:38:28 UTC und aktiviert die neuen
+Basisbibliotheken, während die ausdrückliche private jq/libjq-u3-Auswahl
+erhalten bleibt. Anschließend stoppt Alpha seinen eigenen Kontext; dessen
+erster neuer Start gelingt um 08:58:24 UTC und übernimmt jq/libjq u4 bei
+weiterhin leerer privater Versionsauswahl.
+
+Beide GNU-Shells führen jq tatsächlich aus und prüfen Paketversionen,
+Bibliotheks-Hashes, Integrität der drei jq-Pakete sowie 79 manuelle und zwei automatische
+Pakete. Der vollständige Metadatenvergleich bestätigt jeweils 81 installierte
+Pakete. Beide ursprünglichen Dateien und Einstellungen bleiben bytegleich.
+Betas neuer Kontext `14330/2308029` bleibt über Alphas Stopp/Start unverändert;
+sein Hintergrundprozess `14535/2316113` macht davor und danach Fortschritt.
+Alpha verwendet anschließend Kontext `17998/2427632`. Boot, SystemServer und
+CE-Zustand bleiben erhalten; beide privaten Generationen binden an die neue
+gemeinsame Basis. Beide Benutzer melden nach ihrem Start `packages=current`.
+
+Der Veröffentlichungsbeleg `common-update-publication-proof.json` hat SHA-256
+`5729cdea758555d66144ab9133cd5ccd272374c56aad416ac2dd7ae895b8d40c`.
+Betas erste Aktivierung bindet `common-update-beta-proof.json`, SHA-256
+`29282efc002f9f5e325595f7b62c9ade3329f82442f06f1399e3662d17655e68`.
+Der vollständige Beleg `common-update-both-proof.json`, SHA-256
+`07eba4383de20c49df82095772f91a0b393841eeefa7bef03f7c3f842f5fc1d3`,
+bindet 547 Ereignisse, die unveränderten vorherigen Präfixe, Quellzuordnung,
+beide genauen Prozessenden und alle Zustandsaufnahmen. Die abschließende
+Aufnahme `common-update-both-active.json` hat SHA-256
+`ace38c0b833881dbe49cddea7ef8498292df2ab37442d83d790e615a6c732ccc`.
+
+Damit sind die gültige gemeinsame Updatevariante und dieser konkrete T16-Fall
+mit weiterhin unterschiedlicher gemeinsamer/privater Version belegt.
+Private Updates, Konflikte und Transaktionsfehler/Parallelität bleiben eigene
+Pflichtfälle. Alte temporäre Proben waren schon vorher abwesend und belegen
+hier keine neue Reinigung; das Ende zeitlich begrenzter alter Hintergrundjobs
+wird nicht dem späteren Runtime-Stopp zugeschrieben. Die gesonderte Prüfung
+des jeweiligen ursprünglichen Init-Prozesses bleibt davon unabhängig.
 
 ## Bisheriger Referenzlauf und Statusregeln
 
