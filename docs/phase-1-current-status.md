@@ -8,6 +8,12 @@ dass bestandene Fälle älterer Images als aktuelle Ergebnisse erscheinen.
 
 Getestetes Image: `b832d6c077baeee4324e00d00dc3618372f3e9d9`.
 Profil: `1943dcb7-d438-48de-8e62-d9967b32b9b2`.
+
+Die Shell-Korrektur `dedd1dabc45efe080a499b3657b7ee09d2fda5a7` ist inzwischen
+lokal gebaut und mit AVB-/Kernel-/Runtime-Prüfung für QEMU vorbereitet.
+Sie wurde noch nicht gebootet und ersetzt die untenstehenden Gastbelege nicht.
+Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
+
 Die genannten Belege liegen lokal unter `out/phase1-dod/b832d6c-base/`.
 Der [Ergebnisindex](phase-1-result-index.md) beschreibt Abläufe, Grenzen,
 Prüfsummen und erhaltene Fehlversuche. Seine ältere T01–T17-Tabelle gehört

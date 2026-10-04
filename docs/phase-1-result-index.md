@@ -84,8 +84,55 @@ Startablauf. Der Treiber erhält den gezielten Befehl `shell-stopped` samt
 sofortiger Erkennung eines unerwarteten GNU-Prompts. Elf isolierte Hosttests
 prüfen diesen Treiberablauf; drei bestehende Ereignisaufzeichnungstests
 bestehen ebenfalls. Das ist noch kein ausgeführter Regressionstest des
-korrigierten Android-Service. Neuer Build und Gastnachweis bleiben erforderlich;
-der b832d6c-Befund und die vollständige Restliste bleiben gültig.
+korrigierten Android-Service. Der folgende neue Build ist abgeschlossen;
+sein Gastnachweis bleibt erforderlich. Der b832d6c-Befund und die vollständige
+Restliste bleiben gültig.
+
+## Shell-Korrektur dedd1da: gebaut und vorbereitet, noch nicht gebootet
+
+Quellcommit: `dedd1dabc45efe080a499b3657b7ee09d2fda5a7`.
+Der lokale ARM64-Vollbuild
+`/srv/aegis/runs/local-20261004T121842Z-dedd1dab-OeHisa`
+ist mit `LOCAL_BUILD_VERIFIED` abgeschlossen; alle 20 Factory-Images haben
+die Prüfsummenprüfung bestanden. Das AOSP-Manifest bleibt bytegleich zur
+b832d6c-Basis. Kernelbundle und Debian-Basisgeneration sind dieselben
+geprüften Eingaben aus dem [Buildinventar](phase-1-build-inventory.md).
+
+Die getrennte Vorbereitung `/srv/aegis/runs/phase1-dedd1da0` ist
+`LOCAL_BUILD_AVB_AND_DISK_VERIFIED_NOT_BOOTED`. Der lokale Beleg
+`out/phase1-dod/shell-ready-fix/build-validation.json`, SHA-256
+`94d0821653525002b43d7cf2ebafd98c3c84d2933a95d5d79547772f68aab38b`,
+bindet die 20 Images, 17 Buildbelege, Kernel- und Runtime-Auswahl.
+AVB-Digest: `a28782c74fbce9dc3790ec70cc0f34c23c27f0d5465d1fe6a3ac42fdc77c0977`.
+
+Zusätzlich wurde die Service-JAR aus `system_ext_a` des tatsächlich
+ausgelieferten `super.img` extrahiert und statisch disassembliert.
+Die kompilierte Shell-Methode enthält Statusprüfung, Zulassungsprüfung und
+`EXEC`, aber keinen direkten `START`- oder `awaitRuntime`-Aufruf.
+Der Quellbeleg passt zum aktuellen Servicecode; der Imagehash passt zur
+Vorbereitung. `shell-packaged-dex-proof.json`, SHA-256
+`04b5c54da6dc241a1c8cce427c2899b0a2eec7c478200e9b01573a3738205cbd`,
+liegt ebenfalls unter `out/phase1-dod/shell-ready-fix/`. Ein erster lokaler
+Textabgleich scheiterte an der Schreibweise von DEX-Klassendeskriptoren;
+die Korrektur betraf nur den Prüfer, nicht Produktcode oder Gastzustand.
+
+Der erste Buildlauf `local-20261004T121456Z-dedd1dab-6qJLOT` bleibt als
+`FAILED` erhalten: vor der Kompilierung waren 45,5 statt der verlangten
+48 GiB verfügbar. Die Speichergrenze wurde nicht verändert. Die bestehende
+b832d6c-Konsole wurde geschlossen und ihr VM-Paar geordnet heruntergefahren:
+Android-Powerdown, danach `AEGIS_HELPER_SHUTDOWN_CLEAN`, Dienst inaktiv.
+Das Profilmanifest blieb unverändert, der ursprüngliche Testtreiber mit
+707 Ereignissen blieb erhalten. Der Shutdown-Beleg
+`prebuild-shutdown.json` hat SHA-256
+`402a922018f4f50622472ac209578cb9571bc5774a7f9cd2162c1db454945f75`.
+Mit 51,3 GiB verfügbarem RAM bestand der zweite Lauf die unveränderte Prüfung.
+
+**Dies ist Build- und statische Imagevalidierung, keine Gastabnahme.**
+`shell-stopped` sowie der anschließende ausdrückliche Start und echte
+GNU-Zugang müssen auf dem neuen Image ausgeführt werden. Keine bestandene
+b832d6c-Variante wird automatisch übertragen; D1–D7 und die übrigen offenen
+Pflichtfälle bleiben offen. Images, Profildateien und Rohprotokolle wurden
+nicht nach GitHub geladen.
 
 ## Aktueller Lauf b832d6c: Paketautorisierung
 
