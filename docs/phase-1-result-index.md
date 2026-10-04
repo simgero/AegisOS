@@ -566,6 +566,37 @@ Dies ist ein erlaubter gemeinsamer Installationsfall; private Versionen,
 vollständige Autorisierungsmatrix und die ursprüngliche Entfernungsregression
 sind damit nicht abgenommen.
 
+### b832d6c: private jq-u4-Installation für Alpha aktiviert
+
+Der reguläre private CLI-Plan aktualisiert ausschließlich jq und libjq1 von
+`1.7.1-6+deb13u3` auf `1.7.1-6+deb13u4`. Nach frischer Adminfreigabe wird
+Alphas private Generation veröffentlicht. Die gemeinsame u3-Auswahl und der
+noch laufende Kontext `7518/355401` bleiben unverändert; der Status meldet
+ausstehende Aktivierung. Beta bleibt während dieser Aufnahmen gesperrt.
+
+Nach ausdrücklichem Runtime-Stopp ist der bisherige Init nicht mehr vorhanden.
+Der neue Kontext `8027/455169` führt jq u4 tatsächlich aus. Versionsprüfung,
+Paketdateiprüfung und GNU-Funktionstest bestehen. Von 81 installierten Paketen
+bleiben alle außer jq und libjq1 unverändert; weiterhin bestehen 79 manuelle
+Paketwurzeln und nur libjq1 sowie libonig5 als automatische Abhängigkeiten.
+Alphas ursprüngliche Datei, Konfiguration und synthetisches Test-Secret sind
+bytegleich. Der Status meldet `packages=current`.
+
+Beleg `out/phase1-dod/b832d6c-base/private-u4-activation-proof.json`, SHA-256
+`5f93c4ba529fc2d81ea38e6f18ff5532082e5be2ad192e532bec3ef268999e3a`,
+bindet Ereignispräfix 67 und sechs ursprüngliche Belegdateien. Ihre Prüfsummen
+und die kanonische Prüfsumme dieses Ereignispräfixes wurden beim anschließenden
+Dokumentationsabgleich erneut bestätigt. Private Generation:
+`080ac57d25680167b04a1f3ca833f4ad7968b55fcd752a53a24a50d557965dd5`.
+Sie bindet die unveränderte gemeinsame Generation
+`37c7f8a9856067f0c3edce8c5a5c0181808cd2d4c5607bcafff25eebeeb447ff`.
+
+Dies belegt einen privaten Installations- und Aktivierungsfall. Die ursprünglichen
+flüchtigen Dateien fehlten bereits vorher; daraus entsteht kein neuer Nachweis
+ihres Entfernens. Gleichzeitiger Betrieb beider Benutzer, Hintergrundprozesse,
+Logout, Reboot, vollständige Autorisierungsmatrix und die tatsächliche
+Entfernungsregression sind hiermit nicht abgenommen. Phase 1 bleibt offen.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
