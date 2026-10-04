@@ -118,6 +118,29 @@ Attrappen und ersetzen keinen erneuten Gastnachweis: Nach künftigem Boot
 müssen Verity-Statusveröffentlichung und tatsächlich aktive dm-verity-Mounts
 gemeinsam geprüft werden. D1 bleibt offen.
 
+Das Rezept `d9a0d30a48c1f745ffcc02dbcb6b4c15054e89e6` wurde anschließend
+auf den unveränderten Imagebuild `ec01e5fa5f2822da5763ab54c644bc5c5c5ab413`
+angewendet. Die getrennte Vorbereitung
+`/srv/aegis/runs/phase1-ec01e5fa-verity0` endete mit
+`LOCAL_BUILD_AVB_AND_DISK_VERIFIED_NOT_BOOTED`. Alle 20 Image-Prüfsummen,
+18 Buildbelege und Kernel-/Runtime-Eingaben stimmen mit der vorherigen
+Vorbereitung überein. Die offiziellen `avbtool info_image`-Ausgaben bestätigen
+unabhängig für sämtliche sechs gelesenen Header Flags gleich null.
+Die zusätzliche Bootkonfiguration unterscheidet sich ausschließlich durch die
+neue enforcing-Zeile. Die frisch erzeugten Hilfsdisks und GPT-Basis sind eigene
+Vorbereitungsartefakte; bestehende Disks oder Profile wurden nicht geändert.
+
+Der lokale Nachweis `out/phase1-dod/verity-mode-fix/preparation-proof.json`,
+SHA-256 `67619cc9cffc82208436bd57812859d112739104220eaf7a7f2a034f6275480b`,
+bindet Image- und Rezeptcommit getrennt, die drei Vorbereitungsquellen,
+unveränderte AOSP-Quellen aus dem Buildmanifest, Headerausgaben und Belegkopien.
+Die neue `runtime.bootconfig` hat SHA-256
+`dec52186fdff2e3b84678760549e0b43e9b2fc5f5740b04b82aa26b15b5fa2fe`;
+`avb-checked.json` hat SHA-256
+`1db6a102085dacf29927bbae57549446317c7e83351b1a93c004f24d2013013c`.
+Es wurde kein persistentes Profil erzeugt und kein Gast gestartet. Der
+ausstehende Laufzeitnachweis wird durch diese Vorbereitung nicht ersetzt.
+
 ## misctrl: Exitcode-Korrektur gebaut, Gastnachweis ausstehend
 
 Der unveränderte AOSP-Quelltext `bootable/recovery/bootloader_message/misctrl_main.cpp`

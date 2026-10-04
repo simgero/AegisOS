@@ -177,3 +177,30 @@ Die tatsächliche misctrl-Binärdatei aus `system_a` des ausgelieferten
 `super.img` wurde bytegenau mit dem neu kompilierten Buildprodukt verglichen.
 Belege, Prüfsummen und Grenzen stehen im [Ergebnisindex](phase-1-result-index.md).
 Dies ist weiterhin **Build-/Imagevalidierung ohne Boot oder Gastabnahme**.
+
+### Zusätzliche Startkorrektur ohne Änderung der Images
+
+Die Vorbereitung `/srv/aegis/runs/phase1-ec01e5fa-verity0` verwendet dieselben
+20 Factory-Images und 18 Buildbelege, aber das neuere Vorbereitungsrezept
+`d9a0d30a48c1f745ffcc02dbcb6b4c15054e89e6`. Dessen sauberer Checkout liegt
+unter `/srv/aegis/work/verity-d9a0d30-_6mqa_yy`. Imagecommit und Rezeptcommit
+werden getrennt festgehalten; es wird kein neuer Android-Vollbuild behauptet.
+Der konkret ausgeführte Aufruf aus diesem Checkout als `aegis-build` lautet:
+
+```sh
+python3 scripts/prepare-server-build.py \
+  /srv/aegis/runs/local-20261004T132131Z-ec01e5fa-Hp0Ctv \
+  /srv/aegis/runs/phase1-ec01e5fa-verity0 \
+  --commit ec01e5fa5f2822da5763ab54c644bc5c5c5ab413 \
+  --avbtool /srv/aegis/work/aosp/external/avb/avbtool.py
+```
+
+Bei Wiederholung muss ein neues, noch nicht vorhandenes Ziel verwendet werden.
+Der Vorbereiter prüft zusätzlich alle sechs AVB-Header auf deaktivierende oder
+unbekannte Flags und übergibt `androidboot.veritymode=enforcing`. Das entspricht
+dem bisherigen AOSP-Standard beim dm-verity-Tabellenaufbau und ermöglicht dem
+gesonderten Statusleser eine Moduszuordnung. Die resultierende GPT-Basis hat
+SHA-256 `4488d65777c0bc36b6b4cdabc6e4397a5513f05c31f4cb7c9b76d591b9b7bb19`.
+Der AVB-Digest bleibt unverändert. Vorhandene Profile werden nicht auf diese
+andere Bootkonfiguration umgebunden. Auch hier fehlen Profilanlage, Boot und
+Gastabnahme; der vollständige Nachweis steht im Ergebnisindex.

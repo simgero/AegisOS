@@ -21,6 +21,9 @@ Binärdatei wurde aus `super.img` bytegenau geprüft; dieses weitere Image ist
 noch nicht gebootet. Die vorhandenen dedd1da-Bootlogs sind außerdem offline
 ausgewertet, mit weiterhin prüfpflichtigen Dienstrückgaben und ausdrücklich
 begrenztem Integritätsnachweis.
+Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
+Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
+Diese Vorbereitung besitzt noch kein Profil und keinen Gastnachweis.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 
 Die genannten Belege liegen lokal unter `out/phase1-dod/b832d6c-base/`.
