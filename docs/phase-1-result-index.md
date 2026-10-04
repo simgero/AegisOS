@@ -973,6 +973,60 @@ Der neue Fallprüfer `record-password-post-reboot.py` und der eingefrorene
 Ereignissatz sind im lokalen Ergebnisbeleg mit Prüfsummen gebunden. Die
 Testpasswörter verbleiben ausschließlich im ursprünglichen laufenden Treiber.
 
+## cacbf0d: Beide Originaldatenbestände nach Neustart erhalten
+
+Alphas erste korrekte Anmeldung in Boot 2 gelingt ebenfalls ohne vorherigen
+Fehlversuch. Vor der Passwortübermittlung bleiben CE und Kontext gesperrt
+beziehungsweise abwesend; danach ist ausschließlich CE `[0, 10]` entsperrt.
+Die verzögerte Sitzungsprüfung und der ausdrückliche Runtime-Start gelingen.
+GNU liest Alphas ursprüngliche 1024-Byte-Datei und die beiden persistenten
+Konfigurationsproben bytegleich. Zusammen mit Betas vorherigem Rücklesen sind
+damit die ursprünglichen Dateien und Konfigurationen beider Benutzer nach
+dem gepaarten Neustart erhalten. Alte `/tmp`- und `/run`-Proben sind abwesend.
+Der eingefrorene Satz umfasst 150 Ereignisse und enthält unverändert die
+137 Ereignisse des T02-Nachweises. In sechs lokalen Bootlogs findet der
+laufende Treiber keines der vollständigen generierten Testpasswörter; dies
+ist weiterhin nur eine Teilprüfung von T01.
+
+Die unabhängige Verity-Prüfung bestätigt in Boot 2 alle acht aktiven
+System-Mappings mit Status `V`, `restart_on_corruption` und zugehörigen
+schreibgeschützten EROFS-Mounts. Profilmanifest, Image, Boot-ID und
+SystemServer `1017/20295` bleiben gebunden und unverändert. Zuletzt ist
+Alpha in seiner GNU-Shell; Beta ist ausdrücklich abgemeldet und CE-gesperrt.
+Private Pakete sind auf diesem Profil noch nicht installiert. Deshalb bleiben
+deren Persistenz, weitere T07-/T12-Varianten und der gesamte Referenzablauf offen.
+
+Der Dienstmitschnitt bis nach dem Rücklesen enthält einen SystemServer-Start
+und keine Treffer der sechs geprüften Fatal-/ANR-Marker. Sein ursprünglicher
+Audit bleibt `REVIEW_REQUIRED`. Die Recovery-Diagnose PID 404 zeigt wieder
+`terminal=-2` bei unverändertem Aggregat und ist an denselben pmsg-Quellpfad
+gebunden. Aconfigd PID 650 meldet ausdrücklich die Übergabe, der tatsächliche
+Mainline-Initialisierer PID 652 endet mit 0. `rename_eth0` PID 672 endet in
+diesem Netzwerkmodus ebenfalls mit 0. Der zunächst nicht zugeordnete SIGKILL
+an `hidl_memory` PID 827 folgt unmittelbar auf die protokollierte
+Property-Aktion `hidl_memory.disabled=true`; die zum Manifest bytegleiche
+RC-Datei führt dafür `stop hidl_memory` aus. Die einzige markierte Zeitinversion
+beträgt drei Mikrosekunden zwischen Threads 504 und 470 und ist allein kein
+Beleg für einen Rücksprung der Systemuhr.
+
+**Ungeklärt bleibt die genaue Ursache des Status 1 von PID 445**, dem
+VirtualizationService-Aufräumschritt für alte UID-Zuordnungen. Die originale,
+unveränderte Init-Regel ist quellengebunden; die ursprüngliche Fehlerausgabe
+und der konkret fehlgeschlagene Pfad/Systemaufruf fehlen jedoch. Dieser
+Rückgabewert wird nicht pauschal akzeptiert oder allein aus späteren
+Dateirechten erklärt. Keine erneute Aufräumaktion und keine Rechteänderung
+wurde für die Einordnung ausgeführt. D1 bleibt offen.
+
+Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `paired-readback/events.json` (150 Ereignisse) | `6e920c2b642b2561f34474a8f557511596268c2387ced2dda8923f5ff41127fb` |
+| `paired-readback/result.json` | `d70ae3236db51290b319115f2707f7d949fd052f8a7317ded3f778ebdb3763f3` |
+| `boot2-active-verity/result.json` | `1bec3452541a8499fbf56ca903a3466dd4c3a3878af37a21eee32bf9ff18f950` |
+| `boot2-after-readback-audit.json` | `93f2d3b1df588a3a8db10f7a359e411a82a42247afb06711a087a1c72dbc65fe` |
+| `boot2-service-review/result.json` | `c6464ce9739931d3d79468c451a4e35c162c323bbad5e3a3d9892b2190ae8879` |
+
 ## ec01e5fa: Originaldaten und Paketversionen nach gepaartem Neustart erhalten
 
 Der zweite Boot ist mit derselben Profil-ID und demselben Image bestätigt.

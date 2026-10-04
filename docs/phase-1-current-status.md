@@ -107,8 +107,17 @@ haben einen zugeordneten Steuerungs- oder Shutdown-Vorgang; ein SystemServer-Sta
 und keine Treffer der sechs geprüften Fatal-/ANR-Marker. Der zweite Boot mit
 demselben Profilpaar besitzt eine neue Boot-ID. Vor persönlicher Anmeldung
 sind beide Benutzer gestoppt, ihre CE-Speicher gesperrt und die bekannten
-Originaldateien unlesbar. Betas Rücklesen ist bestanden; Alphas Rücklesen,
-private Pakete und die vollständige Abnahme des zweiten Boots bleiben offen.
+Originaldateien unlesbar. Beide ersten korrekten Anmeldungen nach Neustart
+gelingen direkt; die ursprünglichen Dateien und Konfigurationen beider
+Benutzer sind bytegleich, die alten flüchtigen Dateien verschwunden.
+Alle acht aktiven Verity-Geräte samt schreibgeschützten Mounts sind auch in
+Boot 2 geprüft, mit unveränderter SystemServer-Identität. Der zweite Audit
+hat keine Treffer der geprüften Fatal-/ANR-Marker. Ein `hidl_memory`-SIGKILL
+ist der ursprünglichen Stop-Regel zugeordnet; eine Zeitinversion von drei
+Mikrosekunden betrifft verschiedene Threads. Offen bleibt Status 1 des
+VirtualizationService-Migrations-Aufräumschritts, dessen ursprüngliche
+Fehlerausgabe nicht aufgezeichnet ist. Private Paketpersistenz und die
+vollständige Abnahme des zweiten Boots bleiben ebenfalls offen.
 D1 und die vollständige DoD bleiben offen.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
