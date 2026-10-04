@@ -12,6 +12,7 @@
 namespace {
 termios saved_mode;
 volatile sig_atomic_t mode_active;
+volatile sig_atomic_t password_mode;
 constexpr int signals[] = {SIGINT, SIGTERM, SIGHUP, SIGQUIT, SIGTSTP};
 constexpr unsigned signal_count = sizeof(signals) / sizeof(signals[0]);
 struct sigaction saved_actions[signal_count];
@@ -20,7 +21,13 @@ void fail(JNIEnv* env, const char* text) {
     env->ThrowNew(env->FindClass("java/lang/IllegalStateException"), text);
 }
 void restore_at_exit() {
-    if (mode_active) tcsetattr(STDIN_FILENO, TCSANOW, &saved_mode);
+    if (mode_active) {
+        // A signal can arrive before the canonical password line has a
+        // delimiter. Do not hand that unread input to the parent shell.
+        // Raw GNU terminal input has a separate lifecycle and is not flushed.
+        if (password_mode) tcflush(STDIN_FILENO, TCIFLUSH);
+        tcsetattr(STDIN_FILENO, TCSANOW, &saved_mode);
+    }
 }
 void interrupted(int number) {
     // No allocation, JNI, logging or second reader in a signal handler.
@@ -74,6 +81,7 @@ Java_org_aegisos_identity_TerminalNative_beginMode(JNIEnv* env, jclass, jint mod
             ++installed;
         }
     }
+    password_mode = mode == 0;
     mode_active = 1;
     if (tcsetattr(STDIN_FILENO, TCSANOW, &next) < 0) { mode_active = 0; goto done; }
     changed = true;
@@ -101,6 +109,7 @@ Java_org_aegisos_identity_TerminalNative_endMode(JNIEnv* env, jclass) {
     // If restoration fails, retain the emergency signal/exit restoration.
     if (result == 0) {
         mode_active = 0;
+        password_mode = 0;
         for (unsigned i = 0; i < signal_count; ++i) sigaction(signals[i], &saved_actions[i], nullptr);
     }
     sigprocmask(SIG_SETMASK, &old_mask, nullptr);

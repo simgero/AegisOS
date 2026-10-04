@@ -9,7 +9,8 @@ weder eine ganze T-Zeile noch ein D-Kriterium. Historische Ergebnisse stehen im
 automatisch für das aktuelle Image.
 
 Die [aktuelle Restliste für alle 17 Pflichtbereiche](phase-1-current-status.md)
-ordnet den Stand von `b832d6c` einschließlich seiner verbleibenden Lücken zu.
+ordnet das Image `cacbf0d` einschließlich seiner verbleibenden Lücken zu und
+führt noch nicht integrierte Quellkorrekturen getrennt auf.
 Die weiter unten stehende ältere T01–T17-Tabelle gehört weiterhin zum
 historischen Referenzimage `209278de`.
 
@@ -21,6 +22,53 @@ Programmdateien. `build-inventory-proof.json`, SHA-256
 `0a1ea5043061eff3b6aa8129af1f11af3b37278da110a2467a557a75aef5b3a7`,
 bindet die lokalen Beobachtungen. Das ist kein neuer Compilerlauf; D1 und
 sämtliche offenen Pflichtvarianten bleiben offen.
+
+## T01: Terminal-Abbruch mit unvollständiger Passworteingabe
+
+Der Hosttest kompiliert die tatsächliche `terminal_jni.cpp` und
+`TerminalConsole.java`. Die Testkopie von `TerminalNative.java` ersetzt
+ausschließlich den festen Android-Bibliothekspfad durch den Pfad der lokal
+kompilierten Testbibliothek. Die Produktdatei und ihr fester Loader bleiben
+unverändert. Ein öffentlicher Testtext wird über ein eigenes PTY eingegeben;
+es werden keine Gastbefehle, Binder-Aufrufe oder echten Konten verwendet.
+
+Auf den drei bytegleich an `cacbf0d4ccf400155254ed84d0045244a1e4f6a2`
+gebundenen Produktquellen bestehen zunächst sechs normale Eingabe-/Abbruchtests.
+Die zusätzlich geprüfte unvollständige Eingabe scheitert: Nach SIGTERM enthält
+der nächste Terminal-Read noch den Testtext vor dem folgenden Befehl. Dieser
+Fehler ist ein eigenständiger T01-Befund, keine Erklärung der Plattformmeldung.
+
+Die Korrektur verwirft ausstehenden Input beim Notfall-/Exit-Restore im
+Passwortmodus mit `tcflush(TCIFLUSH)`. Der reguläre Abschluss der Eingabe und
+der rohe GNU-Terminalmodus verwenden diesen zusätzlichen Flush nicht.
+Danach bestehen sieben Hosttests: normale und maximale Eingabe ohne Echo,
+Überlänge samt nachfolgendem Befehl, EOF, Wiederherstellung bei Unterbrechung,
+Verwerfen unvollständiger Eingaben sowie Ablehnung einer Pipe. Beide
+Signaltests decken SIGINT, SIGTERM, SIGHUP, SIGQUIT und SIGTSTP ab.
+
+Lokale Belege unter `out/phase1-dod/pmsg-cacbf0d/terminal-host-tests/`:
+`source-binding.json`, `first-execution.log`,
+`pending-input-before-fix.log`, `after-fix.log` und `result.json`.
+Letzterer bindet Quell- und Logprüfsummen; SHA-256:
+`1b79ce9d6679121f2a4bfe987bb5b8e645ec02592dc76aebc07ced0c188f61b2`.
+Der erste Aufruf unter dem Buildkonto konnte das Arbeitsverzeichnis nicht
+lesen und erreichte keine Testausführung. Die ausgeführten Tests verwenden
+deshalb eine temporäre Kopie nur der fünf öffentlichen Quell-/Testdateien;
+bestehende Verzeichnisberechtigungen wurden nicht verändert.
+
+Reproduktion von einem lesbaren Checkout aus mit einem verfügbaren JDK:
+
+```sh
+AEGIS_TEST_JDK=/pfad/zum/jdk python3 -B -m unittest discover -s tests -p test_terminal_console.py -v
+```
+
+Benötigt werden Linux-PTYs, ein C++-Compiler und eine Host-C-Bibliothek mit
+`memset_explicit`. Ohne JDK meldet die Suite einen Skip; ein Skip zählt nicht
+als bestandener Nachweis. Die beobachtete erfolgreiche Ausführung verwendet
+den vorhandenen AOSP-JDK 21 und die Host-C-Bibliothek glibc 2.43.
+**Android-Build und Gastintegration der Korrektur stehen aus.** Die Hosttests
+belegen weder vollständige Speicherbereinigung noch Binder-/Datei-/History-/
+Log-Offenlegungsfreiheit. T01 und die Gesamtfreigabe bleiben offen.
 
 ## Neuer ec01e5fa-Boot: misctrl, Verity, Bildschirm, Eingabe und ADB
 

@@ -30,6 +30,22 @@ Fehler wird getrennt von der gemeldeten Security-Unterbrechung geführt;
 Schutzkonfigurationen wurden nicht verändert. Die Abnahmekriterien bleiben
 vollständig bestehen, offene Prüfungen erhalten keinen Erfolgsstatus.
 
+## Neue Terminalkorrektur: Abbruch einer Passworteingabe
+
+Ein Hosttest mit öffentlichem Testtext reproduziert auf der Terminalquelle von
+`cacbf0d` einen T01-Fehler: Wird die CLI während einer noch nicht abgeschlossenen
+Passworteingabe per SIGTERM beendet, bleibt die Eingabe im kanonischen
+Terminalpuffer und wird dem nächsten Leser vorangestellt. Die Quellkorrektur
+verwirft diesen Rest beim signalbedingten Beenden im Passwortmodus, bevor die
+ursprünglichen Terminaleinstellungen wiederhergestellt werden.
+
+Sieben Hosttests bestehen nach der Korrektur, einschließlich Restpufferprüfung
+für alle fünf bereits unterstützten Signale. Der frühere fehlgeschlagene Test
+bleibt erhalten. Die Änderung ist **noch nicht im laufenden Android-Image**;
+Android-Build und Integrationsprüfung stehen aus. Der Befund erklärt nicht die
+Plattform-Security-Meldung. Vollständiger Passwortaudit, T01 und D1–D7 bleiben
+offen; Details stehen im [Ergebnisindex](phase-1-result-index.md).
+
 ## Aktuelles Image cacbf0d: vollständige Restmatrix
 
 Image: `cacbf0d4ccf400155254ed84d0045244a1e4f6a2`, Profil:
