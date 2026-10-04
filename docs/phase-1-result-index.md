@@ -1,6 +1,6 @@
 # Phase 1 – Ergebnisindex der Referenzläufe
 
-Stand: 3. Oktober 2026. **Unvollständig; keine Gesamtfreigabe.**
+Stand: 4. Oktober 2026. **Unvollständig; keine Gesamtfreigabe.**
 Verbindlich bleiben sämtliche Anforderungen der [DoD](architecture/phase-1-dod.md)
 und des [Entwicklerauftrags](architecture/phase-1-developer-brief.md).
 Dieser Index ordnet einzelne Varianten zu. Ein bestandener Teilfall schließt
@@ -433,9 +433,44 @@ ausgegeben.
 Der zweite Lauf verwendet dasselbe erhaltene Profilpaar als transienten
 lokalen `systemd`-Dienst `aegis-qemu-b832d6c-boot2.service`. `Restart=no`
 verhindert verdeckte Neustarts; `KillMode=mixed` und 120 Sekunden Stopzeit
-lassen zunächst den Launcher Android vor KeyMint geordnet beenden. Boot,
-Eingabe, ADB und die eigentliche Paketregression sind noch nachzuweisen.
-Die vollständige DoD bleibt offen; es wurden keine Buildartefakte hochgeladen.
+lassen zunächst den Launcher Android vor KeyMint geordnet beenden. Die
+eigentliche Paketregression und die vollständige DoD bleiben offen;
+es wurden keine Buildartefakte hochgeladen.
+
+### b832d6c: Boot, Bedienung und authentifiziertes ADB
+
+Der zweite Lauf erreicht am 4. Oktober den Bootabschluss. Boot-ID
+`3af1952e-80ab-4ef2-bef4-92a74fb0da75`, SystemServer `1189/29447`, AVB-Digest
+wie oben, SELinux Enforcing, `managed-v1`, `ro.adb.secure=1`, ausschließlich
+Systembenutzer 0 und CE `[0]` sind vor der persönlichen Benutzeranlage
+bestätigt. Die erste ADB-Verbindung scheitert an der Authentifizierung;
+der vorgesehene zweite Verbindungsversuch ist erfolgreich. Die
+Authentifizierungsanforderung bleibt aktiv.
+
+Einmaliges QMP-TAB/RET öffnet aus den Einstellungen „Network & internet“.
+Ein einzelner QMP-Mausklick bei beobachtetem Cursor `(57.2,106.2)` innerhalb
+des „Navigate up“-Elements führt zurück. Screenshots und UI-Bäume bestätigen
+beide Übergänge. Drei erfolglose frühere UI-Abfragen bleiben erhalten; sie
+wurden durch spätere Beobachtungen, nicht zusätzliche Navigationseingaben,
+ergänzt. Die erste Mausbewegung landete wegen Beschleunigung außerhalb des
+Ziels; vor jedem Klick wurde die Position erneut geprüft und korrigiert.
+
+Ein zufälliger 256-KiB-Testblock kommt über ADB bytegleich zurück. Die einzige
+dafür angelegte Gastdatei wird entfernt. Beide abgeschlossenen Belege prüfen
+unveränderte Boot-/Framework-Identität, SELinux und CE-Ausgangszustand.
+Lokale Belege unter `out/phase1-dod/b832d6c-base/`:
+
+| Beleg | SHA-256 | Reichweite |
+| --- | --- | --- |
+| `baseline.json` | `ce4ea40a92bae50a7a5154283346d2851f99bff1e33f8c61d364444aba42dbe4` | Systemzustand vor persönlichen Benutzern |
+| `qmp-ui-proof.json` | `f4ea8a33e684704347096b89328b16d1ac8170397d7773d01ff7da6af7c21aef` | Tatsächliche Tastatur-/Mausnavigation |
+| `adb-binary-proof.json` | `3e5fce603a5d9f10d9b242b0d6274f4d8b303e19ddd41c03ec98d9d1612b516f` | Authentifizierter Binärtransfer und unveränderter Ausgangszustand |
+| `boot2-health-observation.json` | `0827efbb6233fab3d5fddf7911b1f077794481ee568c45fe78b205fc7f1126fa` | Begrenzte Logpräfixe: ein Framework-Start, keine gefundenen Java-Fatal-/Fatal-Signal-/Watchdog-Abbruchmeldungen |
+
+Der letzte Beleg erhält auch alle nicht mit Status 0 beendeten Dienste.
+Ihre vollständige Zuordnung zum aktuellen Image und die weiteren
+Lebenszyklusfälle bleiben erforderlich. Diese Teilbelege schließen weder
+D1 noch den persönlichen Referenzablauf oder die Paketkorrektur ab.
 
 ### Historische Restliste des Referenzlaufs 209278de
 
