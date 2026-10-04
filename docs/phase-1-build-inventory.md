@@ -203,4 +203,4 @@ gesonderten Statusleser eine Moduszuordnung. Die resultierende GPT-Basis hat
 SHA-256 `4488d65777c0bc36b6b4cdabc6e4397a5513f05c31f4cb7c9b76d591b9b7bb19`.
 Der AVB-Digest bleibt unverändert. Vorhandene Profile werden nicht auf diese
 andere Bootkonfiguration umgebunden. Auch hier fehlen Profilanlage, Boot und
-Gastabnahme; der vollständige Nachweis steht im Ergebnisindex.
+Gastabnahme; die Belege der Vorbereitung stehen im Ergebnisindex.

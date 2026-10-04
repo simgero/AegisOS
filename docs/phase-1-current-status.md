@@ -25,6 +25,8 @@ Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
 Diese Vorbereitung besitzt noch kein Profil und keinen Gastnachweis.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
+Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
+den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.
 
 Die genannten Belege liegen lokal unter `out/phase1-dod/b832d6c-base/`.
 Der [Ergebnisindex](phase-1-result-index.md) beschreibt Abläufe, Grenzen,

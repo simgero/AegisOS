@@ -34,6 +34,13 @@ sind Prüfpflichten, keine pauschalen Erfolgsbehauptungen. Für alle Szenarien
 werden der vertrauenswürdige Host, der nicht kompromittierte AOSP-Kernel und
 die tatsächlich aktive Sicherheitsrichtlinie vorausgesetzt.
 
+Nachweisstand: Der letzte umfangreiche persönliche Lauf ist `b832d6c`.
+Das neueste gebaute Image `ec01e5fa` enthält weitere Korrekturen, aber noch
+keine persönliche Gastabnahme. Bestehende Nachweise unten gelten ausschließlich
+für das jeweils im [Ergebnisindex](../docs/phase-1-result-index.md) genannte
+Image; sie werden nicht auf ec01e5fa übertragen. Die
+[Übergabeübersicht](../docs/phase-1-handoff.md) trennt Quellen, Build und Abnahme.
+
 | Nr. | Angriff / Ereignis | Erwarteter Schutz und Nachweis | Vertrauensgrenze / aktueller Belegumfang |
 | --- | --- | --- | --- |
 | 1 | Ausgeschaltetes Gerät oder Storage-Image gestohlen | Persönliche Daten bleiben durch AOSP-FBE geschützt; CE vor erster Anmeldung unlesbar, nach korrekter Anmeldung identisch (T07/T12). | Der Entwicklungs-Software-TPM bietet keine vom Host unabhängige Hardwarebindung. Ein gestohlenes vollständiges VM-/RAM-Abbild oder Offline-Passwortraten ist damit nicht pauschal abgewehrt. |
@@ -47,7 +54,7 @@ die tatsächlich aktive Sicherheitsrichtlinie vorausgesetzt.
 | 9 | Wechsel oder Bildschirmsperre bei laufender Runtime | Persönliche Hintergrundprozesse dürfen gemäß AOSP weiterlaufen, bleiben dem bisherigen Benutzer zugeordnet. Terminalzugriff wird angemessen widerrufen; kein behaupteter CE-Entzug (T08/T09). | Wechsel und Logout sind verschieden. AOSP darf Hintergrundbenutzer aus Ressourcengründen stoppen; dann muss auch die Runtime abgebaut werden. |
 | 10 | Logout, Speicher-Sperrung oder Paketoperation scheitert/konkurriert | Kein falscher Erfolg, keine neue unberechtigte Freigabe, geordneter Ressourcenabbau und erklärter Wiederanlauf (T10/T11/T17). | Echter CE-EBUSY-Wiederanlauf bereits belegt; vollständige Paket-/Lebenszykluskonkurrenz weiterhin offen. |
 | 11 | Paketauftrag manipuliert Bereich, Adminfreigabe oder Eigentümer | Bereich explizit, frische AOSP-Adminprüfung und serverseitige Bindung an Antragsteller/Seriennummer/Plan; keine fremde CE-Freigabe (T13/T14). | Adminfreigabe für gemeinsame ausführbare Software ist eine Vertrauensentscheidung. Ein Admin kann künftiges Programmverhalten beeinflussen; daraus folgt kein direktes Leserecht auf fremdes CE. |
-| 12 | Gemeinsames Update bei privaten Versionen oder parallelen Transaktionen | Exakte private Auswahl und passende Abhängigkeiten bleiben konsistent; kontrollierte Aktivierung oder sichtbarer Konflikt, kein Teilbestand als Erfolg (T15/T16/T17). | Gemeinsame Updateaktivierung mit erhaltener privater Auswahl ist in den früheren Läufen 209278de/f098f439 belegt. Das aktuelle Image b832d6c besitzt getrennte Nachweise für private Installation und Entfernung; seine Updateaktivierung und vollständige Konflikt-/Parallelitätsmatrix bleiben offen. Siehe die ausdrücklich nach Image getrennten Abschnitte im [Ergebnisindex](../docs/phase-1-result-index.md). |
+| 12 | Gemeinsames Update bei privaten Versionen oder parallelen Transaktionen | Exakte private Auswahl und passende Abhängigkeiten bleiben konsistent; kontrollierte Aktivierung oder sichtbarer Konflikt, kein Teilbestand als Erfolg (T15/T16/T17). | Auf b832d6c ist die gemeinsame Updateaktivierung mit erhaltener abweichender privater Auswahl, vollständigen Paketbeständen und unveränderten persönlichen Daten inzwischen zugeordnet. Konflikte und Parallelität bleiben offen; auf ec01e5fa fehlt der Gastnachweis. Siehe die ausdrücklich nach Image getrennten Abschnitte im [Ergebnisindex](../docs/phase-1-result-index.md). |
 
 ## Ergänzende Szenarien und Grenzen
 

@@ -10,6 +10,13 @@ abgenommen. Der chronologische Buildverlauf steht in
 Buildartefakte und lokale Neubau-Befehle stehen im
 [Build- und Startinventar](phase-1-build-inventory.md).
 
+Das Startbeispiel ist ein historisch geprüfter Stand, nicht das neueste Image.
+Der neue Build ec01e5fa und das Startrezept d9a0d30 sind separat vorbereitet,
+aber noch nicht im Gast abgenommen; ihre Pfade und Quellbindungen stehen im
+Buildinventar. Insbesondere besitzt b832d6c einen bekannten Fehler: `linux shell`
+kann nach `linux stop` selbst wieder einen Kontext starten. Der neue Build
+enthält die Korrektur; der tatsächliche Regressionsnachweis steht noch aus.
+
 ## QEMU und Zugang
 
 Das persistente Profil besteht gemeinsam aus `android.qcow2`, `secure-env.ext4`
@@ -116,6 +123,12 @@ der vorherige Benutzer kann im Hintergrund weiterlaufen. `passwd` ändert das
 eigene Passwort durch AOSP und fragt das bisherige sowie zweimal das neue
 Passwort verdeckt ab. `status` zeigt die aktuelle Terminalanmeldung,
 `linux status` den eigenen Kontext und Paketstand.
+
+Der vorgesehene Ablauf lautet immer `linux start`, danach `linux shell`.
+Im korrigierten Servicecode verlangt `linux shell` einen bereits bereiten
+Kontext und startet ihn nicht selbst. `exit` am `aegis>`-Prompt schließt dagegen
+den AEGIS-Client; eine spätere CLI erbt dessen Anmeldung nicht. Auch dieses
+Client-Ende ist kein bestätigter AOSP-Logout.
 
 Nach einem gemeinsamen Paketupdate kann `linux start` die persönliche
 Paketauswahl neu abgleichen. Auf ARM64-QEMU ohne Hardwarebeschleunigung dauert

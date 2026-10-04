@@ -1,11 +1,12 @@
 # Gemeinsame Debian-Basis
 
-Stand 29. September 2026: **Gemeinsame Basis erzeugt, im Android-Image geprüft
-und in zwei persönlichen GNU-Kontexten im lokalen Mac-QEMU ausgeführt.**
-Der unten beschriebene Import selbst bleibt eine reine Datei-/Quellprüfung.
-Die anschließende Integration und ihre Grenzen stehen im
-[GNU-Test](../docs/runtime-gnu-qemu-test.md). Pakettransaktionen und verwaltete
-Benutzerlöschung sind noch nicht implementiert.
+Stand 4. Oktober 2026: Gemeinsame Basis, persönliche Runtime-Kontexte,
+Pakettransaktionen und verwaltete Benutzerlöschung sind implementiert.
+Die [aktuelle Abnahmeübersicht](../docs/phase-1-current-status.md) trennt die
+konkreten Gastbelege von offenen Pflichtfällen; Phase 1 ist nicht vollständig
+abgenommen. Das neueste Image ec01e5fa ist gebaut, aber noch nicht im Gast
+geprüft. Der unten beschriebene Import bleibt eine Datei-/Quellprüfung.
+Die historischen Mac-QEMU-Nachweise stehen im [GNU-Test](../docs/runtime-gnu-qemu-test.md).
 
 ## Festgelegte Herkunft
 
@@ -76,7 +77,7 @@ falsche Architektur, aktive Linux-Credentials, fehlerhaften dpkg-Zustand,
 unsichere Archivnamen, Größenlimits, Abbruch und Erhalt vorhandener Dateien.
 Diese Tests starten kein Betriebssystem und prüfen keine Namespace-Isolation.
 
-## Integrierte Runtime und nächste Schritte
+## Historischer Integrationsnachweis 2f29f0ac
 
 Die gemeinsame [Softwaregeneration](generations.md) enthält den technischen
 NSS-Eintrag `runtime` mit internem UID/GID 1000. Persönliche Identitäten und
@@ -102,9 +103,11 @@ Android-/KeyMint-Paars. Vollständige Fehler- und Konkurrenzprüfungen bleiben o
 
 Die Korrektur der ersten Anmeldung `2f29f0ac` besteht inzwischen den realen
 Zwei-Benutzer-Dienstablauf einschließlich erster Zugänge nach Reboot und
-Verweigerung einer widerrufenen Passwortabfrage. Als nächste Arbeit bleiben
-verwaltete Benutzerlöschung vor Freigabe der AOSP-ID und gemeinsame/private
-Paketgenerationen mit frischer AOSP-Adminprüfung für beide Bereiche. Bei einer
+Verweigerung einer widerrufenen Passwortabfrage. Die damals noch fehlende
+verwaltete Benutzerlöschung und gemeinsame/private Paketverwaltung sind
+inzwischen implementiert; zugehörige Entwicklungsschritte stehen unter
+[Speicherlebenszyklus](aosp-storage-lifecycle.md) und
+[Pakettransaktionen](package-transactions.md). Bei einer
 privaten Aktion bleibt der Zielbenutzer der authentifizierte Antragsteller,
 auch wenn ein anderer Administrator zustimmt.
 
@@ -113,5 +116,7 @@ Ausgangsarchiv pinnt keine späteren Installationen. Jede zukünftige Transaktio
 muss ausgewählte Versionen/Hashes, Abhängigkeiten, Datenbank, Konfiguration und
 technische Konten konsistent verwalten. Bereits laufende Kontexte müssen ihren
 bisherigen vollständigen Bestand behalten. Private Versionen dürfen durch ein
-gemeinsames Update nicht still überschrieben werden. Diese Anforderungen sind
-noch keine implementierte Paketverwaltung.
+gemeinsames Update nicht still überschrieben werden. Welche dieser Varianten
+auf welchem Image bestanden sind, hält der
+[Ergebnisindex](../docs/phase-1-result-index.md) fest; die Implementierung allein
+schließt die geforderten Konflikt- und Parallelitätstests nicht ab.

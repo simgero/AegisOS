@@ -6,8 +6,10 @@ gepinnten Android-16-Kernel 6.12.18 mit dokumentierten AEGIS-Anpassungen.
 Die AEGIS-Anbindung delegiert Authentifizierung und Schlüsselverwaltung an
 AOSP. Sie implementiert keine eigene KDF, Passwortdatenbank oder CE-Schlüsselablage.
 
-Der aktuelle Abnahmelauf verwendet inzwischen
-`b832d6c077baeee4324e00d00dc3618372f3e9d9`; seine Teilnachweise stehen im
+Der letzte umfangreiche persönliche Abnahmelauf verwendet
+`b832d6c077baeee4324e00d00dc3618372f3e9d9`; das neueste gebaute Image ist
+`ec01e5fa5f2822da5763ab54c644bc5c5c5ab413` und besitzt noch keinen persönlichen
+Gastnachweis. Die getrennten Stände stehen im
 [Ergebnisindex](phase-1-result-index.md). Die folgenden Quell- und
 Konfigurationsbelege behalten ihre ausdrücklich angegebenen Imagebindungen.
 Ihre vollständige Zuordnung zum aktuellen Image bleibt vor D7-Abschluss zu
@@ -26,7 +28,33 @@ den neuen AEGIS-Adapter nicht. Ein separater [Persistenztest](persistent-qemu.md
 bestätigt inzwischen den Erhalt passwortgeschützter Daten nach einem geordneten
 vollständigen Neustart.
 
-## Aktuelle Quellbindung und Konfigurationsbeobachtung auf b832d6c
+## Quellbindung des neuen ec01e5fa-Builds
+
+Die vier unten beschriebenen Kryptographiedateien wurden erneut gegen das
+gespeicherte AOSP-Manifest und die vorbereiteten Quellen des tatsächlichen
+ec01e5fa-Builds geprüft. Alle vier sind bytegleich zum dokumentierten
+b832d6c-Stand. Für SP800Derive und SecureRandomUtils stimmt der unveränderte
+Upstream-Code; für die beiden Synthetic-Password-Dateien stimmen zusätzlich
+die ursprünglichen Eingänge und gespeicherten AEGIS-Ausgänge des Buildbelegs.
+
+Auch die neun dokumentierten CLI-/JNI-/AIDL-/Dienst-/Transporttestquellen
+stimmen jeweils mit ec01e5fa und dessen `identity-source-files.json` überein.
+Acht Dateien sind unverändert. Der Identity-Service unterscheidet sich
+ausschließlich innerhalb `linuxShell`; der gesamte Code vor und nach dieser
+Methode ist bytegleich zu b832d6c. Die Korrektur verlangt einen bereits
+gestarteten Kontext. Damit wird keine unveränderte gesamte Service-Datei und
+kein bereits bestandener Gasttest dieser Shell-Korrektur behauptet.
+
+Beleg: `out/phase1-dod/ec01e5fa-handoff/crypto-and-transport-source-binding.json`,
+SHA-256 `e52ffe64c237715cb570fc4f68cf568187265459780a917cee0166b3eb3aa685`.
+Der Bericht bindet Imagecommit, Buildmanifest, vorbereitete Quellen und die
+vorherigen Quellbelege. Es wurden ausschließlich öffentliche Quellen und
+Buildmetadaten gelesen. Historische FBE-Konfigurationen, Passwort-, Lösch-,
+Neustart- und Offenlegungsprüfungen bleiben an ihre jeweiligen Images gebunden.
+Insbesondere bleiben generierte Binder-Proxys und dynamische Argument-/History-/
+Datei-/Log-/Fehlerpfade offene T01-Nachweise.
+
+## Quellbindung und Konfigurationsbeobachtung auf b832d6c
 
 Die vier unten beschriebenen AOSP-Dateien `SP800Derive`, `SecureRandomUtils`,
 `SyntheticPasswordCrypto` und `SyntheticPasswordManager` sind nun gegen den

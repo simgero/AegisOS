@@ -1,6 +1,13 @@
 # Pakettransaktionen und Aktivierung
 
-## Aktuell im Produktimage geprüft
+Aktueller Nachweisstand: Auf b832d6c ist inzwischen auch das gemeinsame Update
+mit anschließend weiterhin abweichender privater jq-Version samt Abhängigkeiten
+zugeordnet. Beide neuen Kontexte, vollständige Paketbestände und ursprüngliche
+Daten sind in der [Abnahmeübersicht](../docs/phase-1-current-status.md) und im
+[Ergebnisindex](../docs/phase-1-result-index.md) gebunden. Konflikte und Parallelität
+bleiben offen; das neueste gebaute ec01e5fa-Image ist noch nicht im Gast geprüft.
+
+## Historischer Produktnachweis 209278de
 
 Image `209278def7d5bc5612eeb397bdd8ee20ccb16d86` besteht den gemeinsamen
 Update- und Aktivierungsfall mit einem bestehenden privaten Paketbestand.
