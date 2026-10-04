@@ -20,7 +20,7 @@ Images. T13 als Ganzes sowie D1–D7 bleiben offen.
 | Aktion/Bereich | Gültige Freigabe und Ausführung | Ohne Adminauswahl | Falsches Adminpasswort | Nicht-Adminfreigabe |
 | --- | --- | --- | --- | --- |
 | `install all` | belegt | belegt | belegt | belegt |
-| `install user` | belegt für Alpha | offen | offen | offen |
+| `install user` | belegt für Alpha | belegt | belegt | belegt |
 | `update all` | offen | offen | offen | offen |
 | `update user` | offen | offen | offen | offen |
 | `remove all` | belegt, beide Benutzer aktiviert | offen | offen | offen |
@@ -32,6 +32,9 @@ Die gültigen Varianten sind an `shared-u3-activation-proof.json`,
 Prüfsummen und Grenzen stehen in den b832d6c-Abschnitten unten. Die drei
 Installationsablehnungen bindet `install-all-denials-proof.json`, SHA-256
 `a1f4ec9b17bebf4a8d343545ddf8bea70c22d59d16d51ca1ec40b71e1c6ed915`.
+Die drei persönlichen Installationsablehnungen bindet
+`install-user-denials-proof.json`, SHA-256
+`bb052a68caf3fe05bfa0d61c76439ca976ac79385ed2ff6ce5ad978778e7b839`.
 Die Eigentümerzuordnung bei abweichendem Antragsteller/Admin und die übrigen
 T13-Varianten müssen gesondert vervollständigt werden.
 
@@ -1050,6 +1053,31 @@ zusätzlich den ersten abgebrochenen Plan. Das unbekannte CLI-Eigentümerargumen
 ersetzt keinen vollständigen Test fremder Binder-Aufrufer oder manipulierter
 Identitäten. Die anderen fünf Aktions-/Bereichskombinationen benötigen weiterhin
 ihre eigenen fehlenden Ablehnungsvarianten.
+
+### b832d6c: drei verweigerte Freigaben für persönliche Installation
+
+Beta beantragte für jeden Fall einen neuen persönlichen Installationsplan
+für jq 1.7.1-6+deb13u3. Leere Adminauswahl, falsches Alpha-Passwort und Betas
+korrektes Nicht-Adminpasswort verhinderten jeweils die Veröffentlichung.
+Die vollständigen Zustandsvergleiche bleiben identisch: Beide bisherigen
+Kontexte und Paketbestände bestehen fort, Betas private Auswahl bleibt
+abwesend, Gamma bleibt gesperrt. Betas gültige Sitzung wurde nach jeder
+Ablehnung unabhängig bestätigt.
+
+| Variante | Lokaler Nachweis | SHA-256 |
+| --- | --- | --- |
+| Ohne Adminauswahl | `install-user-cancel-proof.json` | `aeb22407c9763572c9c05f59c9e571d84937ed8a2b294535276a469d24481746` |
+| Falsches Adminpasswort | `install-user-wrong-proof.json` | `990de95e06d1c58b11a4f4934c65dbccead06cec4d25509e28c8f6c43bebd0d1` |
+| Nicht-Adminfreigabe | `install-user-nonadmin-proof.json` | `823241be76657cff8f2d7fda52fe54846b77837c568e6c805630e299ce7504c5` |
+
+`install-user-denials-proof.json`, SHA-256
+`bb052a68caf3fe05bfa0d61c76439ca976ac79385ed2ff6ce5ad978778e7b839`,
+bindet die drei Einzelbelege, unveränderte Zustandsfelder und 405 Ereignisse.
+Die vollständige Ereigniskopie liegt in
+`install-user-denials-events-original.json`. Der generische Anmeldehinweis
+bei Nicht-Adminfreigabe bleibt als solcher erhalten; er ersetzt keine
+Sitzungsprüfung. Eine gültige private Beta-Installation und deren
+Eigentümer-/Zugriffsnachweis werden hier noch nicht behauptet.
 
 ### Historische Restliste des Referenzlaufs 209278de
 
