@@ -22,6 +22,7 @@ REQUIRED = {
     "scripts/aosp/register-qemu-graphics.py",
     "scripts/aosp/register-egl-cache.py",
     "scripts/aosp/register-misctrl.py",
+    "scripts/aosp/register-pmsg-diagnostics.py",
     "scripts/aosp/check-memory.py",
     "scripts/aosp/check-audio.py",
     "scripts/aosp/register-runtime-storage.py", "runtime/aosp-storage-hooks.json",

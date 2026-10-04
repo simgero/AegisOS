@@ -597,6 +597,28 @@ Lesefehlern. Der nächste D1-Schritt ist eine Fehlerdiagnose, die diese
 Ursachen getrennt sichtbar macht. Die ursprünglichen Audits, D1 und die
 Gesamtfreigabe bleiben offen. Diese Auswertung führte keine Gastaktion aus.
 
+Die dafür ergänzte Quelle `scripts/aosp/register-pmsg-diagnostics.py` bindet
+`system/logging` auf `d78b713380007d3c0dde14712cbcbec27f491ad9` und den
+ursprünglichen Parser-SHA-256
+`15c3239d82783d248bf6f229203efb25b1a47d62213f0b9a963e68511119cc54`.
+Der Build installiert und verifiziert den Hook; die Vorbereitung verlangt
+zusätzlich `pmsg-diagnostics-source.json`. Nicht verwaltete Quelländerungen
+und symbolische Links werden nicht überschrieben.
+Die neue Meldung `liblog-pmsg: pmsg file read: terminal=… aggregate=… result=…`
+enthält ausschließlich numerische Ergebnisse, keine Dateinamen oder Inhalte.
+Der bisherige API-Rückgabewert bleibt unverändert. Insbesondere wird weder
+Status 254 pauschal akzeptiert noch ein bereits aggregiertes Ergebnis als
+Beweis fehlerfreien Lesens behandelt.
+
+Sieben Hosttests kompilieren den gepinnten Rekonstruktionsparser vor und nach
+der Änderung. Nur Geräteleser und Ausgabesenke sind durch künstliche Daten
+ersetzt: EOF/EAGAIN, ENOENT, EACCES, EIO, EBADF, passende und ausgefilterte
+Einträge sowie Callback-Fehler werden geprüft. Eine zunächst falsch gezählte
+Länge des synthetischen Texts wurde im Test korrigiert; beide Parser lieferten
+dabei bereits identische Daten. Kein pstore-Gerät wird im Hosttest geöffnet.
+Die 32 AOSP-Worker-Tests bestehen ebenfalls. Eine tatsächliche Android-
+Kompilierung und die Diagnose beim Booten sind noch erforderlich.
+
 ## ec01e5fa: Originaldaten und Paketversionen nach gepaartem Neustart erhalten
 
 Der zweite Boot ist mit derselben Profil-ID und demselben Image bestätigt.

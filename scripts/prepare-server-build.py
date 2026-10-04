@@ -27,7 +27,7 @@ RECEIPTS = ("status", "project-commit.txt", "product-out.txt", "product-target.t
             "kernel-inputs.json", "runtime-base-inputs.json", "runtime-base-image.json",
             "runtime-base-generation.json", "runtime-policy-source.json",
             "runtime-storage-source.json", "vold-source.json", "bootanimation-source.json",
-            "egl-cache-source.json", "misctrl-source.json", "build.log")
+            "egl-cache-source.json", "misctrl-source.json", "pmsg-diagnostics-source.json", "build.log")
 
 
 def regular(path):

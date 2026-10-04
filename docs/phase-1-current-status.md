@@ -38,6 +38,12 @@ unterschiedlichen Threads. Die größere vorhandene Logaufnahme enthält genau
 den ursprünglichen SystemServer-Start; PID/Startzeit bleiben bis vor dem
 Shutdown `1397/38796`. Diese Einzelerklärungen ersetzen weder die offene
 Recovery-Diagnose noch die übrige D1-Abnahme. Der Audit behält seine Befunde.
+Für den nächsten Build ist eine gepinnte `liblog`-Diagnose ergänzt:
+Sie protokolliert das letzte Pmsg-Leseergebnis und das aggregierte Ergebnis
+als Zahlen, ohne Dateinamen oder Log-Inhalte. Sieben gezielte Hosttests mit
+dem tatsächlichen Rekonstruktionsparser bestätigen unterscheidbare Ursachen
+bei unveränderten API-Rückgaben. Die historische Ursache von Status 254 ist
+damit noch nicht nachgewiesen; neuer Build und Bootbeobachtung stehen aus.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
 Mit dieser Vorbereitung ist ec01e5fa inzwischen im eigenen Profil gebootet:
