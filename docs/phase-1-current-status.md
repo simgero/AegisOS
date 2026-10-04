@@ -91,7 +91,11 @@ scheitert das alte Passwort ohne CE-Entsperrung oder Runtime-Start; das neue
 Passwort erlaubt den Zugriff auf dieselben Dateien und Konfigurationen.
 Inhaltshashes und Dateimetadaten sind unverändert, alte flüchtige Dateien
 verschwunden. Der zu diesem Build gehörende AOSP-Quellpfad verwendet dasselbe
-Synthetic Password weiter. Der VM-Neustartteil von T02 ist noch offen.
+Synthetic Password weiter. Auch der VM-Neustartteil ist inzwischen bestanden:
+Betas erstes korrektes Login gelingt direkt mit dem neuen Passwort, die
+Originaldateien und Metadaten bleiben identisch. Nach erneutem Logout weist
+AOSP das alte Passwort ab; CE bleibt gesperrt und Runtime-Start verweigert.
+Damit ist **T02 auf cacbf0d bestanden**.
 Android und KeyMint-Helfer sind anschließend gemeinsam sauber gestoppt.
 Profil-ID, Manifest und beide Datenträgerzuordnungen bleiben erhalten; die
 Prüfung des gestoppten Overlays meldet keine Fehler. Im vollständigen ersten
@@ -101,8 +105,10 @@ Der aktuelle Manifest-Quellstand erklärt Status 4 als reguläre EINTR-Rückgabe
 nach Shutdown-SIGTERM an genau diese Dienstinstanz. Alle 105 Signalbeendigungen
 haben einen zugeordneten Steuerungs- oder Shutdown-Vorgang; ein SystemServer-Start
 und keine Treffer der sechs geprüften Fatal-/ANR-Marker. Der zweite Boot mit
-demselben Profilpaar ist gestartet; seine Abnahme und der Dateirücklesetest
-stehen noch aus.
+demselben Profilpaar besitzt eine neue Boot-ID. Vor persönlicher Anmeldung
+sind beide Benutzer gestoppt, ihre CE-Speicher gesperrt und die bekannten
+Originaldateien unlesbar. Betas Rücklesen ist bestanden; Alphas Rücklesen,
+private Pakete und die vollständige Abnahme des zweiten Boots bleiben offen.
 D1 und die vollständige DoD bleiben offen.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.

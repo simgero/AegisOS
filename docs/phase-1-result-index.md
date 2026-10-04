@@ -928,9 +928,50 @@ Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
 | `shutdown-source-review/result.json` | `2593403a9f79e4edbd998700b9b4c1b64aa7b8d0fe8dda8d022215115008a544` |
 
 Der zweite Boot startet mit demselben Image und Profilpaar sowie regulärem
-ausgehendem QEMU-Netzwerk. Sein gesperrter Startzustand und die ursprünglichen
-Benutzerdateien sind separat zu prüfen. T02, D1–D7 und die gesamte
-Referenzabnahme werden durch diesen Shutdown-Nachweis nicht abgeschlossen.
+ausgehendem QEMU-Netzwerk. Der anschließende Passwortnachweis steht im folgenden
+Abschnitt. D1–D7 und die gesamte Referenzabnahme bleiben offen.
+
+## cacbf0d: T02 nach gepaartem Neustart bestanden
+
+Boot 2 besitzt die neue ID `48f44f35-222a-437e-9b27-fe04e31ea7bc` und
+SystemServer `1017/20295`; Image und Profilpaar sind unverändert. Der bestehende
+Hostschlüssel authentifiziert ADB nach dem zweiten Transportversuch; es wurde
+kein neuer Schlüssel eingetragen. Vor persönlicher Anmeldung bestätigt die
+Aufnahme CE `[0]`, beide vorhandenen persönlichen Benutzer gestoppt, keine
+Runtime-Prozesse, SELinux Enforcing und FBE. Beide ursprünglich von GNU
+geschriebenen Testdateien liefern in diesem Zustand keine Bytes.
+
+Betas erster korrekter Anmeldeversuch nach diesem Neustart verwendet das neue
+Passwort und gelingt ohne vorgeschalteten Fehlversuch. Vor dessen Übermittlung
+bleibt Beta CE-gesperrt und ohne Kontext. Die verzögerte Statusprüfung bestätigt
+die Sitzung, ausschließlich CE `[0, 11]` ist entsperrt. Der ausdrücklich
+gestartete GNU-Kontext liest die ursprüngliche 1024-Byte-Datei sowie beide
+persistent gespeicherten 64-Byte-Konfigurationsproben bytegleich. Bei allen
+drei Dateien stimmen Inode, Größe, mtime, ctime und Eigentümer/Rechte exakt
+mit dem Stand vor dem Passwortwechsel überein. Die ursprünglichen flüchtigen
+Dateien sind verschwunden; keine Originaldatei wurde neu geschrieben.
+
+Nach erneutem regulärem Logout bestätigt AOSP wieder CE `[0]`. Ein einzelner
+Versuch mit Betas altem Testpasswort wird abgewiesen; CE bleibt unverändert
+gesperrt und `linux start` verweigert den nicht angemeldeten Aufrufer.
+Die abschließende unabhängige Aufnahme bestätigt dieselbe Boot-ID und
+SystemServer-Identität, SELinux Enforcing und keine Runtime-Prozesse.
+Zusammen mit dem vorherigen Passwortwechsel und dessen gebundenem AOSP-
+Quellpfad ist damit **T02 auf cacbf0d bestanden**. Der vollständige
+Referenzablauf, Alphas Rücklesen und private Paketpersistenz sind damit nicht
+abgeschlossen. Der frühere Beobachter-Timeout bleibt im Ereignispräfix erhalten;
+dieser Fall enthält keinen neuen Treiberfehler.
+
+Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `boot2-baseline.json` | `44641271c5ad03d57b0573c87dd8b7fad4991b3a83fd953e110bcf1b42663bb8` |
+| `password-post-reboot/result.json` (137 Ereignisse) | `618649e25c26218e8583b66c977612c5ec7e8380e87fb46610ce97bd5fae30b1` |
+
+Der neue Fallprüfer `record-password-post-reboot.py` und der eingefrorene
+Ereignissatz sind im lokalen Ergebnisbeleg mit Prüfsummen gebunden. Die
+Testpasswörter verbleiben ausschließlich im ursprünglichen laufenden Treiber.
 
 ## ec01e5fa: Originaldaten und Paketversionen nach gepaartem Neustart erhalten
 
