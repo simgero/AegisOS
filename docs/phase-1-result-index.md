@@ -13,6 +13,15 @@ ordnet den Stand von `b832d6c` einschließlich seiner verbleibenden Lücken zu.
 Die weiter unten stehende ältere T01–T17-Tabelle gehört weiterhin zum
 historischen Referenzimage `209278de`.
 
+Das [Build- und Startinventar b832d6c](phase-1-build-inventory.md) ordnet
+Quellcommits, Manifeste, konkrete Buildläufe und Startbefehle zu. Der erneute
+Dateiabgleich umfasst 20 Factory-Images, sieben unveränderliche Profileingaben,
+17 Buildbelege, 162 Kerneldateien, vier Runtime-Artefakte und 36 Helper-
+Programmdateien. `build-inventory-proof.json`, SHA-256
+`0a1ea5043061eff3b6aa8129af1f11af3b37278da110a2467a557a75aef5b3a7`,
+bindet die lokalen Beobachtungen. Das ist kein neuer Compilerlauf; D1 und
+sämtliche offenen Pflichtvarianten bleiben offen.
+
 ## Aktueller Lauf b832d6c: Paketautorisierung
 
 Der aktuelle Image-Commit ist

@@ -55,8 +55,11 @@ Ausführung sämtlicher älterer Tests oder eine Gesamtfreigabe.
 Alle sieben Abschlusskriterien bleiben offen. Außer den obigen Varianten
 gehören dazu weiterhin:
 
-- **D1:** vollständiges reproduzierbares Source-/Build-/Startinventar und
-  relevante Dienststabilität über den Abnahmelauf. Bildschirm, Eingabe und
+- **D1:** Das [Source-/Build-/Startinventar](phase-1-build-inventory.md) ist
+  jetzt mit den ursprünglichen Builddateien und dem verwendeten Profil
+  abgeglichen; dies ist kein erneut ausgeführter Android-Vollbuild.
+  Relevant bleibt die vollständige Dienststabilität über den Abnahmelauf.
+  Bildschirm, Eingabe und
   authentifiziertes ADB sind belegt. Die Boot-3-Beobachtung ist bis zum
   Protokollausschnitt um 11:17 UTC erweitert: unveränderter SystemServer,
   keine neuen nichtnulligen Dienstrückgaben und acht zusätzliche zugeordnete

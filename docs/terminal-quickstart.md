@@ -6,7 +6,9 @@ Der konkrete Start unten verwendet den am 4. Oktober 2026 geprüften Image-Commi
 Server. Den aktuellen Abnahmestand und seine offenen Pflichtfälle dokumentiert
 der [Ergebnisindex](phase-1-result-index.md); Phase 1 ist noch nicht vollständig
 abgenommen. Der chronologische Buildverlauf steht in
-[Serverentwicklung](server-development.md).
+[Serverentwicklung](server-development.md); konkrete Quellpins, geprüfte
+Buildartefakte und lokale Neubau-Befehle stehen im
+[Build- und Startinventar](phase-1-build-inventory.md).
 
 ## QEMU und Zugang
 

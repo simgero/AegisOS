@@ -1,5 +1,23 @@
 # Kernel für die gemeinsame GNU/Linux-Runtime
 
+Stand 4. Oktober 2026: Der unten beschriebene korrigierte Kernel ist im
+aktuellen ARM64-Serverimage `b832d6c` integriert. Vollständiger Android-Boot,
+Bildschirm/Eingabe, authentifiziertes ADB und tatsächliche getrennte
+GNU-Namespace-/UID-/GID-Kontexte sind inzwischen belegt. T03 ist im aktuellen
+Variantenabgleich geschlossen; die ergänzenden Startfehler-, Lebenszyklus-
+und Sicherheitsfälle sowie die vollständige Phase-1-Abnahme bleiben offen.
+
+Der erneute [Buildinventar-Abgleich](../docs/phase-1-build-inventory.md)
+prüft alle 162 ursprünglichen Kerneldateien, die eingebettete Konfiguration,
+passende Modul-Metadaten und den Kernelinhalt des tatsächlich vorbereiteten
+Boot-Images. Der SHA-256-Wert bleibt
+`148d623ac45b177a1728d97d8178e784a2e746500b1416f6831ee688d355ad6a`.
+Aktueller Ergebnisstand: [Phase 1](../docs/phase-1-current-status.md).
+Neubau und Serverstart verwenden die dort verlinkten lokalen Verfahren;
+historische GitHub-Buildtransporte unten werden nicht erneut ausgeführt.
+
+## Historischer Build- und Diagnoseverlauf vom 28. September
+
 Stand 28. September 2026: **Korrigierter Kernel und passende Treiber gebaut;
 vollständige Eingabeprüfung bestanden, lokaler Android-Boot noch unvollständig.** Der erste Build
 wurde von Androids Kompatibilitätsprüfung abgewiesen. Kein neuer Kernel ist in QEMU
@@ -195,7 +213,7 @@ Der erste reale Kleaf-Lauf liefert die Metadaten als
 verwendet diese festen Namen und vergleicht die Konfiguration weiterhin mit
 dem tatsächlich ausführbaren Kernel.
 
-## Integrations- und Abnahmeschritte
+## Historische Integrations- und Abnahmeschritte (28. September)
 
 1. **Erledigt:** Rezept auf dem Builder ausgeführt; wirksame Konfiguration,
    Herkunft und Versionsdaten der Module geprüft.
@@ -211,4 +229,6 @@ dem tatsächlich ausführbaren Kernel.
    einschließlich UID-Mappings und negativer Zugriffsversuche.
 
 Das Fragment allein ist kein Isolationsnachweis. Laufzeitverwaltung,
-SELinux-Regeln und AOSP-vermittelte Benutzerautorisierung fehlen weiterhin.
+SELinux-Regeln und AOSP-vermittelte Benutzerautorisierung fehlten am damaligen
+Stand; deren heutige Implementierung und verbleibende Abnahmelücken sind im
+oben verlinkten aktuellen Phase-1-Stand dokumentiert.

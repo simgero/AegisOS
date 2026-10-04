@@ -1,6 +1,30 @@
 # Lokale Cuttlefish-Sicherheits-Hilfs-VM
 
-Status: Implementierung vorbereitet und lokal statisch geprüft; der Lauf mit
+Stand 4. Oktober 2026: Der ARM64-Helper läuft zusammen mit Android direkt auf
+dem Buildserver unter QEMU-TCG. Das aktuelle Abnahmeprofil erhält Android-
+Datenpartition und Helperzustand gemeinsam. Geordneter gepaarter Neustart,
+AOSP-Anmeldung und bytegleiche Datenrücklesungen sind am Image `b832d6c`
+belegt; die vollständige Phase-1-Abnahme bleibt offen.
+
+Verwendet wird das Archiv mit SHA-256
+`0d60815c5bdc5c8ae22a60c4cc004fed4c7163698e3c959da4367f1b46126d7d`
+aus dem lokalen Lauf `secure-env-20260928T134804Z-024354c1`,
+Init-/Packagercommit `024354c134eb8a59174f2f7796ae0eed4c6ae6c7`.
+Der erneute Abgleich bestätigt die ursprünglichen 35 Hostprogramm-/Bibliotheks-
+dateien plus Init sowie das Protokoll `persistent-state-v1`. Beide Helperquellen
+stimmen mit dem aktuellen Image-Commit überein.
+Details und Grenzen: [Buildinventar](phase-1-build-inventory.md),
+[Persistente Profile](persistent-qemu.md) und [Ergebnisindex](phase-1-result-index.md).
+
+Der aktuelle Startweg steht in der [Terminalanleitung](terminal-quickstart.md).
+Builds und Helperarchive bleiben lokal. Die nachfolgenden ursprünglichen
+Export-/Mac-Anweisungen dokumentieren frühere Entwicklungsstände und sind
+kein aktueller Auftrag zum Upload. Der Software-TPM ersetzt kein Hardware-TEE;
+der kontrollierende Host gehört zur Vertrauensbasis.
+
+## Historischer Entwicklungsverlauf vor der Serverabnahme
+
+Damals: Implementierung vorbereitet und lokal statisch geprüft; der Lauf mit
 den originalen Hostprogrammen ist bis zum administrativen Export blockiert.
 Kein vollständiger Android-Bootnachweis.
 
@@ -27,7 +51,7 @@ Snapshot-Modus; persistente Android-Nutzerdaten dürfen mit dieser flüchtigen
 Schlüsselhaltung nicht kombiniert werden. Netzwerk und Hostverzeichnisfreigaben
 sind in diesem Diagnoselauncher ausgeschaltet.
 
-## Export auf aegis-build
+## Historischer Export auf aegis-build
 
 `scripts/export-secure-env.sh --token-stdin FULL_COMMIT` läuft mit sudo.
 Es lädt den gepinnten Helferquelltext über GitHub, kompiliert nur den kleinen
@@ -40,7 +64,7 @@ Das Token wird nur über stdin gelesen und nicht an Compiler/Packager vererbt.
 Die bestehenden Android-Outputs werden ausschließlich gelesen. Der Export
 verlangt einen freien Build-Lock und lehnt einen aktiven Builddienst ab.
 
-## Lokaler Start nach dem Export
+## Historischer lokaler Start nach dem Export
 
 Den konkreten `secure-env-*`-Release mittels GitHub CLI in ein neues Verzeichnis
 herunterladen. Der Launcher prüft `secure-env-arm64.tar.gz` gegen dessen
@@ -109,7 +133,7 @@ Nach Download, Imageprüfung und ausdrücklicher Anlage des persistenten Profils
 bash scripts/run-local-qemu.sh
 ```
 
-Der aktuelle Wrapper öffnet das bereits geprüfte Profil `foundation-bfe90925`.
+Der damalige Wrapper öffnete das geprüfte Profil `foundation-bfe90925`.
 Android-Änderungen und TPM-Zustand bleiben als zusammengehöriges Paar erhalten;
 es wird weder automatisch ein Profil erzeugt noch auf ein anderes Basisimage
 migriert. Ein bereits aktives Profil wird zurückgewiesen. Zum geordneten Ende
