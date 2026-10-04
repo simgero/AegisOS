@@ -1160,6 +1160,49 @@ Die Image-Dateimetadaten wurden verglichen, nicht ihr vollständiger Inhalt
 gehasht. Weitere Datei-, Prozess- und IPC-Varianten haben gesonderte Belege;
 dieser Fall ersetzt weder ihre Prüfung noch die gesamte T13-Abnahme.
 
+### b832d6c: begrenzte Boot-3-Dienstbeobachtung bis 07:27 UTC
+
+Die am 4. Oktober 2026 eingefrorenen Android-/Logcat-Protokolle enthalten genau
+einen SystemServer-Start. Die live geprüfte ursprüngliche Identität bleibt
+PID 1175, Startzeit 21073, Boot `588a5da9-c117-4953-973a-36eda11ebb0d`.
+Die sechs geprüften Kategorien (`FATAL EXCEPTION`, `Fatal signal`, `am_crash`,
+`am_anr`, `FORTIFY:` und Watchdog-Prozessabbruch) haben jeweils null Treffer.
+Alle 24 protokollierten Signal-9-Exits sind konkreten Stop-/Restart-Vorgängen
+zugeordnet: odsign, hwservicemanager, adbd und 21 idmap2d-Stopps vom ursprünglichen
+SystemServer. Ein erster Offline-Prüfer nahm fälschlich nur einen Stop pro
+15-Zeilen-Fenster an; er ist gesichert. Die geprüfte Zuordnung verwendet den
+jeweils letzten eindeutigen Kontrollvorgang innerhalb einer Sekunde vor dem
+Exit beziehungsweise den ausdrücklich erfolgreichen hwservicemanager-Stop.
+
+Die vier nichtnulligen frühen Init-Rückgaben bleiben einzeln erhalten:
+
+- Der System-Mainline-Initializer wird laut Protokoll ausdrücklich übersprungen;
+  der aktive Mainline-Initializer endet erfolgreich.
+- `misctrl` verknüpft im gepinnten AOSP-Code den erfolgreichen booleschen
+  Property-Rückgabewert mit seinem Integer-Exitcode. Die Property ist `0`,
+  der reservierte Bereich wird als leer protokolliert, ohne Misc-Lese-/Schreibfehler.
+- Recovery-Refresh endet mit 254. Leerer aktueller pstore und der gepinnte
+  `-ENOENT`-Rückgabepfad passen dazu; der ursprüngliche errno wurde nicht
+  aufgezeichnet. Die Erklärung bleibt eine Inferenz ohne erneuten Aufruf.
+- Der bereits dokumentierte alte VirtualizationService-Aufräum-Exec endet mit
+  1. Er ist vom eigentlichen Dienst getrennt; die Berechtigungsursache bleibt
+  eine Inferenz des vorherigen Quell-/Zustandsbelegs.
+
+`boot3-service-observation.json`, SHA-256
+`4c2b2aa33673f659ba56645ec629f07ded54ab7f7624919f08d7433b2ba0105b`,
+bindet unveränderte Logkopien, aktuelle öffentliche Verschlüsselungskonfiguration
+und die gegen das Buildmanifest gepinnten AOSP-Quellen. Der nachgelagerte Review
+`boot3-service-review-proof.json`, SHA-256
+`862cf025a7fcf319925ddfd5a2de5b5dba9feeab317f1d0748a7c7942d7267f2`,
+prüft diese konkreten Korrelationen und bewahrt die zwei verbleibenden
+Erklärungsunsicherheiten. Die vier dokumentierten AOSP-Kryptographiedateien
+sind zusätzlich mit `crypto-source-continuity.json`, SHA-256
+`ebdd238a56a9189ea3c02bedd5610f372c65871ee5e81024d0b8fb74f9ac8774`,
+an das aktuelle Build gebunden; siehe [Kryptographiegrundlage](identity-crypto-baseline.md).
+Es wurden keine Dienste verändert, Diagnoseabstürze erzeugt oder Frameworks
+neu gestartet. Dies ist eine zeitlich begrenzte Beobachtung, keine vollständige
+D1- oder Phase-1-Abnahme.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte

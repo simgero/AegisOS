@@ -26,7 +26,7 @@ den neuen AEGIS-Adapter nicht. Ein separater [Persistenztest](persistent-qemu.md
 bestätigt inzwischen den Erhalt passwortgeschützter Daten nach einem geordneten
 vollständigen Neustart.
 
-## Aktuelle statische Quellbindung auf b832d6c
+## Aktuelle Quellbindung und Konfigurationsbeobachtung auf b832d6c
 
 Die vier unten beschriebenen AOSP-Dateien `SP800Derive`, `SecureRandomUtils`,
 `SyntheticPasswordCrypto` und `SyntheticPasswordManager` sind nun gegen den
@@ -47,6 +47,19 @@ Gastaktion; Passwörter oder Schlüssel wurden nicht gelesen. Historische
 Gastkonfigurationen, Passwort-, Lösch- oder Neustarttests werden dadurch nicht
 zu aktuellen Integrationsnachweisen. Die übrigen Identitäts- und
 Passworttransportdateien benötigen ihre eigene aktuelle Zuordnung.
+
+Die separate Leseaufnahme vom 4. Oktober um 07:27 UTC bestätigt im laufenden
+b832d6c-Profil FBE (`file`), `encrypted`, aktivierte Metadatenverschlüsselung,
+authentifiziertes ADB und SELinux `Enforcing`. Der beobachtete AVB-Digest stimmt
+mit dem vorbereiteten Image überein. Die installierte fstab hat weiterhin
+SHA-256 `50ff9f6fa265b68b4e392e892e98f4eafe3574e656f92ecd8856b74c83a71677`;
+die eingefrorenen Bootmeldungen nennen AES-256-HCTR2 und AES-256-XTS.
+Beleg: `out/phase1-dod/b832d6c-base/boot3-service-observation.json`, SHA-256
+`4c2b2aa33673f659ba56645ec629f07ded54ab7f7624919f08d7433b2ba0105b`.
+Die Aufnahme bindet Profil, Boot-ID und ursprüngliche SystemServer-Identität.
+Sie liest öffentliche Konfiguration und vorhandene Logs, keine Schlüssel.
+Einzelne Inode-Policies und sämtliche Schutzpfade sind damit weiterhin nicht
+vollständig auditiert; persönliche Daten- und Lebenszyklustests bleiben separat.
 
 ## Quellbindung und Gastzuordnung auf f098f43
 
