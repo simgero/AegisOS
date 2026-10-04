@@ -88,6 +88,39 @@ korrigierten Android-Service. Der folgende neue Build ist abgeschlossen;
 sein Gastnachweis bleibt erforderlich. Der b832d6c-Befund und die vollständige
 Restliste bleiben gültig.
 
+## misctrl: Exitcode-Korrektur im Quelltext, Gastnachweis ausstehend
+
+Der unveränderte AOSP-Quelltext `bootable/recovery/bootloader_message/misctrl_main.cpp`
+aus Commit `80fbea7e9af1dd883f2046e9b299d6fe45a0f693` hat SHA-256
+`50ffb5d5313a18ee6968c08ad8009a514e4bc54b61cf45a3596b738cd67cbcac`.
+Er übernimmt den booleschen Rückgabewert von `SetProperty` mit `res |=` in
+den Exitcode. Die gepinnte libbase-Implementierung liefert bei erfolgreichem
+Setzen `true`. Dadurch meldet misctrl bei ansonsten erfolgreichem Ablauf
+Exit 1 und kann umgekehrt einen alleinigen Property-Fehler als Erfolg melden.
+
+[register-misctrl.py](../scripts/aosp/register-misctrl.py) korrigiert diese
+Umrechnung und protokolliert den fehlgeschlagenen Property-Aufruf ausdrücklich.
+Misc-Lese-/Schreibfehler, unbekannte Seitengrößen und belegter beziehungsweise
+nicht lesbarer reservierter Speicher bleiben Fehler. Die Änderung ist an
+Originalcommit und Dateihash gebunden und erhält unbekannte lokale Änderungen.
+Das Vollbuildrezept wendet sie vor der Kompilierung an und prüft sie danach;
+`misctrl-source.json` wird bei der lokalen Imagevorbereitung mitgeführt.
+Ältere Builds ohne diesen Beleg werden mit ihrem damaligen Vorbereitungsrezept
+verwendet; sie enthalten die Korrektur nicht.
+
+Neun [Hosttests](../tests/test_misctrl_status.py) bestanden. Sie kompilieren
+den vollständigen unveränderten und korrigierten C++-Quelltext mit inerten
+Android-Schnittstellen und reproduzieren beide vertauschten Originalergebnisse.
+Die korrigierte Variante meldet Erfolg und Property-Fehler richtig; sämtliche
+anderen genannten Fehlerpfade bleiben nichtnullig. 4-KiB-/16-KiB-Verhalten,
+historisches Flag und ungültiger Header bleiben erhalten. Zusätzlich werden
+Quellbindung, Wiederholung und Erhalt lokaler Änderungen geprüft.
+
+Dies sind Hosttests ohne Android-Property- oder Gerätezugriff. Die Änderung
+ist noch nicht in einem neuen Android-Image gebaut oder im Gast geprüft.
+Historische Exit-1-Belege werden nicht als nachträglich bestanden umgedeutet;
+die übrigen Dienstursachen und D1 bleiben offen.
+
 ## Shell-Korrektur dedd1da: gebaut und vorbereitet, noch nicht gebootet
 
 Quellcommit: `dedd1dabc45efe080a499b3657b7ee09d2fda5a7`.
