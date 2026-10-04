@@ -111,7 +111,13 @@ unverändert. Ein zusätzlicher GNU-Lese-Test auf interne, rootgeschützte
 Paketmetadaten scheiterte an einer falschen Testerwartung; Originalfehler,
 Quellbegründung und separate erfolgreiche Korrekturprüfung sind erhalten.
 Die gegenseitigen Zugriffstests auf beide nun vorhandenen privaten Paketstores
-und die übrige Paketautorisierungs-/Update-/Entfernungs-/Fehlermatrix bleiben offen.
+sind inzwischen ebenfalls bestanden: je vier vorhandene Paketpfade weder
+lesbar noch schreibend zu öffnen, positive eigene Kontrollen erfolgreich,
+Metadaten/Bibliotheken und vollständige Kontexte unverändert. Beide Benutzer
+bleiben entsperrt und ihre ursprünglichen Prozesse aktiv. T06 bleibt für die
+zusätzlich geforderten privaten/abstrakten Sockets und Host-IPC-/D-Bus-Wege
+offen; POSIX-Mqueues allein decken diese nicht ab. Auch die übrige
+Paketautorisierungs-/Update-/Entfernungs-/Fehlermatrix bleibt erforderlich.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.

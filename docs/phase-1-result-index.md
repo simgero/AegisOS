@@ -775,6 +775,51 @@ Autorisierungsvarianten, Updates, Konflikte und Fehlerfälle bleiben erforderlic
 Dieser Fall ersetzt weder deren Abnahme noch einen neuen VM-Neustart oder
 eine frische IPC-Bereinigungsprüfung. D1–D7 bleiben offen.
 
+## ec01e5fa: gegenseitige Zugriffe auf beide vorhandenen privaten Paketstores
+
+Nach Aktivierung von Betas privater u3-Auswahl werden Paketstore, Auswahl und
+Bibliothek beider Benutzer unabhängig als vorhanden bestätigt. Alpha nutzt
+weiterhin private u4, Beta private u3; CE lautet durchgehend `[0, 10, 11]`.
+Die gewöhnlichen GNU-Prozesse prüfen anschließend in beiden Richtungen vier
+konkrete Pfade: fremde Store-Auswahl `current`, fremdes Paketimage sowie die
+interne private Auswahl und libjq über die Prozesswurzel des jeweiligen
+fremden Runtime-Init. Alle Leseversuche liefern keine Bytes; alle schreibenden
+Öffnungen scheitern. Letztere verwenden ausschließlich `O_WRONLY`, weder
+Erstellen noch Kürzen, und schreiben keine Nutzdaten. Eigene Lese- und
+Öffnungskontrollen gelingen. Tatsächliche UID-Zuordnungen und eigene
+Bibliotheksversionen sind in denselben GNU-Ausgaben bestätigt.
+
+Die vollständigen Kontext-, Paket- und Generationsdaten bleiben unverändert.
+Vorher-/Nachher-Prüfungen bestätigen identische Auswahlmetadaten, interne
+Versionswahl und Bibliotheksbytes; Existenz, Größe und Rechte der beiden
+Paketimages bleiben gleich. Ein vollständiger Bytevergleich der rohen
+Paketimages wird dabei nicht behauptet. Alphas Prozess `3690/86539` und Betas
+Prozess `20992/542247` behalten ihre Identität und machen vor und nach dem
+jeweiligen fremden Zugriff Fortschritt. Der Wechsel zu Alpha erfolgt durch
+reguläre AOSP-Anmeldung; beide CE-Speicher bleiben dabei entsperrt.
+
+| Beleg unter `out/phase1-dod/ec01e5fa-verity-base/` | SHA-256 |
+| --- | --- |
+| `private-store-isolation/result.json` | `eff6aff735b63404df5c49fc4b13f2b96102b9e15b46d6c388f6ee46ac7c9868` |
+| `private-store-fixtures-before.json` | `8da1e10403b741a8dbd101133bb647fc39687fc161989f4216511217fe0cfbc2` |
+| `private-store-fixtures-after.json` | `ecbd3f69935e79efb2eb03b7921a2d3ddc8acc717824347912482b709a5c89f7` |
+| `private-store-isolation-contexts.json` | `d2cb5d906e16a150125c4edc44efe74fa2dba5d6a8b3132db3a54c690fda33cb` |
+| `t06-private-package-scope-audit.json` | `55ee9b718f9de61acc43c22fbe05928a3a0c0d85ee7d86a2a173cd5a3f0e1f03` |
+
+Der Offline-Abgleich friert 435 Ereignisse ein und bestätigt das unveränderte
+422-Ereignis-Präfix einschließlich des zuvor erklärten Testfehlers. Im neuen
+Intervall tritt kein weiterer Treiberfehler auf. Eine lokale Prüfung der
+Befehlsvorbereitung hatte wörtliche Zeilenumbrüche vor dem Versand erkannt;
+diese wurden für das einzeilige Steuerprotokoll kodiert, ohne dass zuvor ein
+Gastbefehl ausgeführt wurde. Die ursprüngliche Vorbereitung bleibt erhalten.
+
+Damit ist die bisher fehlende Prüfung tatsächlich vorhandener privater
+Paketstores geschlossen. **T06 insgesamt bleibt offen:** Der Entwicklerauftrag
+nennt zusätzlich private und abstrakte Sockets sowie Host-IPC und D-Bus.
+Die bisherigen POSIX-Mqueue-Tests und dieser Paketfall belegen diese Wege
+nicht. Die noch erforderliche Zuordnung ist im Scope-Audit ausdrücklich
+festgehalten; D1–D7 bleiben offen.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
