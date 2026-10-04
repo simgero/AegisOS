@@ -78,6 +78,11 @@ weiterhin dieselben drei einzeln erklärten Rückgaben und keinen zusätzlichen
 SystemServer-Start oder Treffer der sechs geprüften Fatal-/ANR-Marker.
 Die umfangreicheren Paket-, Logout- und Neustartbelege des
 älteren Laufs bleiben an ec01e5fa gebunden; sie werden nicht übernommen.
+Auch der Rückwechsel zu Alpha ist inzwischen auf cacbf0d geprüft: Beide
+Kontexte, Zuordnungen und sechs Namespaces bleiben unverändert, Betas
+ursprünglicher Hintergrundprozess läuft weiter, Alphas ursprüngliche Datei
+und Konfiguration sind bytegleich. Damit ist **T03 auf cacbf0d bestanden**;
+dies schließt die weiteren Isolations- und Lebenszyklusfälle nicht ab.
 D1 und die vollständige DoD bleiben offen.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.

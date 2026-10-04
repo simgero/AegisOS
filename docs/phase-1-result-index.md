@@ -825,8 +825,21 @@ Die Befehlsfolge entspricht den dokumentierten Erstzugängen in
 [runtime-gnu-test-driver.md](runtime-gnu-test-driver.md), ergänzt um die
 festgehaltenen persönlichen Dateiproben und Zustandsaufnahmen. Der lokale
 Offline-Verifier `record-initial-users.py` ist im Ergebnis mit Prüfsumme gebunden.
-Vollständiges T03 einschließlich Rückwechsel sowie übrige T01–T17-Varianten
-bleiben offen. Dieser Boot verwendet weiterhin Netzwerk `none`; reguläre
+Zum Zeitpunkt dieses Erstzugangsbelegs stehen T03 einschließlich Rückwechsel
+und die übrigen T01–T17-Varianten noch aus. Der anschließende Rückwechsel ist
+nun separat geprüft: Beide vollständigen Kontextaufnahmen sind bis auf den
+Vordergrundbenutzer identisch; CE bleibt `[0,10,11]`. Alpha liest seine
+ursprüngliche Datei und Konfiguration bytegleich und bestätigt UID/GID 1000
+sowie dieselben Maps und Namespaces erneut aus GNU. Betas ursprünglicher
+Prozess `8545/369467` bleibt unter Alpha im Vordergrund erhalten und macht
+Fortschritt 742→746. Damit ist T03 auf cacbf0d für beide Wechselrichtungen
+bestanden; weitere Zugriffs-, Paket- und Lebenszyklusfälle bleiben offen.
+Der Beleg `two-user-identity/result.json` bindet 73 Ereignisse und hat SHA-256
+`b3a334f3b9d8f212bca231bdbf41e025477672663de9e77578a1c2752f7256fb`.
+Die zusätzliche Aufnahme `both-after-reverse-switch.json` hat SHA-256
+`06d9af7c6732428ecce279db11c12ff78f633d7ba7680329f88dab5d620d873e`.
+
+Dieser Boot verwendet weiterhin Netzwerk `none`; reguläre
 Paketdownloads benötigen einen dokumentierten Start mit `--network user`.
 Paket-, Logout- und VM-Neustartbelege älterer Images werden nicht übernommen.
 D1–D7 und der vollständige Referenzablauf bleiben offen.
