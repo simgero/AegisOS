@@ -1,8 +1,12 @@
 # AEGIS im Terminal verwenden
 
 Diese Anleitung gilt für das lokale ARM64-Entwicklungsimage mit `managed-v1`.
-Builds und Profile bleiben auf dem Server. Den jeweiligen Teststand und seine
-Grenzen dokumentiert [Serverentwicklung](server-development.md).
+Der konkrete Start unten verwendet den am 4. Oktober 2026 geprüften Image-Commit
+`b832d6c077baeee4324e00d00dc3618372f3e9d9`. Builds und Profile bleiben auf dem
+Server. Den aktuellen Abnahmestand und seine offenen Pflichtfälle dokumentiert
+der [Ergebnisindex](phase-1-result-index.md); Phase 1 ist noch nicht vollständig
+abgenommen. Der chronologische Buildverlauf steht in
+[Serverentwicklung](server-development.md).
 
 ## QEMU und Zugang
 
@@ -34,24 +38,35 @@ Images für ein **neues eigenes Profil** verwendet werden. Im Repository
 `/home/simeongerodetti/AegisOS`:
 
 ```sh
-AEGIS_PREPARED=out/server-stability/candidate-c526571
-AEGIS_PROFILE=out/qemu-profiles/server-personal-c526571
-AEGIS_RUN="$AEGIS_PREPARED/interactive-$(date -u +%Y%m%dT%H%M%SZ)"
-python3 scripts/qemu-with-secure-env.py \
+AEGIS_PREPARED=/srv/aegis/runs/phase1-b832d6c0
+AEGIS_PROFILE=out/qemu-profiles/server-personal-b832d6c
+AEGIS_RUN="out/phase1-interactive/$(date -u +%Y%m%dT%H%M%SZ)"
+AEGIS_UNIT="aegis-personal-$(date -u +%Y%m%dT%H%M%SZ)"
+sudo systemd-run --unit "$AEGIS_UNIT" --uid simeongerodetti \
+  --working-directory /home/simeongerodetti/AegisOS \
+  --property=KillMode=mixed --property=TimeoutStopSec=120 \
+  --property=RuntimeMaxSec=24h \
+  /usr/bin/python3 scripts/qemu-with-secure-env.py \
   "$AEGIS_PREPARED/images" out/server-stability/baseline/helper \
   "$AEGIS_PREPARED/android.raw" "$AEGIS_PREPARED/runtime.bootconfig" \
   "$AEGIS_RUN" --profile "$AEGIS_PROFILE" --create-profile \
-  --seconds 0 --cpus 8 --memory-mib 4096 --adb-port 15871 --network user
+  --seconds 0 --display none --cpus 8 --memory-mib 4096 \
+  --helper-timeout 600 --adb-port 15871 --network user
 ```
 
 Bei **jedem weiteren Start** desselben Profils `--create-profile` weglassen
 und einen neuen Wert für `AEGIS_RUN` verwenden. Die Startprüfung hasht zuerst
 die gebundenen Dateien; auf dem Server ohne KVM dauert auch der Android-Start
-mehrere Minuten. Der Launcher bleibt im Vordergrund. In einem zweiten Terminal
-den tatsächlich ausgegebenen Run-Pfad für den ADB-Aufruf verwenden; nur beim
-allerersten Zugang zum neuen Profil `--authorize-this-host` ergänzen.
+mehrere Minuten. Der systemd-Dienst läuft unabhängig vom Terminal; Name und
+Run-Pfad für Status und ADB aufbewahren. Auch `AEGIS_UNIT` erhält beim nächsten
+Start einen neuen Namen. Der dokumentierte Testbetrieb hat eine ausdrückliche
+24-Stunden-Laufzeitgrenze und ist kein automatischer Dauerstart nach Host-Reboot.
+Den Startfortschritt zeigt `journalctl -u "$AEGIS_UNIT" -f`; den Dienstzustand
+zeigt `systemctl status "$AEGIS_UNIT"`. Für ADB den tatsächlichen Run-Pfad
+verwenden; nur beim allerersten Zugang zum neuen Profil
+`--authorize-this-host` ergänzen.
 
-Das synthetische Abnahmeprofil unter `candidate-c526571/profile` bleibt als
+Das synthetische Abnahmeprofil unter `/srv/aegis/runs/phase1-b832d6c0/profile` bleibt als
 Beleg erhalten. Seine Zufallspasswörter werden nicht ausgegeben. Das eigene
 Profil startet ohne persönliche Benutzer; dort `setup` verwenden und eigene
 Passwörter interaktiv setzen. Gemeinsame und private Testpakete gehören zum
@@ -72,7 +87,11 @@ linux shell
 
 `setup` ist einmalig für den ersten Administrator. Neue Benutzer erhalten ihr
 Passwort bei der Anlage; `user add` verlangt außerdem das frische Passwort des
-angemeldeten Administrators. Innerhalb der GNU-Shell stehen unter anderem Bash,
+angemeldeten Administrators. `setup --resume NAME` setzt ausschließlich eine
+protokollierte unterbrochene Ersteinrichtung fort und ist kein Passwortreset.
+`user list` zeigt die persönlichen AOSP-Benutzer. Ein weiterer Administrator
+wird ausdrücklich mit `user add NAME --admin` angelegt. Namen mit Leerzeichen
+in Anführungszeichen setzen. Innerhalb der GNU-Shell stehen unter anderem Bash,
 Coreutils, APT und Dpkg bereit:
 
 ```sh
@@ -92,13 +111,14 @@ linux shell
 Jeder Benutzer hat ein eigenes `/home/user`, eigene temporäre Verzeichnisse
 und getrennte Laufzeitprozesse. Ein Wechsel authentifiziert den Zielbenutzer;
 der vorherige Benutzer kann im Hintergrund weiterlaufen. `passwd` ändert das
-eigene Passwort durch AOSP. `status` zeigt die aktuelle Terminalanmeldung,
+eigene Passwort durch AOSP und fragt das bisherige sowie zweimal das neue
+Passwort verdeckt ab. `status` zeigt die aktuelle Terminalanmeldung,
 `linux status` den eigenen Kontext und Paketstand.
 
 Nach einem gemeinsamen Paketupdate kann `linux start` die persönliche
 Paketauswahl neu abgleichen. Auf ARM64-QEMU ohne Hardwarebeschleunigung dauert
-bereits die Planung mehrere Minuten. Ab Quellstand `3155115` wartet dieser
-Aufruf insgesamt höchstens 15 Minuten; seine Integration wird noch geprüft.
+bereits die Planung mehrere Minuten. Im aktuellen Quellstand wartet dieser
+Aufruf insgesamt höchstens 15 Minuten.
 Ein Zeitablauf bestätigt weder einen gestarteten Kontext noch dessen Abbau.
 Dann den Zustand mit `linux status` prüfen und vor einem neuen Start den eigenen
 Kontext mit `linux stop` geordnet beenden. Dies ist keine Abmeldung.
@@ -122,9 +142,27 @@ Installationsziel nicht. Ein leerer Adminname bricht ab.
 
 Eine genaue Version lässt sich als `hello=VERSION` anfordern. Auch `update`
 und `remove` verwenden einen ausdrücklichen Bereich und geprüften Plan.
+Die vollständigen Formen sind:
+
+| Aktion | Gemeinsame Software | Persönliche Software |
+| --- | --- | --- |
+| Installieren | `linux package install NAME[=VERSION] --scope all` | `linux package install NAME[=VERSION] --scope user` |
+| Aktualisieren | `linux package update --scope all` | `linux package update --scope user` |
+| Entfernen | `linux package remove NAME --scope all` | `linux package remove NAME --scope user` |
+
+`NAME` und `VERSION` ersetzen; eckige Klammern kennzeichnen die optionale
+Versionsangabe und werden nicht eingegeben. Update nimmt keinen Paketnamen
+entgegen. Alle sechs Formen verlangen Adminfreigabe. Private Entfernung hebt
+die eigene ausdrückliche Auswahl auf; der Plan zeigt, ob danach eine gemeinsame
+Version verwendet wird, eine Abhängigkeit bleibt oder das Paket entfernt wird.
+
 `linux package cancel` fordert das Aufräumen des aktuellen Auftrags an;
 „Aufräumen noch nicht bestätigt“ bedeutet weiterhin einen offenen Abschluss.
 Nur die bestätigte Veröffentlichung gilt als Installationserfolg.
+`linux package status` und `linux package approve` beziehen sich auf den Auftrag
+des betreffenden Terminals. Ein separat gestartetes `aegis` erbt weder die
+persönliche Anmeldung noch dessen Paketauftrag. Die genannten Befehle beschreiben
+die Schnittstelle; ihre vollständige Variantenabnahme steht im Ergebnisindex.
 
 Laufende GNU-Kontexte behalten ihre bisherige Softwaregeneration. Wenn
 `linux status` eine ausstehende Aktivierung meldet, zuerst eigene Arbeiten

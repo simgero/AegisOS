@@ -45,8 +45,8 @@ aktuellen vorbereiteten Images. Das bestätigt die Kontinuität der beschriebene
 kryptographischen Implementierungen. Es ist ein statischer Teilnachweis ohne
 Gastaktion; Passwörter oder Schlüssel wurden nicht gelesen. Historische
 Gastkonfigurationen, Passwort-, Lösch- oder Neustarttests werden dadurch nicht
-zu aktuellen Integrationsnachweisen. Die übrigen Identitäts- und
-Passworttransportdateien benötigen ihre eigene aktuelle Zuordnung.
+zu aktuellen Integrationsnachweisen. Weitere Identitätsdateien und dynamische
+Prüfungen benötigen ihre eigene aktuelle Zuordnung.
 
 Die separate Leseaufnahme vom 4. Oktober um 07:27 UTC bestätigt im laufenden
 b832d6c-Profil FBE (`file`), `encrypted`, aktivierte Metadatenverschlüsselung,
@@ -60,6 +60,18 @@ Die Aufnahme bindet Profil, Boot-ID und ursprüngliche SystemServer-Identität.
 Sie liest öffentliche Konfiguration und vorhandene Logs, keine Schlüssel.
 Einzelne Inode-Policies und sämtliche Schutzpfade sind damit weiterhin nicht
 vollständig auditiert; persönliche Daten- und Lebenszyklustests bleiben separat.
+
+Für die neun unten im Abschnitt zum Passworttransport benannten CLI-, JNI-,
+AIDL-, Dienst- und Testdateien ist die Quellbindung ebenfalls erneuert:
+`out/phase1-dod/b832d6c-base/credential-transport-source-binding.json`, SHA-256
+`ee6a2ff03fa62c02aaccff11ce3cb04b4693eee40e7afe435ccdfc77e56d0637`.
+Jede Datei stimmt bytegleich mit dem aktuellen Imagecommit, dessen gespeichertem
+Identitäts-Buildmanifest und dem früheren statischen Review überein. Damit sind
+die beschriebenen Terminal-, Puffer- und AIDL-Eigenschaften für dieselben neun
+Quellen an b832d6c gebunden. Dies ist keine neue dynamische Offenlegungsprüfung
+und keine neue Ausführung von `CredentialTransportTest`. Generierte Proxys,
+tatsächliche Argumente, History, Dateien, Logs und relevante Fehlerpfade bleiben
+vor dem vollständigen Abschluss von T01.5 gesondert nachzuweisen.
 
 ## Quellbindung und Gastzuordnung auf f098f43
 

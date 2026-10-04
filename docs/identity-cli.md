@@ -3,7 +3,8 @@
 Der folgende Text enthält historische Entwicklungsstände. Der aktuelle lokale
 Buildserver-Lauf, die CE-Wiederanlaufkorrektur und seine Abnahme stehen in
 [Serverentwicklung](server-development.md). Für die aktuellen interaktiven
-GNU-/Paketbefehle siehe [Testtreiber und Ablauf](runtime-gnu-test-driver.md).
+GNU-/Paketbefehle siehe [Terminalanleitung](terminal-quickstart.md), für die
+automatisierte Abnahme [Testtreiber und Ablauf](runtime-gnu-test-driver.md).
 
 Stand 29. September 2026: Im Vollbuild `2f29f0ac` sind zwei tatsächliche GNU-
 Kontexte, AOSP-Anmeldung, Wechsel, Logout mit CE-Sperre und Dateierhalt nach
@@ -313,7 +314,7 @@ Backend-Fehler werden ohne Stacktrace, originale Fehlertexte oder Credentials
 ausgegeben. Der Dienst bestätigt Logout erst nach tatsächlichem Benutzerende
 und CE-Sperre. Fehlgeschlagene Aktionen liefern einen Fehlerstatus.
 
-## Grenze zur noch fehlenden Runtime
+## Historischer Zwischenstand ohne Runtime
 
 Der Dienstentwurf startet nur bei `ro.aegis.runtime.mode=absent`. Fehlende oder
 andere Werte führen zur Ablehnung. Dies ist die explizite Produktkonfiguration
