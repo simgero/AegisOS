@@ -22,6 +22,67 @@ Programmdateien. `build-inventory-proof.json`, SHA-256
 bindet die lokalen Beobachtungen. Das ist kein neuer Compilerlauf; D1 und
 sämtliche offenen Pflichtvarianten bleiben offen.
 
+## Neuer ec01e5fa-Boot: misctrl, Verity, Bildschirm und ADB
+
+Das Image `ec01e5fa5f2822da5763ab54c644bc5c5c5ab413` ist mit der separaten
+Startvorbereitung `d9a0d30a48c1f745ffcc02dbcb6b4c15054e89e6` tatsächlich
+gebootet. Das neue Profil `f8c09946-d131-40ba-8f30-3c3a4d778b0d` liegt unter
+`/srv/aegis/runs/phase1-ec01e5fa-verity0/profile`; ältere Profile wurden nicht
+umgebunden. Die Zustandsaufnahme vom 4. Oktober, 14:29:36 UTC bestätigt:
+
+- Boot-ID `7017e5d9-6542-416f-9878-eabf40aa9640`, `sys.boot_completed=1`,
+  SystemServer PID/Startzeit `1397/38796`; ausschließlich Systembenutzer 0.
+- Authentifiziertes ADB mit `ro.adb.secure=1`, SELinux Enforcing, FBE
+  `encrypted`/`file`, CE `[0]`, registrierter Identity-Service und noch nicht
+  eingerichtete persönliche AEGIS-Sitzung.
+- `misctrl` PID 1101 endet tatsächlich mit Status 0. Der neue Verity-Modus
+  lautet `enforcing`; die acht `partition.*.verified`-Werte sind `2`.
+  Der gepinnte AOSP-Code ordnet `2` dem Modus `VERITY_MODE_RESTART` zu.
+- Die anschließende reine Leseprüfung bestätigt für alle acht Systempartitionen
+  aktive Verity-Tabellen mit `restart_on_corruption`, Status `V` und jeweils
+  den passenden schreibgeschützten Device-Mapper-Mount. Boot und SystemServer
+  bleiben dabei identisch. Bootloader-Lock oder Hardware-Vertrauenswurzel
+  werden nicht behauptet; die entsprechenden Boot-Eigenschaften bleiben leer.
+
+Der neue Prüfer aus Commit `cd48514` hat 262144 erzeugte Testbytes über ADB
+hin- und zurückübertragen, bytegleich verglichen und sein eigenes temporäres
+Gastverzeichnis entfernt. Boot-ID, SystemServer und Profilmanifest blieben
+gleich. Die QMP-Aufnahme und Android melden 720 × 1280; die angesehenen
+Aufnahmen zeigen zunächst den Hintergrund mit Batterieanzeige und später
+den Sperrbildschirm. Das belegt noch keine Tastatur-/Mausbedienung.
+
+Der unveränderte Dienstprüfer zählt einen SystemServer-Start, keine seiner
+sechs Fatal-/ANR-Kategorien, keine rückläufige Zeitmarke und keine Signal-
+Beendigung ohne passende unmittelbar vorausgehende Steueranweisung.
+Sein Ergebnis bleibt `REVIEW_REQUIRED`: `recovery-refresh=254` und
+`system_aconfigd_mainline_init=1` bleiben erhalten. Die spätere Gastbeobachtung
+findet pstore eingehängt, aber weder `pmsg-ramoops-0` noch `/dev/pmsg0`.
+Das grenzt den Recovery-Befund ein, beweist jedoch nicht rückwirkend dessen
+genauen Zustand beim frühen Dienstaufruf.
+
+Der erste Host-Warteprozess für die Aufnahme endete unerwartet mit 143 und
+leerem Log, bevor eine Baseline entstand. Ursache unbekannt; VM und separater
+ADB-Connector liefen weiter. Nach bestätigtem Boot erfolgte die Aufnahme
+erfolgreich, ohne VM-Neustart. Beim ADB-Erstzugang gelang der vorhandene
+begrenzte Neuverbindungsversuch mit demselben öffentlichen Hostschlüssel;
+die Authentifizierung blieb eingeschaltet. Diese Ereignisse bleiben dokumentiert.
+
+Belege unter `out/phase1-dod/ec01e5fa-verity-base/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `baseline.json` | `bb3763ac96cd1c8f60eb410d1f12cfde44ed1abc4ec16e07ea959b20d0c79fc9` |
+| `first-boot-review/capture.json` | `06b3a0043d2d294d77fd7f445971662af841ad20f87fc43b463389b6ac143ec5` |
+| `first-boot-review/service-audit.json` | `9cca25a79f52904b498725434d0ae0bbaa74c1ced9a067a520705ed439c90f94` |
+| `active-verity-proof.json` | `417ae50c5963aa91f3f7b83e15a6478535904386a2c9dcc854695e6bec595dc4` |
+| `display-adb/result.json` | `93355522fbe92464737e1ddeabd9f8275c277b94d5d891c3c69cce522547e2d6` |
+| `capture-observer-termination.json` | `217386839b518b7e0524958f2af822acc543579cc57c2b07cea358342cd13f1d` |
+| `system-storage-observation.txt` | `28f313ee3a991321229ea21c8ec4dc540b544d4df0f64dd4737f4bf4e7980916` |
+
+**D1–D7 bleiben offen.** Eingabe, Langzeit-/Neustartverhalten, Shell-Regression
+und die vollständigen persönlichen Abläufe sind auf diesem Image noch nötig.
+Historische T01–T17-Ergebnisse werden nicht automatisch übernommen.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
@@ -114,9 +175,9 @@ Fünf [Hosttests](../tests/test_server_qemu_prepare.py) bestehen, darunter
 24 Flag-/Header-Kombinationen, fehlgeschlagene Signaturprüfung, verkürzter
 Header und fehlerhafte Digest-Ausgaben. Die Fehlerfälle erzeugen keine
 Hilfsdisks oder startbare Konfiguration. Diese Tests verwenden lokale
-Attrappen und ersetzen keinen erneuten Gastnachweis: Nach künftigem Boot
-müssen Verity-Statusveröffentlichung und tatsächlich aktive dm-verity-Mounts
-gemeinsam geprüft werden. D1 bleibt offen.
+Attrappen und ersetzen keinen Gastnachweis. Die oben dokumentierte neue
+ec01e5fa-Beobachtung prüft inzwischen Statusveröffentlichung und aktive
+dm-verity-Mounts gemeinsam; D1 insgesamt bleibt offen.
 
 Das Rezept `d9a0d30a48c1f745ffcc02dbcb6b4c15054e89e6` wurde anschließend
 auf den unveränderten Imagebuild `ec01e5fa5f2822da5763ab54c644bc5c5c5ab413`
@@ -138,10 +199,10 @@ Die neue `runtime.bootconfig` hat SHA-256
 `dec52186fdff2e3b84678760549e0b43e9b2fc5f5740b04b82aa26b15b5fa2fe`;
 `avb-checked.json` hat SHA-256
 `1db6a102085dacf29927bbae57549446317c7e83351b1a93c004f24d2013013c`.
-Es wurde kein persistentes Profil erzeugt und kein Gast gestartet. Der
-ausstehende Laufzeitnachweis wird durch diese Vorbereitung nicht ersetzt.
+Bei dieser Vorbereitung wurde kein persistentes Profil erzeugt und kein Gast
+gestartet. Der spätere Bootnachweis steht getrennt am Anfang dieses Index.
 
-## misctrl: Exitcode-Korrektur gebaut, Gastnachweis ausstehend
+## misctrl: Exitcode-Korrektur und Buildbindung
 
 Der unveränderte AOSP-Quelltext `bootable/recovery/bootloader_message/misctrl_main.cpp`
 aus Commit `80fbea7e9af1dd883f2046e9b299d6fe45a0f693` hat SHA-256
@@ -201,10 +262,10 @@ Die folgenden bytegleichen Kopien der Buildbelege bleiben lokal unter
 | `misctrl-packaged-image-proof.json` | `a9836fd430647ffbd45ddf36ceb667a53725c9c908c3ae9c3f56c45b2cd0a38c` |
 | `verification-summary.json` | `81cd47f726ff595ecae0ab56f4e4cb6f917d5f11892c9e00cd77b58e30493005` |
 
-Der Gastnachweis der Korrektur bleibt ausstehend. Historische Exit-1-Belege
-werden nicht als nachträglich bestanden umgedeutet; die übrigen Dienstursachen,
-die Shell-Regression und D1–D7 bleiben offen. Es wurden keine weiteren Gasttests
-ausgeführt und keine Builds, Profile oder Rohprotokolle hochgeladen.
+Der neue ec01e5fa-Boot belegt inzwischen Exit 0 im Gast, wie oben dokumentiert.
+Historische Exit-1-Belege werden nicht nachträglich umgedeutet. Die übrigen
+Dienstursachen, die Shell-Regression und D1–D7 bleiben offen. Builds, Profile
+und Rohprotokolle wurden nicht hochgeladen.
 
 ## Shell-Korrektur dedd1da: gebaut und erster Systembenutzer-Boot belegt
 

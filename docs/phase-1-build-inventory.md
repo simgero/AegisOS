@@ -176,7 +176,9 @@ der neue AVB-Digest lautet
 Die tatsächliche misctrl-Binärdatei aus `system_a` des ausgelieferten
 `super.img` wurde bytegenau mit dem neu kompilierten Buildprodukt verglichen.
 Belege, Prüfsummen und Grenzen stehen im [Ergebnisindex](phase-1-result-index.md).
-Dies ist weiterhin **Build-/Imagevalidierung ohne Boot oder Gastabnahme**.
+Diese statischen Belege bleiben **Build-/Imagevalidierung**. Der spätere
+erste Boot mit dem folgenden korrigierten Startrezept ist separat im
+Ergebnisindex dokumentiert und erteilt noch keine vollständige Gastabnahme.
 
 ### Zusätzliche Startkorrektur ohne Änderung der Images
 
@@ -202,8 +204,15 @@ dem bisherigen AOSP-Standard beim dm-verity-Tabellenaufbau und ermöglicht dem
 gesonderten Statusleser eine Moduszuordnung. Die resultierende GPT-Basis hat
 SHA-256 `4488d65777c0bc36b6b4cdabc6e4397a5513f05c31f4cb7c9b76d591b9b7bb19`.
 Der AVB-Digest bleibt unverändert. Vorhandene Profile werden nicht auf diese
-andere Bootkonfiguration umgebunden. Auch hier fehlen Profilanlage, Boot und
-Gastabnahme; die Belege der Vorbereitung stehen im Ergebnisindex.
+andere Bootkonfiguration umgebunden. Inzwischen wurden diese neuen Eingaben
+an den QEMU-Account `simeongerodetti` übergeben und mit einem eigenen Profil
+gebootet. Profil-ID `f8c09946-d131-40ba-8f30-3c3a4d778b0d`, Run
+`out/phase1-dod/ec01e5fa-verity-base/boot-1`, ADB `127.0.0.1:15878`.
+Die systemweite Unit `aegis-qemu-ec01e5fa-verity-boot1.service` wurde am
+4. Oktober um 14:09:45 UTC mit acht Android-vCPUs/4096 MiB, zwei Helper-vCPUs/
+1024 MiB, `KillMode=mixed`, 120 Sekunden Stop-Budget und 24 Stunden Laufzeitgrenze
+gestartet. Der vollständige Referenzablauf bleibt offen; der Ergebnisindex
+trennt Vorbereitungs-, Boot- und Teilprüfbelege.
 
 ## Wiederholbare Anzeige- und ADB-Teilprüfung
 
@@ -228,7 +237,9 @@ Boot-ID, SystemServer-PID/-Startzeit und Profilmanifest müssen während des
 Tests unverändert bleiben. Ergebnis, Testbytes und Bildschirm bleiben lokal.
 Ein Fehler beim Aufräumen erhält einen eigenen Fehlerstatus.
 
-Der Bildschirm muss zusätzlich angesehen werden. Tastatur-/Mausbedienung,
+Dieser konkrete Lauf besteht mit Prüfercommit `cd48514`; die Aufnahme wurde
+angesehen. Prüfsummen und Grenzen stehen im Ergebnisindex. Der Bildschirm
+muss auch bei späteren Läufen zusätzlich angesehen werden. Tastatur-/Mausbedienung,
 Benutzerabläufe, Neustartpersistenz und vollständige Dienststabilität sind
 gesonderte Nachweise. Das Vorhandensein dieses Skripts ist kein bestandener
 Gastlauf und schließt D1 nicht ab.

@@ -17,16 +17,20 @@ Eingabefunktion, vollständige Dienststabilität und die Shell-Regression sind
 auf diesem Image noch nicht abgenommen. Die untenstehenden Gastbelege werden
 dadurch nicht ersetzt. Eine zusätzliche misctrl-Exitcode-Korrektur besteht
 die Hosttests und ist im neuen Vollbuild `ec01e5fa` enthalten. Die ausgelieferte
-Binärdatei wurde aus `super.img` bytegenau geprüft; dieses weitere Image ist
-noch nicht gebootet. Die vorhandenen dedd1da-Bootlogs sind außerdem offline
+Binärdatei wurde aus `super.img` bytegenau geprüft. Die vorhandenen dedd1da-Bootlogs sind außerdem offline
 ausgewertet, mit weiterhin prüfpflichtigen Dienstrückgaben und ausdrücklich
 begrenztem Integritätsnachweis.
 Die Recovery-Refresh-Quellprüfung grenzt Status 254 ein, kann aber einen leeren
 Logbestand nicht von verdeckten Lesefehlern unterscheiden. Der Dienstbefund
-bleibt deshalb offen; es gibt dafür noch keinen zusätzlichen Gastnachweis.
+bleibt deshalb offen. Im neuen Gast ist pstore eingehängt, aber Quellpuffer
+und `/dev/pmsg0` fehlen; dies beweist nicht dessen historischen Bootzustand.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
-Diese Vorbereitung besitzt noch kein Profil und keinen Gastnachweis.
+Mit dieser Vorbereitung ist ec01e5fa inzwischen im eigenen Profil gebootet:
+misctrl endet mit 0, alle acht aktiven Verity-Geräte samt schreibgeschützten
+Mounts sind geprüft, der authentifizierte binäre ADB-Rundlauf besteht und
+die 720-×-1280-Anzeige ist angesehen. Es gibt dort noch keine persönlichen
+Benutzer; Eingabe, Shell-Regression und vollständige Abnahme bleiben offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.
