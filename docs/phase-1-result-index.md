@@ -689,6 +689,36 @@ bytegleiche Lesen von Betas Datei nach Anmeldung bleibt erforderlich. Der Fall
 belegt weder konkurrierende Starts noch Logout während einer Paketaktion oder
 die Abmeldung eines Benutzers mit aktivem privaten Paketimage.
 
+### b832d6c: direkter Alpha-Logout und geordneter Profilstopp
+
+Alpha meldet sich nach Betas Logout erneut regulär an und liest seine
+ursprüngliche Datei und Konfiguration bytegleich. Sein privater u4-Kontext
+meldet weiterhin `ready` und `packages=current`. Der direkte Logout ohne
+vorherigen Runtime-Stopp bestätigt um 02:04:13 UTC den gestoppten Benutzer
+und gesperrten CE-Speicher. Der ursprüngliche Hintergrundprozess `8209/560968`
+und beide persönlichen Kontextgruppen sind anschließend entfernt. CE ist `[0]`,
+Alphas bekannte Datei liefert keine Bytes, und neue Runtime-/Shell-Anfragen
+bleiben ohne erneute Anmeldung abgewiesen. Boot und SystemServer sind unverändert.
+
+Beleg `out/phase1-dod/b832d6c-base/alpha-direct-logout-proof.json`, SHA-256
+`718c42a48a010ee9a0afb5e6dee3f039a461b74e2a70e342c201ce1e643f73f9`,
+bindet Ereignispräfix 198. Ein zusätzlicher lesender Loop-Beobachter endet
+nach drei Proben mit Fehler: Init verschwindet zwischen Existenzprüfung und
+Lesen von `/proc/8027/stat`. Originalskript, Fehler und Teilprotokoll bleiben
+erhalten; daraus wird kein vollständiger Loop-Freigabenachweis abgeleitet.
+Der frühere nicht bestätigte f098-Logout tritt hier nicht erneut auf; seine
+Ursache ist durch diesen erfolgreichen Fall weder geklärt noch als behoben belegt.
+
+Nach dem gesonderten Neustart-Prüfpunkt mit beiden gesperrten Originaldateien
+werden Android und anschließend der KeyMint-Helfer geordnet ausgeschaltet.
+Beide Poweroff-Marker, `AEGIS_HELPER_SHUTDOWN_CLEAN`, der beendete Dienst und
+die Prüfsummen der unverändert zugeordneten bestehenden Profildateien sind in
+`out/phase1-dod/b832d6c-base/paired-shutdown-proof.json` festgehalten, SHA-256
+`11aee08a34f0d0090a7b8b10196fe3b809ec60186611c53466bc281af4a81b41`.
+Profil-ID bleibt `1943dcb7-d438-48de-8e62-d9967b32b9b2`. Der anschließende
+erneute Boot und bytegleiche Datenzugriff nach frischer Anmeldung sind gesondert
+nachzuweisen; der Shutdown allein erfüllt den Persistenzfall noch nicht.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
