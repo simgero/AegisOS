@@ -921,9 +921,71 @@ SHA-256 `a3cc403a43ee4fb7d1953524a045e5632cab93f40410e8409c074f9a4267e20d`.
 Dies belegt einen erfolgreichen ersten Start und einen fehlgeschlagenen
 Testvergleich, noch keine vollständige Abnahme der gemeinsamen Entfernung.
 Ein korrigierter Funktionstest, Datenprüfung und Aktivierung beim zweiten
-Benutzer stehen für diesen Fall weiterhin aus. Aus diesem Testfehler lässt
+Benutzer standen zu diesem Zeitpunkt noch aus; die folgenden Nachweise
+ergänzen diesen Zwischenstand. Aus diesem Testfehler lässt
 sich keine Ursache einer separat gemeldeten Plattform-Sicherheitswarnung
 ableiten.
+
+### b832d6c: gemeinsames jq bei Alpha aktiviert entfernt
+
+Nach dem erfolgreichen ersten Start wurde die falsche Erwartung zur
+Aufbewahrung unbenutzter Abhängigkeiten gesondert korrigiert. Dazwischen gab
+es weder eine weitere Paketänderung noch einen zweiten Runtime-Start.
+Der neue GNU-Test prüft die exakte Liste aller 78 manuellen Werksbasispakete,
+den vollständig dazu passenden installierten Bestand, eine leere automatische
+Paketliste und das Fehlen von jq, libjq1 und libonig5. bash, apt, dpkg,
+GNU-Werkzeuge und glibc 2.41 funktionieren. Originaldatei und Konfiguration
+sind bytegleich erhalten.
+
+Der Zustandsabzug bindet Alphas neue private Generation an die veröffentlichte
+gemeinsame Generation. Die private Versionswahlliste bleibt leer; beide
+Namespacesätze bleiben getrennt. Betas bisheriger Kontext samt Paketbestand
+ist unverändert und sein ursprünglicher Hintergrundprozess arbeitet weiter.
+Boot-ID, system_server-Identität und CE-Zustand bleiben gleich.
+
+`out/phase1-dod/b832d6c-base/shared-remove-alpha-proof.json`,
+SHA-256 `038f90c9f5439d411815a04f3cebe48a93cc3aff4efe6fbf19c3f7f3898ed664`,
+bindet 352 Ereignisse, Originaldaten, Zustand vor/nach Veröffentlichung und
+Aktivierung sowie die bytegleiche Paketlogik des Image-Commits. Der ursprüngliche
+fehlgeschlagene Vergleich bleibt ausdrücklich als Ereignis 336 enthalten.
+Dies ist ein korrigierter Nachweis, kein nachträglich als fehlerfrei ausgegebener
+erster Testlauf. Bereits vorher fehlende temporäre Testdateien belegen keine
+zusätzliche Bereinigung durch diese Aktivierung.
+
+### b832d6c: gemeinsame Entfernung bei beiden Benutzern aktiviert
+
+Beta meldete vor seinem Kontextneustart korrekt eine ausstehende Aktivierung.
+Sein bisheriges jq 1.7.1-6+deb13u3 ließ sich weiterhin tatsächlich ausführen;
+die Paketprüfung fand keine veränderten Dateien. Der normale `linux stop`
+beendete ausschließlich Betas Kontext. AOSP-Sitzung und CE-Freigabe bestanden
+weiter, während Alphas ursprünglicher Hintergrundprozess Fortschritt zeigte.
+Betas alte Init-Identität wurde anhand von PID und Startzeit als beendet geprüft.
+
+Der erste anschließende Start gelang. Beta verwendet direkt die neue gemeinsame
+Generation: jq fehlt, alle 78 Werksbasispakete sind manuell markiert und die
+beiden verbliebenen Bibliotheken libjq1/libonig5 automatisch. Der exakte Bestand
+umfasst damit 80 installierte Pakete. Alphas privater Abgleich hatte diese
+unbenutzten Bibliotheken mit `--auto-remove` entfernt; Betas gemeinsame
+Entfernungsaktion hatte ausschließlich jq vorgesehen. Beide Zustände entsprechen
+dem jeweiligen Pfad. Betas GNU-Werkzeuge funktionieren, Originaldatei und
+Konfiguration sind bytegleich erhalten. Alpha bleibt mit unverändertem Kontext
+und Paketbestand aktiv, Gamma bleibt gesperrt.
+
+`out/phase1-dod/b832d6c-base/shared-remove-both-proof.json`,
+SHA-256 `b978afe71419db83a044006fd7c6eb8a0edd8c15d45d47f9ea9d2d01a32c325a`,
+bindet 383 Ereignisse und den abschließenden Zustandsabzug
+`shared-remove-both-active.json` mit SHA-256
+`78033a2d24f1eae29fbac66617170b4da407d1b73a098da114db5084f1777fcf`.
+Die Nachweiskette schließt Alphas ursprünglichen fehlgeschlagenen Vergleich
+ausdrücklich ein. Es gab keinen verdeckten Framework-Neustart; beide Runtimes
+melden den Paketstand als aktuell.
+
+Damit ist diese gültig autorisierte gemeinsame Entfernung einschließlich
+Aktivierung bei beiden Benutzern nachgewiesen. Die frühere ENODATA-Regression
+tritt auf diesem geprüften Startpfad mit erhaltenen Werkswurzeln nicht auf.
+Verweigerte Freigaben, Updates, Transaktionsfehler und die übrigen Pflichtfälle
+bleiben eigenständig offen; D6 und die gesamte Phase 1 sind weiterhin nicht
+abgenommen.
 
 ### Historische Restliste des Referenzlaufs 209278de
 
