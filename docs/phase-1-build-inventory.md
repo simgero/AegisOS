@@ -204,3 +204,31 @@ SHA-256 `4488d65777c0bc36b6b4cdabc6e4397a5513f05c31f4cb7c9b76d591b9b7bb19`.
 Der AVB-Digest bleibt unverändert. Vorhandene Profile werden nicht auf diese
 andere Bootkonfiguration umgebunden. Auch hier fehlen Profilanlage, Boot und
 Gastabnahme; die Belege der Vorbereitung stehen im Ergebnisindex.
+
+## Wiederholbare Anzeige- und ADB-Teilprüfung
+
+Nach abgeschlossenem Boot und regulärer ADB-Autorisierung prüft
+[`qemu-display-adb-test.py`](../scripts/qemu-display-adb-test.py) einen frischen
+Entwicklungsgast mit ausschließlich Systembenutzer 0. Imagecommit, AVB-Digest,
+Profilbindung, SELinux und ADB-Authentifizierung müssen stimmen. Beispiel für
+den ec01e5fa-Lauf; das Ausgabeverzeichnis darf noch nicht existieren:
+
+```sh
+python3 scripts/qemu-display-adb-test.py \
+  --run out/phase1-dod/ec01e5fa-verity-base/boot-1 \
+  --prepared /srv/aegis/runs/phase1-ec01e5fa-verity0 \
+  --commit ec01e5fa5f2822da5763ab54c644bc5c5c5ab413 \
+  --output out/phase1-dod/ec01e5fa-verity-base/display-adb
+```
+
+Der Prüfer überträgt 262144 erzeugte Testbytes hin und zurück, vergleicht sie
+bytegenau und entfernt anschließend ausschließlich sein eigenes temporäres
+Gastverzeichnis. Eine QMP-PNG-Aufnahme enthält die beobachtete Auflösung;
+Boot-ID, SystemServer-PID/-Startzeit und Profilmanifest müssen während des
+Tests unverändert bleiben. Ergebnis, Testbytes und Bildschirm bleiben lokal.
+Ein Fehler beim Aufräumen erhält einen eigenen Fehlerstatus.
+
+Der Bildschirm muss zusätzlich angesehen werden. Tastatur-/Mausbedienung,
+Benutzerabläufe, Neustartpersistenz und vollständige Dienststabilität sind
+gesonderte Nachweise. Das Vorhandensein dieses Skripts ist kein bestandener
+Gastlauf und schließt D1 nicht ab.
