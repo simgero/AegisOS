@@ -121,7 +121,7 @@ ist noch nicht in einem neuen Android-Image gebaut oder im Gast geprüft.
 Historische Exit-1-Belege werden nicht als nachträglich bestanden umgedeutet;
 die übrigen Dienstursachen und D1 bleiben offen.
 
-## Shell-Korrektur dedd1da: gebaut und vorbereitet, noch nicht gebootet
+## Shell-Korrektur dedd1da: gebaut und erster Systembenutzer-Boot belegt
 
 Quellcommit: `dedd1dabc45efe080a499b3657b7ee09d2fda5a7`.
 Der lokale ARM64-Vollbuild
@@ -131,8 +131,9 @@ die Prüfsummenprüfung bestanden. Das AOSP-Manifest bleibt bytegleich zur
 b832d6c-Basis. Kernelbundle und Debian-Basisgeneration sind dieselben
 geprüften Eingaben aus dem [Buildinventar](phase-1-build-inventory.md).
 
-Die getrennte Vorbereitung `/srv/aegis/runs/phase1-dedd1da0` ist
-`LOCAL_BUILD_AVB_AND_DISK_VERIFIED_NOT_BOOTED`. Der lokale Beleg
+Die getrennte Vorbereitung `/srv/aegis/runs/phase1-dedd1da0` erhielt vor dem
+ersten Start den historischen Status `LOCAL_BUILD_AVB_AND_DISK_VERIFIED_NOT_BOOTED`.
+Dieser Vorbereitungsbeleg bleibt unverändert. Der lokale Beleg
 `out/phase1-dod/shell-ready-fix/build-validation.json`, SHA-256
 `94d0821653525002b43d7cf2ebafd98c3c84d2933a95d5d79547772f68aab38b`,
 bindet die 20 Images, 17 Buildbelege, Kernel- und Runtime-Auswahl.
@@ -160,7 +161,34 @@ Das Profilmanifest blieb unverändert, der ursprüngliche Testtreiber mit
 `402a922018f4f50622472ac209578cb9571bc5774a7f9cd2162c1db454945f75`.
 Mit 51,3 GiB verfügbarem RAM bestand der zweite Lauf die unveränderte Prüfung.
 
-**Dies ist Build- und statische Imagevalidierung, keine Gastabnahme.**
+### Erster Boot im frischen Profil
+
+Die vorhandene Aufnahme vom 4. Oktober 2026, 13:05:37 UTC bestätigt
+`sys.boot_completed=1`, authentifiziert erreichbares ADB mit `ro.adb.secure=1`,
+SELinux Enforcing und FBE-Eigenschaften `encrypted`/`file`. Ausschließlich
+Systembenutzer 0 ist angelegt und CE-entsperrt. Der Identity-Service ist
+registriert; die CLI meldet eine nicht authentifizierte Sitzung und verfügbare
+Ersteinrichtung. Es wurden dabei keine persönlichen Benutzer angelegt und
+keine Passwort- oder benutzerübergreifenden Prüfungen ausgeführt.
+
+- Profil: `0282f0b9-a8c4-4dfe-825c-2b230175ee76`.
+- Boot: `7f9d7648-d86d-49a7-a246-cae2031de204`.
+- Beobachteter SystemServer: PID `1310`, Startzeit `39855`.
+- Beleg: `out/phase1-dod/dedd1da-base/baseline.json`, SHA-256
+  `af6f61bd7e9d4eee1f4b9fa4fd045d8a7d86ca0837621be28e8c26ad2013d540`.
+- Bildschirm: `out/phase1-dod/dedd1da-base/boot-1/screen-boot-complete.png`,
+  SHA-256 `8cf1ffea418fde7e1c7bb17251db2313e1e4012b39e4286652cc171cb63fa4d0`.
+
+Der beobachtete `ro.boot.vbmeta.digest` stimmt mit der geprüften Vorbereitung
+überein. Die Eigenschaften `ro.boot.verifiedbootstate`,
+`ro.boot.vbmeta.device_state` und `ro.boot.veritymode` sind jedoch leer.
+Aus dem Digest allein wird daher keine vollständige Durchsetzung des
+Integritätsschutzes im laufenden Gast abgeleitet; der D1-Nachweis bleibt nötig.
+Die Bildschirmaufnahme zeigt Hintergrund und Batterieanzeige, belegt aber
+noch keine funktionierende Eingabe. Die Zustandsaufnahme ist kein Nachweis
+langfristiger Dienststabilität oder eines vollständigen Framework-Verlaufs.
+
+**Build, statische Imagevalidierung und dieser erste Boot sind Teilnachweise.**
 `shell-stopped` sowie der anschließende ausdrückliche Start und echte
 GNU-Zugang müssen auf dem neuen Image ausgeführt werden. Keine bestandene
 b832d6c-Variante wird automatisch übertragen; D1–D7 und die übrigen offenen

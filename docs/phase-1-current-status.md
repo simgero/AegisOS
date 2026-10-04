@@ -11,7 +11,12 @@ Profil: `1943dcb7-d438-48de-8e62-d9967b32b9b2`.
 
 Die Shell-Korrektur `dedd1dabc45efe080a499b3657b7ee09d2fda5a7` ist inzwischen
 lokal gebaut und mit AVB-/Kernel-/Runtime-Prüfung für QEMU vorbereitet.
-Sie wurde noch nicht gebootet und ersetzt die untenstehenden Gastbelege nicht.
+Ein frisches Profil mit ausschließlich Systembenutzer 0 ist inzwischen gebootet;
+authentifiziertes ADB, SELinux Enforcing und eine Bildschirmaufnahme sind belegt.
+Eingabefunktion, vollständige Dienststabilität und die Shell-Regression sind
+auf diesem Image noch nicht abgenommen. Die untenstehenden Gastbelege werden
+dadurch nicht ersetzt. Eine zusätzliche misctrl-Exitcode-Korrektur besteht
+die Hosttests, ist aber noch nicht in einem neuen Android-Image enthalten.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 
 Die genannten Belege liegen lokal unter `out/phase1-dod/b832d6c-base/`.
