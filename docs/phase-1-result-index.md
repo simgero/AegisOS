@@ -617,7 +617,47 @@ Einträge sowie Callback-Fehler werden geprüft. Eine zunächst falsch gezählte
 Länge des synthetischen Texts wurde im Test korrigiert; beide Parser lieferten
 dabei bereits identische Daten. Kein pstore-Gerät wird im Hosttest geöffnet.
 Die 32 AOSP-Worker-Tests bestehen ebenfalls. Eine tatsächliche Android-
-Kompilierung und die Diagnose beim Booten sind noch erforderlich.
+Kompilierung ist inzwischen erfolgt; die Diagnose beim Booten bleibt erforderlich.
+
+Der lokale Diagnosebuild aus `cacbf0d4ccf400155254ed84d0045244a1e4f6a2`
+liegt unter `/srv/aegis/runs/local-20261004T193742Z-cacbf0d4-NntCkc` und
+endet mit `LOCAL_BUILD_VERIFIED`, Exitcode 0. AOSP kompiliert den geänderten
+Parser für ARM64, prüft die ABI und erzeugt die abhängigen Images. Die
+Vorbereitung `/srv/aegis/runs/phase1-cacbf0d0` bestätigt 20 Images und
+19 Buildbelege einschließlich der neuen Diagnosequelle. AVB-Flags sind null,
+der Bootparameter setzt Verity auf `enforcing`; dies ist vorerst ein
+statischer Nachweis. Der neue AVB-Digest lautet
+`3303e560127bf33fe350736ff3318a22e04485741a8f274a8a5dc35e2f2fd0ef`.
+
+Die aus `system_a` des ausgelieferten `super.img` gelesene ARM64-Bibliothek
+stimmt bytegenau mit dem Buildprodukt überein und enthält die neue Meldung.
+Ihre SHA-256 ist
+`e24ecee948acce14d4d278af11b85f0cd66394461839c394e84c015e013bea40`.
+Auch Recovery-Binärdatei und Init-Konfiguration sind bytegleich geprüft;
+die Binärdatei importiert `__android_log_pmsg_file_read` aus `liblog.so`.
+Ein anfänglicher Zugriff auf die Verifierdatei scheiterte an der fehlenden
+Verzeichnistraversierung des Buildkontos, bevor eine Imageprüfung begann.
+Danach wurde nur der nicht vertrauliche Verifierquelltext temporär lesbar
+bereitgestellt; die Originalverzeichnisrechte blieben unverändert.
+
+Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `build-validation.json` | `957bef1b9850d67daa57991fb853622e83b6b4e5d154182faf864459b1d63b80` |
+| `avb-checked.json` | `2e377fb9ee6752522d9392a7929ab1add762c3ea523e3280f0986eb908c71cb1` |
+| `pmsg-packaged-image-proof.json` | `aad07a173217b06ad520dcc8ef0426cd40cf62dc2deffe9d1d4a5360fe7f44d8` |
+
+Der überholte dedd1da-Gast mit bestätigt ausschließlich Systembenutzer 0
+wurde zuvor sauber samt KeyMint-Helfer heruntergefahren; Profilidentität
+und Datenträger blieben erhalten. Der ec01e5fa-Benutzerlauf blieb aktiv.
+Am 4. Oktober um 19:54:43 UTC wurde der separate cacbf0d-Diagnosegast
+mit frischem Profil `de23866c-db95-46ed-8bbb-748c399262ca`, Netzwerk `none`
+und lokalem ADB-Endpunkt `127.0.0.1:15879` gestartet. Der Helfer meldet
+Bereitschaft. Der erste ursprüngliche Recovery-Aufruf als PID 404 endet
+bei Bootzeit 39,707052 Sekunden mit 254. Bootabschluss, numerische
+Diagnose und deren Bewertung stehen aus; kein Dienst wurde dafür erneut
+ausgeführt. D1 und die vollständige DoD bleiben offen.
 
 ## ec01e5fa: Originaldaten und Paketversionen nach gepaartem Neustart erhalten
 

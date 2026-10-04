@@ -42,8 +42,12 @@ Für den nächsten Build ist eine gepinnte `liblog`-Diagnose ergänzt:
 Sie protokolliert das letzte Pmsg-Leseergebnis und das aggregierte Ergebnis
 als Zahlen, ohne Dateinamen oder Log-Inhalte. Sieben gezielte Hosttests mit
 dem tatsächlichen Rekonstruktionsparser bestätigen unterscheidbare Ursachen
-bei unveränderten API-Rückgaben. Die historische Ursache von Status 254 ist
-damit noch nicht nachgewiesen; neuer Build und Bootbeobachtung stehen aus.
+bei unveränderten API-Rückgaben. Der Diagnosebuild `cacbf0d` ist inzwischen
+vollständig gebaut: 20 Images, 19 Buildbelege, AVB und die tatsächlich in
+`super.img` ausgelieferte Bibliothek sind geprüft. Ein separater frischer
+Diagnosegast bootet; sein erster regulärer Recovery-Aufruf endet ebenfalls
+mit 254. Die numerische Detailmeldung und der Bootabschluss sind noch nicht
+abgenommen. Die bisherigen Benutzerbelege bleiben an ec01e5fa gebunden.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
 Mit dieser Vorbereitung ist ec01e5fa inzwischen im eigenen Profil gebootet:
