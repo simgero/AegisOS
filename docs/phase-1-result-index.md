@@ -176,6 +176,41 @@ Dies belegt das gültige persönliche Update sowie den konkreten Beta-Stopp
 mit aktivem Alpha und neuer `/tmp`-/`/run`-Bereinigungsprüfung. Es ersetzt keine
 fehlenden IPC-, Logoutfehler-, Konflikt- oder Parallelitätsfälle.
 
+### Reiner Alpha-Runtime-Neustart mit frischen flüchtigen Dateien
+
+Im Anschluss an Betas persönliches Update meldet sich Alpha regulär an und
+bestätigt aus seiner GNU-Shell denselben u4-Paketbestand. Er legt zwei neue
+synthetische Dateien exklusiv unter `/tmp` und `/run/user/1000` an, liest ihre
+Bytes und prüft UID/GID 1000 sowie Modus 0600. Der vollständige Ausgangsvergleich
+zeigt gegenüber dem letzten Zwei-Kontext-Nachweis lediglich den erwarteten
+Vordergrundwechsel von Beta zu Alpha.
+
+Der reguläre eigene `linux stop` gelingt um 09:40:44 UTC. Alphas ursprünglicher
+Init `17998/2427632` und Hintergrundprozess `18313/2439313` sind anschließend
+nachweislich beendet, sein Kontext fehlt. AOSP-Sitzung, Vordergrund und
+CE-Freigabe bleiben erhalten. Betas Kontext `25084/2602870` bleibt vollständig
+unverändert; sein Hintergrundprozess `25379/2613708` macht vor/nach dem Stopp
+und nach Alphas neuem Start mit derselben Identität Fortschritt. Die Proben
+liegen innerhalb ihrer zulässigen Beobachtungsdauer.
+
+Alphas erster neuer Start gelingt um 09:43:33 UTC. GNU-Ausführung, jq/libjq u4,
+Bibliotheks-Hash und Paketmarkierungen stimmen. Beide neuen flüchtigen Dateien
+sind abwesend, während die ursprüngliche persönliche Datei und Konfiguration
+bytegleich erhalten bleiben. Alle 81 installierten Pakete, die vollständige
+dpkg-Prüfsumme, private Auswahl und zugrunde liegendes Paketimage bleiben identisch. Gemeinsame
+und persönliche ausgewählte Generationen ändern sich für keinen Benutzer;
+es findet keine Paketaktion statt. Der Abschlussstatus ist `packages=current`.
+
+`alpha-restart-active-proof.json`, SHA-256
+`cbdacd18d92b0da5f473120b0521012b0c65056c543f0d542d8062ee52a23cea`,
+bindet 618 Ereignisse mit unverändertem vorherigem Präfix, die genauen
+Prozessenden, frischen Dateiproben und vollständigen Vorher-/Nachher-Aufnahmen.
+Die abschließende Aufnahme `alpha-restart-active.json` hat SHA-256
+`797682166c1bc0c736c84ad31641b9ff3cea1788a51dd71496de7c4bd88b2833`.
+Zusammen mit Betas persönlichem Updatefall sind eigene Stopps mit aktivem
+Gegenüber und frische `/tmp`-/`/run`-Bereinigungsprüfungen in beiden Richtungen
+belegt. Daraus folgt keine pauschale IPC-, Logoutfehler- oder Parallelitätsabnahme.
+
 ## Bisheriger Referenzlauf und Statusregeln
 
 - Produkt-/Image-Commit: `209278def7d5bc5612eeb397bdd8ee20ccb16d86`.
