@@ -526,6 +526,46 @@ Datei-/Konfigurationsprüfsummen und den Basisbuildbeleg. Pakettransaktionen,
 Betas GNU-Kontext, gegenseitige Isolation, Logout und Reboot sind auf diesem
 Image noch auszuführen. Die vollständige DoD bleibt offen.
 
+### b832d6c: ergänzende Komponentenidentität
+
+Alle elf nativen Artefakte, das Java-Testpaket und das vollständige
+Komponenten-Quellinventar sind bytegleich zum Diagnosebuild `3fdb058`.
+Dessen drei tatsächlich bestandene `RuntimeSelectionOwner`-Fälle zur
+abgewiesenen Auswahl, zur nicht fortsetzbaren gestoppten/ersetzten Startaktion
+und zum Stopp ohne verbleibendes Zeitbudget sind mit Originalreceipt,
+Logprüfsumme und unverändertem Systemzustand geprüft. Der neue Beleg
+`out/phase1-dod/b832d6c-base/component-continuity.json`, SHA-256
+`0b810ab0744531f22c024d02cbb9acdda492618a568cc456016c65602ef9cd0f`,
+ordnet genau diese drei früheren Komponentenergebnisse ergänzend zu.
+Das geänderte Basisrezept und der tatsächliche neue Paketablauf benötigen
+weiterhin eigene Systemnachweise; eine erneute Ausführung dieser drei Fälle
+auf `b832d6c` wird nicht behauptet.
+
+### b832d6c: gemeinsame jq-u3-Installation aktiviert
+
+Der reguläre CLI-Plan installiert genau jq/libjq1 `1.7.1-6+deb13u3` und
+libonig5 `6.9.9-1+b1`. Nach frischer Alpha-Adminfreigabe wird ausschließlich
+die gemeinsame Paketauswahl veröffentlicht; Alphas laufender Factory-Kontext
+bleibt unverändert und meldet ausstehende Aktivierung. Beta bleibt gesperrt.
+
+Nach ausdrücklichem Runtime-Stopp ist der ursprüngliche Init `6857/241726`
+verschwunden; AOSP-Sitzung und CE bleiben erhalten. Der neue Kontext
+`7518/355401` führt jq u3 tatsächlich aus. Versions- und Paketdateiprüfung
+bestehen, alle bisherigen 78 Pakete bleiben unverändert. Die 81 installierten
+Pakete enthalten jetzt 79 manuelle Wurzeln sowie ausschließlich libjq1 und
+libonig5 als automatische Abhängigkeiten. Alphas ursprüngliche Datei,
+Konfiguration und synthetisches Test-Secret sind bytegleich; die alten
+flüchtigen Proben fehlen. Der Status meldet `packages=current`.
+
+Beleg `out/phase1-dod/b832d6c-base/shared-u3-activation-proof.json`, SHA-256
+`18e8332a90f0fb5c022a82547627c450c5b379c5d015a05328f9254f3a69a2b9`,
+bindet Ereignispräfix 53, Veröffentlichung, Stopp, neue Aktivierung und
+Originaldaten. Gemeinsame Generation:
+`37c7f8a9856067f0c3edce8c5a5c0181808cd2d4c5607bcafff25eebeeb447ff`.
+Dies ist ein erlaubter gemeinsamer Installationsfall; private Versionen,
+vollständige Autorisierungsmatrix und die ursprüngliche Entfernungsregression
+sind damit nicht abgenommen.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
