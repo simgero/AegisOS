@@ -22,6 +22,32 @@ Programmdateien. `build-inventory-proof.json`, SHA-256
 bindet die lokalen Beobachtungen. Das ist kein neuer Compilerlauf; D1 und
 sämtliche offenen Pflichtvarianten bleiben offen.
 
+## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
+
+Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
+`53b7befe783e1424b5d48c31da14bcdf047cb7064f04de76a13020c8ea10978c`,
+prüft 16 bestehende Belegdateien und die folgenden konkreten Anforderungen.
+Ereignisnummern sind nullbasiert im eingefrorenen
+`shell-after-stop-failure-events.json`; die Präfixe stimmen mit den früheren
+Bildschirmsperr- und Ressourcenstopp-Belegen überein.
+
+| Anforderung | Vorhandener Nachweis |
+| --- | --- |
+| Wechsel Beta → Alpha und Alpha → Beta | Ereignisse 105/106/116/117 und 129/130/137/138; ursprüngliche Prozesse behalten PID, Startzeit, interne/äußere UID, Cgroup, SELinux-Domäne und Namespaces. Fortschritt ist jeweils positiv. Die beobachtete CE-Liste bleibt `[0, 10, 11]`. |
+| Bildschirmsperre sperrt interaktive Nutzung | Ereignisse 151–172: tatsächlich offener GNU-Kanal wird widerrufen, Terminal ist unangemeldet und neuer Start abgelehnt; beide ursprünglichen Hintergrundprozesse laufen bei tatsächlichem `Asleep` weiter. Aufwachen allein stellt die Anmeldung nicht wieder her. Frische Anmeldung stellt den Zugang her; beide Kontextaufnahmen stimmen überein. Kein CE-Entzug behauptet. |
+| AOSP-Ressourcenstopp baut den betroffenen Kontext ab | ActivityManager 02:59:23 UTC stoppt Benutzer 11 wegen vier laufender AOSP-Benutzer einschließlich Systembenutzer. Ereignis 264 bestätigt das Ende der ursprünglichen PID/Startzeit vor Ablauf der begrenzten Probe, die entfernte Kontext-Cgroup und tatsächlich gesperrtes CE. Nachheraufnahme enthält Alpha/Gamma, keinen Beta-Kontext. Alpha bleibt vollständig erhalten und läuft weiter. |
+| Wiederanmeldung nach Ressourcenstopp | Ereignisse 269–287 und drei Zustandsaufnahmen: Beta zunächst gesperrt/ohne Kontext; frische Anmeldung und ausdrücklicher Start erzeugen einen neuen Kontext. Originaldaten sind im bestehenden Ressourcen-Wiederherstellungsbeleg rückgelesen. Alpha und SystemServer bleiben identisch. |
+
+Der bei der damaligen Beobachtung verwendete Treiber ist über die ursprüngliche
+Eingangsprüfsumme an b832d6c gebunden. Seine Prozess-/Cgroup-/CE-Prüffunktion
+ist gegenüber dem aktuellen Quelltext unverändert. Das bekannte veränderliche
+Checkpoint-Ereignis 203 bleibt im Rohprotokoll erhalten; keine Aussage dieser
+Zuordnung stützt sich darauf. **T08 ist auf b832d6c belegt.**
+Die Zuordnung garantiert weder unbegrenzten Hintergrundbetrieb noch drei
+gleichzeitige persönliche Benutzer. Sie ersetzt nicht T05, die vollständige
+Ressourcenbewertung von T09, die konkurrierenden Logoutfälle von T10/T11 oder
+den Gastnachweis eines neuen Images. Alle D1–D7 bleiben offen.
+
 ## Aktueller Lauf b832d6c: fehlgeschlagener Shell-Zugang nach Stopp
 
 Am 4. Oktober 2026 bestätigten `linux stop` um 11:50:54 UTC und

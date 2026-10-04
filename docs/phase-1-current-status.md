@@ -29,7 +29,7 @@ die Veröffentlichung noch die tatsächliche Aktivierung und Programmausführung
 | T05 Shell | Tatsächliche GNU-Ausführung für Alpha, Beta und Gamma; eigenes HOME/Identität; Shell-Ende erhält Alpha-Kontext und AOSP-Sitzung. | **Fehlgeschlagen:** `linux shell` startet nach bestätigtem `linux stop` selbst einen neuen Kontext, statt den fehlenden gestarteten Kontext abzulehnen. Fehlerbehebung und erneuter Nachweis erforderlich; fremdes/gesperrtes Shell-Ziel und Exitcode-/Terminalfälle bleiben zusätzlich offen. |
 | T06 Gegenseitiger Zugriff | Konkrete HOME-, Konfigurations-, synthetische Secret-, temporäre Datei-, Prozess- und POSIX-Mqueue-Prüfungen bei gleichzeitig entsperrtem Alpha/Beta. Vorhandene private Paketstores inzwischen in beiden Richtungen geprüft. | Abschließender Abgleich aller geforderten Pfade und Ressourcen mit diesen konkreten Prüfumfängen. Keine pauschale Aussage über beliebige Syscalls oder IPC-Verfahren. |
 | T07 Persistenz | Ursprüngliche Dateien, Einstellungen und private Pakete über Runtime-/VM-Neustart erhalten; Paketdatenbank und Generationen über VM-Neustart identisch. Private jq/libjq u3 bleibt beim Kontextneustart für das gemeinsame Update erhalten. Frische `/tmp`-/`/run`-Proben beider Benutzer verschwinden nach eigenem Stopp/Start; Alphas reiner Neustart erhält exakt Paketdatenbank und Generation. Variantenabgleich abgeschlossen. | T07 belegt. Passwortwechsel, Abmeldefehler und Löschung bleiben T02/T11/T12 zugeordnet. |
-| T08 Wechsel/Sperre/Ressourcen | Hintergrundfortschritt mit konkreter Identität, Bildschirmsperre ohne behaupteten CE-Entzug; AOSP stoppt Beta beim Erreichen seines Benutzerlimits; frische Anmeldung stellt ursprüngliche Daten wieder bereit. | Verbleibende Wechselrichtungen/Terminalwiderrufe vollständig zuordnen. Der Ressourcenfall belegt zwei gleichzeitig laufende persönliche Benutzer, nicht drei. |
+| T08 Wechsel/Sperre/Ressourcen | Beide Wechselrichtungen mit fortschreitenden ursprünglichen Hintergrundprozessen und unveränderter Eigentümer-/Namespacebindung zugeordnet. Bildschirmsperre widerruft den offenen GNU-Kanal; Aufwachen stellt keine Terminalanmeldung her, CE bleibt entsperrt. AOSP stoppt Beta beim Benutzerlimit; ursprünglicher Prozess und Kontext verschwinden vor Ablauf der Probe, CE ist tatsächlich gesperrt, Alpha bleibt erhalten; frische Anmeldung stellt Beta wieder her. | T08 auf b832d6c belegt. Der Ressourcenfall belegt zwei gleichzeitig laufende persönliche Benutzer, nicht drei. Kein unbegrenzter Hintergrundbetrieb zugesichert; T09–T11 bleiben eigenständige Pflichtfälle. |
 | T09 Runtime-Stopp | Eigene Stopps in beiden Richtungen erhalten AOSP-Sitzung/CE und den anderen Kontext; genaue Init-/Hintergrundidentitäten beendet, gültige Peer-Proben davor/danach fortschreitend. Frische `/tmp`-/`/run`-Dateien beider Benutzer verschwinden. Alphas Fall enthält keine Paketänderung. | Sämtliche geforderten Ressourcen einschließlich verbleibender IPC-Zuordnung vollständig bewerten. Die beiden konkreten Stopprichtungen mit gültigen Fortschrittsproben sind belegt. |
 | T10 Logout | Direkter Beta- und Alpha-Logout ohne vorheriges `linux stop`: CE gesperrt, ursprüngliche Prozesse/Kontexte entfernt, bekannte Originaldateien unlesbar; spätere positive Rücklesungen vorhanden. | Vollständiger Abbau offener Zugriffe, Mounts und IPC; konkurrierender Start und Vordergrundwechsel während Abmeldung. Der fehlgeschlagene zusätzliche Loop-Beobachter bleibt ein Teilprotokoll. |
 | T11 Logoutfehler | Erfolgreiche direkte Abmeldungen sind dokumentiert. | Gezielte ausstehende und fehlgeschlagene CE-Sperrung, sicherer Wiederanlauf nach Ursachenbehebung sowie Paketaktionen beim Logout auf diesem Image. Die frühere ungeklärte f098-Abmeldung ist weder ein aktueller bestandener Test noch eine nachgewiesene Fehlerbehebung. |
@@ -51,6 +51,14 @@ SHA-256 `c0eb58f69b5935045660f4a44ac0360dbe6815af37ad1577523babb9004160da`,
 gebunden. Umfang, historische Ereignisrekonstruktion und zwei erhaltene lokale
 Auditfehler stehen im Ergebnisindex. Es handelt sich nicht um eine erneute
 Ausführung sämtlicher älterer Tests oder eine Gesamtfreigabe.
+
+Der zusätzliche Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
+`53b7befe783e1424b5d48c31da14bcdf047cb7064f04de76a13020c8ea10978c`,
+bindet 16 vorhandene Belegdateien und schließt die Zuordnung von T08 auf
+b832d6c ab. Er prüft die konkreten Ereignisse und Zustandsaufnahmen sowie
+den AOSP-Ressourcenstopp im gespeicherten ActivityManager-Protokoll. Es
+wurden dafür keine Gasttests wiederholt. Umfang und Grenzen stehen im
+Ergebnisindex; für ein neues Image entsteht daraus keine automatische Freigabe.
 
 Alle sieben Abschlusskriterien bleiben offen. Außer den obigen Varianten
 gehören dazu weiterhin:
