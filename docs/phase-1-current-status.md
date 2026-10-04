@@ -48,14 +48,20 @@ nach Rückkehr bytegleich. Gegenseitige Zugriffe auf Originaldateien,
 Konfiguration, synthetische Test-Secrets, flüchtige Dateien, Testprozesse und
 POSIX-Mqueues sind inzwischen aus beiden gewöhnlichen GNU-Kontexten geprüft:
 abgewiesen, Peer-Inhalte unverändert, ursprüngliche Prozesse weiter aktiv.
-Private Paketstores fehlen noch; T06 insgesamt bleibt deshalb offen.
+Private Paketstores waren in diesen Zugriffstests noch nicht vorhanden;
+ihre Prüfung und T06 insgesamt bleiben offen.
 Die erste erlaubte gemeinsame Installation von jq/libjq1
 `1.7.1-6+deb13u3` mit libonig5 `6.9.9-1+b1` ist inzwischen veröffentlicht und
 nach eigenem Neustart in Alpha tatsächlich ausgeführt. Originaldaten bleiben
 erhalten, alte flüchtige Dateien und POSIX-Queues fehlen; Beta bleibt im
-bisherigen Kontext. Private Versionen, Paketautorisierungsmatrix, Ausführung
-bei weiteren Benutzern, Logout/VM-Neustart, übrige T05-Varianten und D1–D7
-bleiben offen.
+bisherigen Kontext. Alpha hat anschließend eine eigene jq/libjq1-Version
+`1.7.1-6+deb13u4` mit erneuter AOSP-Adminfreigabe installiert und nach eigenem
+Runtime-Neustart tatsächlich ausgeführt. Sein privater Store ist an Benutzer
+10/Seriennummer 10 und die unveränderte gemeinsame Generation gebunden;
+Originaldatei und persistente Konfiguration bleiben bytegleich. Betas bisheriger
+Kontext und Prozess bleiben erhalten. Die gleichzeitige Ausführung verschiedener
+Versionen bei beiden Benutzern, Paketautorisierungsmatrix, Logout/VM-Neustart,
+übrige T05-Varianten und D1–D7 bleiben offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.

@@ -322,6 +322,58 @@ Logout und VM-Neustart bleiben offen. Dieser kombinierte Aktivierungsablauf
 ist kein Nachweis eines unveränderten Paketbestands über einen reinen
 Runtime-Neustart und keine vollständige T09-/Logout-Abnahme.
 
+## ec01e5fa: private jq-Version für Alpha aktiviert
+
+Alpha installiert mit einer erneuten AOSP-Adminfreigabe die persönliche Auswahl
+`jq=1.7.1-6+deb13u4`. Der geprüfte Plan ersetzt ausschließlich jq und dessen
+passende libjq1-Abhängigkeit von u3 durch u4; libonig5 bleibt `6.9.9-1+b1`.
+Die Veröffentlichung um 16:21:58 UTC verändert weder die gemeinsame Auswahl
+noch die beiden laufenden Kontexte. Alphas Status zeigt zunächst
+`activation-pending`.
+
+Der anschließende eigene Runtime-Stopp erhält Alphas Anmeldung und CE
+`[0, 10, 11]`. Sein vorheriger Init `19895/681341` und Hintergrundprozess
+`20262/699748` enden; Betas ursprünglicher Prozess `9362/429323` schreitet
+davor und danach fort. Erst der ausdrückliche Start aktiviert den privaten
+Store im neuen Alpha-Init `24589/817367`; der Status ist nun `packages=current`.
+
+Die tatsächliche GNU-Prüfung liest jq und libjq1 jeweils als
+`1.7.1-6+deb13u4` aus Dpkg und berechnet mit jq aus einem JSON-Eingabewert 41
+das erwartete Ergebnis 42. Die vollständige Datenbank enthält weiterhin 81
+Pakete und unterscheidet sich von Alphas vorherigem Bestand genau in diesen
+beiden Versionen. APT meldet 79 manuelle Wurzeln und die beiden automatischen
+Abhängigkeiten libjq1/libonig5. Die Ausgabe `jq-1.7` allein unterscheidet die
+Debian-Revisionen nicht; Paketversionen und die installierte Bibliotheksdatei werden
+deshalb separat erfasst. Deren SHA-256 lautet
+`92012c8c198ed5f8e44042a124c3271e89a0a2867fc3344642d9ed391ef75f50`.
+
+Der private Store liegt in Alphas CE-Bereich, ist an `user 10 10` gebunden und
+referenziert die unveränderte gemeinsame Generation. Die ursprüngliche
+1024-Byte-Datei und beide persistenten Konfigurationsproben sind bytegleich.
+Eine neue, zeitlich begrenzte Hintergrundprobe erhält eine eigene Identität;
+sie wird nicht als Überleben des beendeten Prozesses gewertet. Die abschließende
+Zustandsaufnahme bestätigt Betas vollständig unveränderten Kontext und Bestand
+sowie unveränderte Boot-ID, SystemServer-Identität und CE-Zustände.
+
+Der Offline-Prüfer bindet 185 eingefrorene Ereignisse, darunter den identischen
+vorherigen 157-Ereignis-Stand, an die Originaldateien unter
+`out/phase1-dod/ec01e5fa-verity-base/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `private-u4-activation/result.json` | `a246770a89bf662a9e5feebc4af2f793185f7c82962d3f52872d29b49d2d3e8a` |
+| `private-u4-published.json` | `16b2ac738fb233ecbc5c473927054a3bb9fffeee4d343e1c37b3c222b031f898` |
+| `private-u4-alpha-stopped.json` | `b26189ec121a7b99c9bdb20bef75468fcff57bb22d6ab96bc23021ae6673bdb4` |
+| `private-u4-active.json` | `09dba2c56ed9a686df7b581cc897b6464f50c9e89911de32066a8a26c6f756d6` |
+
+Beta führt hier weiterhin die ursprüngliche Basis ohne jq aus. Eine
+gleichzeitige Ausführung von u3 bei Beta und u4 bei Alpha ist noch nicht belegt.
+Alphas ursprüngliche flüchtige Dateien und Queues waren bereits beim vorherigen
+gemeinsamen Aktivierungstest entfernt worden; dieser Fall behauptet keinen
+erneuten Nachweis ihrer Bereinigung. Private Paketzugriffe, ungültige Versionen,
+Entfernung, Updates, Logout und VM-Neustart bleiben erforderlich. T15 insgesamt
+und alle D1–D7 bleiben offen.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
