@@ -54,9 +54,15 @@ einzeln als Aconfigd-Übergabe beziehungsweise fehlendes `eth0` bei Netzwerk
 `none` erklärt. Der ursprüngliche Audit bleibt `REVIEW_REQUIRED`.
 Die Aufnahme bestätigt authentifiziertes ADB, SELinux Enforcing, FBE und
 ausschließlich Systembenutzer 0. Eine 262144-Byte-ADB-Übertragung ist bytegleich
-zurückgelesen; die Bildschirmaufnahme hat 720 × 1280 Pixel. Bedienung, aktive
-Verity-Mappings und Dauerstabilität sind damit für dieses Image noch nicht
-vollständig abgenommen. Die bisherigen Benutzerbelege bleiben an ec01e5fa
+zurückgelesen; die Bildschirmaufnahme hat 720 × 1280 Pixel. Zusätzlich sind
+alle acht aktiven Verity-Mappings mit Status `V`, `restart_on_corruption` und
+zugehörigen schreibgeschützten EROFS-Mounts beobachtet. QEMU-Tastatur und -Maus
+öffnen die Netzwerk-Einstellungen und kehren zur Startseite zurück; Screenshots
+und UI-Struktur bestätigen beide Schritte. Bis nach diesem Test bleiben
+Boot-ID und SystemServer unverändert, ohne neue auffällige Dienst-Rückgaben
+oder Treffer der sechs geprüften Fatal-/ANR-Marker. Der vollständige
+Referenzablauf und dessen Dauerstabilität sind damit noch nicht abgenommen.
+Die bisherigen Benutzerbelege bleiben an ec01e5fa
 gebunden. D1 und die vollständige DoD bleiben offen.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.

@@ -697,6 +697,57 @@ Zusätzliche lokale Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
 | `individual-service-review/result.json` | `53f9061d99d9cc0828378e5d2c246c1b5f2ca12ffd22df7c8c9bef839dc3a03d` |
 | `display-adb/result.json` | `d1f650945ecb0ad39534b1d50a25128b64c1c816b03c2a738dd8f4e07808155c` |
 
+Ein anschließender Lauf von `scripts/qemu-verity-test.py` ordnet jede der acht
+Systempartitionen über ihren tatsächlichen Mount und Sysfs-Gerätenamen einem
+aktiven Verity-Mapping zu. Alle acht liefern Status `V`, enthalten
+`restart_on_corruption` und sind als EROFS schreibgeschützt eingehängt.
+Boot-ID, SystemServer-Startzeit, Profilmanifest und Mountinventar bleiben
+während der Beobachtung unverändert. Der ausschließlich lesende Test erfasst
+keine Userdata-Verschlüsselungstabellen und führt keine Beschädigungstests aus.
+Beleg: `active-verity/result.json`, SHA-256
+`0d6cfaaec3dd384a140c66b66da4717ff0a728cb88fcdf09daa272cbd7174f99`.
+Reproduktion auf dem noch laufenden Diagnosegast, mit neuem Ausgabeverzeichnis:
+
+```sh
+python3 scripts/qemu-verity-test.py \
+  --run out/phase1-dod/pmsg-cacbf0d/boot-1 \
+  --prepared /srv/aegis/runs/phase1-cacbf0d0 \
+  --commit cacbf0d4ccf400155254ed84d0045244a1e4f6a2 \
+  --output out/phase1-dod/pmsg-cacbf0d/active-verity-repeat
+```
+
+Die anschließende QEMU-Bedienungsprüfung auf demselben Systembenutzer 0 ist
+ebenfalls bestanden. Nach Wecken, Öffnen der Einstellungen und normaler
+Wischgeste öffnet einmaliges QMP `send-key` mit `tab`, dann `ret` (je 120 ms)
+die Seite „Network & internet“. Ein relativer Mauszug zum Ursprung und
+anschließend `(56,104)` landet wegen Mausbeschleunigung zunächst außerhalb
+des Zurück-Pfeils. Nach Korrektur `(-28,-53)` bestätigt Android die Position
+`(57.165,104.121)` innerhalb der aus der UI-Struktur gelesenen Grenzen
+`[0,48][112,160]`. Ein einzelnes linkes Drücken/Loslassen über
+`input-send-event` führt zur Einstellungen-Startseite zurück.
+
+Die Seitenwechsel sind sowohl in den UI-Strukturen als auch in visuell
+geprüften Screenshots bestätigt. QMP-Aktionen, Positionen und UI-Aufnahmen
+liegen unter `ui-input/`; temporäre UI-Dateien im Gast wurden entfernt.
+Die erste Aufnahme zeigte noch den Sperrbildschirm. Der erste UI-Dump nach
+der Wischgeste meldete trotz Exitcode 0 einen fehlenden Root-Knoten; dieser
+Zwischenbefund ist erhalten. Die spätere reine Beobachtung gelang ohne
+Wiederholung der Wischgeste. Boot-ID und SystemServer einschließlich Startzeit
+blieben unverändert. Keine persönliche Anmeldung ist Bestandteil dieses Tests.
+
+Der Audit der anschließend eingefrorenen Logs enthält dieselben drei bereits
+einzeln geprüften Dienst-Rückgaben, genau einen SystemServer-Start und keine
+Treffer seiner sechs Fatal-/ANR-Marker. Beide früheren Logaufnahmen sind
+bytegleiche Präfixe der späteren Aufnahme. Der Audit bleibt ausdrücklich
+`REVIEW_REQUIRED`; dieser begrenzte Zeitraum ersetzt nicht den vollständigen
+Referenzablauf oder einen Nachweis lückenloser Protokollierung.
+
+| Zusätzlicher Beleg | SHA-256 |
+| --- | --- |
+| `ui-input/result.json` | `2146fdf11324edff93dbaee91f9d2ee525bae3f50d4eb81d665a8d5162cccfe1` |
+| `post-ui-service-audit.json` | `17f4750da7410f801901f8f5d03c919bad23c7707121bcf734faac95ddab5958` |
+| `post-ui-continuity.json` | `6c34f6ac30e237e239e42ffc18a236c15159e488caae56db78d1015c5b5e766a` |
+
 D1 und die vollständige DoD bleiben offen. Die erneute vom Benutzer gemeldete
 Plattform-Sicherheitswarnung hat keinen belegten Auslöser in diesen Belegen.
 Der zuvor unterbrochene Socket-Test wird nicht automatisch wiederholt;
