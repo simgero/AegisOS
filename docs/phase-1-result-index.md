@@ -97,8 +97,36 @@ Bei 51,6 GiB verfügbarem RAM besteht der zweite Versuch desselben Commits
 die unveränderte Speicher- und AOSP-Sandbox-Vorprüfung. Dienst:
 `aegis-local-a76c71bc-attempt2.service`; neuer Run:
 `/srv/aegis/runs/local-20261004T231500Z-a76c71bc-G93KkM`.
-Der Build ist noch nicht als abgeschlossen oder im Gast geprüft verzeichnet.
+Der zweite Build ist inzwischen mit Dienst-Exit 0 und `LOCAL_BUILD_VERIFIED`
+abgeschlossen; alle 20 Image-Prüfsummen sind bestätigt. Das AOSP-Manifest ist
+unverändert (`901ef0ddfe7c9b1b146d87a5c37a82e9cb626fdb1994b977ee3b8f68b5adfd83`).
 Der ursprüngliche fehlgeschlagene Run bleibt erhalten.
+
+Der separate Quell-/Imageabgleich bestätigt die tatsächliche Neukompilierung,
+Verlinkung und Installation von `terminal_jni.cpp` im Buildlog. Aus dem
+Slot-A-`system_ext` in `super.img` extrahierte JNI-Bytes sind identisch mit dem
+Build-Ergebnis. Es handelt sich um AArch64-ELF mit den JNI-Methoden und dem
+erwarteten `tcflush`-Import. Quellhash, Buildreceipt, Werkzeug- und Imagehashes
+sind gebunden; es wurde nichts aus dem Image ausgeführt oder gemountet.
+`terminal-packaged-image-proof.json`, SHA-256
+`42a8daf3864504ccf11bf0f6983f34e80e6eb32bbbee6b595d1c88275337f0f3`,
+liegt im Buildrun und in `out/phase1-dod/terminal-a76c71bc/`.
+JNI-Bibliothek: 51.320 Bytes, SHA-256
+`b94dafedd5b24b07ab2384be3c8be729d0c448ac853e4f0cb7bfd6ebb3a543db`.
+Ein Symbolimport allein beweist den Laufzeitpfad nicht; die Android-Regression
+bleibt erforderlich.
+
+Die Vorbereitung `/srv/aegis/runs/phase1-a76c71bc0` endet mit
+`LOCAL_BUILD_AVB_AND_DISK_VERIFIED_NOT_BOOTED`. Die lokalen Belege unter
+`out/phase1-dod/terminal-a76c71bc/` enthalten `build-validation.json`, SHA-256
+`09b8f407ef45bfefc19c3766951af9d923884a4d6d567eb9225f0ca5d36743dc`,
+und `avb-checked.json`, SHA-256
+`24ca51a31c82d93434df4be8f29ee0b51f7b5edff70ddfdd64cb93a736082940`.
+AVB-Digest: `3d075e926764ce799ed5d23cc8b01fc518ef1069b71ec6621c0032e9189dbcd9`.
+Ein eigener Gaststart unter `aegis-qemu-a76c71bc-terminal-boot1.service` mit
+neuem Profilpaar ist angefordert und der Launcher läuft. **Bootabschluss,
+authentifiziertes ADB und Android-Terminaltest sind noch nicht bestätigt.**
+Die vorherigen Integrationsergebnisse werden nicht auf das neue Image übertragen.
 
 `scripts/build-terminal-input-probe.py` kompiliert außerdem ausschließlich die
 zwei unveränderten Java-Terminalklassen und das öffentliche Testprogramm als

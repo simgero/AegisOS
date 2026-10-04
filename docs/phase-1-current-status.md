@@ -41,8 +41,9 @@ ursprünglichen Terminaleinstellungen wiederhergestellt werden.
 
 Sieben Hosttests bestehen nach der Korrektur, einschließlich Restpufferprüfung
 für alle fünf bereits unterstützten Signale. Der frühere fehlgeschlagene Test
-bleibt erhalten. Die Änderung ist **noch nicht im laufenden Android-Image**;
-Android-Build und Integrationsprüfung stehen aus. Der Befund erklärt nicht die
+bleibt erhalten. Das neue Android-Image `a76c71b` ist gebaut, die Korrektur
+direkt in `super.img` nachgewiesen und ein eigener erster Boot gestartet.
+Bootabschluss und Android-Integrationsprüfung stehen aus. Der Befund erklärt nicht die
 Plattform-Security-Meldung. Vollständiger Passwortaudit, T01 und D1–D7 bleiben
 offen; Details stehen im [Ergebnisindex](phase-1-result-index.md).
 
@@ -55,8 +56,11 @@ Anschließend wurde der bisher nicht zugeordnete alte QEMU-Lauf eindeutig an
 das überholte Profil `f098f439` gebunden und regulär als Android-/KeyMint-Paar
 heruntergefahren. Profil und Originaltreiber bleiben erhalten. Dadurch stieg
 der verfügbare Speicher auf 51,6 GiB; der zweite Buildversuch besteht die
-unveränderte Vorprüfung und läuft. Der separate öffentliche Android-Terminal-
+unveränderte Vorprüfung und endet mit `LOCAL_BUILD_VERIFIED`. Alle 20 Images,
+AVB und die neue QEMU-Disk sind geprüft. Der separate öffentliche Android-Terminal-
 Prüfhelfer ist kompiliert, aber noch nicht installiert oder ausgeführt.
+Die folgende T01–T17-Matrix bleibt ausdrücklich dem bisherigen `cacbf0d`-Lauf
+zugeordnet; sie ist keine Abnahme des neuen Images.
 
 ## Aktuelles Image cacbf0d: vollständige Restmatrix
 
