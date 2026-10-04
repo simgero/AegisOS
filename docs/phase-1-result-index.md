@@ -658,6 +658,37 @@ Das sind konkrete gegenseitige Zugriffsprüfungen, keine vollständige Prüfung
 aller Syscalls, fehlender Startvoraussetzungen oder sämtlicher Paketvarianten.
 Logout, Reboot und die übrigen Pflichtfälle bleiben offen.
 
+### b832d6c: Bildschirmsperre und direkter Beta-Logout
+
+Die AOSP-Bildschirmsperre widerruft Betas offene GNU-Terminalverbindung. Status
+und ein anschließender Startversuch bestätigen fehlende Terminalautorisierung.
+CE bleibt `[0,10,11]`; beide ursprünglichen Hintergrundprozesse laufen bei
+`mWakefulness=Asleep` mit unveränderten Identitäten weiter. Das Einschalten
+allein stellt keine Anmeldung her. Erst Betas frische AOSP-Passwortprüfung
+ermöglicht wieder die GNU-Shell und bytegleiches Lesen seiner Originaldaten.
+Die vollständigen Zustandsaufnahmen vor und nach diesem Ablauf sind abgesehen
+vom Erfassungszeitpunkt identisch.
+
+Beleg `out/phase1-dod/b832d6c-base/screen-lock-proof.json`, SHA-256
+`8637c309e507d8313c14e752a0e6d53914422cc86a669beaa37d605210a92ac6`,
+bindet Ereignispräfix 173. Die Bildschirmsperre wird ausdrücklich nicht als
+CE-Schlüsselentzug ausgegeben.
+
+Der anschließende reguläre Beta-Logout erfolgt ohne vorherigen `linux stop`.
+AOSP bestätigt um 01:56:17 UTC den gestoppten Benutzer und gesperrten CE-Speicher.
+Betas ursprünglicher Prozess `9681/596231` und sein Runtime-Kontext fehlen;
+CE ist `[0,10]`. Die bekannte, zuvor aus GNU erzeugte Datei liefert keine Bytes.
+Runtime-Start und Shell-Zugang werden ohne neue Anmeldung abgewiesen. Alphas
+vollständiger privater Kontext, Paketauswahl und ursprünglicher Hintergrundjob
+bleiben unverändert; dessen Zähler läuft bei Systembenutzer 0 weiter.
+
+Beleg `out/phase1-dod/b832d6c-base/beta-direct-logout-proof.json`, SHA-256
+`adc1435ac5ebe6b7a2cdf63b357dda0e0336ce8352c7c5bdac0c2e74ff5d4178`,
+bindet Ereignispräfix 181 und die unabhängige Zustandsaufnahme. Das erneute
+bytegleiche Lesen von Betas Datei nach Anmeldung bleibt erforderlich. Der Fall
+belegt weder konkurrierende Starts noch Logout während einer Paketaktion oder
+die Abmeldung eines Benutzers mit aktivem privaten Paketimage.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
