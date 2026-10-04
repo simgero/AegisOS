@@ -29,12 +29,13 @@ Images. T13 als Ganzes sowie D1–D7 bleiben offen.
 | `update all` | belegt, beide Benutzer aktiviert; private u3 bleibt | belegt | belegt | belegt |
 | `update user` | belegt für Beta mit Alpha-Adminfreigabe | belegt | belegt | belegt |
 | `remove all` | belegt, beide Benutzer aktiviert | offen | offen | offen |
-| `remove user` | belegt für Alpha, expliziter Rückfall | offen | offen | offen |
+| `remove user` | belegt für Alpha mit Versionswechsel und Beta bei gleicher gemeinsamer Version | offen | offen | offen |
 
 Die gültigen Varianten sind an `shared-u3-activation-proof.json`,
 `private-u4-activation-proof.json`, `common-update-both-proof.json`,
-`personal-update-active-proof.json`, `shared-remove-both-proof.json` und
-`private-remove-fallback-proof.json` gebunden; die jeweiligen vollständigen
+`personal-update-active-proof.json`, `shared-remove-both-proof.json`,
+`private-remove-fallback-proof.json` und `private-remove-same-active-proof.json`
+gebunden; die jeweiligen vollständigen
 Prüfsummen und Grenzen stehen in den b832d6c-Abschnitten unten. Die drei
 Installationsablehnungen bindet `install-all-denials-proof.json`, SHA-256
 `a1f4ec9b17bebf4a8d343545ddf8bea70c22d59d16d51ca1ec40b71e1c6ed915`.
@@ -210,6 +211,53 @@ Die abschließende Aufnahme `alpha-restart-active.json` hat SHA-256
 Zusammen mit Betas persönlichem Updatefall sind eigene Stopps mit aktivem
 Gegenüber und frische `/tmp`-/`/run`-Bereinigungsprüfungen in beiden Richtungen
 belegt. Daraus folgt keine pauschale IPC-, Logoutfehler- oder Parallelitätsabnahme.
+
+### Persönliche Auswahl entfernen, gemeinsame Version bereits gleich
+
+Beta beantragt am 4. Oktober `linux package remove --scope user jq`.
+Der Plan um 10:12:29 UTC nennt ausdrücklich die Aufhebung der persönlichen
+Versionswahl `1.7.1-6+deb13u4`, die anschließende Verwendung derselben gemeinsamen
+Version und das Ausbleiben jeder Paketversionsänderung. Alpha erteilt um
+10:13:03 die reguläre AOSP-Adminfreigabe; Veröffentlichung folgt um 10:14:48.
+Die ausgewählte persönliche Generation wechselt von `d58d80f4…` auf
+`53ff62034ff54335dc367255f127f1dd27f4df19746316be1cc76bedca047948`.
+Gemeinsame Generation, Alphas Auswahl und beide laufenden Kontexte bleiben
+unverändert. Beta meldet die ausstehende Aktivierung und führt im alten
+Kontext weiterhin jq/libjq u4 mit konsistentem Paketbestand aus.
+
+Der reguläre eigene Stopp um 10:18:48 erhält Betas Sitzung und CE-Freigabe.
+Die genauen alten Init-/Hintergrundidentitäten sind anschließend beendet;
+Alphas ursprünglicher Hintergrundprozess schreitet davor und danach fort.
+Der erste neue Start um 10:21:38 gelingt. GNU-Prüfungen um 10:22:12 bestätigen
+jq/libjq u4, libonig, Bibliotheksprüfsumme, sämtliche 81 installierten
+Paketnamen, 79 manuelle Wurzeln und zwei automatische Abhängigkeiten sowie
+tatsächliche jq-Ausführung als UID/GID 1000. Originaldatei und ursprüngliche
+Konfiguration werden bytegleich zurückgelesen. Der Endzustand enthält eine
+leere persönliche Auswahlliste, dieselbe Paketdatenbank-Prüfsumme und dieselben
+81 Paketversionen wie zuvor. Die CLI meldet `packages=current`.
+
+Boot, SystemServer, Benutzer und CE-Zustand bleiben erhalten. Alphas vollständiger
+Kontext stimmt mit dem Ausgangszustand überein; derselbe Hintergrundprozess
+schreitet auch nach Betas erstem neuen Start fort. Der Prüfer
+`record-private-remove-same-active.py` bindet diese Zustände, die regulären
+CLI-/GNU-Ereignisse und fünf zum Image identische Quelldateien. Er bestätigt
+den unveränderten bisherigen Ereignispräfix und 654 Ereignisse insgesamt;
+im neuen Abschnitt gibt es keinen Testtreiberfehler.
+
+Lokale Belege unter `out/phase1-dod/b832d6c-base/`:
+
+| Nachweis | SHA-256 |
+| --- | --- |
+| `private-remove-same-active-proof.json` | `171b84e65c750dba0e8eb7178c7391778098528f7d74a2ca700af630d33cdfa8` |
+| `private-remove-same-active.json` | `fd0741e73890e31cd3ba4af2fbb248452a90cc9512218e26555db96b62b83654` |
+| `private-remove-same-retired.json` | `a1d1a8f0969706ddc59d4e73ea5894c8e578b753b6d0da597e4da27ccf9a7bbb` |
+
+Dies schließt den konkreten T15-Fall der Entfernung bei gleicher gemeinsamer
+Version. Beide Benutzer waren bereits CE-entsperrt; eine Freigabe mit gesperrtem
+Admin wird hier nicht behauptet. Die alten flüchtigen Proben wurden nicht neu
+angelegt und begründen keinen zusätzlichen Bereinigungsnachweis. Die sechs
+Entfernungsablehnungen sowie offene Versions-, Konflikt- und Parallelitätsfälle
+bleiben erforderlich. T13/T15 und D1–D7 sind damit nicht insgesamt abgenommen.
 
 ## Bisheriger Referenzlauf und Statusregeln
 
