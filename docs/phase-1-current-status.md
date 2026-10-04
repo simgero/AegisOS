@@ -76,10 +76,14 @@ bleiben dessen Originaldatei/Konfiguration und private u4-Version erhalten.
 Auch Alphas direkter Logout ist inzwischen mit Prozessende, CE `[0]` und
 unlesbarer Originaldatei geprüft. Android und KeyMint-Helfer sind danach
 nachweislich sauber beendet; Profilpaar und QCOW2-Konsistenz sind geprüft.
-Ein zweiter Lauf mit demselben Profil ist gestartet, sein Bootabschluss und
-die anschließende Originaldaten-/Paket-Rücklesung sind noch nicht abgenommen.
+Der zweite Lauf ist inzwischen bestätigt: neue Boot-ID, dasselbe Profilpaar,
+authentifiziertes ADB und beide persönlichen CE-Speicher vor Anmeldung gesperrt.
+Beide ersten korrekten Logins gelingen ohne vorherigen Fehlversuch; Originaldateien
+und Konfiguration sind bytegleich. Alpha führt weiterhin private jq/libjq1 u4,
+Beta gemeinsame u3 aus. Vollständige Paketdatenbanken, Generationszuordnungen
+und private Auswahlen stimmen mit dem Zustand vor dem Neustart überein.
 Vollständige Logout-Ressourcen-/Konkurrenzfälle, AOSP-Ressourcenstopp,
-übrige T05-Varianten und D1–D7 bleiben ebenfalls offen.
+Benutzer C, übrige T05-Varianten und D1–D7 bleiben ebenfalls offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.

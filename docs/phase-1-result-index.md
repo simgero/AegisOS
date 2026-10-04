@@ -525,6 +525,62 @@ separat bestätigt. Keine dieser Auditmeldungen wird pauschal freigegeben.
 Bootabschluss, CE-Sperre vor Anmeldung und Originaldaten-/Versionsrücklesung
 bleiben ebenso erforderlich wie die übrige Matrix und alle D1–D7.
 
+## ec01e5fa: Originaldaten und Paketversionen nach gepaartem Neustart erhalten
+
+Der zweite Boot ist mit derselben Profil-ID und demselben Image bestätigt.
+Seine neue Boot-ID lautet `f68b515c-075b-4854-8419-fe119c34e193`, der
+SystemServer ist `1173/20543`. Der vorhandene Hostschlüssel stellt wieder
+authentifiziertes ADB her. Die Aufnahme vor jeder persönlichen Anmeldung
+bestätigt SELinux Enforcing, Verity-Modus `enforcing`, die acht
+Verity-Statuswerte `2`, CE `[0]`, beide vorhandenen persönlichen Benutzer als
+gestoppt und keine persönlichen Runtime-Kontexte. Beide bekannten Originaldateien
+liefern in diesem Zustand keine Bytes.
+
+Der ursprüngliche Testtreiber meldet zuerst Alpha und anschließend Beta mit
+den unveränderten Testpasswörtern an. Beide ersten korrekten Anmeldungen nach
+dem Neustart gelingen ohne vorherigen Fehlversuch; die verzögerte Statusprüfung
+bestätigt jeweils eine stabile Sitzung. Vor dem jeweiligen Passwort bleibt
+das Ziel CE-gesperrt und ohne Kontext. Nach Alphas Anmeldung ist nur CE
+`[0, 10]` offen, nach Betas Anmeldung CE `[0, 10, 11]`.
+
+Beide ausdrücklich gestarteten GNU-Kontexte lesen ihre ursprünglichen
+1024-Byte-Dateien und beide persistenten Konfigurationsproben bytegleich.
+Alpha führt weiterhin jq/libjq1 `1.7.1-6+deb13u4` aus, Beta
+`1.7.1-6+deb13u3`, jeweils mit libonig5 `6.9.9-1+b1` und erfolgreicher
+JSON-Berechnung 41 → 42. Die unterschiedlichen libjq-Prüfsummen entsprechen
+exakt den Werten vor dem Neustart. Kein Test schreibt die Originaldateien neu.
+
+Der vollständige Zustandsabgleich bestätigt bei beiden Benutzern dieselben
+81 installierten Paketversionen, bytegleiche Dpkg-Statusdateien, unveränderte
+private Auswahlen und dieselben gemeinsamen/privaten Generationszuordnungen.
+Die CE-Backing-Datei von Alphas privatem Store und Betas gemeinsame Backing-Datei
+stimmen mit dem vorherigen Stand überein. Neue Kontext-Inits sind
+`3621/77659` für Alpha und `4455/104199` für Beta. Ihre sechs Namespaces sind
+getrennt, die Host-UID-Zuordnungen unverändert.
+
+Neue begrenzte Hintergrundproben werden erst nach positivem Originaldatei-
+Readback angelegt. Alphas `3690/86539` bleibt beim Wechsel zu Beta erhalten
+und macht weiter Fortschritt; Beta verwendet `4736/108339`, beide intern
+PID 23. Das sind neue Prozesse im neuen Boot, kein behauptetes Überleben
+eines VM-Neustarts.
+
+Belege unter `out/phase1-dod/ec01e5fa-verity-base/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `reboot-readback/result.json` | `11d319045b6380211a513715cfc4ceb62e18d7cc2391523fe9e22c63c816793c` |
+| `boot2-baseline.json` | `8637c90dfdf0e89adb2e3084e004692409f927659ec82e0a9e48c3a89af8c5a9` |
+| `boot2-both-contexts.json` | `f3d21a7ef81cc921a688ef507d70ccc1ea5adf5e7c45eed0903c21eff77b9d21` |
+
+Der Offline-Abgleich bindet 302 eingefrorene Ereignisse und den identischen
+vorherigen 259-Ereignis-Stand. Der gepaarte Neustart mit geschütztem Zustand
+vor Anmeldung und Originaldaten-/Versionsrücklesung danach ist damit belegt.
+Die ursprünglichen flüchtigen Dateien und Queues waren bereits in früheren
+Runtime-Stoppfällen entfernt worden; hier entsteht kein neuer Nachweis ihrer
+Bereinigung. Benutzer C, Passwortwechsel, Löschung/ID-Wiederverwendung,
+vollständige Logout-Ressourcen-/Konkurrenzfälle, Paketfehler-/Autorisierungsmatrix
+und sämtliche weiteren offenen Varianten bleiben erforderlich. D1–D7 bleiben offen.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
