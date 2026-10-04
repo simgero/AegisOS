@@ -29,8 +29,9 @@ Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
 Mit dieser Vorbereitung ist ec01e5fa inzwischen im eigenen Profil gebootet:
 misctrl endet mit 0, alle acht aktiven Verity-Geräte samt schreibgeschützten
 Mounts sind geprüft, der authentifizierte binäre ADB-Rundlauf besteht und
-die 720-×-1280-Anzeige ist angesehen. Es gibt dort noch keine persönlichen
-Benutzer; Eingabe, Shell-Regression und vollständige Abnahme bleiben offen.
+die 720-×-1280-Anzeige ist angesehen. Die separate QMP-Tastatur-/Mausprüfung
+belegt tatsächliche Navigation in den Android-Einstellungen. Persönliche
+Benutzerabläufe, Shell-Regression und vollständige Abnahme bleiben offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.

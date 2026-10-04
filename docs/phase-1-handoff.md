@@ -12,7 +12,7 @@ einschließlich T01–T17 und Referenzablauf bleibt verbindlich.
 | --- | --- |
 | `b832d6c077baeee4324e00d00dc3618372f3e9d9` | Letzter umfangreicher persönlicher Gastlauf. T03, T07, T08 und T14 sind diesem Image zugeordnet; weitere Bereiche besitzen Teilbelege. Bekannter Shell-Startfehler und weitere Pflichtfälle offen. |
 | `dedd1dabc45efe080a499b3657b7ee09d2fda5a7` | Shell-Korrektur gebaut; erster Boot ausschließlich mit Systembenutzer 0, ADB und Bildschirmaufnahme belegt. Vorhandene Bootlogs sind offline geprüft. Keine persönliche Abnahme dieses Images. |
-| `ec01e5fa5f2822da5763ab54c644bc5c5c5ab413` | Neuester Android-Vollbuild, zusätzlich mit misctrl-Korrektur. Erster Boot mit Systembenutzer 0, misctrl Exit 0, Bildschirm und binärer ADB-Rundlauf belegt. Noch keine persönliche Abnahme. |
+| `ec01e5fa5f2822da5763ab54c644bc5c5c5ab413` | Neuester Android-Vollbuild, zusätzlich mit misctrl-Korrektur. Erster Boot mit Systembenutzer 0, misctrl Exit 0, Bildschirm, tatsächliche QMP-Tastatur-/Mausnavigation und binärer ADB-Rundlauf belegt. Noch keine persönliche Abnahme. |
 | `d9a0d30a48c1f745ffcc02dbcb6b4c15054e89e6` | Neueres Vorbereitungsrezept für unveränderte ec01e5fa-Images. Übergibt den bestehenden Verity-Modus ausdrücklich und lehnt deaktivierende AVB-Flags ab. Im neuen Gast sind Statusveröffentlichung und alle acht aktiven Verity-Mounts geprüft. |
 
 Die neueste Factory-Vorbereitung liegt unter
@@ -33,7 +33,7 @@ Abnahme aufgrund vorhandener Dateien oder erfolgreicher Kompilierung.
 | --- | --- | --- |
 | 1 | Projektquellen in Git; AOSP-/Kernel-/Runtime-Pins im [Buildinventar](phase-1-build-inventory.md) | Endgültigen Abnahmecommit samt Build-/Rezeptstand festlegen; bisherige Belege behalten ihre eigenen Commitbindungen. |
 | 2 | [Buildinventar](phase-1-build-inventory.md), [Terminalanleitung](terminal-quickstart.md), [Profilpaar](persistent-qemu.md) | Vollständigen Start-/Referenzablauf auf dem abschließenden Stand ausführen. Das konkrete interaktive Startbeispiel verwendet derzeit den älteren belegten b832d6c-Stand. |
-| 3 | Lokales ec01e5fa-Development-Image und separate geprüfte Vorbereitung | Erster Boot, Anzeige, ADB und aktive Verity-Mounts belegt; Eingabe, vollständige Dienststabilität und übrige D1-Anforderungen bleiben offen. |
+| 3 | Lokales ec01e5fa-Development-Image und separate geprüfte Vorbereitung | Erster Boot, Anzeige, Eingabe, ADB und aktive Verity-Mounts belegt; vollständige Dienststabilität und übrige D1-Anforderungen bleiben offen. |
 | 4 | [CLI-Quellen](../packages/aegis/identity/cli/org/aegisos/identity/Aegis.java), [Bedienung](terminal-quickstart.md) | Sitzungs-, Passwort-, Shell- und Paketvarianten aus T01–T17 auf dem endgültigen Image. Insbesondere die neue Shell-Korrektur ist noch nicht im Gast nachgewiesen. |
 | 5 | [AOSP-Backend](../packages/aegis/identity/src/org/aegisos/identity/AospIdentityBackend.java), [Speicherlebenszyklus](../runtime/aosp-storage-lifecycle.md) | Vollständige Anlage-/Lösch-/Seriennummern- und Wiederverwendungsfälle T01/T12; historische Löschbelege reichen nicht für ec01e5fa. |
 | 6 | [Anmelde-/Transportgrundlage](identity-crypto-baseline.md), AOSP-Backend und Terminalbindung | Alle Ziel-/Aufrufer-/Fehlerfälle und dynamischen Offenlegungsprüfungen T01; Passwortwechsel über Sperre und Neustart T02. |

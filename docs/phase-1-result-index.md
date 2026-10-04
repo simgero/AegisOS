@@ -22,7 +22,7 @@ Programmdateien. `build-inventory-proof.json`, SHA-256
 bindet die lokalen Beobachtungen. Das ist kein neuer Compilerlauf; D1 und
 sämtliche offenen Pflichtvarianten bleiben offen.
 
-## Neuer ec01e5fa-Boot: misctrl, Verity, Bildschirm und ADB
+## Neuer ec01e5fa-Boot: misctrl, Verity, Bildschirm, Eingabe und ADB
 
 Das Image `ec01e5fa5f2822da5763ab54c644bc5c5c5ab413` ist mit der separaten
 Startvorbereitung `d9a0d30a48c1f745ffcc02dbcb6b4c15054e89e6` tatsächlich
@@ -49,7 +49,23 @@ hin- und zurückübertragen, bytegleich verglichen und sein eigenes temporäres
 Gastverzeichnis entfernt. Boot-ID, SystemServer und Profilmanifest blieben
 gleich. Die QMP-Aufnahme und Android melden 720 × 1280; die angesehenen
 Aufnahmen zeigen zunächst den Hintergrund mit Batterieanzeige und später
-den Sperrbildschirm. Das belegt noch keine Tastatur-/Mausbedienung.
+den Sperrbildschirm. Die Bildschirmaufnahme allein belegt keine Eingabe.
+
+Die separate Eingabeprüfung öffnet zunächst die Android-Einstellungen für
+Systembenutzer 0. QMP-`send-key` mit Tab und Enter öffnet tatsächlich
+„Network & internet“. Danach bewegt QMP die relative Maus zum Zurück-Button;
+Android meldet die Position `(57.165, 104.121)` innerhalb dessen UI-Grenzen
+`[0,48][112,160]`. Ein einzelner linker Mausklick mit getrennten Down-/Up-
+Ereignissen im Abstand von 200 ms führt zurück zur Einstellungs-Startseite.
+UI-Bäume und angesehene Bilder bestätigen beide Übergänge. Boot-ID und
+SystemServer-PID/-Startzeit bleiben unverändert.
+
+Die erste UI-Baumaufnahme beim Tastatur-Seitenwechsel meldete einen leeren
+Wurzelknoten; die nachfolgende Aufnahme derselben Seite gelang ohne erneute
+Tastatureingabe. Auch das Bild fünf Sekunden nach dem Mausklick zeigte noch
+die alte Seite; der folgende UI-Baum und die abschließende Aufnahme bestätigen
+die Rückkehr ohne zweiten Klick. Diese Beobachtungsgrenzen bleiben erhalten;
+eine Mac-/HVF- oder physische Eingabeprüfung wird nicht behauptet.
 
 Der unveränderte Dienstprüfer zählt einen SystemServer-Start, keine seiner
 sechs Fatal-/ANR-Kategorien, keine rückläufige Zeitmarke und keine Signal-
@@ -76,10 +92,11 @@ Belege unter `out/phase1-dod/ec01e5fa-verity-base/`:
 | `first-boot-review/service-audit.json` | `9cca25a79f52904b498725434d0ae0bbaa74c1ced9a067a520705ed439c90f94` |
 | `active-verity-proof.json` | `417ae50c5963aa91f3f7b83e15a6478535904386a2c9dcc854695e6bec595dc4` |
 | `display-adb/result.json` | `93355522fbe92464737e1ddeabd9f8275c277b94d5d891c3c69cce522547e2d6` |
+| `ui-input/result.json` | `5f609ffd57252e82ad3d5ce691cdf093c62c4874759f5d88c8f5a37a771b3f70` |
 | `capture-observer-termination.json` | `217386839b518b7e0524958f2af822acc543579cc57c2b07cea358342cd13f1d` |
 | `system-storage-observation.txt` | `28f313ee3a991321229ea21c8ec4dc540b544d4df0f64dd4737f4bf4e7980916` |
 
-**D1–D7 bleiben offen.** Eingabe, Langzeit-/Neustartverhalten, Shell-Regression
+**D1–D7 bleiben offen.** Vollständige Dienststabilität, Neustartverhalten, Shell-Regression
 und die vollständigen persönlichen Abläufe sind auf diesem Image noch nötig.
 Historische T01–T17-Ergebnisse werden nicht automatisch übernommen.
 
