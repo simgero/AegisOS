@@ -49,7 +49,13 @@ Konfiguration, synthetische Test-Secrets, flüchtige Dateien, Testprozesse und
 POSIX-Mqueues sind inzwischen aus beiden gewöhnlichen GNU-Kontexten geprüft:
 abgewiesen, Peer-Inhalte unverändert, ursprüngliche Prozesse weiter aktiv.
 Private Paketstores fehlen noch; T06 insgesamt bleibt deshalb offen.
-Die übrigen T05-Varianten, Paket-/Logout-/Neustartabläufe und D1–D7 bleiben offen.
+Die erste erlaubte gemeinsame Installation von jq/libjq1
+`1.7.1-6+deb13u3` mit libonig5 `6.9.9-1+b1` ist inzwischen veröffentlicht und
+nach eigenem Neustart in Alpha tatsächlich ausgeführt. Originaldaten bleiben
+erhalten, alte flüchtige Dateien und POSIX-Queues fehlen; Beta bleibt im
+bisherigen Kontext. Private Versionen, Paketautorisierungsmatrix, Ausführung
+bei weiteren Benutzern, Logout/VM-Neustart, übrige T05-Varianten und D1–D7
+bleiben offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.

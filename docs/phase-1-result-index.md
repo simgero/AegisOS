@@ -271,6 +271,57 @@ für die ausgeführten POSIX-Queue-Fälle, nicht pauschal für jede Schnittstell
 Logout, Schlüsselentzug, Ressourcenabbau und VM-Neustart wurden in diesem
 Durchgang nicht geprüft. Sämtliche weiteren DoD-Pflichtfälle bleiben bestehen.
 
+## ec01e5fa: erste gemeinsame Paketinstallation und Aktivierung in Alpha
+
+Der reguläre CLI-Auftrag `linux package install --scope all jq=1.7.1-6+deb13u3`
+lief unter Alpha 10/10. Der vor der Freigabe gespeicherte Plan enthält exakt
+`jq` und `libjq1` in `1.7.1-6+deb13u3` sowie `libonig5` in `6.9.9-1+b1`.
+Die unveränderte Quellenpolicy des Image-Commits verwendet die offiziellen
+HTTPS-Quellen für Debian trixie, trixie-updates und trixie-security mit
+vorgegebenem `signed-by`. Eine zusätzliche Aufnahme der laufenden Policydatei
+kam erst nach Ende des Planworkers an und endete mit Status 2; sie bleibt als
+Diagnose erhalten und zählt nicht als erfolgreicher Quellen-Livebeleg.
+
+Nach frischer AOSP-Adminfreigabe wurde die gemeinsame Generation
+`a1cc551eb2a79434b55e80117164256fc434873203ff382e4298304d8b0b472b`
+veröffentlicht. Beide laufenden Kontexte, deren Paketdatenbanken und private
+Zuordnungen blieben zunächst unverändert; Alpha meldete ausdrücklich
+`packages=activation-pending`. Der eigene reguläre Stopp beendete Alphas
+ursprünglichen Init `6745/269408` und Hintergrundprozess `6797/343464` und
+entfernte seine Kontext-Cgroup. Alpha blieb angemeldet und CE entsperrt;
+Betas ursprünglicher Prozess `9362/429323` arbeitete unverändert weiter.
+
+Erst der ausdrückliche Neustart erzeugte Alphas neuen Init `19895/681341`
+und aktivierte die veröffentlichte Generation. Aus dessen gewöhnlicher
+GNU-Shell sind die exakten drei Paketversionen geprüft; `jq` verarbeitet
+eine JSON-Testeingabe korrekt. Die vollständige Paketdatenbank umfasst nun
+81 statt 78 installierte Pakete, mit genau den drei geplanten Ergänzungen und
+keinem unvollständigen Restbestand. APT meldet 79 manuelle Pakete und genau
+`libjq1`/`libonig5` als automatische Abhängigkeiten. Beta bleibt im unveränderten
+78-Paket-Kontext; die gemeinsame Software wurde dort noch nicht ausgeführt.
+
+Alphas ursprüngliche Datei und persistente Konfiguration sind bytegleich;
+seine alten `/tmp`-/`/run`-Proben und beide alten POSIX-Queues fehlen im neuen
+Kontext. Eine neue begrenzte Hintergrundprobe wurde erst nach bestätigtem
+Ende der alten und positivem Dateireadback angelegt. Ihre Identität ist
+`20262/699748`, intern PID 47. Boot, SystemServer, CE-Liste `[0, 10, 11]` und
+Betas vollständiger Kontext bleiben unverändert.
+
+Der lokale Nachweis
+`out/phase1-dod/ec01e5fa-verity-base/shared-u3-activation/result.json`, SHA-256
+`ecb3a978d79e8969ba4406d0ae37d8b15f7b9292a41947f748bfe5a23b0d1812`,
+bindet 157 eingefrorene Treiberereignisse, den vor Freigabe gespeicherten Plan,
+Worker-Beobachtungen sowie Aufnahmen vor Veröffentlichung, nach Veröffentlichung,
+nach Stopp und nach Aktivierung. Die aktive Aufnahme `shared-u3-active.json`
+hat SHA-256 `b33a89bd3e47bc2e6cef4875da2684ae60c0d5b0bbef40e838081b0218ac05e5`.
+
+Damit ist **ein erlaubtes gemeinsames Installieren samt eigener Aktivierung**
+belegt. Die vollständige Autorisierungsmatrix T13, Ausführung bei weiteren
+Benutzern T14, private Versionen T15, Updates/Konflikte/Parallelität sowie
+Logout und VM-Neustart bleiben offen. Dieser kombinierte Aktivierungsablauf
+ist kein Nachweis eines unveränderten Paketbestands über einen reinen
+Runtime-Neustart und keine vollständige T09-/Logout-Abnahme.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
