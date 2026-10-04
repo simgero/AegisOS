@@ -816,6 +816,33 @@ bindet Original, Ableitung, Änderung und frühere Prüfsumme. Der fehlgeschlage
 erste Auswerter und sein Fehler bleiben ebenfalls erhalten. Diese Einordnung
 ersetzt keinen fehlenden Systemtest; Phase 1 bleibt teilabgenommen.
 
+### b832d6c: Beta nach dem AOSP-Ressourcenstopp wiederhergestellt
+
+Nach Gammas regulärem Logout meldet sich Beta mit seinem unveränderten Passwort
+frisch an. Vor der Passwortübermittlung ist Beta weiterhin gesperrt und ohne
+Runtime-Kontext. Nach dem normalen Linux-Start liest er seine Originaldatei
+und persönliche Konfiguration einschließlich synthetischer privater Testdaten
+bytegleich. jq u3 mit libjq1 u3 und libonig5 funktioniert erneut; sämtliche
+81 Paketdatensätze, Paketdatenbank-Bytes und Paketzuordnungen entsprechen dem
+Zustand vor dem Ressourcenstopp.
+
+Der neue Beta-Kontext besitzt eine neue Prozessidentität. Erst nach bestätigtem
+Ende der alten Probe und erneutem Originaldatenvergleich startet eine neue
+begrenzte Hintergrundprobe `14422/407466`. Alphas ursprüngliche Probe
+`3753/102888` läuft mit unveränderter Identität weiter; sein vollständiger
+Kontext bleibt unverändert. CE ist `[0,10,11]`, Gamma bleibt gesperrt und ohne
+Kontext. Die bereits vor diesem Ressourcenstopp fehlenden alten temporären
+Dateien werden nicht als neuer Löschungsnachweis gezählt.
+
+Beleg `out/phase1-dod/b832d6c-base/beta-resource-recovery-proof.json`, SHA-256
+`cf0d2bea3d27f849c1291beeba17c3c78fb29177fd3a1b0aeeda82dbfa5cf34b`,
+bindet Ereignispräfix 288, die oben dokumentierte Ereignisabweichung und den
+vollständigen Zustandsvergleich `beta-after-resource-stop-state.json`, SHA-256
+`6f0e622e6819f28c6391882b81ea9aae05725506cbd35b193eca79085cea6a23`.
+Damit ist dieser natürliche AOSP-Ressourcenstopp samt frischer Anmeldung und
+Daten-/Paketerhalt belegt. Die tatsächliche Paketentfernungsregression und die
+weiteren Pflichtvarianten der Gesamt-DoD bleiben offen.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
