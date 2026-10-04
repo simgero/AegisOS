@@ -71,9 +71,15 @@ widerrufen, Start/Shell auch nach Aufwecken abgewiesen, beide ursprünglichen
 Kontexte und CE erhalten. Erst frische AOSP-Anmeldung erlaubt wieder GNU.
 Betas anschließender direkter Logout beendet seinen ursprünglichen Prozess
 und Init, entfernt den Kontext und sperrt CE; seine Originaldatei liefert
-keine Bytes, während Alpha unverändert weiterläuft. Rücklesung nach erneuter
-Anmeldung, vollständige Logout-Ressourcen-/Konkurrenzfälle, AOSP-Ressourcenstopp,
-VM-Neustart, übrige T05-Varianten und D1–D7 bleiben offen.
+keine Bytes, während Alpha unverändert weiterläuft. Nach Rückkehr zu Alpha
+bleiben dessen Originaldatei/Konfiguration und private u4-Version erhalten.
+Auch Alphas direkter Logout ist inzwischen mit Prozessende, CE `[0]` und
+unlesbarer Originaldatei geprüft. Android und KeyMint-Helfer sind danach
+nachweislich sauber beendet; Profilpaar und QCOW2-Konsistenz sind geprüft.
+Ein zweiter Lauf mit demselben Profil ist gestartet, sein Bootabschluss und
+die anschließende Originaldaten-/Paket-Rücklesung sind noch nicht abgenommen.
+Vollständige Logout-Ressourcen-/Konkurrenzfälle, AOSP-Ressourcenstopp,
+übrige T05-Varianten und D1–D7 bleiben ebenfalls offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.

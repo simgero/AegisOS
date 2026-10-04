@@ -473,6 +473,58 @@ Mounts und IPC, Konkurrenzfälle, AOSP-Ressourcenstopp sowie erneute Anmeldung
 und gepaarter VM-Neustart bleiben erforderlich. T08/T10 insgesamt und alle
 D1–D7 bleiben offen.
 
+## ec01e5fa: beide Benutzer abgemeldet, Profilpaar beendet und zweiter Lauf gestartet
+
+Alpha meldet sich nach Betas Logout erneut über AOSP an. Seine ursprüngliche
+Datei und persistente Konfiguration sind bytegleich; jq/libjq1 bleiben privat
+auf `1.7.1-6+deb13u4`, mit unveränderter libjq-Prüfsumme und erfolgreicher
+JSON-Berechnung. Nach Shell-Exit schreitet sein ursprünglicher Prozess
+`24890/832130` noch fort. Der direkte Logout ohne vorherigen Runtime-Stopp
+meldet am 4. Oktober um 17:06:08 UTC Benutzerstopp und CE-Sperrung.
+
+Unabhängige Prüfungen bestätigen das Ende dieses Prozesses und des Init
+`24589/817367`. Beide persönlichen Kontexte fehlen, AOSP meldet nur noch
+Systembenutzer 0 als gestartet und CE `[0]`; beide zuvor tatsächlich gelesenen
+Originaldateien liefern keine Bytes. Der ursprüngliche Testtreiber bleibt
+bestehen und friert den Neustart-Prüfpunkt mit denselben Benutzeridentitäten
+und Originaldatei-Prüfsummen ein. Persönliche Testpasswörter bleiben
+ausschließlich in seinem Prozessspeicher.
+
+Android erhält anschließend den regulären Shutdown-Auftrag. Sein Log bestätigt
+`Power down`; der zugehörige KeyMint-Helfer beendet sich mit `clean`.
+Der Launcher-Dienst endet erfolgreich, und alle drei ursprünglichen
+Host-Prozessidentitäten sind verschwunden. Unter der Profil-Sperre werden
+Manifestbindung, QCOW2-Profilmarkierung, Backing-Disk und Helper-Dateisystem-UUID
+geprüft. Beide Disk-Dateien behalten ihre Dateizuordnung; `qemu-img check`
+ohne Reparaturoption besteht. Die gestoppten Disk-Prüfsummen bleiben lokal.
+
+Erst danach startet `aegis-qemu-ec01e5fa-verity-boot2.service` dasselbe
+Profil `f8c09946-d131-40ba-8f30-3c3a4d778b0d`, mit denselben Image-/Helper-
+Eingaben und ohne `--create-profile`. **Dieser Beleg bestätigt den sauberen
+Stopp und den erneuten Startauftrag; er bestätigt noch keinen abgeschlossenen
+zweiten Boot oder persönlichen Datenzugriff danach.**
+
+Belege unter `out/phase1-dod/ec01e5fa-verity-base/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `paired-restart/result.json` | `6e0480e0cc10cb44878b71c234d75b7a8c970cbdc12ed76b08b11903f046b2f8` |
+| `pre-shutdown-state.json` | `9490e550e9e6e5b1a14f8372f79bd93225cf4c5742732570db817051e1e428e6` |
+| `paired-shutdown.json` | `45dd0e6f0de0c310fc2459d8026f79f7207e2e0343d4848e079a17da0e85be91` |
+| `boot2-launch.json` | `dfdd3b1afead8f8d48bb5634018ff106395cbc464eefaabbe092f60391f2f283` |
+
+Der Offline-Abgleich bindet 259 eingefrorene Ereignisse und den identischen
+vorherigen 239-Ereignis-Stand. Der zusätzliche vollständige Android-Logaudit
+mit spätem Logcat-Ausschnitt bleibt `REVIEW_REQUIRED`; seine SHA-256 lautet
+`1e971e2dbffb6236f99695ebb6f7e198c4de9093e4036eb42c6c65e861878fe2`.
+Neben den bekannten Bootbefunden enthält er Shutdown-Signalbeendigungen,
+`mdnsd=4` während des Shutdowns und eine rückläufige Zeitmarke. Der späte
+Logcat-Ausschnitt enthält keine frühe SystemServer-Startmeldung; die
+identische PID/Startzeit `1397/38796` wurde unmittelbar vor dem Shutdown
+separat bestätigt. Keine dieser Auditmeldungen wird pauschal freigegeben.
+Bootabschluss, CE-Sperre vor Anmeldung und Originaldaten-/Versionsrücklesung
+bleiben ebenso erforderlich wie die übrige Matrix und alle D1–D7.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
