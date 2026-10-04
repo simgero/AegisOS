@@ -24,6 +24,30 @@ sämtliche offenen Pflichtvarianten bleiben offen.
 
 ## Neuer ec01e5fa-Boot: misctrl, Verity, Bildschirm, Eingabe und ADB
 
+Der spätere Socket-Prüfschritt ist nach erneuter Meldung einer
+Security-Unterbrechung unvollständig beendet. Lokaler Beleg:
+`out/phase1-dod/ec01e5fa-verity-base/socket-interruption/result.json`, SHA-256
+`5a7a28376087ad076f13930d6559e5687071e08eb4a905ebebb8cc8bcbd97a18`.
+Der eingefrorene Stand umfasst 449 Ereignisse. Ereignis 444 bestätigt lediglich
+vier eigene Socket-Antworten für Alpha. Beta erhielt keinen Socket-Helfer;
+gegenseitige Socket-Verbindungen wurden nicht geprüft. Der erste lange
+Übertragungsbefehl war abgeschnitten worden; sein Exitcode 0 ist kein
+Erfolgsnachweis. Der vollständige Helfer wurde anschließend hashgeprüft.
+
+Der Stopp in Ereignis 445 scheitert am Prozessargumentvergleich; Ereignis 446
+enthält den zusätzlichen Treiberfehler. Eine Null-Escape-Sequenz direkt vor
+dem numerisch beginnenden Token wird im Perl-Regulärausdruck als Oktal-Escape
+interpretiert. Dies ist mit künstlichen Zeichenketten auf dem Host reproduziert.
+Ereignis 448 bestätigt die Bereinigung desselben eigenen Helfers nach genauer
+Prüfung von PID, Startzeit und sämtlichen Argumenten: SIGTERM, entfernte
+Bereitschafts- und Socket-Dateien sowie die Abschlussmeldung des Servers.
+Die ursprüngliche Helferfassung und beide Fehlversuche bleiben erhalten.
+Der neue Argumentvergleich in `scripts/runtime/ipc-socket-probe.pl` verwendet
+exakte Felder statt Regex; Syntaxprüfung bestanden, erneuter Gastlauf offen.
+Die lokale Protokollierung enthält keine Entscheidungsbegründung der
+Security-Meldung. Ein Zusammenhang mit diesem Test oder dem Stopfehler ist
+nicht belegt. T06 und D1–D7 bleiben offen.
+
 Das Image `ec01e5fa5f2822da5763ab54c644bc5c5c5ab413` ist mit der separaten
 Startvorbereitung `d9a0d30a48c1f745ffcc02dbcb6b4c15054e89e6` tatsächlich
 gebootet. Das neue Profil `f8c09946-d131-40ba-8f30-3c3a4d778b0d` liegt unter

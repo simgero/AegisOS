@@ -119,6 +119,14 @@ zusätzlich geforderten privaten/abstrakten Sockets und Host-IPC-/D-Bus-Wege
 offen; POSIX-Mqueues allein decken diese nicht ab. Auch die übrige
 Paketautorisierungs-/Update-/Entfernungs-/Fehlermatrix bleibt erforderlich.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
+Der anschließende Socket-Fall wurde nach einer erneut gemeldeten
+Security-Unterbrechung nicht fortgesetzt. Nur Alphas vier eigene Verbindungen
+sind bestätigt; ein zweiter Socket-Testhelfer und gegenseitige Socket-Zugriffe
+wurden nicht ausgeführt. Alphas Helfer ist beendet, seine Socket-Dateien sind
+entfernt. Ein separater Fehler im Prozessargumentvergleich des Stoppskripts
+ist korrigiert; die neue Fassung ist bislang nur syntaxgeprüft. Die Ursache
+der Plattformmeldung ist unbekannt. T06 erhält dadurch keine zusätzliche
+Abnahme; die ursprünglichen Fehlerprotokolle bleiben lokal erhalten.
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.
 
