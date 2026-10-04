@@ -38,9 +38,9 @@ Die drei persönlichen Installationsablehnungen bindet
 Betas gültige private Installation mit Alpha als abweichendem Administrator
 ist zusätzlich an `install-user-beta-activation-proof.json` gebunden, SHA-256
 `e03a29d00213a56fe3b280e5159f59e9aa99489881a18852d623587c5d6008ba`.
-Alphas anschließender Datenvergleich und der Zugriffsschutz gegen Alpha für
-Betas nun vorhandenen privaten Paketspeicher bleiben gesondert offen, ebenso
-die übrigen T13-Varianten.
+Alphas anschließender Datenvergleich und drei konkrete verweigerte GNU-Zugriffe
+auf Betas nun vorhandenen privaten Paketspeicher sind ebenfalls belegt. Die
+übrigen T13-Varianten bleiben offen.
 
 ## Bisheriger Referenzlauf und Statusregeln
 
@@ -1113,11 +1113,52 @@ Der Paketstand wird als aktuell gemeldet. Alpha und Gamma bleiben in dieser
 Aufnahme CE-gesperrt. Die unveränderte Ereigniskopie bleibt lokal in
 `install-user-beta-activation-events-original.json`.
 
-Alphas ursprüngliche Daten und private Auswahl nach frischer Anmeldung sowie
-die gewöhnliche GNU-Zugriffsverweigerung für Betas nun vorhandenen privaten
-Paketspeicher sind noch zu prüfen. Bereits vorher fehlende temporäre Dateien
-belegen keine neue Bereinigung. Dieser Teilnachweis schließt weder T13 noch
-die Gesamtphase ab.
+Bereits vorher fehlende temporäre Dateien belegen keine neue Bereinigung.
+Dieser Teilnachweis schließt weder T13 noch die Gesamtphase ab.
+
+### b832d6c: Alpha nach Betas privater Installation unverändert
+
+Alphas erste korrekte Wiederanmeldung und der erste Runtime-Start waren
+erfolgreich. Vor der Passworteingabe war Alphas CE-Speicher weiterhin gesperrt
+und sein Kontext abwesend. Die ursprüngliche Datei und Konfiguration wurden
+danach aus der gewöhnlichen GNU-Shell bytegleich gelesen. Alpha verwendet
+weiterhin seine private Generation `53014efea70172a36aa951724be4a146bc265606df0e218b01074a28a5f455be`
+mit leerer persönlicher Paketauswahl und genau 78 Basispaketen; jq fehlt dort.
+Betas private Auswahl, laufender Kontext und sämtliche 81 Paketversionen
+blieben unverändert. Sein ursprünglicher Hintergrundprozess zeigte weiterhin
+Fortschritt. Beide Benutzer waren dabei CE-entsperrt, Gamma blieb gesperrt.
+
+`install-user-alpha-readback-proof.json`, SHA-256
+`575951634c37f05c786b82fbc83d10676f6fcdd1bb61948997987a4403a03d7e`,
+bindet 459 Ereignisse und `install-user-alpha-readback-state.json`, SHA-256
+`add47c3b59988183bfdbd7b5f3afedb07c139e284d03bb8c3c77bbc71ccb270c`.
+Zwei gesicherte Offline-Prüferfehler bleiben Bestandteil dieses Nachweises:
+Die erste Erwartung berücksichtigte Alphas Wechsel zu `running` nicht, die
+zweite verlangte eine sortierte CE-Ausgabe statt der tatsächlichen
+Entsperrreihenfolge. Die Korrektur erlaubt ausschließlich den erwarteten
+Benutzerstatuswechsel und verlangt weiterhin exakt die CE-Benutzer 0, 10, 11.
+Es wurden dafür weder Gastzustand noch Ereignisse verändert.
+
+Der anschließende gewöhnliche GNU-Zugriffstest umfasst Betas ausgewählte
+Paketmetadaten, das tatsächlich vorhandene private Paketimage und den Versuch,
+eine neue synthetische Testdatei im privaten Paketspeicher anzulegen. Beide
+Leseversuche lieferten keine Bytes und scheiterten; auch das Anlegen scheiterte.
+Die Existenz der Leseziele wurde vorher unabhängig beobachtet. Nachher waren
+die ausgewählten Metadaten, die Image-Dateimetadaten und beide ursprünglichen
+Kontextidentitäten unverändert; die Testdatei war weiterhin abwesend. Betas
+identischer Hintergrundprozess zeigte vor und nach dem Test Fortschritt.
+
+`beta-private-store-alpha-check-proof.json`, SHA-256
+`23695430a9c4105e5404c08f03f18f58ad37214a09a373e1ff3411991631e33a`,
+bindet 466 Ereignisse und die identischen Vorher-/Nachher-Beobachtungen mit
+SHA-256 `a5719ff74590d2fa7eea265b7f0877a6c2662ab9a3dd7026e9b5e5be4a5076dc`.
+Damit ist diese konkrete Richtung bei gleichzeitig entsperrten Benutzern
+nachgewiesen: Alphas AOSP-Adminrolle und Paketfreigabe erteilen seinen
+gewöhnlichen GNU-Prozessen keinen Zugriff über die geprüften Pfade auf Betas
+private Pakete. Entwicklungs-root dient nur als Existenz-/Zustandsbeobachter.
+Die Image-Dateimetadaten wurden verglichen, nicht ihr vollständiger Inhalt
+gehasht. Weitere Datei-, Prozess- und IPC-Varianten haben gesonderte Belege;
+dieser Fall ersetzt weder ihre Prüfung noch die gesamte T13-Abnahme.
 
 ### Historische Restliste des Referenzlaufs 209278de
 
