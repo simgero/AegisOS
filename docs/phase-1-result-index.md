@@ -1524,6 +1524,67 @@ Es wurden keine Dienste verändert, Diagnoseabstürze erzeugt oder Frameworks
 neu gestartet. Dies ist eine zeitlich begrenzte Beobachtung, keine vollständige
 D1- oder Phase-1-Abnahme.
 
+### b832d6c: erweiterte Dienstbeobachtung um 11:17 UTC
+
+Die neuen lokalen Logkopien vom 4. Oktober, 11:17:25 UTC enthalten die
+bisherigen Kopien bis 07:27 UTC bytegleich als Präfix. Boot-ID und ursprünglicher
+SystemServer `1175/21073` stimmen vor und nach der Aufnahme bis 11:17:34 UTC
+überein. SELinux bleibt Enforcing, die öffentlichen FBE-/ADB-Eigenschaften und
+der AVB-Digest stimmen mit dem bisherigen Image überein. Es wurden keine
+Gastzustände oder Dienste verändert.
+
+Der neue versionierte [Offline-Prüfer](../scripts/qemu-service-audit.py)
+findet weiterhin genau einen SystemServer-Start, keine Treffer der sechs
+oben genannten Absturzkategorien und dieselben vier nichtnulligen frühen
+Init-Rückgaben. Alle 32 Signal-Beendigungen besitzen eine passende unmittelbar
+vorhergehende Stop-/Restart-Anweisung. Die acht hinzugekommenen Fälle sind
+idmap2d-Stopps durch den ursprünglichen SystemServer; damit sind es insgesamt
+29 idmap2d-Stopps. Die Zuordnung prüft die konkrete Dienst-Prozessgeneration
+und verwirft alte Kontrollmeldungen bei erneutem Start, auch bei gleicher PID.
+Eine solche Zuordnung erklärt den protokollierten Auslöser, nicht automatisch
+die fachliche Berechtigung jedes Stopps.
+
+Der Prüfer gibt bei jedem nichtnulligen Exit weiterhin `REVIEW_REQUIRED`
+und Exitcode 2 zurück. Fehlende Init-/Framework-Startbelege, zusätzliche
+Framework-Starts, ungeklärte Signale, unbekannte terminale Init-Zeilen und
+rückläufige Init-Zeitstempel erfordern ebenfalls Prüfung. Zehn gezielte
+[Offline-Tests](../tests/test_qemu_service_audit.py) bestanden. Dies ist kein
+neuer vollständiger Systemtest und kein pauschaler Nachweis vollständiger Logs.
+
+Die erneute Quellenlektüre präzisiert den Recovery-Befund: Der übergeordnete
+pmsg-Dateileser übernimmt den beendenden Rückgabewert von `PmsgRead` nicht.
+Sein unveränderter Anfangswert wird bei fehlenden passenden Datensätzen am
+Ende zu `-ENOENT`. Exit 254 identifiziert daher keinen bestimmten
+Open-/Read-Fehler und beweist keine beim Boot fehlende pstore-Datei. Der direkte
+historische Fehlergrund von Recovery-Refresh und dem alten
+VirtualizationService-Aufräumhelfer bleibt offen. Die früheren Belege werden
+nicht nachträglich umgeschrieben.
+
+Lokale Belege unter `out/phase1-dod/b832d6c-base/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `service-followup-capture.json` | `6fe878e0684619766f2e5fab5d25e39466195548adfa1426e5d8eb064702ee1e` |
+| `service-audit-original-capture-v2.json` | `453750f6c83d0e124d22f1e1c5c198cc01d871558efd75c0a0c37541a5a14474` |
+| `service-audit-followup-v2.json` | `a83f1c558903236e9143fc0a742340b77952e554c316a718e6eafb5d623618fb` |
+| `service-followup-proof.json` | `af71bdf7466bafe3d394ab67e60fc768770238e2f4eb158584b35c76494462f8` |
+
+Die beiden ersten Parserberichte ohne `-v2` bleiben zusätzlich erhalten;
+die finale Fassung prüft auch einen fehlenden Init-Mitschnitt ausdrücklich.
+Reproduktion aus dem Repository-Verzeichnis, mit einem neuen Ausgabepfad:
+
+```sh
+python3 -m unittest discover -s tests -p test_qemu_service_audit.py -v
+python3 scripts/qemu-service-audit.py \
+  --android-log out/phase1-dod/b832d6c-base/service-followup-logs/android.log \
+  --logcat-log out/phase1-dod/b832d6c-base/service-followup-logs/logcat.log \
+  --expected-system-server 1175 \
+  --output out/phase1-dod/b832d6c-base/service-audit-review-copy.json
+```
+
+Exitcode 2 ist hier wegen der vier erhaltenen Befunde erwartet. D1 und die
+Gesamtfreigabe bleiben offen; Builds, Profile und Rohprotokolle bleiben lokal.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte

@@ -57,8 +57,10 @@ gehören dazu weiterhin:
 
 - **D1:** vollständiges reproduzierbares Source-/Build-/Startinventar und
   relevante Dienststabilität über den Abnahmelauf. Bildschirm, Eingabe und
-  authentifiziertes ADB sind belegt. Die Boot-3-Beobachtung bis 07:27 UTC ist
-  begrenzt; zwei Starthelfer-Erklärungen bleiben Schlussfolgerungen. Der frühe
+  authentifiziertes ADB sind belegt. Die Boot-3-Beobachtung ist bis zum
+  Protokollausschnitt um 11:17 UTC erweitert: unveränderter SystemServer,
+  keine neuen nichtnulligen Dienstrückgaben und acht zusätzliche zugeordnete
+  idmap2d-Stopps. Zwei Starthelfer-Ursachen bleiben ungeklärt. Der frühe
   Host-SIGTERM ist erhalten und kein bestandener Boot.
 - **D2/D3:** vollständige Benutzerverwaltung, Passworttransport, Passwortwechsel,
   Abmeldefehler und Löschlebenszyklus gemäß T01/T02/T10–T12.
