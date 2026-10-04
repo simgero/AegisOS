@@ -28,9 +28,9 @@ verbindlich. Die folgende Tabelle zählt nur Nachweise dieses Images;
 | T10 | Direkte Abmeldungen beider Benutzer, ursprüngliche Prozesse/Kontexte beendet, CE gesperrt und bekannte Dateien ohne Bytes. | Offene Zugriffe, Mount-/IPC-Abbau sowie konkurrierender Start und Vordergrundwechsel. |
 | T11 | Erfolgreiche Abmeldungen sind T10 zugeordnet. | Ausstehende/fehlgeschlagene CE-Sperrung, Wiederherstellung und Paketaktionen beim Logout. |
 | T12 | Sauberer gepaarter Stop/Start, gesperrter Startzustand und erhaltene Originaldateien. | Benutzerlöschung, Ende alter Schlüssel-/Runtime-Zuordnung und kontrollierte ID-Wiederverwendung. |
-| T13 | Gemeinsames jq u3 nach frischer Adminfreigabe veröffentlicht und bei Alpha aktiviert; Beta bleibt CE-gesperrt. | Alle sechs Aktionen/Bereiche mit erlaubter und verweigerter Freigabe sowie Aufrufer-/Eigentümer-/CE-Bindung. |
-| T14 | Gemeinsame jq-Version bei Alpha tatsächlich ausgeführt, Originaldaten erhalten. | Gemeinsame Software bei Beta/neuen Benutzern, private Änderungen und getrennte Programmeinstellungen. |
-| T15 | Gemeinsames jq/libjq1 u3 mit libonig5 tatsächlich ausgeführt; abweichender privater Versionsfall vorbereitet. | Tatsächliche unterschiedliche Versionen/Abhängigkeiten, ungültige Versionen und private Entfernung mit Rückfall. |
+| T13 | Erlaubte gemeinsame u3- und private u4-Installation bei Alpha nach jeweils frischer Adminfreigabe veröffentlicht/aktiviert; Beta bleibt CE-gesperrt. | Alle sechs Aktionen/Bereiche mit erlaubter und verweigerter Freigabe sowie Aufrufer-/Eigentümer-/CE-Bindung, insbesondere abweichender Antragsteller/Admin. |
+| T14 | Gemeinsame jq-Version und danach private u4 bei Alpha ausgeführt; gemeinsame Generation und Originaldaten erhalten. | Gemeinsame Software bei Beta/neuen Benutzern, private Änderungen beim Peer und getrennte Programmeinstellungen. |
+| T15 | Gemeinsames jq/libjq1 u3 und anschließend privates u4 bei Alpha mit passenden Abhängigkeiten tatsächlich ausgeführt. | Gleichzeitige unterschiedliche Versionen bei Alpha/Beta, ungültige Versionen und private Entfernung mit Rückfall. |
 | T16 | Gemeinsame Erstinstallation lässt laufenden Kontext unverändert und meldet ausstehende Aktivierung; ausdrücklicher neuer Start aktiviert exakt drei Ergänzungen. | Gemeinsames Update bei privaten Versionen, konsistente laufende/neue Kontexte und Konflikte. |
 | T17 | Noch kein vollständiger Fehler-/Parallelitätsfall auf diesem Image. | Gemeinsame/private und verschiedene Antragsteller, laufender Abbruch, Installationsfehler und Logout während Transaktion. |
 
@@ -165,7 +165,14 @@ Basispaketen. Originaldatei und Konfiguration bleiben bytegleich; Beta bleibt
 CE-gesperrt. Die erste reine Quellen-Leseprüfung hatte fälschlich den alten
 Pfad `sources.list` angenommen; ihr Fehler bleibt erhalten. Die spätere
 Deb822-Leseprüfung und die eigene gepinnte HTTPS-Policy des AEGIS-Planers
-sind getrennt dokumentiert. Private u4-Version und übrige Paketfälle bleiben offen.
+sind getrennt dokumentiert. Anschließend ist die private u4-Version ebenfalls
+nach frischer Adminfreigabe aktiviert: ausschließlich jq/libjq1 wechseln auf
+u4, insgesamt bleiben 81 Pakete. Der private Store ist an Alpha `10/10` und
+die unveränderte gemeinsame Generation gebunden. Die explizite private Wahl
+enthält jq u4; GNU-Ausführung, unterschiedliche libjq-Prüfsumme und bytegleiche
+Originaldaten bestätigen den aktiven Zustand. Beta bleibt dabei gesperrt.
+Seine gemeinsame u3-Ausführung bei gleichzeitig aktivem Alpha-u4-Kontext
+und die übrigen Paketpflichtfälle bleiben offen.
 D1 und die vollständige DoD bleiben offen.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.

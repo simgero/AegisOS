@@ -1015,7 +1015,15 @@ unveränderte Init-Regel ist quellengebunden; die ursprüngliche Fehlerausgabe
 und der konkret fehlgeschlagene Pfad/Systemaufruf fehlen jedoch. Dieser
 Rückgabewert wird nicht pauschal akzeptiert oder allein aus späteren
 Dateirechten erklärt. Keine erneute Aufräumaktion und keine Rechteänderung
-wurde für die Einordnung ausgeführt. D1 bleibt offen.
+wurde für die Einordnung ausgeführt. Eine spätere reine Metadatenaufnahme
+findet `/data/misc` als `1000:9998`, Modus `01771`, und das Zielverzeichnis
+als `1000:1000`, Modus `0771`. Zusammen mit dem gebundenen Init-UID-/Gruppenpfad
+stützt dies eine Rechtehypothese für das Entfernen des Zielverzeichnisses.
+Es rekonstruiert weder sämtliche ursprünglichen Operationen noch die fehlende
+Fehlerausgabe. Der lokale Zusatzbeleg
+`boot2-service-review/migration-later-metadata.json` hat SHA-256
+`50e92b603d919b93a051b3180a36d28ea94b7fa00b5ec75b1b37b022d8d1a70b`.
+D1 bleibt offen.
 
 Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
 
@@ -1086,6 +1094,53 @@ Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
 Dies belegt nur die erlaubte gemeinsame Erstinstallation samt Aktivierung
 bei Alpha. Ein gleichzeitig laufender Peer, Betas GNU-Ausführung, die private
 u4-Version, weitere T13–T17-Varianten und D1–D7 bleiben offen.
+
+## cacbf0d: Alphas private jq-Version u4 aktiviert
+
+Alphas regulärer Auftrag `linux package install --scope user jq=1.7.1-6+deb13u4`
+erzeugt einen Plan mit genau zwei Änderungen: jq und libjq1 wechseln von u3
+auf u4. libonig5 bleibt `6.9.9-1+b1`. Der konkrete Plan ist vor der erneuten
+AOSP-Adminfreigabe gespeichert. Die Veröffentlichung erzeugt die private
+Generation `5a80d92f2dd9609ee085b6718709a331c6e60a6263199bc6a606ce429b261bbd`,
+gebunden an Benutzer `10/10` und die unveränderte gemeinsame Generation
+`9eeef520c0366e2aeeb7302cab2ecd8f55e1cc88ee5d9b37d481066cf8b57236`.
+Der bisherige Init `5417/246350` und seine vollständige Paketdatenbank bleiben
+zunächst identisch; Status meldet ausstehende Aktivierung. Beta bleibt CE-gesperrt.
+
+Nach eigenem regulärem Stopp sind ursprüngliche Init-Identität und Kontextgruppe
+entfernt, während Alpha angemeldet und CE `[0, 10]` entsperrt bleibt. Der
+ausdrückliche Start erzeugt Init `5826/349443`. Sein Root-Dateisystem stammt
+aus Alphas privatem CE-Paketimage; die private Versionswahl lautet genau
+`jq / arm64 / 1.7.1-6+deb13u4`. Alle 81 Pakete sind vollständig installiert.
+Gegenüber dem vorherigen Bestand ändern sich ausschließlich die beiden
+geplanten Versionen. Gemeinsame Auswahl, Benutzer-/Boot-/SystemServerbindung
+und Betas gesperrter Zustand bleiben erhalten.
+
+Der gewöhnliche GNU-Prozess bestätigt UID/GID 1000, eigenes HOME, die drei
+erwarteten Paketversionen und die tatsächliche JSON-Berechnung mit jq.
+Die libjq-Prüfsumme ist nun
+`92012c8c198ed5f8e44042a124c3271e89a0a2867fc3344642d9ed391ef75f50`
+statt `58a6c82e3cc0b55f2e11e85ffa487bd2381c4cd30068874504c639c76a3e59d6`;
+libonig bleibt bytegleich. Der jq-Programmhash ist bei diesen beiden Paketen
+gleich und wird nicht fälschlich als Versionsunterschied gewertet.
+Alphas ursprüngliche Datei und Konfigurationsproben bleiben bytegleich.
+
+Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `alpha-private-jq-u4/plan-before-approval.json` | `bbad2da69c49c03293c7bd928b30088ee97c2c2319f60365206c7844e710e4b9` |
+| `after-alpha-private-publish.json` | `75c4074740a7d039d72875ebd9136ff8ab650293a3c653ccb6f71ffea9d44fc3` |
+| `alpha-private-jq-u4/stopped-context.json` | `28cd61a2de42149083fcecfcae95257f449259f20958f0c47c2d737748ac2e1c` |
+| `alpha-private-jq-active.json` | `08b0ae560dc911d6b95821b8f87062813f55050f5e1d4322216b848c1fc5f964` |
+| `alpha-private-jq-u4/activation-events.json` (187 Ereignisse) | `84facb14a83dad44de05fcbae9adb1b59e43ad8ce2dabe4afd15b668a39e4785` |
+| `alpha-private-jq-u4/result.json` | `d55ab12b27ff17684031f2563fb0324497c33cdd77880243d2549ffab9cbf4e9` |
+
+Antragsteller und freigebender Administrator sind hier beide Alpha. Dieser
+Fall ersetzt weder eine Freigabe durch eine andere Person noch die
+Autorisierungs-Negativmatrix. Betas gleichzeitige gemeinsame u3-Ausführung,
+ungültige Versionen, private Entfernung, Updates, Konflikte, Parallelität
+und die vollständige D1–D7-Abnahme bleiben offen.
 
 ## ec01e5fa: Originaldaten und Paketversionen nach gepaartem Neustart erhalten
 
