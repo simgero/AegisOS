@@ -101,6 +101,17 @@ Anmeldung verweigert, ursprüngliche Hintergrundprozesse und vollständige
 Kontexte erhalten. Zusammen mit Bildschirmsperre und AOSP-Ressourcenstopp samt
 Wiederanmeldung ist **T08 auf ec01e5fa vollständig zugeordnet und belegt**.
 Logout-Ressourcen-/Konkurrenzfälle, übrige T05-Varianten und D1–D7 bleiben offen.
+Beta besitzt inzwischen ebenfalls eine private Paketgeneration: jq u3 ist
+ausdrücklich für Benutzer/Seriennummer 11/11 festgehalten, mit regulärer
+AOSP-Adminfreigabe durch Alpha. Veröffentlichung erhält beide laufenden
+Kontexte; erst Betas eigener Stopp/Start aktiviert die Auswahl. Originaldatei
+und Konfiguration bleiben bytegleich; zwei frisch angelegte temporäre Dateien
+sind danach entfernt. Alpha, gemeinsame Generation und Paketversionen bleiben
+unverändert. Ein zusätzlicher GNU-Lese-Test auf interne, rootgeschützte
+Paketmetadaten scheiterte an einer falschen Testerwartung; Originalfehler,
+Quellbegründung und separate erfolgreiche Korrekturprüfung sind erhalten.
+Die gegenseitigen Zugriffstests auf beide nun vorhandenen privaten Paketstores
+und die übrige Paketautorisierungs-/Update-/Entfernungs-/Fehlermatrix bleiben offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.

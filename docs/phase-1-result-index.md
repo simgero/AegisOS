@@ -716,6 +716,65 @@ weshalb kein unbegrenzter Hintergrundbetrieb dreier persönlicher Benutzer
 zugesagt wird. **T08 ist auf ec01e5fa belegt.** Die übrigen offenen Pflichtfälle
 und alle sieben Gesamtabschlusskriterien bleiben erforderlich.
 
+## ec01e5fa: Beta-eigene private Versionswahl mit Alpha-Adminfreigabe aktiviert
+
+Beta beantragt über seine reguläre CLI `install --scope user jq=1.7.1-6+deb13u3`.
+Der tatsächliche Plan hält die bereits gemeinsam vorhandene Version ausdrücklich
+privat fest; Abhängigkeitsversionen ändern sich nicht. Die unveränderten
+öffentlichen Debian-Quellen sind erneut an den bytegleichen Richtlinienquellcode
+des Images gebunden. Alpha bestätigt den Plan mit frischer AOSP-Passwortprüfung.
+Die um **18:33:26 UTC** veröffentlichte private Generation
+`77965175290febf757d33082d1205cc8842a1c5db709d05b4c0e87485226e7aa`
+gehört ausdrücklich `user 11 11`, bleibt an die gemeinsame Generation gebunden
+und liegt in Betas CE-Speicher. Alpha wird durch die Freigabe nicht Eigentümer.
+Gamma bleibt gesperrt; gemeinsamer und Alpha-privater Paketstand sind unverändert.
+
+Nach Veröffentlichung sind beide vollständigen laufenden Kontexte unverändert;
+Beta meldet ausstehende Aktivierung. Vor seinem eigenen Stopp erzeugt und liest
+Beta zwei neue Testdateien unter `/tmp` und `/run/user/1000`. Der Stopp beendet
+seinen bisherigen Init `13022/338454` und Prozess `13241/341788`; Sitzung und
+CE bleiben erhalten. Erst der ausdrückliche Neustart erzeugt Init
+`20459/523577` mit dem privaten Beta-Image als Root-Dateisystem. Alle 81
+installierten Pakete, Dpkg-Status und Abhängigkeiten bleiben bytegleich zur
+vorherigen gemeinsamen Variante. Die zusätzliche private Auswahl lautet jq u3.
+Die tatsächliche GNU-Ausführung bestätigt Versionen, jq-Funktion und libjq-Hash;
+Originaldatei und Konfiguration bleiben erhalten, die beiden frischen temporären
+Dateien fehlen. Alpha behält seinen vollständigen privaten u4-Kontext und
+fortschreitenden Prozess `3690/86539`. Betas neue begrenzte Prozessprobe
+`20992/542247` ist ausdrücklich von ihrem beendeten Vorgänger getrennt erfasst.
+
+Ein zusätzlicher GNU-Test enthielt zunächst die falsche Erwartung, UID 1000
+könne `/var/lib/aegis/private-choices` lesen. Dieser Befehl endete mit Status 1;
+Ereignis 409 bleibt als `driver-failure` erhalten. Der bytegleiche Image-Quellcode
+in `package_guard.cpp`, Funktion `StoreChoices`, erzeugt das interne Verzeichnis
+absichtlich root-eigen mit Modus 0700 und die Datei mit 0600. Der Fehler liegt
+in dieser Testerwartung. Die Berechtigungen wurden nicht verändert. Der
+separate korrigierte GNU-Befehl, Ereignis 410, prüft Programmausführung und
+temporäre Bereinigung erfolgreich; die interne Auswahl wird unabhängig durch
+den vorhandenen lesenden Zustandsbeobachter geprüft. Der erste Fehler wird
+nicht nachträglich als erfolgreicher GNU-Test gewertet.
+
+Auch eine späte lesende Plan-Workerprobe bleibt mit Exit 1 erhalten: Sie traf
+nach erfolgreichem Planabschluss ein, als Worker und Plan-Cgroup bereits
+entfernt waren. Die vorherige Beobachtung hatte beide Prozesse bestätigt;
+der ursprüngliche Plan wurde nicht wiederholt.
+
+| Beleg unter `out/phase1-dod/ec01e5fa-verity-base/` | SHA-256 |
+| --- | --- |
+| `beta-private-u3/result.json` | `04c67bcab7a7b659d35e9c79b735695243a304cd62ba29cc0c0cd5a2cdfe04be` |
+| `beta-private-u3-install-inputs.json` | `b4ed35c1e6de0173559a568fcd76b70cdd17b15c02635b7d93d58e50dd659617` |
+| `beta-private-u3-published.json` | `ff7b8a4a29267e89c62b579fb845daf3311ca131032c3bc277e03600c2fda687` |
+| `beta-private-u3-active.json` | `0d13a15294a873d47d21e8c71b94ce92ea22c5a040b022f1a841b3a4128a7d88` |
+| `beta-private-u3-stopped.json` | `d65e97de00309038b8162622ab03660146e2f1dc9708d660790d7169ad733c1b` |
+
+Der Nachweis friert 422 Ereignisse einschließlich des exakt eingegrenzten
+Fehlers ein; der vorherige 385-Ereignis-Stand und der gesicherte 410-Ereignis-
+Fehlerstand stimmen unverändert überein. Beide privaten Stores bestehen jetzt
+tatsächlich. Ihre gegenseitigen Zugriffstests sowie die übrigen Paketaktionen,
+Autorisierungsvarianten, Updates, Konflikte und Fehlerfälle bleiben erforderlich.
+Dieser Fall ersetzt weder deren Abnahme noch einen neuen VM-Neustart oder
+eine frische IPC-Bereinigungsprüfung. D1–D7 bleiben offen.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256
