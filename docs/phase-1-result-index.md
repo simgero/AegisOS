@@ -259,6 +259,74 @@ angelegt und begründen keinen zusätzlichen Bereinigungsnachweis. Die sechs
 Entfernungsablehnungen sowie offene Versions-, Konflikt- und Parallelitätsfälle
 bleiben erforderlich. T13/T15 und D1–D7 sind damit nicht insgesamt abgenommen.
 
+### Gemeinsame Bash, unterschiedliche Einstellungen am selben HOME-Pfad
+
+Am 4. Oktober legt Beta um 10:34:24 UTC und Alpha um 10:35:41 jeweils eine neue
+Datei `/home/user/.config/aegis-shared-bash-20261004T1035.conf` im eigenen HOME
+an. Exklusive Erstellung verhindert Überschreiben; beide Dateien gehören
+UID/GID 1000 mit Modus 0600. Sie enthalten verschiedene synthetische Werte
+derselben Bash-Einstellung. Eine neue nichtinteraktive Bash lädt die jeweilige
+Datei über `BASH_ENV` und gibt den tatsächlich angewendeten Wert aus.
+
+Beta lädt nach dem Rückwechsel um 10:37:08 wieder seinen ursprünglichen Wert,
+Alpha um 10:38:32 ebenfalls. In allen vier Ausführungen stimmen Dateiinhalt,
+Prüfsumme und angewendeter Wert. Die gemeinsame Bash-Version ist
+`5.2.37-2+b10`; ihre identische Dateiprüfsumme lautet
+`ccbd5106945d1095474e5ee47317266f5918aa37fc671829192a007918b1413a`.
+Beide vollständigen Kontexte einschließlich Init-Startzeiten, Namespaces,
+UID-Mappings, Paketdatenbanken und Auswahlen bleiben unverändert. Geändert
+hat sich der Vordergrund von Beta zu Alpha. Boot, SystemServer und CE-Zustand
+bleiben gleich; es gab keinen Runtime-Neustart oder Paketauftrag.
+
+`shared-bash-config-proof.json`, SHA-256
+`c0eb58f69b5935045660f4a44ac0360dbe6815af37ad1577523babb9004160da`,
+bindet die vier tatsächlichen Ausführungen und den Zustandsbeleg
+`shared-bash-config-active.json`, SHA-256
+`009eb14adcabd980345a839787375a326a34c5373dbb5303e53108a23c3f6cf0`.
+Die Ereignisfolge umfasst nun 678 Einträge; der vorherige Präfix ist unverändert.
+Das ist ein regulärer Konfigurationsfall aus den eigenen GNU-Kontexten. Daraus
+folgt kein neuer Fremdzugriffs-, Logout- oder Passworttransportnachweis.
+
+### Variantenabgleich für Identität, Persistenz und Paketverhalten
+
+Der lokale Prüfer `audit-current-variants.py` gleicht die folgenden Anforderungen
+der unveränderten DoD und des Entwicklerauftrags mit tatsächlichen GNU-Ausgaben,
+Vorher-/Nachher-Zuständen und ihren Hashbindungen ab. Alle genannten Ergebnisse
+gehören zum aktuellen b832d6c-Image und demselben Profil. Die Zuordnung vorhandener
+Belege ist keine erneute Ausführung ihrer historischen Testläufe.
+
+| Pflichtvariante | Geprüfter Nachweis und Ergebnis |
+| --- | --- |
+| T03 interne Identität und Host-Mapping | GNU-Ausgaben nach dem gepaarten Reboot enthalten UID/GID 1000 und vollständige UID-/GID-Maps beider Benutzer. Alle 1002 technischen/normalen Kennungen je Benutzer sind überschneidungsfrei; Host-Root und Host-UID 1000 sind nicht gemappt. |
+| T03 Namespaces und Wechsel | Sechs Namespace-Identitäten unterscheiden sich zwischen Alpha/Beta. Alphas Kontext bleibt beim Wechsel zu Beta identisch; die neuen Konfigurationswechsel erhalten beide vollständigen Kontexte. |
+| T07 persistente Dateien und Einstellungen | Ursprüngliche, vor dem Reboot angelegte Dateien und Konfigurationen werden nach Runtime-/VM-Neustarts bytegleich aus den eigenen GNU-Kontexten gelesen. Die Werte beider Benutzer bleiben verschieden. |
+| T07 private Pakete | Vor/nach VM-Neustart stimmen Generationen, Paketdatenbanken, private Auswahl und alle installierten Versionen überein; private u4 und gemeinsame u3 werden ausgeführt. Betas private jq/libjq u3 bleibt zusätzlich über den Runtime-Neustart beim gemeinsamen Update erhalten. |
+| T07 flüchtige Daten | Frische Alpha- und Beta-Dateien unter `/tmp` und `/run` sind vor dem jeweiligen Stopp positiv gelesen, nach dem neuen Start abwesend. Alphas reiner Neustart erhält Paketdatenbank und Generation vollständig. |
+| T14 gemeinsame Software | Bestehende Benutzer sowie nachträglich angelegter Gamma führen die gemeinsame Version aus. Für Gamma gilt weiterhin das dokumentierte AOSP-Limit; drei gleichzeitig laufende persönliche Benutzer werden nicht behauptet. |
+| T14 persönliche Änderungen | Alpha verwendet private u4, Beta weiterhin gemeinsame u3. Betas späteres persönliches Update verändert weder gemeinsame Auswahl noch Alphas laufenden Kontext; die neue private Version wird tatsächlich ausgeführt. |
+| T14 Einstellungen gemeinsamer Programme | Die oben beschriebene identische Bash lädt verschiedene Einstellungen am selben HOME-Pfad; beide Werte bleiben nach Rückwechsel erhalten. |
+| T16 erfolgreiche Veröffentlichung | Das gemeinsame Update ändert zunächst keine laufenden Kontexte oder persönlichen Auswahlen; die CLI zeigt ausstehende Aktivierung. |
+| T16 erfolgreiche Aktivierung | Beide ersten neuen Starts sind konsistent. Alpha führt gemeinsame u4 aus, Beta behält private u3 mit passenden Abhängigkeiten; beide Generationen binden die neue gemeinsame Basis. |
+
+Damit sind **T03, T07 und T14 belegt**. Die erfolgreiche T16-Kette ist vollständig
+zugeordnet; geforderte Konfliktfälle bleiben offen. Fehlende Startvoraussetzungen
+(T04), Passwortwechsel (T02), Logoutfehler und Löschung (T10–T12), übrige
+Paketautorisierung (T13), unauflösbare Versionen (T15) sowie Fehler/Parallelität
+(T17) werden durch diesen Abgleich nicht geschlossen. D1–D7 bleiben offen.
+
+`current-variant-audit.json`, SHA-256
+`e04258b81dbf1fe1feb624d01f91820fb3e9502d5ac9195c916f23c74e356aa9`,
+bindet 86 lokale Dateien und die zum Image identischen Mapping-/Buildquellen.
+Für Reboot und Gamma verwendet der Audit ausdrücklich die bereits dokumentierte
+abgeleitete Ereignisdatei mit dem separat erhaltenen Checkpoint für Ereignis 203.
+Die Originaldateien bleiben unverändert. Zwei lokale Prüferversuche sind als
+`current-variant-audit-first-attempt-failure.json` und
+`current-variant-audit-second-attempt-failure.json` erhalten: zunächst eine falsche
+Auswahl der historischen Ereignisquelle, danach eine falsche Annahme über die
+Struktur einer Zusammenfassung. Die Berichtigung verwendet die ursprünglich
+gebundene Ereignisdatei beziehungsweise den bereits hashgebundenen Zustandsbeleg.
+Keiner dieser Auditfehler führte eine Gastaktion aus oder änderte einen Testbefund.
+
 ## Bisheriger Referenzlauf und Statusregeln
 
 - Produkt-/Image-Commit: `209278def7d5bc5612eeb397bdd8ee20ccb16d86`.
