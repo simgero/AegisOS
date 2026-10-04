@@ -27,12 +27,13 @@ Images. T13 als Ganzes sowie D1–D7 bleiben offen.
 | `install all` | belegt | belegt | belegt | belegt |
 | `install user` | belegt für Alpha und Beta | belegt | belegt | belegt |
 | `update all` | belegt, beide Benutzer aktiviert; private u3 bleibt | belegt | belegt | belegt |
-| `update user` | offen | belegt | belegt | belegt |
+| `update user` | belegt für Beta mit Alpha-Adminfreigabe | belegt | belegt | belegt |
 | `remove all` | belegt, beide Benutzer aktiviert | offen | offen | offen |
 | `remove user` | belegt für Alpha, expliziter Rückfall | offen | offen | offen |
 
 Die gültigen Varianten sind an `shared-u3-activation-proof.json`,
-`private-u4-activation-proof.json`, `common-update-both-proof.json`, `shared-remove-both-proof.json` und
+`private-u4-activation-proof.json`, `common-update-both-proof.json`,
+`personal-update-active-proof.json`, `shared-remove-both-proof.json` und
 `private-remove-fallback-proof.json` gebunden; die jeweiligen vollständigen
 Prüfsummen und Grenzen stehen in den b832d6c-Abschnitten unten. Die drei
 Installationsablehnungen bindet `install-all-denials-proof.json`, SHA-256
@@ -124,6 +125,56 @@ Pflichtfälle. Alte temporäre Proben waren schon vorher abwesend und belegen
 hier keine neue Reinigung; das Ende zeitlich begrenzter alter Hintergrundjobs
 wird nicht dem späteren Runtime-Stopp zugeschrieben. Die gesonderte Prüfung
 des jeweiligen ursprünglichen Init-Prozesses bleibt davon unabhängig.
+
+### Persönliches Update und neue flüchtige Beta-Proben
+
+Beta beantragt `linux package update --scope user`; der Plan enthält genau
+seine persönlichen jq/libjq1-Änderungen von `1.7.1-6+deb13u3` auf u4.
+Alpha erteilt die reguläre AOSP-Adminfreigabe. Die Veröffentlichung gelingt
+am 4. Oktober um 09:20:48 UTC. Gemeinsame Auswahl, Alphas private Auswahl und
+beide laufenden Kontexte bleiben vollständig unverändert. Betas CLI zeigt
+die ausstehende Aktivierung; seine GNU-Shell führt zunächst weiterhin u3 aus.
+
+Für die flüchtige Datenprüfung legt Beta vor dem Update zwei neue synthetische
+Dateien exklusiv unter `/tmp` und `/run/user/1000` an, jeweils UID/GID 1000 und
+Modus 0600. Beide werden nach Veröffentlichung um 09:23:44 UTC nochmals mit
+unveränderten Bytes gelesen. Erst danach beendet der reguläre eigene
+`linux stop` Betas bisherigen Init `14330/2308029` und Hintergrundprozess
+`14535/2316113`. AOSP-Sitzung und tatsächlicher CE-Zustand bleiben erhalten.
+Alphas ursprünglicher Hintergrundprozess `18313/2439313` macht vor/nach dem
+Stopp und nach Betas neuer Aktivierung mit unveränderter Identität Fortschritt.
+Die verwendeten Prozessproben sind in diesem Fall nachweislich noch nicht
+zeitlich abgelaufen.
+
+Betas erster neuer Start gelingt um 09:27:37 UTC. Die gewöhnliche GNU-Prüfung
+führt jq u4 tatsächlich aus, prüft libjq1 u4 samt Bibliotheks-Hash, die Integrität
+der drei jq-Pakete und die unveränderten Paketmarkierungen. Alle 81 installierten
+Paketdatensätze entsprechen dem erwarteten Bestand; ausschließlich jq und
+libjq1 haben sich gegenüber Betas altem Kontext geändert. Seine private
+Versionsauswahl lautet nun ausdrücklich jq u4 und gehört weiterhin `11/11`.
+Die neue private Generation
+`d58d80f46af2ca24fc910ea7abaa4317ae0a029dc2de54233cdac6ad3146d45f`
+bindet an die unveränderte gemeinsame Generation `a9e63e88614b4ddbce55c7710410e3bb1cb00770daed7dc18f21787a6e0489b4`.
+
+Die ursprüngliche persönliche Datei und Konfiguration bleiben bytegleich.
+Beide frisch angelegten flüchtigen Dateien fehlen nach dem Kontextneustart.
+Der neue Beta-Kontext `25084/2602870` meldet `packages=current`; Alphas
+vollständiger Kontext `17998/2427632`, Boot und SystemServer bleiben gleich.
+Beide persönlichen CE-Speicher waren bereits entsperrt; dieser Fall behauptet
+keine zusätzliche Prüfung mit gesperrtem Administrator.
+
+`personal-update-publication-proof.json`, SHA-256
+`00d2181aaae51dd5c59b29cb01e258777d0d23d37272aabf1f29101bd504c497`,
+bindet die Veröffentlichung. Der vollständige Beleg
+`personal-update-active-proof.json`, SHA-256
+`eb76073b9788d7f1b8139bb1b0b4d59419bdcda47ac99ad6d86a43e8419af3c1`,
+bindet 587 Ereignisse, deren unveränderte vorherige Präfixe, alle
+Zustandsaufnahmen, die Quellzuordnung der privaten Auswahl und die frischen
+flüchtigen Proben. `personal-update-active.json` hat SHA-256
+`4278ddfcac4c436eca82c6df9662c983c65eceaa387cd70a79732c88fc3f3fc5`.
+Dies belegt das gültige persönliche Update sowie den konkreten Beta-Stopp
+mit aktivem Alpha und neuer `/tmp`-/`/run`-Bereinigungsprüfung. Es ersetzt keine
+fehlenden IPC-, Logoutfehler-, Konflikt- oder Parallelitätsfälle.
 
 ## Bisheriger Referenzlauf und Statusregeln
 
