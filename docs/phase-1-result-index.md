@@ -882,6 +882,49 @@ explizitem Rückfall. Verweigerte Entfernungsvarianten und die tatsächliche
 gemeinsame Entfernung einschließlich des früheren ENODATA-Startfehlers bleiben
 gesondert nachzuweisen.
 
+### b832d6c: alte UID beim Virtualisierungs-Aufräumauftrag eingegrenzt
+
+Die installierte `/system/etc/init/hw/init.rc` ist bytegleich zur vorhandenen
+AOSP-Quelle. Ihr früher Aufräumauftrag ist ausdrücklich eine Migration für die
+alte VirtualizationService-UID. Das Bootprotokoll bestätigt dessen Ausführung
+als UID 1081 mit GID 1000 und Rückgabe 1. Die beobachteten aktuellen Besitzer
+sind UID 1000 für das Verzeichnis und seinen Parent; `/data/misc` hat Modus
+1771. Quelle und Zustand stützen damit eine Berechtigungsursache beim Entfernen
+des inzwischen systemeigenen Verzeichnisses. Historisches stderr fehlt, weshalb
+dies als Quell-/Zustandsinferenz und nicht als unmittelbar beobachteter errno
+festgehalten wird. Der Auftrag ist von den separat protokollierten regulären
+VirtualizationService-Prozessen zu unterscheiden.
+
+Der ausschließlich lesende Beleg
+`out/phase1-dod/b832d6c-base/virtualization-cleanup-source-observation.json`,
+SHA-256 `5b2e5ab6a96cf3f64dce2cf17aec55b84d55dc96705cf202073676c26214808d`,
+bindet Quell-/Installationsprüfsumme, Besitzdaten und den beobachteten Log-Präfix.
+Es wurde weder der Aufräumauftrag erneut ausgeführt noch eine Berechtigung oder
+Dienstkonfiguration geändert. Die vollständige Einordnung aller Dienstenden
+im gesamten Abnahmezeitraum bleibt gesondert erforderlich.
+
+### b832d6c: erster Start nach gemeinsamer Entfernung, Paketvergleich offen
+
+Nach der gemeinsamen jq-Entfernung meldete der erste Runtime-Start am
+4. Oktober 2026 um 04:22:50 UTC `runtime=ready ce=unlocked` für Benutzer 10.
+Der anschließende GNU-Vergleich scheiterte um 04:23:54 UTC: Er erwartete,
+dass die unbenutzten Abhängigkeiten libjq1 und libonig5 erhalten bleiben.
+Die anschließende lesende Diagnose fand stattdessen alle 78 manuellen
+Werksbasispakete, keine automatischen Pakete und keines der drei jq-Pakete.
+Die Reconciliation in `packages/aegis/identity/runtime/package_resolver.cpp`
+verwendet ausdrücklich `--auto-remove`; die ursprüngliche Erwartung passt
+damit nicht zu diesem Abgleichpfad.
+
+Der ursprüngliche Fehlversuch bleibt unverändert erhalten in
+`out/phase1-dod/b832d6c-base/shared-remove-first-check-failure.json`,
+SHA-256 `a3cc403a43ee4fb7d1953524a045e5632cab93f40410e8409c074f9a4267e20d`.
+Dies belegt einen erfolgreichen ersten Start und einen fehlgeschlagenen
+Testvergleich, noch keine vollständige Abnahme der gemeinsamen Entfernung.
+Ein korrigierter Funktionstest, Datenprüfung und Aktivierung beim zweiten
+Benutzer stehen für diesen Fall weiterhin aus. Aus diesem Testfehler lässt
+sich keine Ursache einer separat gemeldeten Plattform-Sicherheitswarnung
+ableiten.
+
 ### Historische Restliste des Referenzlaufs 209278de
 
 Die folgende D1–D7-Liste und die anschließende Zuordnung der Referenzschritte
