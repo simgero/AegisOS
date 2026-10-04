@@ -655,9 +655,52 @@ Am 4. Oktober um 19:54:43 UTC wurde der separate cacbf0d-Diagnosegast
 mit frischem Profil `de23866c-db95-46ed-8bbb-748c399262ca`, Netzwerk `none`
 und lokalem ADB-Endpunkt `127.0.0.1:15879` gestartet. Der Helfer meldet
 Bereitschaft. Der erste ursprüngliche Recovery-Aufruf als PID 404 endet
-bei Bootzeit 39,707052 Sekunden mit 254. Bootabschluss, numerische
-Diagnose und deren Bewertung stehen aus; kein Dienst wurde dafür erneut
-ausgeführt. D1 und die vollständige DoD bleiben offen.
+bei Bootzeit 39,707052 Sekunden mit 254. Der Bootabschluss ist inzwischen
+aufgenommen: Boot-ID `f357b68f-d5ea-4168-806e-c55037daf501`, SystemServer
+`1299/41148`, ausschließlich Benutzer 0 und CE `[0]`, authentifiziertes ADB,
+SELinux Enforcing und dateibasierte Verschlüsselung. Acht Verity-Properties
+haben Wert `2`; aktive Device-Mapper-Tabellen sind für dieses Image damit
+noch nicht nachgewiesen.
+
+Der ursprüngliche PID-404-Aufruf meldet `terminal=-2`,
+`aggregate=9223372036854775807`, `result=-2`. Der unveränderte Aggregatwert
+und die gepinnten Pstore-Lese-/Seekpfade grenzen dies auf einen fehlenden
+Quellpfad beim Öffnen ein; dies ist eine Quelleninferenz, keine aufgezeichnete
+Syscall-Beobachtung. Später im selben Boot ist pstore eingehängt und leer,
+`pmsg-ramoops-0` und `/dev/pmsg0` fehlen. Die Gastbibliothek stimmt mit der
+geprüften Imagebibliothek überein. Es wurde kein Dienst erneut ausgeführt.
+Diese Erklärung gilt für diesen Aufruf und beweist keine historische Ursache
+des älteren ec01e5fa-Aufrufs.
+
+Die zwei weiteren Rückgaben sind separat erklärt: Aconfigd PID 776 kündigt
+die beabsichtigte Mainline-Übergabe an; Mainline PID 780 endet mit 0.
+`rename_eth0` PID 836 liefert laut gepinnter Quelle nur beim fehlenden
+Interface den beobachteten Wert -2/254; dieser Gast läuft ausdrücklich mit
+Netzwerk `none`. Der ursprüngliche Audit bleibt unverändert
+`REVIEW_REQUIRED`, mit drei Rückgaben, einem SystemServer-Start und ohne
+Treffer seiner sechs Fatal-/ANR-Marker. Das ist keine pauschale Freigabe.
+
+Der erste ADB-Warteprozess lief vor dem Bootabschluss in sein Zeitlimit;
+der Gast lief weiter. Nach bestätigtem Bootabschluss gelang die reguläre
+Autorisierung beim zweiten Transportversuch. Eine anschließende Übertragung
+von 262144 Testbytes wurde bytegleich zurückgelesen und die eigene temporäre
+Datei entfernt. Die QMP-Aufnahme liefert 720 × 1280 Pixel bei unveränderter
+Boot-, Profil- und SystemServer-Identität. Dieser Beleg umfasst weder
+Tastatur/Maus noch persönliche Benutzer oder Neustartpersistenz.
+
+Zusätzliche lokale Belege unter `out/phase1-dod/pmsg-cacbf0d/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `boot-observation.json` | `a0e955adc4c1b93678bea36d4ec414d813b9d0460d0a46b82e8d42ad3db2880b` |
+| `first-boot-service-audit.json` | `1eb36aa732d8013caef181fb5646ccc88ca9faa1d63d16bcf8c36bf598e79be2` |
+| `individual-service-review/result.json` | `53f9061d99d9cc0828378e5d2c246c1b5f2ca12ffd22df7c8c9bef839dc3a03d` |
+| `display-adb/result.json` | `d1f650945ecb0ad39534b1d50a25128b64c1c816b03c2a738dd8f4e07808155c` |
+
+D1 und die vollständige DoD bleiben offen. Die erneute vom Benutzer gemeldete
+Plattform-Sicherheitswarnung hat keinen belegten Auslöser in diesen Belegen.
+Der zuvor unterbrochene Socket-Test wird nicht automatisch wiederholt;
+unvollständige Nachweise bleiben offen und Schutzmechanismen unverändert.
 
 ## ec01e5fa: Originaldaten und Paketversionen nach gepaartem Neustart erhalten
 

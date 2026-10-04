@@ -45,9 +45,19 @@ dem tatsächlichen Rekonstruktionsparser bestätigen unterscheidbare Ursachen
 bei unveränderten API-Rückgaben. Der Diagnosebuild `cacbf0d` ist inzwischen
 vollständig gebaut: 20 Images, 19 Buildbelege, AVB und die tatsächlich in
 `super.img` ausgelieferte Bibliothek sind geprüft. Ein separater frischer
-Diagnosegast bootet; sein erster regulärer Recovery-Aufruf endet ebenfalls
-mit 254. Die numerische Detailmeldung und der Bootabschluss sind noch nicht
-abgenommen. Die bisherigen Benutzerbelege bleiben an ec01e5fa gebunden.
+Diagnosegast hat gebootet; sein erster regulärer Recovery-Aufruf endet ebenfalls
+mit 254. Die ursprüngliche PID-genaue Diagnose meldet `terminal=-2`,
+unverändertes Aggregat und `result=-2`. Zusammen mit den gepinnten Quellen
+weist dies auf den fehlenden pmsg-Quellpfad hin; die spätere Beobachtung findet
+pstore eingehängt und leer. Die beiden anderen auffälligen Rückgaben sind
+einzeln als Aconfigd-Übergabe beziehungsweise fehlendes `eth0` bei Netzwerk
+`none` erklärt. Der ursprüngliche Audit bleibt `REVIEW_REQUIRED`.
+Die Aufnahme bestätigt authentifiziertes ADB, SELinux Enforcing, FBE und
+ausschließlich Systembenutzer 0. Eine 262144-Byte-ADB-Übertragung ist bytegleich
+zurückgelesen; die Bildschirmaufnahme hat 720 × 1280 Pixel. Bedienung, aktive
+Verity-Mappings und Dauerstabilität sind damit für dieses Image noch nicht
+vollständig abgenommen. Die bisherigen Benutzerbelege bleiben an ec01e5fa
+gebunden. D1 und die vollständige DoD bleiben offen.
 Das korrigierte Startrezept `d9a0d30` übergibt den bereits verwendeten
 Verity-Modus ausdrücklich und wurde mit denselben Images separat vorbereitet.
 Mit dieser Vorbereitung ist ec01e5fa inzwischen im eigenen Profil gebootet:
