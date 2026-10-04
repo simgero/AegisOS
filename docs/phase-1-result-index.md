@@ -673,6 +673,49 @@ rücklesung belegt. Alte flüchtige Dateien und Queues fehlten bereits vorher;
 hier entsteht kein neuer Bereinigungsnachweis. Vollständige T08-Zuordnung und
 die übrigen offenen T01–T17-/D1–D7-Anforderungen bleiben erforderlich.
 
+## ec01e5fa: beide interaktiven Wechselrichtungen und vollständige T08-Zuordnung
+
+Bei offener Beta-GNU-Shell meldet sich Alpha über eine zweite echte AEGIS-CLI
+mit AOSP-Passwortprüfung an. Die bisherige GNU-Verbindung wird widerrufen;
+das erste Terminal meldet `terminal=unauthenticated`. Sowohl Runtime-Start als
+auch Shell-Zugang werden dort abgewiesen. Erst erneute Alpha-Anmeldung am
+ersten Terminal erlaubt die Shell im bereits bestehenden Kontext und die
+bytegleiche Rücklesung seiner Originaldatei. Der gleiche Ablauf besteht
+anschließend in der Gegenrichtung von Alpha zu Beta.
+
+Betas Prozess `13241/341788` und Alphas Prozess `3690/86539` behalten über beide
+Wechsel hinweg PID, Startzeit, Host-Identität und Namespaces und machen weiter
+Fortschritt. Beide vollständigen Kontexte, Paketbestände und Zuordnungen
+stimmen vor/nach diesen Wechseln überein. CE bleibt `[0, 10, 11]`; Gamma bleibt
+gesperrt. Es findet kein Runtime-Stopp oder Logout statt, Boot und SystemServer
+bleiben unverändert. Der Nachweis friert 385 Ereignisse mit unverändertem
+347-Ereignis-Präfix ein.
+
+Der zusätzliche Offline-Abgleich ordnet damit alle T08-Varianten auf Image
+`ec01e5fa5f2822da5763ab54c644bc5c5c5ab413` und Profil
+`f8c09946-d131-40ba-8f30-3c3a4d778b0d` zu. Ereignisnummern sind nullbasiert.
+
+| T08-Anforderung | Beleg und konkrete Prüfung |
+| --- | --- |
+| Wechsel beider Richtungen | `interactive-switches/result.json`, Ereignisse 347–384: offene GNU-Kanäle widerrufen, Terminalzugang bis frischer Anmeldung verweigert, Hintergrundidentitäten und vollständige Kontexte unverändert. |
+| Bildschirmsperre | `screen-beta-logout/result.json`, Ereignisse 213–232: Kanal widerrufen; Zugang auch nach Aufwecken verweigert; beide Prozesse während bestätigtem `Asleep` aktiv; CE und Kontexte erhalten. Frische Anmeldung stellt den Zugang wieder her. |
+| AOSP-Ressourcenstopp | `third-user/result.json`, Ereignisse 302–323: tatsächliche ActivityManager-Meldung zum Benutzerlimit, Betas ursprünglicher Init/Prozess und Kontext beendet, tatsächliche CE-Sperrung; Alpha unverändert. |
+| Wiederanmeldung nach Ressourcenstopp | `beta-resource-recovery/result.json`, Ereignisse 324–346: vor Passwortprüfung gesperrt, frische Anmeldung und ausdrücklicher Start, bytegleiche Originaldaten und unveränderte Paketbestände; neuer Beta-Kontext, unveränderter Alpha-Kontext. |
+
+| Beleg unter `out/phase1-dod/ec01e5fa-verity-base/` | SHA-256 |
+| --- | --- |
+| `interactive-switches/result.json` | `d4b471cce8b89149d7ce2e6d80e887049cb7441873fe6269f69865dc1e35ac99` |
+| `interactive-switch-contexts.json` | `57afa608023f70ee1d62eed204dc33aa3657ec876c37af4e4729a439456d529f` |
+| `t08-lifecycle-mapping.json` | `1316dd9f89131d47a5e519dc552a61a7ca875c314fa285cd34cc078c4d26a1fd` |
+
+Der Abgleich prüft die referenzierten Prüfsummen und Originalereignisse erneut.
+Die Bildschirmsperre stammt aus Boot 1, Wechsel und Ressourcenstopp aus Boot 2
+desselben Images und Profilpaares; daraus wird kein Prozessüberleben über
+einen VM-Neustart abgeleitet. Das AOSP-Limit schließt Systembenutzer 0 ein,
+weshalb kein unbegrenzter Hintergrundbetrieb dreier persönlicher Benutzer
+zugesagt wird. **T08 ist auf ec01e5fa belegt.** Die übrigen offenen Pflichtfälle
+und alle sieben Gesamtabschlusskriterien bleiben erforderlich.
+
 ## Aktueller Lauf b832d6c: T08 vollständig zugeordnet
 
 Der Offline-Abgleich `t08-lifecycle-mapping.json`, SHA-256

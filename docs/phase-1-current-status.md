@@ -95,8 +95,12 @@ geprüft: Vor der Passwortprüfung bleibt CE gesperrt; danach sind seine
 Originaldatei und Konfiguration bytegleich und die gemeinsame u3-Version
 ausführbar. Paketbestand und Zuordnungen sind unverändert. Beta erhält einen
 neuen Kontext, Alpha behält seinen ursprünglichen Kontext und Prozess.
-Die vollständige T08-Variantenzuordnung, Logout-Ressourcen-/Konkurrenzfälle,
-übrige T05-Varianten und D1–D7 bleiben offen.
+Auch der Wechsel über ein zweites Terminal bei offener GNU-Shell ist in beiden
+Richtungen geprüft: alter Kanal widerrufen, Start/Shell bis zur erneuten
+Anmeldung verweigert, ursprüngliche Hintergrundprozesse und vollständige
+Kontexte erhalten. Zusammen mit Bildschirmsperre und AOSP-Ressourcenstopp samt
+Wiederanmeldung ist **T08 auf ec01e5fa vollständig zugeordnet und belegt**.
+Logout-Ressourcen-/Konkurrenzfälle, übrige T05-Varianten und D1–D7 bleiben offen.
 Details und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 Die [Übergabeübersicht](phase-1-handoff.md) ordnet alle 14 Liefergegenstände
 den aktuellen Quellen, Dokumenten und jeweils noch offenen Nachweisen zu.
