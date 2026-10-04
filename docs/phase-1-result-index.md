@@ -79,6 +79,46 @@ gestartet, kein Image erzeugt.** `build-launch.json` und `build-failure.log`
 liegen beim obigen lokalen Hosttestbeleg. Die Speichergrenze, laufenden Gäste
 und ursprünglichen Testtreiber bleiben unverändert.
 
+Der Speicherengpass ist anschließend ohne Änderung der Grenze aufgelöst:
+Der alte Launcher `3655264/43540137` und seine beiden QEMU-Prozesse wurden
+über Startzeit, Laufparameter, Profil und Boot-ID an das überholte
+`f098f439`-Profil `535c2e93-df64-445b-b9e2-b71e6b403db7` gebunden. Einmaliges
+reguläres Android-Shutdown führt zu „Power down“, sauberem Helper-Abschluss
+und Launcher-Exit 0. Alle drei ursprünglichen Prozesse sind beendet.
+Profilmanifest sowie Inodes und Größen beider Disk-Dateien sind unverändert;
+die 785 ursprünglichen Testereignisse ebenso. Der Originaltreiber
+`50455` bleibt erreichbar, sein Prozess `3624840/41019225` bleibt bestehen.
+Die beiden neueren Gäste wurden nicht beendet. Dies ist Ressourcenfreigabe,
+kein zusätzlicher Daten-Readback- oder Gesamt-Abnahmenachweis.
+
+Beleg: `out/phase1-dod/f098f439/retirement-boot3-result.json`, SHA-256
+`47d742d29acf663ae72512897e1d3951b993833d5d28e305deade699c94f6013`.
+Bei 51,6 GiB verfügbarem RAM besteht der zweite Versuch desselben Commits
+die unveränderte Speicher- und AOSP-Sandbox-Vorprüfung. Dienst:
+`aegis-local-a76c71bc-attempt2.service`; neuer Run:
+`/srv/aegis/runs/local-20261004T231500Z-a76c71bc-G93KkM`.
+Der Build ist noch nicht als abgeschlossen oder im Gast geprüft verzeichnet.
+Der ursprüngliche fehlgeschlagene Run bleibt erhalten.
+
+`scripts/build-terminal-input-probe.py` kompiliert außerdem ausschließlich die
+zwei unveränderten Java-Terminalklassen und das öffentliche Testprogramm als
+separate DEX-Datei. Es installiert oder startet nichts. Im Gegensatz zur
+Hosttest-Kopie bleibt hier der feste JNI-Pfad unverändert; das ZIP enthält
+keine native Bibliothek und führt keine Konto- oder Binder-Operation aus.
+Aus dem Snapshot von `a76c71b` ist der Helfer unter
+`/srv/aegis/runs/terminal-probe-a76c71bc-axn6lh/artifacts/` gebaut;
+`terminal-input-probe.zip`, SHA-256
+`1a5dbc2edb00bb0ed460928d87de16db231c44cbbd9a96fc055b2bed28ddb2a5`.
+`result.json` bindet Quellen, Werkzeuge und Aufrufe. Der Compiler meldet drei
+Hinweise zur künftig entfallenden Java-8-Zieloption, keine Kompilierungsfehler.
+**Installation, Ausführung und Bindung an die ausgelieferte Android-Bibliothek
+stehen aus.**
+
+```sh
+python3 scripts/build-terminal-input-probe.py --project /pfad/zum/commit-snapshot \
+  --jdk /pfad/zum/jdk --r8 /pfad/zu/r8.jar --output /neues/lokales/pruefverzeichnis
+```
+
 ## Neuer ec01e5fa-Boot: misctrl, Verity, Bildschirm, Eingabe und ADB
 
 Der spätere Socket-Prüfschritt ist nach erneuter Meldung einer

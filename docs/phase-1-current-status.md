@@ -51,6 +51,13 @@ der Kompilierung durch die unveränderte Speicherprüfung beendet: 45,8 GiB
 verfügbar bei benötigten 48 GiB. Es gibt daraus kein neues Image. Bestehende
 Gäste und originale Testtreiber wurden nicht beendet.
 
+Anschließend wurde der bisher nicht zugeordnete alte QEMU-Lauf eindeutig an
+das überholte Profil `f098f439` gebunden und regulär als Android-/KeyMint-Paar
+heruntergefahren. Profil und Originaltreiber bleiben erhalten. Dadurch stieg
+der verfügbare Speicher auf 51,6 GiB; der zweite Buildversuch besteht die
+unveränderte Vorprüfung und läuft. Der separate öffentliche Android-Terminal-
+Prüfhelfer ist kompiliert, aber noch nicht installiert oder ausgeführt.
+
 ## Aktuelles Image cacbf0d: vollständige Restmatrix
 
 Image: `cacbf0d4ccf400155254ed84d0045244a1e4f6a2`, Profil:
