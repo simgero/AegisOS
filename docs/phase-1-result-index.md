@@ -44,6 +44,33 @@ Alphas anschließender Datenvergleich und drei konkrete verweigerte GNU-Zugriffe
 auf Betas nun vorhandenen privaten Paketspeicher sind ebenfalls belegt. Die
 übrigen T13-Varianten bleiben offen.
 
+### Vorbereitung des gemeinsamen Updates bei privater jq-Version
+
+Am 4. Oktober wurde im laufenden b832d6c-Profil um 08:11:44 UTC erneut
+`jq=1.7.1-6+deb13u3` gemeinsam veröffentlicht. Beta beantragte die Installation,
+Alpha erteilte die reguläre Adminfreigabe. Der Plan enthielt genau diese eine
+Installation. Die neue gemeinsame Generation lautet
+`85ccb5402fed0ba7dfdb185b7e9ad136bdb4f8d6fc601e212d7edf2766a1ee73`.
+
+Der vollständige Zustandsvergleich bestätigt unveränderte laufende Kontexte:
+Alpha besitzt weiterhin seine 78 Basispakete, Beta 81 Pakete einschließlich
+privatem jq/libjq1 u3. Beide Prozessidentitäten mit Startzeiten, Namespaces,
+Mounts, Paketdatensätze und privaten Auswahlen stimmen mit dem Zustand vor
+der Veröffentlichung überein. Boot, SystemServer, CE-Zustand, Benutzer und
+Vordergrund bleiben gleich; kein Paketauftrag ist mehr aktiv. Betas CLI meldet
+die ausstehende Aktivierung. Es wurde noch kein Kontext dafür neu gestartet.
+
+`common-update-preparation-proof.json`, SHA-256
+`4d303bb6be910f73cd64359a70f6126fced88214d1267eb9ddca8e2933286d7c`,
+bindet die 492 Ereignisse, den unveränderten vorherigen Ereignispräfix und den
+Zustandsbeleg `common-update-preparation-published.json`, SHA-256
+`0560fa704e740c773629bc503db9b06b6980e11ee21dcb26c47eff1a1498fc3a`.
+Dies bereitet T16 vor: Das gemeinsame Update auf u4, seine Aktivierung und
+der dabei erforderliche Erhalt von Betas privater u3-Auswahl bleiben offen.
+Ein neuer Fortschrittsnachweis der zeitlich begrenzten Hintergrundproben wird
+hier nicht behauptet. Alle Belege verbleiben lokal unter dem oben genannten
+Verzeichnis; Git enthält ausschließlich diese Ergebnisbeschreibung.
+
 ## Bisheriger Referenzlauf und Statusregeln
 
 - Produkt-/Image-Commit: `209278def7d5bc5612eeb397bdd8ee20ccb16d86`.
