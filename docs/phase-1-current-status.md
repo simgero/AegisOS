@@ -46,6 +46,11 @@ Android-Build und Integrationsprüfung stehen aus. Der Befund erklärt nicht die
 Plattform-Security-Meldung. Vollständiger Passwortaudit, T01 und D1–D7 bleiben
 offen; Details stehen im [Ergebnisindex](phase-1-result-index.md).
 
+Der reguläre Android-Build von Commit `a76c71b` wurde gestartet, aber vor
+der Kompilierung durch die unveränderte Speicherprüfung beendet: 45,8 GiB
+verfügbar bei benötigten 48 GiB. Es gibt daraus kein neues Image. Bestehende
+Gäste und originale Testtreiber wurden nicht beendet.
+
 ## Aktuelles Image cacbf0d: vollständige Restmatrix
 
 Image: `cacbf0d4ccf400155254ed84d0045244a1e4f6a2`, Profil:

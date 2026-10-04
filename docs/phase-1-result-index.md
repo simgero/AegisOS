@@ -70,6 +70,15 @@ den vorhandenen AOSP-JDK 21 und die Host-C-Bibliothek glibc 2.43.
 belegen weder vollständige Speicherbereinigung noch Binder-/Datei-/History-/
 Log-Offenlegungsfreiheit. T01 und die Gesamtfreigabe bleiben offen.
 
+Der reguläre Android-Build von `a76c71bcfe7a4f8b15e91979f2bd401cf15f630f`
+im Run `/srv/aegis/runs/local-20261004T230906Z-a76c71bc-ARLkQ4` endet bereits
+an der Speicher-Vorprüfung: 65,1 GiB gesamt, 45,8 GiB verfügbar; erforderlich
+sind 60 GiB gesamt und 48 GiB verfügbar. Systemd-Dienst
+`aegis-local-a76c71bc.service`: `failed`, Exitstatus 1. **Keine Kompilierung
+gestartet, kein Image erzeugt.** `build-launch.json` und `build-failure.log`
+liegen beim obigen lokalen Hosttestbeleg. Die Speichergrenze, laufenden Gäste
+und ursprünglichen Testtreiber bleiben unverändert.
+
 ## Neuer ec01e5fa-Boot: misctrl, Verity, Bildschirm, Eingabe und ADB
 
 Der spätere Socket-Prüfschritt ist nach erneuter Meldung einer
