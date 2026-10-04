@@ -22,6 +22,34 @@ Programmdateien. `build-inventory-proof.json`, SHA-256
 bindet die lokalen Beobachtungen. Das ist kein neuer Compilerlauf; D1 und
 sämtliche offenen Pflichtvarianten bleiben offen.
 
+## Aktueller Lauf b832d6c: fehlgeschlagener Shell-Zugang nach Stopp
+
+Am 4. Oktober 2026 bestätigten `linux stop` um 11:50:54 UTC und
+`linux status` um 11:51:04 UTC für Beta einen gestoppten Kontext bei weiter
+entsperrtem CE. Das anschließende `linux shell` öffnete dennoch eine GNU-Shell.
+Der Treiber erwartete die Rückkehr zum AEGIS-Prompt mit einer Ablehnung und
+meldete um 11:54:04 UTC einen `TimeoutError`; die danach gelesene Ausgabe
+enthält den tatsächlichen GNU-Prompt. Dies widerspricht der Anforderung im
+Entwicklerauftrag, einen fehlenden gestarteten Kontext abzulehnen.
+
+Der bereits laufende Zustandsbeobachter schloss um 11:56:36 UTC ab: Betas
+Kontext hat eine neue Init-Identität (PID/Startzeit `25397/3465417` statt
+`5423/2926989`). Alphas Kontext ist vollständig unverändert. Image, Profil,
+Boot-ID, SystemServer, CE-Zustand, Vordergrundbenutzer, Benutzermetadaten,
+Paketauswahlen und Paketgruppen stimmen mit der Vorheraufnahme überein.
+Im an das Image gebundenen Servicecode ruft `linuxShell` vor dem Shell-Zugang
+`awaitRuntime` auf; dieser Pfad kann den Kontext starten. Eine Korrektur und
+deren Regressionstest stehen aus. **T05 ist in diesem Teilfall fehlgeschlagen.**
+
+Der lokale Beleg `shell-after-stop-failure-proof.json`, SHA-256
+`0d7bb898d1596118b9504a3978a9317a843bb98f79813028c9f24e352d4d2766`,
+bindet die unverändert gesicherten 706 Ereignisse, beide Zustandsaufnahmen
+und die zum Image identische Servicedatei. Er enthält keine nachträgliche
+Gastaktion. Frische IPC-/Dateirücklesungen und das Ende einzelner alter
+Hintergrundprozesse sind für diesen zusätzlichen Fall nicht nachgewiesen.
+Der technische Fehler erklärt keine gemeldete Plattform-Sicherheitswarnung;
+ein solcher Zusammenhang ist nicht belegt. Rohprotokolle bleiben lokal.
+
 ## Aktueller Lauf b832d6c: Paketautorisierung
 
 Der aktuelle Image-Commit ist
