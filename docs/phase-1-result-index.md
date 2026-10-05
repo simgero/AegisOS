@@ -23,6 +23,64 @@ Programmdateien. `build-inventory-proof.json`, SHA-256
 bindet die lokalen Beobachtungen. Das ist kein neuer Compilerlauf; D1 und
 sämtliche offenen Pflichtvarianten bleiben offen.
 
+## a76c71bc: bestätigter Boot, unvollständiger Terminaltest und Dienstaudit
+
+Die erste Terminalaufnahme vom 4. Oktober 2026, 23:49 UTC bestätigt
+Bootabschluss, authentifiziertes ADB (`ro.adb.secure=1`), SELinux Enforcing,
+FBE sowie den vorbereiteten AVB-Digest. Profil:
+`2096b198-54fb-4e85-81bb-22a6774cb19a`; Boot-ID:
+`2caac6f1-30bb-4806-98b2-6b58717ab6c0`; SystemServer: `1410/41343`.
+Nur Systembenutzer 0 ist vorhanden und dessen CE entsperrt. Die installierte
+JNI-Bibliothek stimmt mit dem im folgenden Abschnitt dokumentierten Imagebeleg überein.
+
+Der erste normale Testfall endet vor dem Eingabeprompt. PID 4721 lädt die
+installierte Bibliothek erfolgreich, meldet dann `Missing test PTY` und beendet
+sich nach der unbehandelten Assertion mit SIG9. Es wurden weder Eingabedaten
+noch ein Testsignal gesendet. Das ist ein Fehler des Prüfaufbaus, kein bestandener
+Terminaltest und kein Nachweis für die Ursache der Plattform-Security-Meldung.
+Die eigene temporäre Probe ist entfernt; der Originalbericht bleibt unverändert.
+
+Die gegen das Buildmanifest geprüfte mksh-Quelle (`external/mksh/src/jobs.c`)
+setzt stdin eines Hintergrundprozesses vor dessen Umleitungen auf `/dev/null`.
+Die bisherige Umleitung `<&0` bewahrte deshalb kein PTY. Das Prüfskript sichert
+jetzt das bereits vorhandene Terminal vor dem Hintergrundstart in Deskriptor 3,
+übergibt diesen an den Kindprozess und schließt die Hilfsdeskriptoren. Eine
+zusätzliche Prüfung verlangt vorher Terminal-Ein- und -Ausgabe. Die geänderte
+Fassung ist syntaxgeprüft, **nicht erneut im Gast ausgeführt**. Der berichtete
+Security-Abbruch führt zu keinem automatischen Wiederholungsversuch.
+
+Der anschließende Offline-Dienstaudit verwendet eingefrorene Präfixkopien der
+bestehenden Android-, Logcat- und Helper-Protokolle. Er findet einen
+SystemServer-Start, neun Signalbeendigungen mit unmittelbar vorhergehender
+Init-Steuerung, zwei nichtnullige Helfer-Exits und einen Java-Fatal-Marker.
+Die individuelle Prüfung ordnet zu:
+
+- `system_aconfigd_mainline_init`, PID 889, Status 1: ausdrückliche Skip-Meldung;
+  die gepinnte Quelle endet in genau diesem Übergabepfad mit 1. Der zuständige
+  `mainline_aconfigd_init`, PID 892, initialisiert anschließend und endet mit 0.
+- `recovery-refresh`, PID 409, Status 254: `terminal=-2`, unverändertes Aggregat
+  und `result=-2` sind protokolliert. Die konkrete zugrunde liegende Fehlerursache
+  dieses Boots ist damit noch nicht vollständig nachgewiesen.
+- Der einzelne Java-Fatal-Marker gehört zum genannten Testhelfer PID 4721.
+  Er bleibt als Fehler im Mitschnitt und im ursprünglichen Audit erhalten.
+- Die einzige rückläufige Zeitstempelreihenfolge beträgt 99 Mikrosekunden
+  zwischen T1 und T372. Sie allein beweist keinen Zeit- oder Framework-Neustart.
+
+Die Quellen für aconfigd und mksh stimmen bytegleich mit den Revisionen des
+Buildmanifests überein. Der Audit bleibt `REVIEW_REQUIRED`, Exitcode 2.
+Eine Log-Momentaufnahme belegt weder lückenlose Erfassung noch den aktuellen
+Gastzustand oder die vollständige D1-Stabilität. Kein Gastzustand wurde für
+diese Auswertung verändert; alle D1–D7-Kriterien bleiben offen.
+
+Lokale Belege unter `out/phase1-dod/terminal-a76c71bc/`:
+
+| Beleg | SHA-256 |
+| --- | --- |
+| `terminal-regression/result.json` | `7dd9a724a0a0fc84e6a9330ad5d78b6f91a6775117092458adae45308c8305a6` |
+| `terminal-regression/initial-exit-observation.json` | `57662e03737345961bcddece5f95014e10a797892df45858405edac9b99ed957` |
+| `service-review-first-capture/audit.json` | `904a7daf83ed7971c2b8285a86974046ea54ea149999a59495a9fac6a22192ee` |
+| `service-review-first-capture/individual-review.json` | `c9ed9fb08e78ccdea994944d2bbdac6e6c608cd087b3782511afccd235a673b5` |
+
 ## T01: Terminal-Abbruch mit unvollständiger Passworteingabe
 
 Der Hosttest kompiliert die tatsächliche `terminal_jni.cpp` und
@@ -66,7 +124,8 @@ Benötigt werden Linux-PTYs, ein C++-Compiler und eine Host-C-Bibliothek mit
 `memset_explicit`. Ohne JDK meldet die Suite einen Skip; ein Skip zählt nicht
 als bestandener Nachweis. Die beobachtete erfolgreiche Ausführung verwendet
 den vorhandenen AOSP-JDK 21 und die Host-C-Bibliothek glibc 2.43.
-**Android-Build und Gastintegration der Korrektur stehen aus.** Die Hosttests
+**Der Android-Build ist inzwischen abgeschlossen; die vollständige
+Gastprüfung der Korrektur steht weiterhin aus.** Die Hosttests
 belegen weder vollständige Speicherbereinigung noch Binder-/Datei-/History-/
 Log-Offenlegungsfreiheit. T01 und die Gesamtfreigabe bleiben offen.
 
@@ -124,8 +183,8 @@ und `avb-checked.json`, SHA-256
 `24ca51a31c82d93434df4be8f29ee0b51f7b5edff70ddfdd64cb93a736082940`.
 AVB-Digest: `3d075e926764ce799ed5d23cc8b01fc518ef1069b71ec6621c0032e9189dbcd9`.
 Ein eigener Gaststart unter `aegis-qemu-a76c71bc-terminal-boot1.service` mit
-neuem Profilpaar ist angefordert und der Launcher läuft. **Bootabschluss,
-authentifiziertes ADB und Android-Terminaltest sind noch nicht bestätigt.**
+neuem Profilpaar ist erfolgt. **Bootabschluss und authentifiziertes ADB sind
+inzwischen bestätigt; der Android-Terminaltest bleibt unvollständig.**
 Die vorherigen Integrationsergebnisse werden nicht auf das neue Image übertragen.
 
 `scripts/build-terminal-input-probe.py` kompiliert außerdem ausschließlich die
@@ -139,8 +198,8 @@ Aus dem Snapshot von `a76c71b` ist der Helfer unter
 `1a5dbc2edb00bb0ed460928d87de16db231c44cbbd9a96fc055b2bed28ddb2a5`.
 `result.json` bindet Quellen, Werkzeuge und Aufrufe. Der Compiler meldet drei
 Hinweise zur künftig entfallenden Java-8-Zieloption, keine Kompilierungsfehler.
-**Installation, Ausführung und Bindung an die ausgelieferte Android-Bibliothek
-stehen aus.**
+**Installation und Bibliotheksbindung sind inzwischen bestätigt; der erste
+Testfall scheitert an der Terminalübergabe, wie oben dokumentiert.**
 
 Der vorbereitete Gastprüfer `scripts/qemu-terminal-input-test.py` bindet das
 Profil an die vorbereitete Disk, den AVB-Digest an den Image-Commit und die
@@ -154,9 +213,9 @@ eigenen Prüfer-Kindprozess nach PID-/Startzeit-/Eltern-/UID-/Argumentprüfung.
 Der Folgeleser muss nach dem Abbruch exakt `AFTER` erhalten; Terminalzustand
 und fehlendes Eingabe-Echo werden ebenfalls geprüft. Ergebnis und Transkript
 bleiben pro Fall erhalten, ein Fehler beendet die Reihe.
-**Syntaxprüfung bestanden; Android-Ausführung weiterhin ausstehend.** Der
-ursprüngliche neue Gaststart und ADB-Beobachter laufen weiter; ein Timeout
-allein ist kein Anlass für einen Neustart.
+**Die erste Android-Ausführung ist unvollständig fehlgeschlagen.** Die
+anschließende PTY-Korrektur ist nur syntaxgeprüft; kein Test wurde wiederholt.
+Der ursprüngliche ADB-Beobachter hat erfolgreich abgeschlossen.
 
 ```sh
 python3 scripts/build-terminal-input-probe.py --project /pfad/zum/commit-snapshot \

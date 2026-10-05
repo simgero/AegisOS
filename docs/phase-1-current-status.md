@@ -43,8 +43,11 @@ Sieben Hosttests bestehen nach der Korrektur, einschließlich Restpufferprüfung
 für alle fünf bereits unterstützten Signale. Der frühere fehlgeschlagene Test
 bleibt erhalten. Das neue Android-Image `a76c71b` ist gebaut, die Korrektur
 direkt in `super.img` nachgewiesen und ein eigener erster Boot gestartet.
-Bootabschluss und Android-Integrationsprüfung stehen aus. Der Befund erklärt nicht die
-Plattform-Security-Meldung. Vollständiger Passwortaudit, T01 und D1–D7 bleiben
+Bootabschluss und authentifiziertes ADB sind inzwischen belegt. Die erste
+Android-Terminalprüfung scheitert jedoch vor der Eingabe an der Testvoraussetzung
+„Missing test PTY“. Die korrigierte Terminalübergabe ist nur syntaxgeprüft und
+wurde nach der erneut gemeldeten Security-Unterbrechung nicht ausgeführt.
+Der lokale Testfehler erklärt nicht die Plattform-Security-Meldung. Vollständiger Passwortaudit, T01 und D1–D7 bleiben
 offen; Details stehen im [Ergebnisindex](phase-1-result-index.md).
 
 Der reguläre Android-Build von Commit `a76c71b` wurde gestartet, aber vor
@@ -58,9 +61,28 @@ heruntergefahren. Profil und Originaltreiber bleiben erhalten. Dadurch stieg
 der verfügbare Speicher auf 51,6 GiB; der zweite Buildversuch besteht die
 unveränderte Vorprüfung und endet mit `LOCAL_BUILD_VERIFIED`. Alle 20 Images,
 AVB und die neue QEMU-Disk sind geprüft. Der separate öffentliche Android-Terminal-
-Prüfhelfer ist kompiliert, aber noch nicht installiert oder ausgeführt.
+Prüfhelfer wurde mit der unveränderten ausgelieferten JNI-Bibliothek gestartet;
+der erste Fall bleibt unvollständig, seine temporäre Datei ist entfernt.
 Die folgende T01–T17-Matrix bleibt ausdrücklich dem bisherigen `cacbf0d`-Lauf
 zugeordnet; sie ist keine Abnahme des neuen Images.
+
+## Neuer Boot a76c71bc: begrenzter Dienstbefund
+
+Die vorhandenen Protokolle sind als neue lokale Momentaufnahme ausgewertet;
+es wurden keine Gastbefehle oder Testwiederholungen ausgeführt. Der Mitschnitt
+enthält einen SystemServer-Start (PID 1410), neun Signalbeendigungen mit jeweils
+vorhergehender Init-Steuerung und zwei nichtnullige frühe Helferrückgaben.
+`system_aconfigd_mainline_init=1` ist durch die konkrete Skip-Meldung und den
+quellgebundenen Übergabepfad erklärt; der nachfolgende Mainline-Helfer endet
+mit 0. `recovery-refresh=254` korreliert mit dem protokollierten pmsg-Lesefehler;
+dessen konkrete Ursache bleibt für diesen Boot offen. Der einzige erfasste
+Java-Fatal-Marker stammt vom Terminal-Testhelfer, nicht vom SystemServer.
+Eine Zeitstempelinversion von 99 Mikrosekunden betrifft verschiedene Threads
+und belegt allein keinen Uhr- oder Framework-Neustart.
+
+Der unveränderte Offline-Prüfer meldet weiterhin `REVIEW_REQUIRED`. Dies ist
+keine vollständige D1-Abnahme und keine Übernahme der älteren T02-/T03-Ergebnisse.
+Belegpfade und Prüfsummen stehen im [Ergebnisindex](phase-1-result-index.md).
 
 ## Aktuelles Image cacbf0d: vollständige Restmatrix
 

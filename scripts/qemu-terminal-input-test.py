@@ -121,8 +121,11 @@ def main():
         for index, (scenario, interrupt) in enumerate(cases):
             token = "__AEGIS_TERMINAL_" + uuid.uuid4().hex
             wrapper = (
-                "stty echo echonl icanon isig; before=$(stty -g); "
-                + invocation + " " + scenario + " <&0 & child=$!; "
+                "test -t 0 && test -t 1 || exit 90; "
+                "stty echo echonl icanon isig; before=$(stty -g); exec 3<&0; "
+                # mksh redirects background stdin to /dev/null before applying
+                # the command's redirections. Preserve the parent's PTY first.
+                + invocation + " " + scenario + " <&3 3<&- & child=$!; exec 3<&-; "
                 + "printf '\\n" + token + "_PID:%s:%s\\n' \"$$\" \"$child\"; "
                 + "wait \"$child\"; rc=$?; after=$(stty -g); "
                 + "test \"$before\" = \"$after\" || exit 91; "
