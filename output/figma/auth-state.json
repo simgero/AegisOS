@@ -1,0 +1,121 @@
+{
+  "runId": "welcome-login-20261004",
+  "fileKey": "4R1EFUDlQC38OPNTUx51VE",
+  "scope": "Welcome, password login and multiuser native Figma prototype",
+  "discovery": {
+    "codeConnect": "No mappings in repository",
+    "local": "Manrope, Heroicons, semantic variables, wallpaper and shell reused",
+    "libraries": "Search found general libraries with unrelated tokens; build small compatible Auth family on local Aegis tokens"
+  },
+  "devices": [
+    "Desktop 1584×992",
+    "Tablet 1200×840",
+    "Handy 408×880"
+  ],
+  "states": [
+    "welcome",
+    "profile",
+    "password",
+    "ready",
+    "first_login",
+    "users",
+    "login_simeon",
+    "login_maya",
+    "error",
+    "throttled",
+    "account_single",
+    "admin",
+    "new_user",
+    "added",
+    "accounts",
+    "maya_session",
+    "locked"
+  ],
+  "acceptance": [
+    "Editable layers and reusable component instances",
+    "All three devices",
+    "Local passwords, first admin, separate initial login",
+    "Admin reauthentication before creating user",
+    "No guest, biometric, cloud or recovery promises",
+    "8px grid plus 2/4px exceptions",
+    "No app content behind unauthenticated surfaces",
+    "Prototype links and visual review"
+  ],
+  "status": "complete",
+  "pages": {
+    "desktop": "136:700",
+    "tablet": "136:701",
+    "phone": "136:702"
+  },
+  "entryScreens": {
+    "desktop": "138:700",
+    "tablet": "138:717",
+    "phone": "138:734"
+  },
+  "flow": [
+    "welcome",
+    "profile",
+    "password",
+    "ready",
+    "first_login",
+    "account_single",
+    "new_user",
+    "admin",
+    "added",
+    "accounts",
+    "users",
+    "login_maya",
+    "maya_session"
+  ],
+  "counts": {
+    "screens": 51,
+    "links": 96,
+    "authComponentVariants": 13,
+    "avatarComponents": 2
+  },
+  "validation": "PASS: 51 native editable screens; 96 valid navigation links; no content overflows, raster violations or leftover placeholders. All17 desktop panels and17 phone screens visually reviewed; shared tablet panel geometry and tablet shell reviewed. Latest affected states rechecked after fixes.",
+  "prototype": "Clickable example states with prefilled demonstration data; no live account operations.",
+  "loginRevision": {
+    "style": "Compact profile and password directly on softened wallpaper; no window, sidebar, app header or explanatory copy",
+    "screens": 21,
+    "devices": [
+      "desktop",
+      "tablet",
+      "phone"
+    ],
+    "ledger": "minimal-login-ledger.json",
+    "audit": "minimal-login-audit.json",
+    "components": "minimal-login-components.json",
+    "status": "complete",
+    "validation": "21 screens: no overflows, invalid links, window/sidebar remnants. Desktop login, picker and error reviewed; all7 phone states and tablet example visually passed."
+  },
+  "wizardRevision": {
+    "style": "Essential labels and actions; no marketing paragraphs or redundant explanations",
+    "date": "2026-10-05",
+    "screens": 12,
+    "devices": [
+      "desktop",
+      "tablet",
+      "phone"
+    ],
+    "titles": [
+      "Willkommen",
+      "Profil",
+      "Passwort festlegen",
+      "Konto bereit"
+    ],
+    "preserved": [
+      "Administrator role",
+      "Password confirmation",
+      "Setup progress",
+      "Separate login",
+      "Prototype links"
+    ],
+    "desktopTabletPanel": "800×560",
+    "phone": "Full screen",
+    "ledger": "minimal-wizard-ledger.json",
+    "audit": "minimal-wizard-audit.json",
+    "status": "complete",
+    "validation": "12 screens: no overflows; all 18 navigation links preserved and valid. All four desktop panels and four phone screens visually passed; tablet shell visually passed."
+  }
+}

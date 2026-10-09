@@ -1,0 +1,797 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/p9pjlq",
+    "id": "p9pjlq",
+    "slide": 3,
+    "layoutId": "dc383008-0646-47da-938e-15fb66a57b24",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "4ab8b9b1-0f8e-41e4-8e92-18e25668556a",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#161B22",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Rubik"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "dc383008-0646-47da-938e-15fb66a57b24",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "4ab8b9b1-0f8e-41e4-8e92-18e25668556a",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "4ab8b9b1-0f8e-41e4-8e92-18e25668556a",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ob214vmh",
+      "id": "1",
+      "bbox": [
+        64,
+        39,
+        280,
+        32
+      ],
+      "geometry": "rect",
+      "text": "AEGIS OS",
+      "textPreview": "AEGIS OS",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "fontSize": 21,
+        "typeface": "Rubik",
+        "color": "#F6F7F9",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "AEGIS OS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "AEGIS OS",
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Rubik",
+            "color": "#F6F7F9",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "AEGIS OS",
+              "fontSize": 21,
+              "typeface": "Rubik",
+              "color": "#F6F7F9",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/nat0bq5w",
+      "id": "2",
+      "bbox": [
+        700,
+        41,
+        516,
+        28
+      ],
+      "geometry": "rect",
+      "text": "Geplante Architektur",
+      "textPreview": "Geplante Architektur",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#B9C1C9",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Geplante Architektur"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Geplante Architektur",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#B9C1C9",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Geplante Architektur",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#B9C1C9",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/29kz2l4b",
+      "id": "3",
+      "bbox": [
+        1146,
+        661,
+        70,
+        26
+      ],
+      "geometry": "rect",
+      "text": "03",
+      "textPreview": "03",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#B9C1C9",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "03"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "03",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#B9C1C9",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "03",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#B9C1C9",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/18bi9gnq",
+      "id": "4",
+      "bbox": [
+        64,
+        118,
+        1152,
+        151
+      ],
+      "geometry": "rect",
+      "text": "Ein Betriebssystem\nEin gemeinsamer Kernel",
+      "textPreview": "Ein Betriebssystem | Ein gemeinsamer Kernel",
+      "resolvedFontSize": 60,
+      "resolvedTextStyle": {
+        "fontSize": 60,
+        "typeface": "Rubik",
+        "color": "#F6F7F9",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Ein Betriebssystem"
+          },
+          {
+            "index": 2,
+            "text": "Ein gemeinsamer Kernel"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Ein Betriebssystem",
+          "lineSpacingPercent": 100000,
+          "resolvedTextStyle": {
+            "fontSize": 60,
+            "typeface": "Rubik",
+            "color": "#F6F7F9",
+            "bold": true,
+            "lineSpacing": 1
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Ein Betriebssystem",
+              "fontSize": 60,
+              "typeface": "Rubik",
+              "color": "#F6F7F9",
+              "bold": true,
+              "lineSpacing": 1
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "Ein gemeinsamer Kernel",
+          "lineSpacingPercent": 100000,
+          "resolvedTextStyle": {
+            "fontSize": 60,
+            "typeface": "Rubik",
+            "color": "#F6F7F9",
+            "bold": true,
+            "lineSpacing": 1
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Ein gemeinsamer Kernel",
+              "fontSize": 60,
+              "typeface": "Rubik",
+              "color": "#F6F7F9",
+              "bold": true,
+              "lineSpacing": 1
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/072h0vm5",
+      "id": "5",
+      "bbox": [
+        68,
+        317,
+        493,
+        57
+      ],
+      "geometry": "rect",
+      "text": "Android",
+      "textPreview": "Android",
+      "resolvedFontSize": 43,
+      "resolvedTextStyle": {
+        "fontSize": 43,
+        "typeface": "Rubik",
+        "color": "#F6F7F9",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Android"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Android",
+          "resolvedTextStyle": {
+            "fontSize": 43,
+            "typeface": "Rubik",
+            "color": "#F6F7F9",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Android",
+              "fontSize": 43,
+              "typeface": "Rubik",
+              "color": "#F6F7F9",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/f6t07q5k",
+      "id": "6",
+      "bbox": [
+        68,
+        389,
+        500,
+        44
+      ],
+      "geometry": "rect",
+      "text": "Apps und Android-Framework",
+      "textPreview": "Apps und Android-Framework",
+      "resolvedFontSize": 27,
+      "resolvedTextStyle": {
+        "fontSize": 27,
+        "typeface": "Rubik",
+        "color": "#B9C1C9",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Apps und Android-Framework"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Apps und Android-Framework",
+          "resolvedTextStyle": {
+            "fontSize": 27,
+            "typeface": "Rubik",
+            "color": "#B9C1C9"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Apps und Android-Framework",
+              "fontSize": 27,
+              "typeface": "Rubik",
+              "color": "#B9C1C9"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/e50zyl4f",
+      "id": "7",
+      "bbox": [
+        703,
+        317,
+        513,
+        57
+      ],
+      "geometry": "rect",
+      "text": "GNU/Linux",
+      "textPreview": "GNU/Linux",
+      "resolvedFontSize": 43,
+      "resolvedTextStyle": {
+        "fontSize": 43,
+        "typeface": "Rubik",
+        "color": "#F6F7F9",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "GNU/Linux"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "GNU/Linux",
+          "resolvedTextStyle": {
+            "fontSize": 43,
+            "typeface": "Rubik",
+            "color": "#F6F7F9",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "GNU/Linux",
+              "fontSize": 43,
+              "typeface": "Rubik",
+              "color": "#F6F7F9",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/l4vilknu",
+      "id": "8",
+      "bbox": [
+        703,
+        389,
+        513,
+        77
+      ],
+      "geometry": "rect",
+      "text": "Debian-Userspace in isolierten Kontexten",
+      "textPreview": "Debian-Userspace in isolierten Kontexten",
+      "resolvedFontSize": 26,
+      "resolvedTextStyle": {
+        "fontSize": 26,
+        "typeface": "Rubik",
+        "color": "#B9C1C9",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Debian-Userspace in isolierten Kontexten"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Debian-Userspace in isolierten Kontexten",
+          "resolvedTextStyle": {
+            "fontSize": 26,
+            "typeface": "Rubik",
+            "color": "#B9C1C9"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Debian-Userspace in isolierten Kontexten",
+              "fontSize": 26,
+              "typeface": "Rubik",
+              "color": "#B9C1C9"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/k3m1cfmp",
+      "id": "9",
+      "bbox": [
+        68,
+        487,
+        1134,
+        49
+      ],
+      "geometry": "rect",
+      "text": "AOSP verwaltet Anmeldung, Rechte und persönlichen Speicher.",
+      "textPreview": "AOSP verwaltet Anmeldung, Rechte und persönlichen Speicher.",
+      "resolvedFontSize": 30,
+      "resolvedTextStyle": {
+        "fontSize": 30,
+        "typeface": "Rubik",
+        "color": "#F6F7F9",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "AOSP verwaltet Anmeldung, Rechte und persönlichen Speicher."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "AOSP verwaltet Anmeldung, Rechte und persönlichen Speicher.",
+          "resolvedTextStyle": {
+            "fontSize": 30,
+            "typeface": "Rubik",
+            "color": "#F6F7F9"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "AOSP verwaltet Anmeldung, Rechte und persönlichen Speicher.",
+              "fontSize": 30,
+              "typeface": "Rubik",
+              "color": "#F6F7F9"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/i14rqtoz",
+      "id": "10",
+      "bbox": [
+        68,
+        554,
+        820,
+        73
+      ],
+      "geometry": "rect",
+      "text": "Linux-Kernel",
+      "textPreview": "Linux-Kernel",
+      "resolvedFontSize": 57,
+      "resolvedTextStyle": {
+        "fontSize": 57,
+        "typeface": "Rubik",
+        "color": "#C4F15A",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Linux-Kernel"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Linux-Kernel",
+          "resolvedTextStyle": {
+            "fontSize": 57,
+            "typeface": "Rubik",
+            "color": "#C4F15A",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Linux-Kernel",
+              "fontSize": 57,
+              "typeface": "Rubik",
+              "color": "#C4F15A",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/32xszepk",
+      "id": "11",
+      "bbox": [
+        68,
+        646,
+        1080,
+        38
+      ],
+      "geometry": "rect",
+      "text": "Die GNU-Runtime nutzt den AOSP-Kernel. Eine zusätzliche Linux-VM ist nicht vorgesehen.",
+      "textPreview": "Die GNU-Runtime nutzt den AOSP-Kernel. Eine zusätzliche Linux-VM ist nicht vorgesehen.",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "Rubik",
+        "color": "#B9C1C9",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Die GNU-Runtime nutzt den AOSP-Kernel. Eine zusätzliche Linux-VM ist nicht vorgesehen."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Die GNU-Runtime nutzt den AOSP-Kernel. Eine zusätzliche Linux-VM ist nicht vorgesehen.",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "typeface": "Rubik",
+            "color": "#B9C1C9"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Die GNU-Runtime nutzt den AOSP-Kernel. Eine zusätzliche Linux-VM ist nicht vorgesehen.",
+              "fontSize": 20,
+              "typeface": "Rubik",
+              "color": "#B9C1C9"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

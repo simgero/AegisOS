@@ -1,0 +1,11 @@
+{
+  "name": "Aegis OS",
+  "colors": {
+    "graphite": "#090B10",
+    "paper": "#F5F7FA",
+    "electric": "#526EFF",
+    "muted": "#A5ACBA"
+  },
+  "font": "Arial, Helvetica, sans-serif",
+  "tagline": "Dein Leben. Deine Daten. Dein Aegis."
+}

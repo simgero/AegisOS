@@ -1,0 +1,19 @@
+{
+  "errors": [],
+  "overflow": [],
+  "assets": [
+    {
+      "src": "assets/aegis-shield.png",
+      "ok": true
+    },
+    {
+      "src": "assets/wallpaper.png",
+      "ok": true
+    },
+    {
+      "src": "assets/aegis-shield.png",
+      "ok": true
+    }
+  ],
+  "badLinks": []
+}

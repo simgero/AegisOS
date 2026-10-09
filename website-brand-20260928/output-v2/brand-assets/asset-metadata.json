@@ -1,0 +1,20 @@
+{
+  "wallpaper.png": {
+    "path": "/Users/simeongerodetti/AegisOS/website-brand-20260928/output-v2/brand-assets/wallpaper.png",
+    "width": 1672,
+    "height": 941,
+    "bit_depth": 8,
+    "color_type": 2
+  },
+  "aegis-symbol.png": {
+    "path": "/Users/simeongerodetti/AegisOS/website-brand-20260928/output-v2/brand-assets/aegis-symbol.png",
+    "width": 1254,
+    "height": 1254,
+    "bit_depth": 8,
+    "color_type": 6,
+    "alpha_min": 0,
+    "alpha_max": 255,
+    "fully_transparent_pixels": 1189560,
+    "total_pixels": 1572516
+  }
+}

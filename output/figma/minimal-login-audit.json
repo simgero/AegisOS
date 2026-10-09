@@ -1,0 +1,206 @@
+[
+  {
+    "device": "desktop",
+    "reports": [
+      {
+        "key": "first_login",
+        "id": "138:704",
+        "links": 1,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "users",
+        "id": "138:710",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "login_simeon",
+        "id": "138:711",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "login_maya",
+        "id": "138:712",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "locked",
+        "id": "138:714",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "error",
+        "id": "138:715",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "throttled",
+        "id": "138:716",
+        "links": 1,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      }
+    ]
+  },
+  {
+    "device": "tablet",
+    "reports": [
+      {
+        "key": "first_login",
+        "id": "138:721",
+        "links": 1,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "users",
+        "id": "138:727",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "login_simeon",
+        "id": "138:728",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "login_maya",
+        "id": "138:729",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "locked",
+        "id": "138:731",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "error",
+        "id": "138:732",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "throttled",
+        "id": "138:733",
+        "links": 1,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      }
+    ]
+  },
+  {
+    "device": "phone",
+    "reports": [
+      {
+        "key": "first_login",
+        "id": "138:738",
+        "links": 1,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "users",
+        "id": "138:744",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "login_simeon",
+        "id": "138:745",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "login_maya",
+        "id": "138:746",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "locked",
+        "id": "138:748",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "error",
+        "id": "138:749",
+        "links": 2,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      },
+      {
+        "key": "throttled",
+        "id": "138:750",
+        "links": 1,
+        "overflow": [],
+        "badLinks": [],
+        "hasWindow": false,
+        "hasAppHeader": false
+      }
+    ]
+  }
+]

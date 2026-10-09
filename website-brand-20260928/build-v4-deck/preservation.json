@@ -1,0 +1,11 @@
+{
+  "sourcePath": "/Users/simeongerodetti/AegisOS/website-brand-20260928/output-v3/Aegis-OS-Praesentation.pptx",
+  "finalPath": "/Users/simeongerodetti/AegisOS/website-brand-20260928/output-v4/Aegis-OS-Praesentation.pptx",
+  "changedEntries": [
+    "ppt/media/image2.png"
+  ],
+  "replacementSha256": "6a7b4a3cd4e75b69db15227f4d46fa6c711f1764074aa1957b9fd76eb0815cc2",
+  "preservedEntryCount": 52,
+  "sourceSha256": "cd943c040ec9902212c4971651764703da0dbb1ee5fb72df0795e204283e44f8",
+  "finalSha256": "8495105229b80bc12a3a824f5b7675e172ddbc81879af0a97a1c17eca3746e55"
+}

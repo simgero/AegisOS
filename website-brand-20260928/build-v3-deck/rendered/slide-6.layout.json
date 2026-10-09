@@ -1,0 +1,992 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/21tyou",
+    "id": "21tyou",
+    "slide": 6,
+    "layoutId": "d19ca93a-ad95-490d-9ff9-fc43be54e17a",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "b9b7fd88-9138-4500-a2e8-3eca0b47e7a5",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#C4F15A",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Rubik"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "d19ca93a-ad95-490d-9ff9-fc43be54e17a",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "b9b7fd88-9138-4500-a2e8-3eca0b47e7a5",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "b9b7fd88-9138-4500-a2e8-3eca0b47e7a5",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/876xcr2t",
+      "id": "1",
+      "bbox": [
+        64,
+        39,
+        280,
+        32
+      ],
+      "geometry": "rect",
+      "text": "AEGIS OS",
+      "textPreview": "AEGIS OS",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "fontSize": 21,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "AEGIS OS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "AEGIS OS",
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "AEGIS OS",
+              "fontSize": 21,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/76xw36l8",
+      "id": "2",
+      "bbox": [
+        700,
+        41,
+        516,
+        28
+      ],
+      "geometry": "rect",
+      "text": "Nächster Integrationsnachweis",
+      "textPreview": "Nächster Integrationsnachweis",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Nächster Integrationsnachweis"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Nächster Integrationsnachweis",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Nächster Integrationsnachweis",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/m54fa1kn",
+      "id": "3",
+      "bbox": [
+        1146,
+        661,
+        70,
+        26
+      ],
+      "geometry": "rect",
+      "text": "06",
+      "textPreview": "06",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "06"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "06",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "06",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/l4ve1w32",
+      "id": "4",
+      "bbox": [
+        64,
+        117,
+        1152,
+        149
+      ],
+      "geometry": "rect",
+      "text": "Nächster Nachweis:\nGNU/Linux im AOSP-Gast",
+      "textPreview": "Nächster Nachweis: | GNU/Linux im AOSP-Gast",
+      "resolvedFontSize": 60,
+      "resolvedTextStyle": {
+        "fontSize": 60,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Nächster Nachweis:"
+          },
+          {
+            "index": 2,
+            "text": "GNU/Linux im AOSP-Gast"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Nächster Nachweis:",
+          "lineSpacingPercent": 100000,
+          "resolvedTextStyle": {
+            "fontSize": 60,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true,
+            "lineSpacing": 1
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Nächster Nachweis:",
+              "fontSize": 60,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true,
+              "lineSpacing": 1
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "GNU/Linux im AOSP-Gast",
+          "lineSpacingPercent": 100000,
+          "resolvedTextStyle": {
+            "fontSize": 60,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true,
+            "lineSpacing": 1
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "GNU/Linux im AOSP-Gast",
+              "fontSize": 60,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true,
+              "lineSpacing": 1
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/k3mx8r2h",
+      "id": "5",
+      "bbox": [
+        68,
+        324,
+        70,
+        45
+      ],
+      "geometry": "rect",
+      "text": "01",
+      "textPreview": "01",
+      "resolvedFontSize": 25,
+      "resolvedTextStyle": {
+        "fontSize": 25,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "01"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "01",
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "01",
+              "fontSize": 25,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/z2dwzmlw",
+      "id": "6",
+      "bbox": [
+        180,
+        324,
+        995,
+        44
+      ],
+      "geometry": "rect",
+      "text": "Kernel integrieren",
+      "textPreview": "Kernel integrieren",
+      "resolvedFontSize": 31,
+      "resolvedTextStyle": {
+        "fontSize": 31,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Kernel integrieren"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Kernel integrieren",
+          "resolvedTextStyle": {
+            "fontSize": 31,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Kernel integrieren",
+              "fontSize": 31,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/y14f6hkr",
+      "id": "7",
+      "bbox": [
+        180,
+        367,
+        1005,
+        39
+      ],
+      "geometry": "rect",
+      "text": "User-, PID-, Mount- und IPC-Isolation im Gast prüfen.",
+      "textPreview": "User-, PID-, Mount- und IPC-Isolation im Gast prüfen.",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "User-, PID-, Mount- und IPC-Isolation im Gast prüfen."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "User-, PID-, Mount- und IPC-Isolation im Gast prüfen.",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "typeface": "Rubik",
+            "color": "#161B22"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "User-, PID-, Mount- und IPC-Isolation im Gast prüfen.",
+              "fontSize": 24,
+              "typeface": "Rubik",
+              "color": "#161B22"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/50zydg3m",
+      "id": "8",
+      "bbox": [
+        68,
+        423,
+        70,
+        45
+      ],
+      "geometry": "rect",
+      "text": "02",
+      "textPreview": "02",
+      "resolvedFontSize": 25,
+      "resolvedTextStyle": {
+        "fontSize": 25,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "02"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "02",
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "02",
+              "fontSize": 25,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4zqxkb21",
+      "id": "9",
+      "bbox": [
+        180,
+        423,
+        995,
+        44
+      ],
+      "geometry": "rect",
+      "text": "Runtime anbinden",
+      "textPreview": "Runtime anbinden",
+      "resolvedFontSize": 31,
+      "resolvedTextStyle": {
+        "fontSize": 31,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Runtime anbinden"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Runtime anbinden",
+          "resolvedTextStyle": {
+            "fontSize": 31,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Runtime anbinden",
+              "fontSize": 31,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/mlwzexwf",
+      "id": "10",
+      "bbox": [
+        180,
+        466,
+        1005,
+        39
+      ],
+      "geometry": "rect",
+      "text": "AOSP-Identität, persönliche Mounts und SELinux zusammenführen.",
+      "textPreview": "AOSP-Identität, persönliche Mounts und SELinux zusammenführen.",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "AOSP-Identität, persönliche Mounts und SELinux zusammenführen."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "AOSP-Identität, persönliche Mounts und SELinux zusammenführen.",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "typeface": "Rubik",
+            "color": "#161B22"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "AOSP-Identität, persönliche Mounts und SELinux zusammenführen.",
+              "fontSize": 24,
+              "typeface": "Rubik",
+              "color": "#161B22"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/nm50n2d0",
+      "id": "11",
+      "bbox": [
+        68,
+        522,
+        70,
+        45
+      ],
+      "geometry": "rect",
+      "text": "03",
+      "textPreview": "03",
+      "resolvedFontSize": 25,
+      "resolvedTextStyle": {
+        "fontSize": 25,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "03"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "03",
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "03",
+              "fontSize": 25,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ony1g7el",
+      "id": "12",
+      "bbox": [
+        180,
+        522,
+        995,
+        44
+      ],
+      "geometry": "rect",
+      "text": "Den Ablauf belegen",
+      "textPreview": "Den Ablauf belegen",
+      "resolvedFontSize": 31,
+      "resolvedTextStyle": {
+        "fontSize": 31,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Den Ablauf belegen"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Den Ablauf belegen",
+          "resolvedTextStyle": {
+            "fontSize": 31,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Den Ablauf belegen",
+              "fontSize": 31,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/9o7ipcv6",
+      "id": "13",
+      "bbox": [
+        180,
+        565,
+        1005,
+        39
+      ],
+      "geometry": "rect",
+      "text": "Bash ausführen, Daten nach Neustart erhalten und Logout bestätigen.",
+      "textPreview": "Bash ausführen, Daten nach Neustart erhalten und Logout bestätigen.",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Bash ausführen, Daten nach Neustart erhalten und Logout bestätigen."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Bash ausführen, Daten nach Neustart erhalten und Logout bestätigen.",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "typeface": "Rubik",
+            "color": "#161B22"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Bash ausführen, Daten nach Neustart erhalten und Logout bestätigen.",
+              "fontSize": 24,
+              "typeface": "Rubik",
+              "color": "#161B22"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/exwzaxw3",
+      "id": "14",
+      "bbox": [
+        68,
+        650,
+        1100,
+        35
+      ],
+      "geometry": "rect",
+      "text": "Anschließend: Paketbereiche und Isolation mit zwei AOSP-Benutzern praktisch nachweisen.",
+      "textPreview": "Anschließend: Paketbereiche und Isolation mit zwei AOSP-Benutzern praktisch nachweisen.",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Anschließend: Paketbereiche und Isolation mit zwei AOSP-Benutzern praktisch nachweisen."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Anschließend: Paketbereiche und Isolation mit zwei AOSP-Benutzern praktisch nachweisen.",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "typeface": "Rubik",
+            "color": "#161B22"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Anschließend: Paketbereiche und Isolation mit zwei AOSP-Benutzern praktisch nachweisen.",
+              "fontSize": 20,
+              "typeface": "Rubik",
+              "color": "#161B22"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"createdNodeIds\":[\"70:1004\",\"70:1003\",\"70:1005\"],\"mutatedNodeIds\":[\"60:957\",\"60:960\",\"60:1004\",\"60:847\",\"60:846\",\"60:757\"],\"gestureComponentId\":\"70:1004\",\"components\":[{\"id\":\"60:957\",\"name\":\"Settings overview / Mobile\",\"w\":408,\"h\":792,\"padding\":[24,24,24,24],\"corners\":[0,0,0,0]},{\"id\":\"60:846\",\"name\":\"Privacy content / Mobile\",\"w\":408,\"h\":760,\"padding\":[0,0,0,0],\"corners\":[0,0,0,0]},{\"id\":\"60:757\",\"name\":\"App drawer / Bottom\",\"w\":408,\"h\":576,\"padding\":[24,32,48,32],\"corners\":[24,24,0,0]}]}"
+    }
+  ],
+  "isError": false
+}

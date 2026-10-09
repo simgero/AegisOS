@@ -1,0 +1,165 @@
+{
+  "fileKey": "4R1EFUDlQC38OPNTUx51VE",
+  "pageId": "61:701",
+  "pageName": "03 · Tablet & Handy",
+  "status": "complete",
+  "screens": [
+    {
+      "id": "61:702",
+      "name": "Tablet · App-Leiste",
+      "width": 1200,
+      "height": 840,
+      "intentionalScroll": [],
+      "links": [
+        {
+          "id": "I62:1584;4:229",
+          "to": "61:703"
+        }
+      ]
+    },
+    {
+      "id": "61:703",
+      "name": "Tablet · App-Drawer",
+      "width": 1200,
+      "height": 840,
+      "intentionalScroll": [],
+      "links": [
+        {
+          "id": "I62:1771;65:973",
+          "to": "61:702"
+        },
+        {
+          "id": "I62:1771;65:1011",
+          "to": "61:702"
+        }
+      ]
+    },
+    {
+      "id": "61:704",
+      "name": "Handy · Einstellungen",
+      "width": 408,
+      "height": 880,
+      "intentionalScroll": [],
+      "links": [
+        {
+          "id": "I62:1859;60:971",
+          "to": "61:705"
+        },
+        {
+          "id": "I62:1906;60:734",
+          "to": "64:2067"
+        }
+      ]
+    },
+    {
+      "id": "61:705",
+      "name": "Handy · Privatsphäre",
+      "width": 408,
+      "height": 880,
+      "intentionalScroll": [
+        {
+          "id": "62:1947",
+          "viewport": 672,
+          "content": 760
+        }
+      ],
+      "links": [
+        {
+          "id": "62:1941",
+          "to": "61:704"
+        },
+        {
+          "id": "I62:2104;60:734",
+          "to": "61:706"
+        },
+        {
+          "id": "I62:2104;60:740",
+          "to": "61:704"
+        }
+      ]
+    },
+    {
+      "id": "61:706",
+      "name": "Handy · App-Drawer",
+      "width": 408,
+      "height": 880,
+      "intentionalScroll": [
+        {
+          "id": "64:1947",
+          "viewport": 672,
+          "content": 760
+        }
+      ],
+      "links": [
+        {
+          "id": "62:2138",
+          "to": "BACK"
+        },
+        {
+          "id": "I62:2140;60:760",
+          "to": "BACK"
+        },
+        {
+          "id": "I62:2140;60:798",
+          "to": "61:704"
+        }
+      ]
+    },
+    {
+      "id": "64:2067",
+      "name": "Handy · App-Drawer · Einstellungen",
+      "width": 408,
+      "height": 880,
+      "intentionalScroll": [],
+      "links": [
+        {
+          "id": "64:2146",
+          "to": "BACK"
+        },
+        {
+          "id": "I64:2148;60:760",
+          "to": "BACK"
+        },
+        {
+          "id": "I64:2148;60:798",
+          "to": "61:704"
+        }
+      ]
+    }
+  ],
+  "components": {
+    "dock": "60:733",
+    "drawer": "60:757",
+    "recent": "60:838",
+    "privacy": "60:846",
+    "overview": "60:957",
+    "statusbar": "60:1007",
+    "tabletWindow": "63:1179",
+    "tabletDrawer": "65:970"
+  },
+  "validation": {
+    "visibleOverflowCount": 0,
+    "invalidLinkCount": 0,
+    "allPlaceholdersRemoved": true,
+    "phoneScroll": {
+      "viewport": 672,
+      "content": 760
+    },
+    "latestVisualCorrection": {
+      "mutatedNodeIds": [
+        "62:2138",
+        "64:2146"
+      ],
+      "opacity": 0.08
+    }
+  },
+  "artifacts": [
+    "tablet-closed.png",
+    "tablet-drawer.png",
+    "phone-settings.png",
+    "phone-privacy.png",
+    "phone-drawer.png",
+    "phone-drawer-settings.png"
+  ],
+  "unchanged": "Approved desktop screens and original main components"
+}

@@ -1,0 +1,806 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/xun8hp",
+    "id": "xun8hp",
+    "slide": 5,
+    "layoutId": "dc383008-0646-47da-938e-15fb66a57b24",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "4ab8b9b1-0f8e-41e4-8e92-18e25668556a",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#F6F7F9",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Rubik"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "dc383008-0646-47da-938e-15fb66a57b24",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "4ab8b9b1-0f8e-41e4-8e92-18e25668556a",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "4ab8b9b1-0f8e-41e4-8e92-18e25668556a",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/hs7adc72",
+      "id": "1",
+      "bbox": [
+        64,
+        39,
+        280,
+        32
+      ],
+      "geometry": "rect",
+      "text": "AEGIS OS",
+      "textPreview": "AEGIS OS",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "fontSize": 21,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "AEGIS OS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "AEGIS OS",
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "AEGIS OS",
+              "fontSize": 21,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/upgb2x8b",
+      "id": "2",
+      "bbox": [
+        700,
+        41,
+        516,
+        28
+      ],
+      "geometry": "rect",
+      "text": "Stand 28. September 2026",
+      "textPreview": "Stand 28. September 2026",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Stand 28. September 2026"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Stand 28. September 2026",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Stand 28. September 2026",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/vqpsb2pw",
+      "id": "3",
+      "bbox": [
+        1146,
+        661,
+        70,
+        26
+      ],
+      "geometry": "rect",
+      "text": "05",
+      "textPreview": "05",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "05"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "05",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "05",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/8ny90nql",
+      "id": "4",
+      "bbox": [
+        64,
+        124,
+        1152,
+        85
+      ],
+      "geometry": "rect",
+      "text": "Was heute belegt ist",
+      "textPreview": "Was heute belegt ist",
+      "resolvedFontSize": 61,
+      "resolvedTextStyle": {
+        "fontSize": 61,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Was heute belegt ist"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Was heute belegt ist",
+          "resolvedTextStyle": {
+            "fontSize": 61,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Was heute belegt ist",
+              "fontSize": 61,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "table",
+      "scope": "slide",
+      "aid": "tb/c72d8b29",
+      "id": "5",
+      "bbox": [
+        64,
+        264,
+        861,
+        345
+      ],
+      "text": "Nachgewiesen | Android bootet mit sichtbarer Oberfläche.\nAOSP-Passwort-, CE-Sperr- und Löschtests\nmit einem Testbenutzer.\nVorbereitet | Debian-13.7-Archiv: 78 Pakete geprüft.\nIdentitäts- und Runtime-Code im Quelltext,\nnoch nicht im Gast integriert.\nNoch offen | GNU-Ausführung und Systemintegration.\nPakete sowie der vollständige Nachweis\nmit zwei Benutzern.",
+      "textPreview": "Nachgewiesen | Android bootet mit sichtbarer Oberfläche. | AOSP-Passwort-, CE-Sperr- und Löschtests | mit einem Testbenutzer. | Vorbereit...",
+      "rows": 3,
+      "cols": 2,
+      "cells": [
+        {
+          "index": 1,
+          "row": 1,
+          "column": 1,
+          "bbox": [
+            64,
+            264,
+            203,
+            115
+          ],
+          "text": "Nachgewiesen",
+          "textPreview": "Nachgewiesen",
+          "fillColor": "#161B22",
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Nachgewiesen",
+              "resolvedTextStyle": {
+                "fontSize": 22,
+                "typeface": "Rubik",
+                "color": "#C4F15A",
+                "bold": true
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Nachgewiesen",
+                  "fontSize": 22,
+                  "typeface": "Rubik",
+                  "color": "#C4F15A",
+                  "bold": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "row": 1,
+          "column": 2,
+          "bbox": [
+            267,
+            264,
+            658,
+            115
+          ],
+          "text": "Android bootet mit sichtbarer Oberfläche.\nAOSP-Passwort-, CE-Sperr- und Löschtests\nmit einem Testbenutzer.",
+          "textPreview": "Android bootet mit sichtbarer Oberfläche. | AOSP-Passwort-, CE-Sperr- und Löschtests | mit einem Testbenutzer.",
+          "fillColor": "#F6F7F9",
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Android bootet mit sichtbarer Oberfläche.",
+              "resolvedTextStyle": {
+                "fontSize": 22.51,
+                "typeface": "Rubik",
+                "color": "#161B22"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Android bootet mit sichtbarer Oberfläche.",
+                  "fontSize": 22.51,
+                  "typeface": "Rubik",
+                  "color": "#161B22"
+                }
+              ]
+            },
+            {
+              "index": 2,
+              "text": "AOSP-Passwort-, CE-Sperr- und Löschtests",
+              "resolvedTextStyle": {
+                "fontSize": 22.51,
+                "typeface": "Rubik",
+                "color": "#161B22"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "AOSP-Passwort-, CE-Sperr- und Löschtests",
+                  "fontSize": 22.51,
+                  "typeface": "Rubik",
+                  "color": "#161B22"
+                }
+              ]
+            },
+            {
+              "index": 3,
+              "text": "mit einem Testbenutzer.",
+              "resolvedTextStyle": {
+                "fontSize": 22.51,
+                "typeface": "Rubik",
+                "color": "#161B22"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "mit einem Testbenutzer.",
+                  "fontSize": 22.51,
+                  "typeface": "Rubik",
+                  "color": "#161B22"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "row": 2,
+          "column": 1,
+          "bbox": [
+            64,
+            379,
+            203,
+            115
+          ],
+          "text": "Vorbereitet",
+          "textPreview": "Vorbereitet",
+          "fillColor": "#161B22",
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Vorbereitet",
+              "resolvedTextStyle": {
+                "fontSize": 22,
+                "typeface": "Rubik",
+                "color": "#F6F7F9",
+                "bold": true
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Vorbereitet",
+                  "fontSize": 22,
+                  "typeface": "Rubik",
+                  "color": "#F6F7F9",
+                  "bold": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "row": 2,
+          "column": 2,
+          "bbox": [
+            267,
+            379,
+            658,
+            115
+          ],
+          "text": "Debian-13.7-Archiv: 78 Pakete geprüft.\nIdentitäts- und Runtime-Code im Quelltext,\nnoch nicht im Gast integriert.",
+          "textPreview": "Debian-13.7-Archiv: 78 Pakete geprüft. | Identitäts- und Runtime-Code im Quelltext, | noch nicht im Gast integriert.",
+          "fillColor": "#F6F7F9",
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Debian-13.7-Archiv: 78 Pakete geprüft.",
+              "resolvedTextStyle": {
+                "fontSize": 22.51,
+                "typeface": "Rubik",
+                "color": "#161B22"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Debian-13.7-Archiv: 78 Pakete geprüft.",
+                  "fontSize": 22.51,
+                  "typeface": "Rubik",
+                  "color": "#161B22"
+                }
+              ]
+            },
+            {
+              "index": 2,
+              "text": "Identitäts- und Runtime-Code im Quelltext,",
+              "resolvedTextStyle": {
+                "fontSize": 22.51,
+                "typeface": "Rubik",
+                "color": "#161B22"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Identitäts- und Runtime-Code im Quelltext,",
+                  "fontSize": 22.51,
+                  "typeface": "Rubik",
+                  "color": "#161B22"
+                }
+              ]
+            },
+            {
+              "index": 3,
+              "text": "noch nicht im Gast integriert.",
+              "resolvedTextStyle": {
+                "fontSize": 22.51,
+                "typeface": "Rubik",
+                "color": "#161B22"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "noch nicht im Gast integriert.",
+                  "fontSize": 22.51,
+                  "typeface": "Rubik",
+                  "color": "#161B22"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "row": 3,
+          "column": 1,
+          "bbox": [
+            64,
+            494,
+            203,
+            115
+          ],
+          "text": "Noch offen",
+          "textPreview": "Noch offen",
+          "fillColor": "#161B22",
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Noch offen",
+              "resolvedTextStyle": {
+                "fontSize": 22,
+                "typeface": "Rubik",
+                "color": "#F6F7F9",
+                "bold": true
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Noch offen",
+                  "fontSize": 22,
+                  "typeface": "Rubik",
+                  "color": "#F6F7F9",
+                  "bold": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 6,
+          "row": 3,
+          "column": 2,
+          "bbox": [
+            267,
+            494,
+            658,
+            115
+          ],
+          "text": "GNU-Ausführung und Systemintegration.\nPakete sowie der vollständige Nachweis\nmit zwei Benutzern.",
+          "textPreview": "GNU-Ausführung und Systemintegration. | Pakete sowie der vollständige Nachweis | mit zwei Benutzern.",
+          "fillColor": "#F6F7F9",
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "GNU-Ausführung und Systemintegration.",
+              "resolvedTextStyle": {
+                "fontSize": 22.51,
+                "typeface": "Rubik",
+                "color": "#161B22"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "GNU-Ausführung und Systemintegration.",
+                  "fontSize": 22.51,
+                  "typeface": "Rubik",
+                  "color": "#161B22"
+                }
+              ]
+            },
+            {
+              "index": 2,
+              "text": "Pakete sowie der vollständige Nachweis",
+              "resolvedTextStyle": {
+                "fontSize": 22.51,
+                "typeface": "Rubik",
+                "color": "#161B22"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Pakete sowie der vollständige Nachweis",
+                  "fontSize": 22.51,
+                  "typeface": "Rubik",
+                  "color": "#161B22"
+                }
+              ]
+            },
+            {
+              "index": 3,
+              "text": "mit zwei Benutzern.",
+              "resolvedTextStyle": {
+                "fontSize": 22.51,
+                "typeface": "Rubik",
+                "color": "#161B22"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "mit zwei Benutzern.",
+                  "fontSize": 22.51,
+                  "typeface": "Rubik",
+                  "color": "#161B22"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/mlwryd8f",
+      "id": "6",
+      "bbox": [
+        68,
+        640,
+        850,
+        38
+      ],
+      "geometry": "rect",
+      "text": "GNU-Runtime noch nicht ausführbar. Neuer Code unkompiliert.",
+      "textPreview": "GNU-Runtime noch nicht ausführbar. Neuer Code unkompiliert.",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "GNU-Runtime noch nicht ausführbar. Neuer Code unkompiliert."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "GNU-Runtime noch nicht ausführbar. Neuer Code unkompiliert.",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "typeface": "Rubik",
+            "color": "#58616A"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "GNU-Runtime noch nicht ausführbar. Neuer Code unkompiliert.",
+              "fontSize": 20,
+              "typeface": "Rubik",
+              "color": "#58616A"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "image",
+      "scope": "slide",
+      "aid": "im/6tsjqtg3",
+      "id": "7",
+      "bbox": [
+        967,
+        234,
+        217,
+        386
+      ],
+      "contentType": "image/png",
+      "imageFit": "contain",
+      "asset": {
+        "assetId": "39a40816-f672-47aa-97d0-603113b7d104",
+        "contentType": "image/png",
+        "byteLength": 66506
+      }
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/kze9wnq9",
+      "id": "8",
+      "bbox": [
+        954,
+        633,
+        262,
+        27
+      ],
+      "geometry": "rect",
+      "text": "Realer AOSP-Gast in QEMU",
+      "textPreview": "Realer AOSP-Gast in QEMU",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "center",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Realer AOSP-Gast in QEMU"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Realer AOSP-Gast in QEMU",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Realer AOSP-Gast in QEMU",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

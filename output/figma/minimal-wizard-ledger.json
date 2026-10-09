@@ -1,0 +1,1899 @@
+{
+  "scope": "Minimal welcome wizard copy",
+  "at": "2026-10-05",
+  "devices": [
+    {
+      "key": "desktop",
+      "page": "136:700",
+      "states": [
+        {
+          "key": "welcome",
+          "id": "138:700"
+        },
+        {
+          "key": "profile",
+          "id": "138:701"
+        },
+        {
+          "key": "password",
+          "id": "138:702"
+        },
+        {
+          "key": "ready",
+          "id": "138:703"
+        }
+      ]
+    },
+    {
+      "key": "tablet",
+      "page": "136:701",
+      "states": [
+        {
+          "key": "welcome",
+          "id": "138:717"
+        },
+        {
+          "key": "profile",
+          "id": "138:718"
+        },
+        {
+          "key": "password",
+          "id": "138:719"
+        },
+        {
+          "key": "ready",
+          "id": "138:720"
+        }
+      ]
+    },
+    {
+      "key": "phone",
+      "page": "136:702",
+      "states": [
+        {
+          "key": "welcome",
+          "id": "138:734"
+        },
+        {
+          "key": "profile",
+          "id": "138:735"
+        },
+        {
+          "key": "password",
+          "id": "138:736"
+        },
+        {
+          "key": "ready",
+          "id": "138:737"
+        }
+      ]
+    }
+  ],
+  "edits": [
+    {
+      "device": "desktop",
+      "created": [],
+      "mutated": [
+        "139:739",
+        "139:738",
+        "139:713",
+        "139:721",
+        "139:719",
+        "139:712",
+        "139:736",
+        "139:737",
+        "139:741",
+        "138:700",
+        "139:804",
+        "139:803",
+        "139:778",
+        "139:786",
+        "139:784",
+        "139:777",
+        "139:801",
+        "139:802",
+        "139:809",
+        "139:818",
+        "139:817",
+        "139:813",
+        "138:701",
+        "139:806",
+        "139:867",
+        "139:866",
+        "139:841",
+        "139:849",
+        "139:847",
+        "139:840",
+        "139:864",
+        "139:865",
+        "139:869",
+        "138:702",
+        "139:926",
+        "139:925",
+        "139:900",
+        "139:908",
+        "139:906",
+        "139:899",
+        "139:923",
+        "139:924",
+        "139:928",
+        "138:703"
+      ],
+      "removed": [
+        "139:740",
+        "139:715",
+        "139:716",
+        "139:717",
+        "139:729",
+        "139:730",
+        "I139:730;3:16",
+        "I139:730;3:17",
+        "139:733",
+        "139:734",
+        "139:735",
+        "139:746",
+        "139:747",
+        "I139:747;3:7",
+        "I139:747;3:8",
+        "139:750",
+        "139:751",
+        "139:752",
+        "139:753",
+        "139:754",
+        "I139:754;3:19",
+        "I139:754;3:20",
+        "139:757",
+        "139:758",
+        "139:759",
+        "139:805",
+        "139:780",
+        "139:781",
+        "139:782",
+        "139:794",
+        "139:795",
+        "I139:795;3:16",
+        "I139:795;3:17",
+        "139:798",
+        "139:799",
+        "139:800",
+        "139:819",
+        "139:868",
+        "139:843",
+        "139:844",
+        "139:845",
+        "139:857",
+        "139:858",
+        "I139:858;3:16",
+        "I139:858;3:17",
+        "139:861",
+        "139:862",
+        "139:863",
+        "139:878",
+        "139:927",
+        "139:902",
+        "139:903",
+        "139:904",
+        "139:916",
+        "139:917",
+        "I139:917;3:16",
+        "I139:917;3:17",
+        "139:920",
+        "139:921",
+        "139:922",
+        "139:941",
+        "139:942",
+        "I139:942;3:16",
+        "I139:942;3:17",
+        "139:945",
+        "139:946",
+        "139:947"
+      ],
+      "screens": [
+        {
+          "key": "welcome",
+          "id": "138:700",
+          "texts": [
+            {
+              "id": "I139:701;4:358",
+              "text": "AegisOS"
+            },
+            {
+              "id": "I139:701;4:366",
+              "text": "86 %"
+            },
+            {
+              "id": "I139:701;4:367",
+              "text": "09:41"
+            },
+            {
+              "id": "139:714",
+              "text": "AegisOS"
+            },
+            {
+              "id": "139:720",
+              "text": "01"
+            },
+            {
+              "id": "139:721",
+              "text": "Profil"
+            },
+            {
+              "id": "139:723",
+              "text": "02"
+            },
+            {
+              "id": "139:724",
+              "text": "Passwort"
+            },
+            {
+              "id": "139:726",
+              "text": "03"
+            },
+            {
+              "id": "139:727",
+              "text": "Bereit"
+            },
+            {
+              "id": "139:739",
+              "text": "Willkommen"
+            },
+            {
+              "id": "I139:762;137:1003",
+              "text": "Einrichten"
+            }
+          ],
+          "links": [
+            {
+              "id": "139:762",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:701",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:701",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            }
+          ],
+          "overflow": [
+            {
+              "id": "139:718",
+              "name": "Setup steps",
+              "x": 32,
+              "y": 96,
+              "w": 256,
+              "h": 160,
+              "parent": "139:713",
+              "pw": 256,
+              "ph": 560
+            }
+          ]
+        },
+        {
+          "key": "profile",
+          "id": "138:701",
+          "texts": [
+            {
+              "id": "I139:766;4:358",
+              "text": "AegisOS"
+            },
+            {
+              "id": "I139:766;4:366",
+              "text": "86 %"
+            },
+            {
+              "id": "I139:766;4:367",
+              "text": "09:41"
+            },
+            {
+              "id": "139:779",
+              "text": "AegisOS"
+            },
+            {
+              "id": "139:785",
+              "text": "01"
+            },
+            {
+              "id": "139:786",
+              "text": "Profil"
+            },
+            {
+              "id": "139:788",
+              "text": "02"
+            },
+            {
+              "id": "139:789",
+              "text": "Passwort"
+            },
+            {
+              "id": "139:791",
+              "text": "03"
+            },
+            {
+              "id": "139:792",
+              "text": "Bereit"
+            },
+            {
+              "id": "139:804",
+              "text": "Profil"
+            },
+            {
+              "id": "I139:807;137:1025",
+              "text": "SG"
+            },
+            {
+              "id": "I139:809;137:1012",
+              "text": "Name"
+            },
+            {
+              "id": "I139:809;137:1014",
+              "text": "Simeon"
+            },
+            {
+              "id": "139:818",
+              "text": "Rolle: Administrator"
+            },
+            {
+              "id": "I139:822;137:1003",
+              "text": "Weiter"
+            },
+            {
+              "id": "I139:825;137:1007",
+              "text": "Zurück"
+            }
+          ],
+          "links": [
+            {
+              "id": "139:822",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:702",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:702",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "139:825",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:700",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:700",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            }
+          ],
+          "overflow": [
+            {
+              "id": "139:783",
+              "name": "Setup steps",
+              "x": 32,
+              "y": 96,
+              "w": 256,
+              "h": 160,
+              "parent": "139:778",
+              "pw": 256,
+              "ph": 560
+            }
+          ]
+        },
+        {
+          "key": "password",
+          "id": "138:702",
+          "texts": [
+            {
+              "id": "I139:829;4:358",
+              "text": "AegisOS"
+            },
+            {
+              "id": "I139:829;4:366",
+              "text": "86 %"
+            },
+            {
+              "id": "I139:829;4:367",
+              "text": "09:41"
+            },
+            {
+              "id": "139:842",
+              "text": "AegisOS"
+            },
+            {
+              "id": "139:848",
+              "text": "01"
+            },
+            {
+              "id": "139:849",
+              "text": "Profil"
+            },
+            {
+              "id": "139:851",
+              "text": "02"
+            },
+            {
+              "id": "139:852",
+              "text": "Passwort"
+            },
+            {
+              "id": "139:854",
+              "text": "03"
+            },
+            {
+              "id": "139:855",
+              "text": "Bereit"
+            },
+            {
+              "id": "139:867",
+              "text": "Passwort festlegen"
+            },
+            {
+              "id": "I139:870;137:1012",
+              "text": "Passwort"
+            },
+            {
+              "id": "I139:870;137:1014",
+              "text": "••••••••••••"
+            },
+            {
+              "id": "I139:874;137:1012",
+              "text": "Passwort wiederholen"
+            },
+            {
+              "id": "I139:874;137:1014",
+              "text": "••••••••••••"
+            },
+            {
+              "id": "I139:881;137:1003",
+              "text": "Konto einrichten"
+            },
+            {
+              "id": "I139:884;137:1007",
+              "text": "Zurück"
+            }
+          ],
+          "links": [
+            {
+              "id": "139:881",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:703",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:703",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "139:884",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:701",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:701",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            }
+          ],
+          "overflow": [
+            {
+              "id": "139:846",
+              "name": "Setup steps",
+              "x": 32,
+              "y": 96,
+              "w": 256,
+              "h": 160,
+              "parent": "139:841",
+              "pw": 256,
+              "ph": 560
+            }
+          ]
+        },
+        {
+          "key": "ready",
+          "id": "138:703",
+          "texts": [
+            {
+              "id": "I139:888;4:358",
+              "text": "AegisOS"
+            },
+            {
+              "id": "I139:888;4:366",
+              "text": "86 %"
+            },
+            {
+              "id": "I139:888;4:367",
+              "text": "09:41"
+            },
+            {
+              "id": "139:901",
+              "text": "AegisOS"
+            },
+            {
+              "id": "139:907",
+              "text": "01"
+            },
+            {
+              "id": "139:908",
+              "text": "Profil"
+            },
+            {
+              "id": "139:910",
+              "text": "02"
+            },
+            {
+              "id": "139:911",
+              "text": "Passwort"
+            },
+            {
+              "id": "139:913",
+              "text": "03"
+            },
+            {
+              "id": "139:914",
+              "text": "Bereit"
+            },
+            {
+              "id": "139:926",
+              "text": "Konto bereit"
+            },
+            {
+              "id": "I139:929;137:1036;137:1025",
+              "text": "SG"
+            },
+            {
+              "id": "I139:929;137:1039",
+              "text": "Simeon"
+            },
+            {
+              "id": "I139:929;137:1040",
+              "text": "Administrator"
+            },
+            {
+              "id": "I139:950;137:1003",
+              "text": "Zur Anmeldung"
+            }
+          ],
+          "links": [
+            {
+              "id": "139:950",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:704",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:704",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            }
+          ],
+          "overflow": [
+            {
+              "id": "139:905",
+              "name": "Setup steps",
+              "x": 32,
+              "y": 96,
+              "w": 256,
+              "h": 160,
+              "parent": "139:900",
+              "pw": 256,
+              "ph": 560
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "device": "tablet",
+      "created": [],
+      "mutated": [
+        "140:1419",
+        "140:1418",
+        "140:1393",
+        "140:1401",
+        "140:1399",
+        "140:1392",
+        "140:1398",
+        "140:1402",
+        "140:1405",
+        "140:1416",
+        "140:1417",
+        "140:1421",
+        "138:717",
+        "140:1484",
+        "140:1483",
+        "140:1458",
+        "140:1466",
+        "140:1464",
+        "140:1457",
+        "140:1463",
+        "140:1467",
+        "140:1470",
+        "140:1481",
+        "140:1482",
+        "140:1489",
+        "140:1498",
+        "140:1497",
+        "140:1493",
+        "138:718",
+        "140:1486",
+        "140:1547",
+        "140:1546",
+        "140:1521",
+        "140:1529",
+        "140:1527",
+        "140:1520",
+        "140:1526",
+        "140:1530",
+        "140:1533",
+        "140:1544",
+        "140:1545",
+        "140:1549",
+        "138:719",
+        "140:1606",
+        "140:1605",
+        "140:1580",
+        "140:1588",
+        "140:1586",
+        "140:1579",
+        "140:1585",
+        "140:1589",
+        "140:1592",
+        "140:1603",
+        "140:1604",
+        "140:1608",
+        "138:720"
+      ],
+      "removed": [
+        "140:1420",
+        "140:1395",
+        "140:1396",
+        "140:1397",
+        "140:1409",
+        "140:1410",
+        "I140:1410;3:16",
+        "I140:1410;3:17",
+        "140:1413",
+        "140:1414",
+        "140:1415",
+        "140:1426",
+        "140:1427",
+        "I140:1427;3:7",
+        "I140:1427;3:8",
+        "140:1430",
+        "140:1431",
+        "140:1432",
+        "140:1433",
+        "140:1434",
+        "I140:1434;3:19",
+        "I140:1434;3:20",
+        "140:1437",
+        "140:1438",
+        "140:1439",
+        "140:1485",
+        "140:1460",
+        "140:1461",
+        "140:1462",
+        "140:1474",
+        "140:1475",
+        "I140:1475;3:16",
+        "I140:1475;3:17",
+        "140:1478",
+        "140:1479",
+        "140:1480",
+        "140:1499",
+        "140:1548",
+        "140:1523",
+        "140:1524",
+        "140:1525",
+        "140:1537",
+        "140:1538",
+        "I140:1538;3:16",
+        "I140:1538;3:17",
+        "140:1541",
+        "140:1542",
+        "140:1543",
+        "140:1558",
+        "140:1607",
+        "140:1582",
+        "140:1583",
+        "140:1584",
+        "140:1596",
+        "140:1597",
+        "I140:1597;3:16",
+        "I140:1597;3:17",
+        "140:1600",
+        "140:1601",
+        "140:1602",
+        "140:1618",
+        "140:1619",
+        "I140:1619;3:16",
+        "I140:1619;3:17",
+        "140:1622",
+        "140:1623",
+        "140:1624"
+      ],
+      "screens": [
+        {
+          "key": "welcome",
+          "id": "138:717",
+          "texts": [
+            {
+              "id": "I140:1381;4:358",
+              "text": "AegisOS"
+            },
+            {
+              "id": "I140:1381;4:366",
+              "text": "86 %"
+            },
+            {
+              "id": "I140:1381;4:367",
+              "text": "09:41"
+            },
+            {
+              "id": "140:1394",
+              "text": "AegisOS"
+            },
+            {
+              "id": "140:1400",
+              "text": "01"
+            },
+            {
+              "id": "140:1401",
+              "text": "Profil"
+            },
+            {
+              "id": "140:1403",
+              "text": "02"
+            },
+            {
+              "id": "140:1404",
+              "text": "Passwort"
+            },
+            {
+              "id": "140:1406",
+              "text": "03"
+            },
+            {
+              "id": "140:1407",
+              "text": "Bereit"
+            },
+            {
+              "id": "140:1419",
+              "text": "Willkommen"
+            },
+            {
+              "id": "I140:1442;137:1003",
+              "text": "Einrichten"
+            }
+          ],
+          "links": [
+            {
+              "id": "140:1442",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:718",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:718",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            }
+          ],
+          "overflow": []
+        },
+        {
+          "key": "profile",
+          "id": "138:718",
+          "texts": [
+            {
+              "id": "I140:1446;4:358",
+              "text": "AegisOS"
+            },
+            {
+              "id": "I140:1446;4:366",
+              "text": "86 %"
+            },
+            {
+              "id": "I140:1446;4:367",
+              "text": "09:41"
+            },
+            {
+              "id": "140:1459",
+              "text": "AegisOS"
+            },
+            {
+              "id": "140:1465",
+              "text": "01"
+            },
+            {
+              "id": "140:1466",
+              "text": "Profil"
+            },
+            {
+              "id": "140:1468",
+              "text": "02"
+            },
+            {
+              "id": "140:1469",
+              "text": "Passwort"
+            },
+            {
+              "id": "140:1471",
+              "text": "03"
+            },
+            {
+              "id": "140:1472",
+              "text": "Bereit"
+            },
+            {
+              "id": "140:1484",
+              "text": "Profil"
+            },
+            {
+              "id": "I140:1487;137:1025",
+              "text": "SG"
+            },
+            {
+              "id": "I140:1489;137:1012",
+              "text": "Name"
+            },
+            {
+              "id": "I140:1489;137:1014",
+              "text": "Simeon"
+            },
+            {
+              "id": "140:1498",
+              "text": "Rolle: Administrator"
+            },
+            {
+              "id": "I140:1502;137:1003",
+              "text": "Weiter"
+            },
+            {
+              "id": "I140:1505;137:1007",
+              "text": "Zurück"
+            }
+          ],
+          "links": [
+            {
+              "id": "140:1502",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:719",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:719",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "140:1505",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:717",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:717",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            }
+          ],
+          "overflow": []
+        },
+        {
+          "key": "password",
+          "id": "138:719",
+          "texts": [
+            {
+              "id": "I140:1509;4:358",
+              "text": "AegisOS"
+            },
+            {
+              "id": "I140:1509;4:366",
+              "text": "86 %"
+            },
+            {
+              "id": "I140:1509;4:367",
+              "text": "09:41"
+            },
+            {
+              "id": "140:1522",
+              "text": "AegisOS"
+            },
+            {
+              "id": "140:1528",
+              "text": "01"
+            },
+            {
+              "id": "140:1529",
+              "text": "Profil"
+            },
+            {
+              "id": "140:1531",
+              "text": "02"
+            },
+            {
+              "id": "140:1532",
+              "text": "Passwort"
+            },
+            {
+              "id": "140:1534",
+              "text": "03"
+            },
+            {
+              "id": "140:1535",
+              "text": "Bereit"
+            },
+            {
+              "id": "140:1547",
+              "text": "Passwort festlegen"
+            },
+            {
+              "id": "I140:1550;137:1012",
+              "text": "Passwort"
+            },
+            {
+              "id": "I140:1550;137:1014",
+              "text": "••••••••••••"
+            },
+            {
+              "id": "I140:1554;137:1012",
+              "text": "Passwort wiederholen"
+            },
+            {
+              "id": "I140:1554;137:1014",
+              "text": "••••••••••••"
+            },
+            {
+              "id": "I140:1561;137:1003",
+              "text": "Konto einrichten"
+            },
+            {
+              "id": "I140:1564;137:1007",
+              "text": "Zurück"
+            }
+          ],
+          "links": [
+            {
+              "id": "140:1561",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:720",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:720",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "140:1564",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:718",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:718",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            }
+          ],
+          "overflow": []
+        },
+        {
+          "key": "ready",
+          "id": "138:720",
+          "texts": [
+            {
+              "id": "I140:1568;4:358",
+              "text": "AegisOS"
+            },
+            {
+              "id": "I140:1568;4:366",
+              "text": "86 %"
+            },
+            {
+              "id": "I140:1568;4:367",
+              "text": "09:41"
+            },
+            {
+              "id": "140:1581",
+              "text": "AegisOS"
+            },
+            {
+              "id": "140:1587",
+              "text": "01"
+            },
+            {
+              "id": "140:1588",
+              "text": "Profil"
+            },
+            {
+              "id": "140:1590",
+              "text": "02"
+            },
+            {
+              "id": "140:1591",
+              "text": "Passwort"
+            },
+            {
+              "id": "140:1593",
+              "text": "03"
+            },
+            {
+              "id": "140:1594",
+              "text": "Bereit"
+            },
+            {
+              "id": "140:1606",
+              "text": "Konto bereit"
+            },
+            {
+              "id": "I140:1609;137:1036;137:1025",
+              "text": "SG"
+            },
+            {
+              "id": "I140:1609;137:1039",
+              "text": "Simeon"
+            },
+            {
+              "id": "I140:1609;137:1040",
+              "text": "Administrator"
+            },
+            {
+              "id": "I140:1627;137:1003",
+              "text": "Zur Anmeldung"
+            }
+          ],
+          "links": [
+            {
+              "id": "140:1627",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:721",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:721",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            }
+          ],
+          "overflow": []
+        }
+      ]
+    },
+    {
+      "device": "phone",
+      "created": [],
+      "mutated": [
+        "139:1649",
+        "139:1648",
+        "139:1641",
+        "139:1651",
+        "138:734",
+        "139:1691",
+        "139:1690",
+        "139:1696",
+        "139:1705",
+        "139:1704",
+        "139:1700",
+        "138:735",
+        "139:1693",
+        "139:1731",
+        "139:1730",
+        "139:1733",
+        "138:736",
+        "139:1767",
+        "139:1766",
+        "139:1769",
+        "138:737"
+      ],
+      "removed": [
+        "139:1650",
+        "139:1644",
+        "139:1656",
+        "139:1657",
+        "I139:1657;3:7",
+        "I139:1657;3:8",
+        "139:1660",
+        "139:1661",
+        "139:1662",
+        "139:1663",
+        "139:1664",
+        "I139:1664;3:19",
+        "I139:1664;3:20",
+        "139:1667",
+        "139:1668",
+        "139:1669",
+        "139:1692",
+        "139:1706",
+        "139:1732",
+        "139:1742",
+        "139:1768",
+        "139:1779",
+        "139:1780",
+        "I139:1780;3:16",
+        "I139:1780;3:17",
+        "139:1783",
+        "139:1784",
+        "139:1785"
+      ],
+      "screens": [
+        {
+          "key": "welcome",
+          "id": "138:734",
+          "texts": [
+            {
+              "id": "I139:1629;60:1008",
+              "text": "09:41"
+            },
+            {
+              "id": "139:1642",
+              "text": "AegisOS"
+            },
+            {
+              "id": "139:1649",
+              "text": "Willkommen"
+            },
+            {
+              "id": "I139:1672;137:1003",
+              "text": "Einrichten"
+            }
+          ],
+          "links": [
+            {
+              "id": "139:1672",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:735",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:735",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            }
+          ],
+          "overflow": []
+        },
+        {
+          "key": "profile",
+          "id": "138:735",
+          "texts": [
+            {
+              "id": "I139:1675;60:1008",
+              "text": "09:41"
+            },
+            {
+              "id": "139:1684",
+              "text": "AegisOS"
+            },
+            {
+              "id": "139:1686",
+              "text": "1 / 3"
+            },
+            {
+              "id": "139:1691",
+              "text": "Profil"
+            },
+            {
+              "id": "I139:1694;137:1025",
+              "text": "SG"
+            },
+            {
+              "id": "I139:1696;137:1012",
+              "text": "Name"
+            },
+            {
+              "id": "I139:1696;137:1014",
+              "text": "Simeon"
+            },
+            {
+              "id": "139:1705",
+              "text": "Rolle: Administrator"
+            },
+            {
+              "id": "I139:1709;137:1003",
+              "text": "Weiter"
+            },
+            {
+              "id": "I139:1712;137:1007",
+              "text": "Zurück"
+            }
+          ],
+          "links": [
+            {
+              "id": "139:1709",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:736",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:736",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "139:1712",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:734",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:734",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            }
+          ],
+          "overflow": []
+        },
+        {
+          "key": "password",
+          "id": "138:736",
+          "texts": [
+            {
+              "id": "I139:1715;60:1008",
+              "text": "09:41"
+            },
+            {
+              "id": "139:1724",
+              "text": "AegisOS"
+            },
+            {
+              "id": "139:1726",
+              "text": "2 / 3"
+            },
+            {
+              "id": "139:1731",
+              "text": "Passwort festlegen"
+            },
+            {
+              "id": "I139:1734;137:1012",
+              "text": "Passwort"
+            },
+            {
+              "id": "I139:1734;137:1014",
+              "text": "••••••••••••"
+            },
+            {
+              "id": "I139:1738;137:1012",
+              "text": "Passwort wiederholen"
+            },
+            {
+              "id": "I139:1738;137:1014",
+              "text": "••••••••••••"
+            },
+            {
+              "id": "I139:1745;137:1003",
+              "text": "Konto einrichten"
+            },
+            {
+              "id": "I139:1748;137:1007",
+              "text": "Zurück"
+            }
+          ],
+          "links": [
+            {
+              "id": "139:1745",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:737",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:737",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "139:1748",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:735",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:735",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            }
+          ],
+          "overflow": []
+        },
+        {
+          "key": "ready",
+          "id": "138:737",
+          "texts": [
+            {
+              "id": "I139:1751;60:1008",
+              "text": "09:41"
+            },
+            {
+              "id": "139:1760",
+              "text": "AegisOS"
+            },
+            {
+              "id": "139:1762",
+              "text": "3 / 3"
+            },
+            {
+              "id": "139:1767",
+              "text": "Konto bereit"
+            },
+            {
+              "id": "I139:1770;137:1036;137:1025",
+              "text": "SG"
+            },
+            {
+              "id": "I139:1770;137:1039",
+              "text": "Simeon"
+            },
+            {
+              "id": "I139:1770;137:1040",
+              "text": "Administrator"
+            },
+            {
+              "id": "I139:1788;137:1003",
+              "text": "Zur Anmeldung"
+            }
+          ],
+          "links": [
+            {
+              "id": "139:1788",
+              "reactions": [
+                {
+                  "action": {
+                    "type": "NODE",
+                    "destinationId": "138:738",
+                    "navigation": "NAVIGATE",
+                    "transition": {
+                      "type": "DISSOLVE",
+                      "easing": {
+                        "type": "EASE_OUT"
+                      },
+                      "duration": 0.15000000596046448
+                    },
+                    "resetVideoPosition": false,
+                    "resetScrollPosition": true
+                  },
+                  "actions": [
+                    {
+                      "type": "NODE",
+                      "destinationId": "138:738",
+                      "navigation": "NAVIGATE",
+                      "transition": {
+                        "type": "DISSOLVE",
+                        "easing": {
+                          "type": "EASE_OUT"
+                        },
+                        "duration": 0.15000000596046448
+                      },
+                      "resetVideoPosition": false,
+                      "resetScrollPosition": true
+                    }
+                  ],
+                  "trigger": {
+                    "type": "ON_CLICK"
+                  }
+                }
+              ]
+            }
+          ],
+          "overflow": []
+        }
+      ]
+    }
+  ],
+  "desktopLayoutFix": {
+    "mutated": [
+      "139:718",
+      "139:719",
+      "139:722",
+      "139:725",
+      "139:783",
+      "139:784",
+      "139:787",
+      "139:790",
+      "139:846",
+      "139:847",
+      "139:850",
+      "139:853",
+      "139:905",
+      "139:906",
+      "139:909",
+      "139:912"
+    ]
+  }
+}

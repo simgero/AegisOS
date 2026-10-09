@@ -1,0 +1,512 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/uy85ko",
+    "id": "uy85ko",
+    "slide": 1,
+    "layoutId": "dc383008-0646-47da-938e-15fb66a57b24",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "4ab8b9b1-0f8e-41e4-8e92-18e25668556a",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#F6F7F9",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Rubik"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "dc383008-0646-47da-938e-15fb66a57b24",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "4ab8b9b1-0f8e-41e4-8e92-18e25668556a",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "4ab8b9b1-0f8e-41e4-8e92-18e25668556a",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "image",
+      "scope": "slide",
+      "aid": "im/65sb25cb",
+      "id": "1",
+      "bbox": [
+        760,
+        0,
+        520,
+        720
+      ],
+      "contentType": "image/png",
+      "imageFit": "cover",
+      "asset": {
+        "assetId": "37331a26-31c5-475a-a01e-aeec3df5a7ba",
+        "contentType": "image/png",
+        "byteLength": 1378614
+      }
+    },
+    {
+      "order": 2,
+      "kind": "image",
+      "scope": "slide",
+      "aid": "im/tsjuxkv2",
+      "id": "2",
+      "bbox": [
+        54,
+        28,
+        62,
+        62
+      ],
+      "contentType": "image/png",
+      "imageFit": "contain",
+      "asset": {
+        "assetId": "d334d4c4-0ab7-4e69-a9dd-29858e14dec8",
+        "contentType": "image/png",
+        "byteLength": 337115
+      }
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/hobehorm",
+      "id": "3",
+      "bbox": [
+        128,
+        45,
+        400,
+        32
+      ],
+      "geometry": "rect",
+      "text": "AEGIS OS",
+      "textPreview": "AEGIS OS",
+      "resolvedFontSize": 25,
+      "resolvedTextStyle": {
+        "fontSize": 25,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "AEGIS OS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "AEGIS OS",
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "AEGIS OS",
+              "fontSize": 25,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/mx0vi98z",
+      "id": "4",
+      "bbox": [
+        64,
+        150,
+        720,
+        290
+      ],
+      "geometry": "rect",
+      "text": "Android-Apps.\nGNU/Linux-\nWerkzeuge.",
+      "textPreview": "Android-Apps. | GNU/Linux- | Werkzeuge.",
+      "resolvedFontSize": 80,
+      "resolvedTextStyle": {
+        "fontSize": 80,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Android-Apps."
+          },
+          {
+            "index": 2,
+            "text": "GNU/Linux-"
+          },
+          {
+            "index": 3,
+            "text": "Werkzeuge."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Android-Apps.",
+          "lineSpacingPercent": 98000,
+          "resolvedTextStyle": {
+            "fontSize": 80,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true,
+            "lineSpacing": 0.98
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Android-Apps.",
+              "fontSize": 80,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true,
+              "lineSpacing": 0.98
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "GNU/Linux-",
+          "lineSpacingPercent": 98000,
+          "resolvedTextStyle": {
+            "fontSize": 80,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true,
+            "lineSpacing": 0.98
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "GNU/Linux-",
+              "fontSize": 80,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true,
+              "lineSpacing": 0.98
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 3,
+          "text": "Werkzeuge.",
+          "lineSpacingPercent": 98000,
+          "resolvedTextStyle": {
+            "fontSize": 80,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true,
+            "lineSpacing": 0.98
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Werkzeuge.",
+              "fontSize": 80,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true,
+              "lineSpacing": 0.98
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/7y9wbu9k",
+      "id": "5",
+      "bbox": [
+        68,
+        467,
+        660,
+        98
+      ],
+      "geometry": "rect",
+      "text": "Ein Betriebssystem für\nbeide Softwarewelten.",
+      "textPreview": "Ein Betriebssystem für | beide Softwarewelten.",
+      "resolvedFontSize": 35,
+      "resolvedTextStyle": {
+        "fontSize": 35,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Ein Betriebssystem für"
+          },
+          {
+            "index": 2,
+            "text": "beide Softwarewelten."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Ein Betriebssystem für",
+          "lineSpacingPercent": 106000,
+          "resolvedTextStyle": {
+            "fontSize": 35,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "lineSpacing": 1.06
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Ein Betriebssystem für",
+              "fontSize": 35,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "lineSpacing": 1.06
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "beide Softwarewelten.",
+          "lineSpacingPercent": 106000,
+          "resolvedTextStyle": {
+            "fontSize": 35,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "lineSpacing": 1.06
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "beide Softwarewelten.",
+              "fontSize": 35,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "lineSpacing": 1.06
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/8z2dkzq5",
+      "id": "6",
+      "bbox": [
+        68,
+        615,
+        640,
+        27
+      ],
+      "geometry": "rect",
+      "text": "In Entwicklung",
+      "textPreview": "In Entwicklung",
+      "resolvedFontSize": 19,
+      "resolvedTextStyle": {
+        "fontSize": 19,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "In Entwicklung"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "In Entwicklung",
+          "resolvedTextStyle": {
+            "fontSize": 19,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "In Entwicklung",
+              "fontSize": 19,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/90bed4rq",
+      "id": "7",
+      "bbox": [
+        68,
+        648,
+        640,
+        26
+      ],
+      "geometry": "rect",
+      "text": "Projektstand 28. September 2026",
+      "textPreview": "Projektstand 28. September 2026",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Projektstand 28. September 2026"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Projektstand 28. September 2026",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "typeface": "Rubik",
+            "color": "#58616A"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Projektstand 28. September 2026",
+              "fontSize": 18,
+              "typeface": "Rubik",
+              "color": "#58616A"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

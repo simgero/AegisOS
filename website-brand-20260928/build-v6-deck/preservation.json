@@ -1,0 +1,22 @@
+{
+  "sourcePath": "/Users/simeongerodetti/AegisOS/website-brand-20260928/output-v5/Aegis-OS-Praesentation.pptx",
+  "finalPath": "/Users/simeongerodetti/AegisOS/website-brand-20260928/output-v6/Aegis-OS-Praesentation.pptx",
+  "sourceSha256": "f587ba9caeb384d2e00e51d30e9155a196479361b58e25fb400a4036673a642f",
+  "finalSha256": "9d260229588aabaead13d78d5fc9b1ba2825ee159c8498e5e1d7d576d56ccf5a",
+  "wordmarksRefined": 8,
+  "suffixScale": 0.64,
+  "suffixColor": "616770",
+  "suffixBold": false,
+  "sameBaseline": true,
+  "changedEntries": [
+    "ppt/slides/slide1.xml",
+    "ppt/slides/slide2.xml",
+    "ppt/slides/slide3.xml",
+    "ppt/slides/slide4.xml",
+    "ppt/slides/slide5.xml",
+    "ppt/slides/slide6.xml",
+    "ppt/slides/slide7.xml",
+    "ppt/slides/slide8.xml"
+  ],
+  "byteIdenticalOtherEntryCount": 45
+}

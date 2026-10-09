@@ -1,0 +1,23 @@
+{
+  "name": "ægis.os",
+  "version": 6,
+  "colors": {
+    "background": "#F6F7F9",
+    "text": "#171C23",
+    "secondary": "#616770",
+    "accent": "#C4F15A",
+    "night": "#192128",
+    "line": "#D9DDE2"
+  },
+  "fontFamily": "Arial, Helvetica, sans-serif",
+  "positioning": "Android-Apps. GNU/Linux-Werkzeuge. Ein System.",
+  "symbol": "Dreiteiliger Schild mit zentralem Dreieck-Core",
+  "wordmark": "ægis.os",
+  "wordmarkSuffix": {
+    "text": ".os",
+    "sizePx": 12,
+    "weight": 500,
+    "color": "#616770",
+    "alignment": "baseline"
+  }
+}

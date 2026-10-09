@@ -1,0 +1,913 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/7a8i2t",
+    "id": "7a8i2t",
+    "slide": 8,
+    "layoutId": "d19ca93a-ad95-490d-9ff9-fc43be54e17a",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "b9b7fd88-9138-4500-a2e8-3eca0b47e7a5",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#161B22",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Rubik"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "d19ca93a-ad95-490d-9ff9-fc43be54e17a",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "b9b7fd88-9138-4500-a2e8-3eca0b47e7a5",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "b9b7fd88-9138-4500-a2e8-3eca0b47e7a5",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/x8b6dwv6",
+      "id": "1",
+      "bbox": [
+        64,
+        39,
+        280,
+        32
+      ],
+      "geometry": "rect",
+      "text": "AEGIS OS",
+      "textPreview": "AEGIS OS",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "fontSize": 21,
+        "typeface": "Rubik",
+        "color": "#F6F7F9",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "AEGIS OS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "AEGIS OS",
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Rubik",
+            "color": "#F6F7F9",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "AEGIS OS",
+              "fontSize": 21,
+              "typeface": "Rubik",
+              "color": "#F6F7F9",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/a5kn2hcv",
+      "id": "2",
+      "bbox": [
+        700,
+        41,
+        516,
+        28
+      ],
+      "geometry": "rect",
+      "text": "Für Entwickler und frühe Anwender",
+      "textPreview": "Für Entwickler und frühe Anwender",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#B9C1C9",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Für Entwickler und frühe Anwender"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Für Entwickler und frühe Anwender",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#B9C1C9",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Für Entwickler und frühe Anwender",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#B9C1C9",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/b6tobmdg",
+      "id": "3",
+      "bbox": [
+        1146,
+        661,
+        70,
+        26
+      ],
+      "geometry": "rect",
+      "text": "08",
+      "textPreview": "08",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#B9C1C9",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "08"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "08",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#B9C1C9",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "08",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#B9C1C9",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/o3250rup",
+      "id": "4",
+      "bbox": [
+        64,
+        122,
+        1152,
+        86
+      ],
+      "geometry": "rect",
+      "text": "Mitwirken an Aegis OS",
+      "textPreview": "Mitwirken an Aegis OS",
+      "resolvedFontSize": 63,
+      "resolvedTextStyle": {
+        "fontSize": 63,
+        "typeface": "Rubik",
+        "color": "#F6F7F9",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Mitwirken an Aegis OS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Mitwirken an Aegis OS",
+          "resolvedTextStyle": {
+            "fontSize": 63,
+            "typeface": "Rubik",
+            "color": "#F6F7F9",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Mitwirken an Aegis OS",
+              "fontSize": 63,
+              "typeface": "Rubik",
+              "color": "#F6F7F9",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/p4b69wva",
+      "id": "5",
+      "bbox": [
+        68,
+        303,
+        589,
+        176
+      ],
+      "geometry": "rect",
+      "text": "Die Verbindung\nentsteht im System.",
+      "textPreview": "Die Verbindung | entsteht im System.",
+      "resolvedFontSize": 54,
+      "resolvedTextStyle": {
+        "fontSize": 54,
+        "typeface": "Rubik",
+        "color": "#C4F15A",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Die Verbindung"
+          },
+          {
+            "index": 2,
+            "text": "entsteht im System."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Die Verbindung",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 54,
+            "typeface": "Rubik",
+            "color": "#C4F15A",
+            "bold": true,
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Die Verbindung",
+              "fontSize": 54,
+              "typeface": "Rubik",
+              "color": "#C4F15A",
+              "bold": true,
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "entsteht im System.",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 54,
+            "typeface": "Rubik",
+            "color": "#C4F15A",
+            "bold": true,
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "entsteht im System.",
+              "fontSize": 54,
+              "typeface": "Rubik",
+              "color": "#C4F15A",
+              "bold": true,
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/210nyhcj",
+      "id": "6",
+      "bbox": [
+        68,
+        510,
+        565,
+        125
+      ],
+      "geometry": "rect",
+      "text": "Der nächste Meilenstein ist eine\nnachweisbar laufende GNU-Runtime\ninnerhalb von AOSP.",
+      "textPreview": "Der nächste Meilenstein ist eine | nachweisbar laufende GNU-Runtime | innerhalb von AOSP.",
+      "resolvedFontSize": 28,
+      "resolvedTextStyle": {
+        "fontSize": 28,
+        "typeface": "Rubik",
+        "color": "#B9C1C9",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Der nächste Meilenstein ist eine"
+          },
+          {
+            "index": 2,
+            "text": "nachweisbar laufende GNU-Runtime"
+          },
+          {
+            "index": 3,
+            "text": "innerhalb von AOSP."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Der nächste Meilenstein ist eine",
+          "lineSpacingPercent": 112000,
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Rubik",
+            "color": "#B9C1C9",
+            "lineSpacing": 1.12
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Der nächste Meilenstein ist eine",
+              "fontSize": 28,
+              "typeface": "Rubik",
+              "color": "#B9C1C9",
+              "lineSpacing": 1.12
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "nachweisbar laufende GNU-Runtime",
+          "lineSpacingPercent": 112000,
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Rubik",
+            "color": "#B9C1C9",
+            "lineSpacing": 1.12
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "nachweisbar laufende GNU-Runtime",
+              "fontSize": 28,
+              "typeface": "Rubik",
+              "color": "#B9C1C9",
+              "lineSpacing": 1.12
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 3,
+          "text": "innerhalb von AOSP.",
+          "lineSpacingPercent": 112000,
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Rubik",
+            "color": "#B9C1C9",
+            "lineSpacing": 1.12
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "innerhalb von AOSP.",
+              "fontSize": 28,
+              "typeface": "Rubik",
+              "color": "#B9C1C9",
+              "lineSpacing": 1.12
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/n2to7md4",
+      "id": "7",
+      "bbox": [
+        727,
+        293,
+        489,
+        43
+      ],
+      "geometry": "rect",
+      "text": "AOSP und Kernel",
+      "textPreview": "AOSP und Kernel",
+      "resolvedFontSize": 31,
+      "resolvedTextStyle": {
+        "fontSize": 31,
+        "typeface": "Rubik",
+        "color": "#F6F7F9",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "AOSP und Kernel"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "AOSP und Kernel",
+          "resolvedTextStyle": {
+            "fontSize": 31,
+            "typeface": "Rubik",
+            "color": "#F6F7F9",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "AOSP und Kernel",
+              "fontSize": 31,
+              "typeface": "Rubik",
+              "color": "#F6F7F9",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/gfi5w7ut",
+      "id": "8",
+      "bbox": [
+        727,
+        345,
+        489,
+        80
+      ],
+      "geometry": "rect",
+      "text": "Produktintegration, Namespaces\nund Sicherheitsrichtlinien.",
+      "textPreview": "Produktintegration, Namespaces | und Sicherheitsrichtlinien.",
+      "resolvedFontSize": 25,
+      "resolvedTextStyle": {
+        "fontSize": 25,
+        "typeface": "Rubik",
+        "color": "#B9C1C9",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Produktintegration, Namespaces"
+          },
+          {
+            "index": 2,
+            "text": "und Sicherheitsrichtlinien."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Produktintegration, Namespaces",
+          "lineSpacingPercent": 113000,
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "Rubik",
+            "color": "#B9C1C9",
+            "lineSpacing": 1.13
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Produktintegration, Namespaces",
+              "fontSize": 25,
+              "typeface": "Rubik",
+              "color": "#B9C1C9",
+              "lineSpacing": 1.13
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "und Sicherheitsrichtlinien.",
+          "lineSpacingPercent": 113000,
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "Rubik",
+            "color": "#B9C1C9",
+            "lineSpacing": 1.13
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "und Sicherheitsrichtlinien.",
+              "fontSize": 25,
+              "typeface": "Rubik",
+              "color": "#B9C1C9",
+              "lineSpacing": 1.13
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/1gr65cve",
+      "id": "9",
+      "bbox": [
+        727,
+        453,
+        489,
+        43
+      ],
+      "geometry": "rect",
+      "text": "GNU/Linux und Pakete",
+      "textPreview": "GNU/Linux und Pakete",
+      "resolvedFontSize": 31,
+      "resolvedTextStyle": {
+        "fontSize": 31,
+        "typeface": "Rubik",
+        "color": "#F6F7F9",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "GNU/Linux und Pakete"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "GNU/Linux und Pakete",
+          "resolvedTextStyle": {
+            "fontSize": 31,
+            "typeface": "Rubik",
+            "color": "#F6F7F9",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "GNU/Linux und Pakete",
+              "fontSize": 31,
+              "typeface": "Rubik",
+              "color": "#F6F7F9",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/9c3y5ov6",
+      "id": "10",
+      "bbox": [
+        727,
+        505,
+        489,
+        81
+      ],
+      "geometry": "rect",
+      "text": "Runtime-Lebenszyklus, Paketkonsistenz\nund reproduzierbare Systemtests.",
+      "textPreview": "Runtime-Lebenszyklus, Paketkonsistenz | und reproduzierbare Systemtests.",
+      "resolvedFontSize": 25,
+      "resolvedTextStyle": {
+        "fontSize": 25,
+        "typeface": "Rubik",
+        "color": "#B9C1C9",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Runtime-Lebenszyklus, Paketkonsistenz"
+          },
+          {
+            "index": 2,
+            "text": "und reproduzierbare Systemtests."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Runtime-Lebenszyklus, Paketkonsistenz",
+          "lineSpacingPercent": 113000,
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "Rubik",
+            "color": "#B9C1C9",
+            "lineSpacing": 1.13
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Runtime-Lebenszyklus, Paketkonsistenz",
+              "fontSize": 25,
+              "typeface": "Rubik",
+              "color": "#B9C1C9",
+              "lineSpacing": 1.13
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "und reproduzierbare Systemtests.",
+          "lineSpacingPercent": 113000,
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "Rubik",
+            "color": "#B9C1C9",
+            "lineSpacing": 1.13
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "und reproduzierbare Systemtests.",
+              "fontSize": 25,
+              "typeface": "Rubik",
+              "color": "#B9C1C9",
+              "lineSpacing": 1.13
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/8buxcjel",
+      "id": "11",
+      "bbox": [
+        727,
+        631,
+        489,
+        35
+      ],
+      "geometry": "rect",
+      "text": "github.com/simgero/AegisOS",
+      "textPreview": "github.com/simgero/AegisOS",
+      "resolvedFontSize": 23,
+      "resolvedTextStyle": {
+        "fontSize": 23,
+        "typeface": "Rubik",
+        "color": "#C4F15A",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "github.com/simgero/AegisOS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "github.com/simgero/AegisOS",
+          "resolvedTextStyle": {
+            "fontSize": 23,
+            "typeface": "Rubik",
+            "color": "#C4F15A",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "github.com/simgero/AegisOS",
+              "fontSize": 23,
+              "typeface": "Rubik",
+              "color": "#C4F15A",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

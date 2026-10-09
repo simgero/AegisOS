@@ -1,0 +1,74 @@
+{
+  "checks": [
+    {
+      "viewport": "desktop",
+      "dimensions": [
+        1440,
+        1000
+      ],
+      "scroll_width": 1440,
+      "page_height": 6841,
+      "javascript_errors": [],
+      "external_requests": [],
+      "profile_switch": "passed",
+      "roadmap_mouse_keyboard": "passed",
+      "faq": "passed",
+      "dialogs": "passed",
+      "download": "passed",
+      "mobile_navigation": "n/a"
+    },
+    {
+      "viewport": "mobile",
+      "dimensions": [
+        390,
+        844
+      ],
+      "scroll_width": 390,
+      "page_height": 7748,
+      "javascript_errors": [],
+      "external_requests": [],
+      "profile_switch": "passed",
+      "roadmap_mouse_keyboard": "passed",
+      "faq": "passed",
+      "dialogs": "passed",
+      "download": "passed",
+      "mobile_navigation": "passed"
+    },
+    {
+      "viewport": "tablet",
+      "dimensions": [
+        768,
+        1024
+      ],
+      "scroll_width": 768,
+      "page_height": 5873,
+      "javascript_errors": [],
+      "external_requests": [],
+      "profile_switch": "passed",
+      "roadmap_mouse_keyboard": "passed",
+      "faq": "passed",
+      "dialogs": "passed",
+      "download": "passed",
+      "mobile_navigation": "n/a"
+    },
+    {
+      "viewport": "small-mobile",
+      "dimensions": [
+        320,
+        750
+      ],
+      "scroll_width": 320,
+      "page_height": 8022,
+      "javascript_errors": [],
+      "external_requests": [],
+      "profile_switch": "passed",
+      "roadmap_mouse_keyboard": "passed",
+      "faq": "passed",
+      "dialogs": "passed",
+      "download": "passed",
+      "mobile_navigation": "passed"
+    }
+  ],
+  "no_javascript_reading": "passed",
+  "reduced_motion": "passed"
+}

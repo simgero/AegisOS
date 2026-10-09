@@ -1,0 +1,37 @@
+{
+  "fileKey": "4R1EFUDlQC38OPNTUx51VE",
+  "component": "3:127",
+  "glyphSize": 12,
+  "iconFrame": 16,
+  "cell": {
+    "width": 32,
+    "height": 48
+  },
+  "group": {
+    "width": 112,
+    "height": 48,
+    "paddingHorizontal": 8
+  },
+  "triangleOffsetX": -2,
+  "mutatedNodeIds": [
+    "3:127",
+    "3:128",
+    "3:132",
+    "3:136",
+    "31:724",
+    "31:725",
+    "31:726",
+    "31:727",
+    "31:728",
+    "31:729",
+    "31:730",
+    "31:731",
+    "31:732"
+  ],
+  "verification": [
+    {
+      "type": "text",
+      "text": "{\"verification\":[{\"window\":\"5:17\",\"controls\":[{\"id\":\"I5:17;4:53\",\"width\":112,\"height\":48,\"glyphs\":[{\"name\":\"Vector\",\"width\":12,\"height\":12,\"absoluteBoundingBox\":{\"x\":498,\"y\":306,\"width\":12,\"height\":12}},{\"name\":\"Vector\",\"width\":12,\"height\":12,\"absoluteBoundingBox\":{\"x\":528,\"y\":306,\"width\":12,\"height\":12}},{\"name\":\"Vector\",\"width\":12,\"height\":12,\"absoluteBoundingBox\":{\"x\":562,\"y\":306,\"width\":12,\"height\":12}}]}]},{\"window\":\"5:350\",\"controls\":[{\"id\":\"I5:350;31:755\",\"width\":112,\"height\":48,\"glyphs\":[{\"name\":\"Vector\",\"width\":12,\"height\":12,\"absoluteBoundingBox\":{\"x\":2290,\"y\":306,\"width\":12,\"height\":12}},{\"name\":\"Vector\",\"width\":12,\"height\":12,\"absoluteBoundingBox\":{\"x\":2320,\"y\":306,\"width\":12,\"height\":12}},{\"name\":\"Vector\",\"width\":12,\"height\":12,\"absoluteBoundingBox\":{\"x\":2354,\"y\":306,\"width\":12,\"height\":12}}]}]}]}"
+    }
+  ]
+}

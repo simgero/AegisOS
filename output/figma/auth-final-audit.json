@@ -1,0 +1,548 @@
+[
+  {
+    "device": "desktop",
+    "screens": [
+      {
+        "key": "welcome",
+        "id": "138:700",
+        "name": "01 · Willkommen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "profile",
+        "id": "138:701",
+        "name": "02 · Dein Profil",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "password",
+        "id": "138:702",
+        "name": "03 · Passwort festlegen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "ready",
+        "id": "138:703",
+        "name": "04 · Konto bereit",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "first_login",
+        "id": "138:704",
+        "name": "05 · Erste Anmeldung",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "account_single",
+        "id": "138:705",
+        "name": "06 · Dein Konto",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "admin",
+        "id": "138:706",
+        "name": "08 · Administrator bestätigen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "new_user",
+        "id": "138:707",
+        "name": "07 · Benutzer hinzufügen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "added",
+        "id": "138:708",
+        "name": "09 · Benutzer angelegt",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "accounts",
+        "id": "138:709",
+        "name": "10 · Benutzer und Sitzungen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "users",
+        "id": "138:710",
+        "name": "11 · Benutzer auswählen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "login_simeon",
+        "id": "138:711",
+        "name": "12 · Simeon anmelden",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "login_maya",
+        "id": "138:712",
+        "name": "13 · Maya anmelden",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "maya_session",
+        "id": "138:713",
+        "name": "14 · Maya · Sitzung",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "locked",
+        "id": "138:714",
+        "name": "15 · Sitzung gesperrt",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "error",
+        "id": "138:715",
+        "name": "16 · Passwortfehler",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "throttled",
+        "id": "138:716",
+        "name": "17 · Kurz warten",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      }
+    ],
+    "links": 32,
+    "accountNote": "Beim Benutzerwechsel kann deine Sitzung im Hintergrund weiterlaufen.",
+    "flowStarts": [
+      {
+        "nodeId": "138:700",
+        "name": "Erster Start"
+      },
+      {
+        "nodeId": "138:710",
+        "name": "Login · Multiuser"
+      },
+      {
+        "nodeId": "138:705",
+        "name": "Benutzer hinzufügen"
+      },
+      {
+        "nodeId": "138:715",
+        "name": "Passwortfehler"
+      },
+      {
+        "nodeId": "138:716",
+        "name": "Anmeldesperre"
+      }
+    ]
+  },
+  {
+    "device": "tablet",
+    "screens": [
+      {
+        "key": "welcome",
+        "id": "138:717",
+        "name": "01 · Willkommen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "profile",
+        "id": "138:718",
+        "name": "02 · Dein Profil",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "password",
+        "id": "138:719",
+        "name": "03 · Passwort festlegen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "ready",
+        "id": "138:720",
+        "name": "04 · Konto bereit",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "first_login",
+        "id": "138:721",
+        "name": "05 · Erste Anmeldung",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "account_single",
+        "id": "138:722",
+        "name": "06 · Dein Konto",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "admin",
+        "id": "138:723",
+        "name": "08 · Administrator bestätigen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "new_user",
+        "id": "138:724",
+        "name": "07 · Benutzer hinzufügen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "added",
+        "id": "138:725",
+        "name": "09 · Benutzer angelegt",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "accounts",
+        "id": "138:726",
+        "name": "10 · Benutzer und Sitzungen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "users",
+        "id": "138:727",
+        "name": "11 · Benutzer auswählen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "login_simeon",
+        "id": "138:728",
+        "name": "12 · Simeon anmelden",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "login_maya",
+        "id": "138:729",
+        "name": "13 · Maya anmelden",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "maya_session",
+        "id": "138:730",
+        "name": "14 · Maya · Sitzung",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "locked",
+        "id": "138:731",
+        "name": "15 · Sitzung gesperrt",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "error",
+        "id": "138:732",
+        "name": "16 · Passwortfehler",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "throttled",
+        "id": "138:733",
+        "name": "17 · Kurz warten",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      }
+    ],
+    "links": 32,
+    "accountNote": "Beim Benutzerwechsel kann deine Sitzung im Hintergrund weiterlaufen.",
+    "flowStarts": [
+      {
+        "nodeId": "138:717",
+        "name": "Erster Start"
+      },
+      {
+        "nodeId": "138:727",
+        "name": "Login · Multiuser"
+      },
+      {
+        "nodeId": "138:722",
+        "name": "Benutzer hinzufügen"
+      },
+      {
+        "nodeId": "138:732",
+        "name": "Passwortfehler"
+      },
+      {
+        "nodeId": "138:733",
+        "name": "Anmeldesperre"
+      }
+    ]
+  },
+  {
+    "device": "phone",
+    "screens": [
+      {
+        "key": "welcome",
+        "id": "138:734",
+        "name": "01 · Willkommen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "profile",
+        "id": "138:735",
+        "name": "02 · Dein Profil",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "password",
+        "id": "138:736",
+        "name": "03 · Passwort festlegen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "ready",
+        "id": "138:737",
+        "name": "04 · Konto bereit",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "first_login",
+        "id": "138:738",
+        "name": "05 · Erste Anmeldung",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "account_single",
+        "id": "138:739",
+        "name": "06 · Dein Konto",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "admin",
+        "id": "138:740",
+        "name": "08 · Administrator bestätigen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "new_user",
+        "id": "138:741",
+        "name": "07 · Benutzer hinzufügen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "added",
+        "id": "138:742",
+        "name": "09 · Benutzer angelegt",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "accounts",
+        "id": "138:743",
+        "name": "10 · Benutzer und Sitzungen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "users",
+        "id": "138:744",
+        "name": "11 · Benutzer auswählen",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "login_simeon",
+        "id": "138:745",
+        "name": "12 · Simeon anmelden",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "login_maya",
+        "id": "138:746",
+        "name": "13 · Maya anmelden",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "maya_session",
+        "id": "138:747",
+        "name": "14 · Maya · Sitzung",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "locked",
+        "id": "138:748",
+        "name": "15 · Sitzung gesperrt",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "error",
+        "id": "138:749",
+        "name": "16 · Passwortfehler",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      },
+      {
+        "key": "throttled",
+        "id": "138:750",
+        "name": "17 · Kurz warten",
+        "overflow": [],
+        "invalidLinks": [],
+        "raster": [],
+        "placeholder": false
+      }
+    ],
+    "links": 32,
+    "accountNote": "Beim Benutzerwechsel kann deine Sitzung im Hintergrund weiterlaufen.",
+    "flowStarts": [
+      {
+        "nodeId": "138:734",
+        "name": "Erster Start"
+      },
+      {
+        "nodeId": "138:744",
+        "name": "Login · Multiuser"
+      },
+      {
+        "nodeId": "138:739",
+        "name": "Benutzer hinzufügen"
+      },
+      {
+        "nodeId": "138:749",
+        "name": "Passwortfehler"
+      },
+      {
+        "nodeId": "138:750",
+        "name": "Anmeldesperre"
+      }
+    ]
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "fileKey": "4R1EFUDlQC38OPNTUx51VE",
+  "circle": [
+    8,
+    8
+  ],
+  "triangle": [
+    10,
+    10
+  ],
+  "square": [
+    7,
+    7
+  ],
+  "triangleFrameOffset": [
+    1.3333333333333333,
+    3
+  ],
+  "squareFrameOffset": [
+    4.5,
+    4.5
+  ],
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"mutatedNodeIds\":[\"31:727\",\"31:728\",\"31:729\",\"31:730\",\"31:731\",\"31:732\",\"31:724\",\"3:127\"],\"visibleShapes\":[{\"id\":\"I31:733;31:726\",\"width\":8,\"height\":8,\"absoluteBoundingBox\":{\"x\":740,\"y\":740,\"width\":8,\"height\":8}},{\"id\":\"I31:736;31:729\",\"width\":10,\"height\":10,\"absoluteBoundingBox\":{\"x\":769.3333129882812,\"y\":739,\"width\":10,\"height\":10}},{\"id\":\"I31:739;31:732\",\"width\":7,\"height\":7,\"absoluteBoundingBox\":{\"x\":804.5,\"y\":740.5,\"width\":7,\"height\":7}}],\"group\":{\"width\":112,\"height\":48},\"nominalFilledAreas\":{\"circle\":50.26548245743669,\"triangle\":50,\"square\":49}}"
+      }
+    ],
+    "isError": false
+  }
+}

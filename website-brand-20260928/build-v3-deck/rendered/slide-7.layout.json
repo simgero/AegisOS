@@ -1,0 +1,778 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/3unfvh",
+    "id": "3unfvh",
+    "slide": 7,
+    "layoutId": "d19ca93a-ad95-490d-9ff9-fc43be54e17a",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "b9b7fd88-9138-4500-a2e8-3eca0b47e7a5",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#F6F7F9",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Rubik"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "d19ca93a-ad95-490d-9ff9-fc43be54e17a",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "b9b7fd88-9138-4500-a2e8-3eca0b47e7a5",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "b9b7fd88-9138-4500-a2e8-3eca0b47e7a5",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4j29ozq5",
+      "id": "1",
+      "bbox": [
+        64,
+        39,
+        280,
+        32
+      ],
+      "geometry": "rect",
+      "text": "AEGIS OS",
+      "textPreview": "AEGIS OS",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "fontSize": 21,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "AEGIS OS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "AEGIS OS",
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "AEGIS OS",
+              "fontSize": 21,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/jitsvu9k",
+      "id": "2",
+      "bbox": [
+        700,
+        41,
+        516,
+        28
+      ],
+      "geometry": "rect",
+      "text": "Langfristige Vision",
+      "textPreview": "Langfristige Vision",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Langfristige Vision"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Langfristige Vision",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Langfristige Vision",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "image",
+      "scope": "slide",
+      "aid": "im/n6hor2dk",
+      "id": "3",
+      "bbox": [
+        684,
+        96,
+        596,
+        624
+      ],
+      "contentType": "image/png",
+      "imageFit": "cover",
+      "asset": {
+        "assetId": "02e77900-748b-4772-aaf7-533764578228",
+        "contentType": "image/png",
+        "byteLength": 1378614
+      }
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/t8va14r2",
+      "id": "4",
+      "bbox": [
+        64,
+        121,
+        588,
+        143
+      ],
+      "geometry": "rect",
+      "text": "Ein Fundament\nfür mehrere Geräte",
+      "textPreview": "Ein Fundament | für mehrere Geräte",
+      "resolvedFontSize": 55,
+      "resolvedTextStyle": {
+        "fontSize": 55,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Ein Fundament"
+          },
+          {
+            "index": 2,
+            "text": "für mehrere Geräte"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Ein Fundament",
+          "lineSpacingPercent": 100000,
+          "resolvedTextStyle": {
+            "fontSize": 55,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true,
+            "lineSpacing": 1
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Ein Fundament",
+              "fontSize": 55,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true,
+              "lineSpacing": 1
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "für mehrere Geräte",
+          "lineSpacingPercent": 100000,
+          "resolvedTextStyle": {
+            "fontSize": 55,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true,
+            "lineSpacing": 1
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "für mehrere Geräte",
+              "fontSize": 55,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true,
+              "lineSpacing": 1
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/s7m9szqh",
+      "id": "5",
+      "bbox": [
+        68,
+        333,
+        559,
+        116
+      ],
+      "geometry": "rect",
+      "text": "Smartphone und Tablet.\nNotebook und Desktop.",
+      "textPreview": "Smartphone und Tablet. | Notebook und Desktop.",
+      "resolvedFontSize": 36,
+      "resolvedTextStyle": {
+        "fontSize": 36,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Smartphone und Tablet."
+          },
+          {
+            "index": 2,
+            "text": "Notebook und Desktop."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Smartphone und Tablet.",
+          "lineSpacingPercent": 116000,
+          "resolvedTextStyle": {
+            "fontSize": 36,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "lineSpacing": 1.16
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Smartphone und Tablet.",
+              "fontSize": 36,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "lineSpacing": 1.16
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "Notebook und Desktop.",
+          "lineSpacingPercent": 116000,
+          "resolvedTextStyle": {
+            "fontSize": 36,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "lineSpacing": 1.16
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Notebook und Desktop.",
+              "fontSize": 36,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "lineSpacing": 1.16
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/r6tszu9w",
+      "id": "6",
+      "bbox": [
+        68,
+        481,
+        570,
+        91
+      ],
+      "geometry": "rect",
+      "text": "Ein AOSP-Kern für Android-Apps\nund GNU/Linux-Werkzeuge.",
+      "textPreview": "Ein AOSP-Kern für Android-Apps | und GNU/Linux-Werkzeuge.",
+      "resolvedFontSize": 28,
+      "resolvedTextStyle": {
+        "fontSize": 28,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Ein AOSP-Kern für Android-Apps"
+          },
+          {
+            "index": 2,
+            "text": "und GNU/Linux-Werkzeuge."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Ein AOSP-Kern für Android-Apps",
+          "lineSpacingPercent": 112000,
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "lineSpacing": 1.12
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Ein AOSP-Kern für Android-Apps",
+              "fontSize": 28,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "lineSpacing": 1.12
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "und GNU/Linux-Werkzeuge.",
+          "lineSpacingPercent": 112000,
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "lineSpacing": 1.12
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "und GNU/Linux-Werkzeuge.",
+              "fontSize": 28,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "lineSpacing": 1.12
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/65krq98b",
+      "id": "7",
+      "bbox": [
+        68,
+        585,
+        570,
+        77
+      ],
+      "geometry": "rect",
+      "text": "Oberflächen und Hardwareunterstützung\nsind spätere Entwicklungsaufgaben.",
+      "textPreview": "Oberflächen und Hardwareunterstützung | sind spätere Entwicklungsaufgaben.",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Oberflächen und Hardwareunterstützung"
+          },
+          {
+            "index": 2,
+            "text": "sind spätere Entwicklungsaufgaben."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Oberflächen und Hardwareunterstützung",
+          "lineSpacingPercent": 113000,
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "lineSpacing": 1.13
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Oberflächen und Hardwareunterstützung",
+              "fontSize": 24,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "lineSpacing": 1.13
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "sind spätere Entwicklungsaufgaben.",
+          "lineSpacingPercent": 113000,
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "lineSpacing": 1.13
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "sind spätere Entwicklungsaufgaben.",
+              "fontSize": 24,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "lineSpacing": 1.13
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/9crapkri",
+      "id": "8",
+      "bbox": [
+        737,
+        524,
+        479,
+        113
+      ],
+      "geometry": "rect",
+      "text": "ARM64",
+      "textPreview": "ARM64",
+      "resolvedFontSize": 89,
+      "resolvedTextStyle": {
+        "fontSize": 89,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "ARM64"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "ARM64",
+          "resolvedTextStyle": {
+            "fontSize": 89,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "ARM64",
+              "fontSize": 89,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/8bi9gfqx",
+      "id": "9",
+      "bbox": [
+        755,
+        645,
+        385,
+        30
+      ],
+      "geometry": "rect",
+      "text": "Langfristiges Hardwareziel",
+      "textPreview": "Langfristiges Hardwareziel",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "fontSize": 21,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Langfristiges Hardwareziel"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Langfristiges Hardwareziel",
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Langfristiges Hardwareziel",
+              "fontSize": 21,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ytoj694z",
+      "id": "10",
+      "bbox": [
+        1146,
+        661,
+        70,
+        26
+      ],
+      "geometry": "rect",
+      "text": "07",
+      "textPreview": "07",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "07"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "07",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "07",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

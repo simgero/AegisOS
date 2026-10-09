@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 940" fill="none">
+<defs>
+ <radialGradient id="bg" cx="0" cy="0" r="1" gradientTransform="translate(1035 202) rotate(139) scale(1328 1030)" gradientUnits="userSpaceOnUse"><stop stop-color="#183c5d"/><stop offset=".42" stop-color="#082332"/><stop offset="1" stop-color="#02080f"/></radialGradient>
+ <linearGradient id="ribbon" x1="408" y1="180" x2="969" y2="799" gradientUnits="userSpaceOnUse"><stop stop-color="#001d37"/><stop offset=".26" stop-color="#235d7e"/><stop offset=".42" stop-color="#7ec6d7"/><stop offset=".50" stop-color="#defeff"/><stop offset=".545" stop-color="#79d9ed"/><stop offset=".59" stop-color="#126184"/><stop offset=".77" stop-color="#07253f"/><stop offset="1" stop-color="#00101e"/></linearGradient>
+ <linearGradient id="inside" x1="1162" y1="222" x2="372" y2="711" gradientUnits="userSpaceOnUse"><stop stop-color="#164964"/><stop offset=".35" stop-color="#5ebcc9"/><stop offset=".49" stop-color="#c4ffff"/><stop offset=".54" stop-color="#186586"/><stop offset=".69" stop-color="#061a2e"/><stop offset="1" stop-color="#010c16"/></linearGradient>
+ <linearGradient id="edge" x1="300" y1="294" x2="1322" y2="640" gradientUnits="userSpaceOnUse"><stop stop-color="#195879"/><stop offset=".36" stop-color="#62c8df"/><stop offset=".6" stop-color="#b9fcff"/><stop offset="1" stop-color="#052b49"/></linearGradient>
+ <radialGradient id="glow"><stop stop-color="#4bb0d0" stop-opacity=".3"/><stop offset="1" stop-color="#4bb0d0" stop-opacity="0"/></radialGradient>
+ <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="23"/></filter>
+</defs>
+<path fill="url(#bg)" d="M0 0h1440v940H0z"/>
+<ellipse cx="1040" cy="283" rx="650" ry="520" fill="url(#glow)"/>
+<g transform="rotate(-25 790 470)">
+ <ellipse cx="790" cy="615" rx="536" ry="227" stroke="#000813" stroke-width="99" opacity=".65" filter="url(#shadow)"/>
+ <path d="M181 469c0-196 257-355 575-355s575 159 575 355-257 355-575 355S181 665 181 469Zm177-14c0 98 178 177 398 177s398-79 398-177-178-177-398-177-398 79-398 177Z" fill="url(#ribbon)" fill-rule="evenodd"/>
+ <path d="M181 469c0 196 257 355 575 355s575-159 575-355v65c0 207-257 374-575 374S181 741 181 534v-65Z" fill="url(#inside)"/>
+ <path d="M358 455c0 98 178 177 398 177s398-79 398-177v53c0 88-178 162-398 162s-398-74-398-162v-53Z" fill="url(#inside)"/>
+ <ellipse cx="756" cy="469" rx="575" ry="355" stroke="url(#edge)" stroke-width="2.2"/>
+ <ellipse cx="756" cy="455" rx="398" ry="177" stroke="url(#edge)" stroke-width="1.1" opacity=".8"/>
+</g>
+<path fill="url(#bg)" opacity=".05" d="M0 0h1440v940H0z"/>
+</svg>

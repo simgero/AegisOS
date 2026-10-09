@@ -1,0 +1,8 @@
+Use case: background-extraction
+Asset type: transparent PNG logo for a website header beside a wordmark
+Input image: Image 1 is the approved logo edit target. It is not a loose reference.
+Primary request: Remove only the light background, including every inner negative-space seam and the space surrounding the central triangle, to genuine transparent alpha. Preserve the approved logo geometry EXACTLY.
+Subject and invariants: Exactly three charcoal shield segments surrounding one chartreuse upward-pointing rounded triangle core. Preserve the complete outer silhouette, the top segment with its central inward notch, the two lower curved shield segments, the central vertical separation, every rounded corner, relative proportions, symmetry, and all seam widths. Do not redraw, redesign, stylize, or reinterpret the mark.
+Color palette: Uniform flat charcoal #171C23 for all three shield segments and uniform flat chartreuse #C4F15A for the triangle. Clean antialiased edges. Remove background shading; no gradients or texture inside the logo.
+Composition/framing: Center the logo and crop reasonably close with a modest transparent safety margin of about 7% of logo width around it. Preserve the logo's original aspect ratio and geometry, with no stretching or clipping.
+Constraints: The exterior background and all interior negative spaces must be truly transparent, not white, gray, or a baked-in checkerboard. No lettering, wordmark, additional symbols, stroke, outline, shadow, glow, bevel, or extra artwork. Return exactly one production-ready transparent logo image.

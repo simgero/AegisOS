@@ -1,0 +1,854 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/7h08qw",
+    "id": "7h08qw",
+    "slide": 2,
+    "layoutId": "dc383008-0646-47da-938e-15fb66a57b24",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "4ab8b9b1-0f8e-41e4-8e92-18e25668556a",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#F6F7F9",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Rubik"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "dc383008-0646-47da-938e-15fb66a57b24",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "4ab8b9b1-0f8e-41e4-8e92-18e25668556a",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "4ab8b9b1-0f8e-41e4-8e92-18e25668556a",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/rix0r2lo",
+      "id": "1",
+      "bbox": [
+        64,
+        39,
+        280,
+        32
+      ],
+      "geometry": "rect",
+      "text": "AEGIS OS",
+      "textPreview": "AEGIS OS",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "fontSize": 21,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "AEGIS OS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "AEGIS OS",
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "AEGIS OS",
+              "fontSize": 21,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/sj61k7m9",
+      "id": "2",
+      "bbox": [
+        700,
+        41,
+        516,
+        28
+      ],
+      "geometry": "rect",
+      "text": "Geplanter Einsatz",
+      "textPreview": "Geplanter Einsatz",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Geplanter Einsatz"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Geplanter Einsatz",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Geplanter Einsatz",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/tkzitc3u",
+      "id": "3",
+      "bbox": [
+        1146,
+        661,
+        70,
+        26
+      ],
+      "geometry": "rect",
+      "text": "02",
+      "textPreview": "02",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "right",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "02"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "02",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "02",
+              "fontSize": 17,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/el8jmh4z",
+      "id": "4",
+      "bbox": [
+        64,
+        126,
+        1152,
+        144
+      ],
+      "geometry": "rect",
+      "text": "Android im Alltag\nGNU/Linux bei der Arbeit",
+      "textPreview": "Android im Alltag | GNU/Linux bei der Arbeit",
+      "resolvedFontSize": 56,
+      "resolvedTextStyle": {
+        "fontSize": 56,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Android im Alltag"
+          },
+          {
+            "index": 2,
+            "text": "GNU/Linux bei der Arbeit"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Android im Alltag",
+          "lineSpacingPercent": 102000,
+          "resolvedTextStyle": {
+            "fontSize": 56,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true,
+            "lineSpacing": 1.02
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Android im Alltag",
+              "fontSize": 56,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true,
+              "lineSpacing": 1.02
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "GNU/Linux bei der Arbeit",
+          "lineSpacingPercent": 102000,
+          "resolvedTextStyle": {
+            "fontSize": 56,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true,
+            "lineSpacing": 1.02
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "GNU/Linux bei der Arbeit",
+              "fontSize": 56,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true,
+              "lineSpacing": 1.02
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fmh0vmlk",
+      "id": "5",
+      "bbox": [
+        68,
+        341,
+        510,
+        54
+      ],
+      "geometry": "rect",
+      "text": "Android-Apps",
+      "textPreview": "Android-Apps",
+      "resolvedFontSize": 38,
+      "resolvedTextStyle": {
+        "fontSize": 38,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Android-Apps"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Android-Apps",
+          "resolvedTextStyle": {
+            "fontSize": 38,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Android-Apps",
+              "fontSize": 38,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/gnq1orm5",
+      "id": "6",
+      "bbox": [
+        68,
+        419,
+        515,
+        112
+      ],
+      "geometry": "rect",
+      "text": "Kommunikation, Web und Medien\nmit vertrauten mobilen Anwendungen.",
+      "textPreview": "Kommunikation, Web und Medien | mit vertrauten mobilen Anwendungen.",
+      "resolvedFontSize": 28,
+      "resolvedTextStyle": {
+        "fontSize": 28,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Kommunikation, Web und Medien"
+          },
+          {
+            "index": 2,
+            "text": "mit vertrauten mobilen Anwendungen."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Kommunikation, Web und Medien",
+          "lineSpacingPercent": 115000,
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "lineSpacing": 1.15
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Kommunikation, Web und Medien",
+              "fontSize": 28,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "lineSpacing": 1.15
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "mit vertrauten mobilen Anwendungen.",
+          "lineSpacingPercent": 115000,
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "lineSpacing": 1.15
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "mit vertrauten mobilen Anwendungen.",
+              "fontSize": 28,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "lineSpacing": 1.15
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/1oz2xc3q",
+      "id": "7",
+      "bbox": [
+        598,
+        369,
+        72,
+        88
+      ],
+      "geometry": "rect",
+      "text": "+",
+      "textPreview": "+",
+      "resolvedFontSize": 69,
+      "resolvedTextStyle": {
+        "fontSize": 69,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "center",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "+"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "+",
+          "resolvedTextStyle": {
+            "fontSize": 69,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "+",
+              "fontSize": 69,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/2p8jqh4b",
+      "id": "8",
+      "bbox": [
+        716,
+        341,
+        500,
+        54
+      ],
+      "geometry": "rect",
+      "text": "Bash, apt und glibc",
+      "textPreview": "Bash, apt und glibc",
+      "resolvedFontSize": 38,
+      "resolvedTextStyle": {
+        "fontSize": 38,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "bold": true,
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Bash, apt und glibc"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Bash, apt und glibc",
+          "resolvedTextStyle": {
+            "fontSize": 38,
+            "typeface": "Rubik",
+            "color": "#161B22",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Bash, apt und glibc",
+              "fontSize": 38,
+              "typeface": "Rubik",
+              "color": "#161B22",
+              "bold": true
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/3ahkzmlw",
+      "id": "9",
+      "bbox": [
+        716,
+        419,
+        500,
+        112
+      ],
+      "geometry": "rect",
+      "text": "Skripte ausführen und GNU-Werkzeuge\naus einer Debian-Basis nutzen.",
+      "textPreview": "Skripte ausführen und GNU-Werkzeuge | aus einer Debian-Basis nutzen.",
+      "resolvedFontSize": 28,
+      "resolvedTextStyle": {
+        "fontSize": 28,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Skripte ausführen und GNU-Werkzeuge"
+          },
+          {
+            "index": 2,
+            "text": "aus einer Debian-Basis nutzen."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Skripte ausführen und GNU-Werkzeuge",
+          "lineSpacingPercent": 115000,
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "lineSpacing": 1.15
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Skripte ausführen und GNU-Werkzeuge",
+              "fontSize": 28,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "lineSpacing": 1.15
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "aus einer Debian-Basis nutzen.",
+          "lineSpacingPercent": 115000,
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Rubik",
+            "color": "#58616A",
+            "lineSpacing": 1.15
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "aus einer Debian-Basis nutzen.",
+              "fontSize": 28,
+              "typeface": "Rubik",
+              "color": "#58616A",
+              "lineSpacing": 1.15
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fa1wra14",
+      "id": "10",
+      "bbox": [
+        68,
+        576,
+        1135,
+        42
+      ],
+      "geometry": "rect",
+      "text": "Ziel: beide Softwarewelten auf demselben Gerät nutzen.",
+      "textPreview": "Ziel: beide Softwarewelten auf demselben Gerät nutzen.",
+      "resolvedFontSize": 30,
+      "resolvedTextStyle": {
+        "fontSize": 30,
+        "typeface": "Rubik",
+        "color": "#161B22",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Ziel: beide Softwarewelten auf demselben Gerät nutzen."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Ziel: beide Softwarewelten auf demselben Gerät nutzen.",
+          "resolvedTextStyle": {
+            "fontSize": 30,
+            "typeface": "Rubik",
+            "color": "#161B22"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Ziel: beide Softwarewelten auf demselben Gerät nutzen.",
+              "fontSize": 30,
+              "typeface": "Rubik",
+              "color": "#161B22"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/e9svy5kj",
+      "id": "11",
+      "bbox": [
+        68,
+        638,
+        1080,
+        34
+      ],
+      "geometry": "rect",
+      "text": "Diese Beispiele sind geplant. Konkrete App-Kompatibilität ist noch nicht nachgewiesen.",
+      "textPreview": "Diese Beispiele sind geplant. Konkrete App-Kompatibilität ist noch nicht nachgewiesen.",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "Rubik",
+        "color": "#58616A",
+        "alignment": "left",
+        "wrap": "none",
+        "autoFit": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Diese Beispiele sind geplant. Konkrete App-Kompatibilität ist noch nicht nachgewiesen."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Diese Beispiele sind geplant. Konkrete App-Kompatibilität ist noch nicht nachgewiesen.",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "typeface": "Rubik",
+            "color": "#58616A"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Diese Beispiele sind geplant. Konkrete App-Kompatibilität ist noch nicht nachgewiesen.",
+              "fontSize": 20,
+              "typeface": "Rubik",
+              "color": "#58616A"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

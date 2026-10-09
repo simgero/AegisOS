@@ -1,0 +1,20 @@
+{
+  "fileKey": "4R1EFUDlQC38OPNTUx51VE",
+  "scope": "Refine right-side Privacy content in Standard and Compact settings windows",
+  "discovery": {
+    "codeConnect": "No matching files in workspace; existing Figma components are the source of truth",
+    "components": ["4:18", "4:31", "4:44"],
+    "contentFrames": ["4:125", "31:773"],
+    "variables": "Existing spacing and semantic color tokens reused",
+    "styles": "Existing Manrope Heading, Section, Body, Label and Small strong styles reused",
+    "librarySearch": "Not required: all assets resolved from current file"
+  },
+  "changes": [
+    "Move live privacy status into page heading; hide redundant introductory copy",
+    "Remove list strokes and gray status background",
+    "Keep device access as primary section with stronger row labels",
+    "Move App permissions before the activity history",
+    "Use smaller iconography and a quieter heading for recent access",
+    "Preserve all content, toggles, navigation and outer window structure"
+  ]
+}
